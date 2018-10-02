@@ -252,6 +252,248 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/15/nodejs几种文件路径及path模块/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/15/nodejs几种文件路径及path模块/" itemprop="url">Node.js几种文件路径及path模块</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-15T22:24:49+08:00">
+                2018-07-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>最近在写一篇weex的webpack配置，刚刚踩坑了，weekpack中会用到path模块，而对于这个模块，我想抽离出来看一下，因为这个用到的还是比较多的,喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯，写的不对的地方，评论拍砖，谢谢。</p>
+<h2 id="node中的路径分类"><a href="#node中的路径分类" class="headerlink" title="node中的路径分类"></a>node中的路径分类</h2><p>node中的路径大致分5类，dirname,filename,process.cwd(),./,../,其中前三个都是绝对路径</p>
+<p>我们先来看一个简单点的例子</p>
+<p>假如，我有一个文件的目录结构如下：</p>
+<pre><code>editor/
+  - dist/
+  - src/
+      - task.js
+</code></pre><p>然后我们在task.js文件中写入一下代码</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(__dirname);
+console.log(__filename);
+console.log(process.cwd());
+console.log(path.resolve(&apos;./&apos;));
+</code></pre><p>在editor目录下运行node src/task.js，我们可以看到结果如下：</p>
+<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
+/Users/laihuamin/Documents/richEditor/editor/src/task.js
+/Users/laihuamin/Documents/richEditor/editor
+/Users/laihuamin/Documents/richEditor/editor
+</code></pre><p>然后我们有可以在src目录下运行这个文件，node task.js,运行结果如下：</p>
+<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
+/Users/laihuamin/Documents/richEditor/editor/src/task.js
+/Users/laihuamin/Documents/richEditor/editor/src
+/Users/laihuamin/Documents/richEditor/editor/src
+</code></pre><p>对比两个输出结果，我们可以归纳一下几点：</p>
+<p>1.<strong>dirname:返回的是这个文件所在文件夹的位置<br>2.</strong>filename:你运行命令代表的是文件所在的位置，不管你运行什么命令，都是指向文件<br>3.process.cwd():你运行node命令所在文件夹的位置，比如你在src目录下运行，那么就是输出到src为止，下面的同理。</p>
+<h2 id="path"><a href="#path" class="headerlink" title="path"></a>path</h2><p>讲完前面三个绝对路径，我倒是挺想来聊聊path这个模块的，这个node模块在很多地方都有应用，所以，对于我们来说，掌握他，对我们以后的发展更有利，不用每次看webpack的配置文件还要去查询一下这个api是干什么用的，很影响我们的效率</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fnodejs.org%252Fapi%252Fpath.html" target="_blank" rel="noopener">nodeJS/path</a></p>
+<p>上面那个网站有详细的api，但是我们这里不用都掌握吧，我就讲几个我遇到过的，我觉得webpack等工程配置中会用到的</p>
+<h2 id="path-normalize"><a href="#path-normalize" class="headerlink" title="path.normalize"></a>path.normalize</h2><p>这个方法就是把不规范的路径规范化，比如看下面的例子</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.normalize(&apos;/foo/bar//baz/asdf/quux/..&apos;));
+</code></pre><p>输出结果：</p>
+<pre><code>/foo/bar/baz/asdf
+</code></pre><h2 id="path-join"><a href="#path-join" class="headerlink" title="path.join"></a>path.join</h2><pre><code>const path = require(&apos;path&apos;);
+console.log(path.join(&apos;src&apos;, &apos;task.js&apos;));
+
+const path = require(&apos;path&apos;);
+console.log(path.join(&apos;dist&apos;, &apos;task.js&apos;));
+
+const path = require(&apos;path&apos;);
+console.log(path.join(&apos;&apos;));
+</code></pre><p>这么两个的输出结果是：</p>
+<pre><code>src/task.js
+dist/task.js
+.
+</code></pre><p>他的作用也就显而易见，他有一下几条规则：<br>1.传入的参数是字符串的路径片段，可以是一个，也可以是多个</p>
+<p>2.返回的是一个拼接好的路径，但是根据平台的不同，他会对路径进行不同的规范化，举个例子，Unix系统是”/“，Windows系统是”\“，那么你在两个系统下看到的返回结果就不一样。</p>
+<p>3.如果返回的路径字符串长度为零，那么他会返回一个’.’，代表当前的文件夹。</p>
+<p>4.如果传入的参数中有不是字符串的，那就直接会报错</p>
+<h2 id="path-parse"><a href="#path-parse" class="headerlink" title="path.parse"></a>path.parse</h2><p>我们先来看个例子，在src目录下的task.js写入</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor&apos;));
+</code></pre><p>然后运行node src/task.js之后,输出的结果如下：</p>
+<pre><code>{ 
+  root: &apos;/&apos;,
+  dir: &apos;/Users/laihuamin/Documents/richEditor&apos;,
+  base: &apos;editor&apos;,
+  ext: &apos;&apos;,
+  name: &apos;editor&apos; 
+}
+</code></pre><p>他返回的是一个对象，那么我们来把这么几个名词熟悉一下：</p>
+<p><img src="https://pic3.zhimg.com/v2-b7c5d496b89fde98f097a4a6e2ba7d03_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-b7c5d496b89fde98f097a4a6e2ba7d03_hd.jpg" alt=""></p>
+<p>这个表格应该展示的很形象，但是我们还是来解释一下这些名词：<br>1.root：代表根目录<br>2.dir：代表文件所在的文件夹<br>3.base：代表整一个文件<br>4.name：代表文件名<br>5.ext: 代表文件的后缀名</p>
+<p>那我们根据下面的规则，来看一下下面这个例子，最好自己脑子做一遍</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
+</code></pre><p>输出的结果：</p>
+<pre><code>{ 
+  root: &apos;/&apos;,
+  dir: &apos;/Users/laihuamin/Documents/richEditor/editor/src&apos;,
+  base: &apos;task.js&apos;,
+  ext: &apos;.js&apos;,
+  name: &apos;task&apos; 
+}
+</code></pre><p>你做对了么？0.0</p>
+<h2 id="path-basename"><a href="#path-basename" class="headerlink" title="path.basename"></a>path.basename</h2><p>那有了前面这个铺垫，想必这个接口猜也能猜的到了。。。。我们看下面这个例子</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
+</code></pre><p>输出的结果是：</p>
+<pre><code>task.js
+</code></pre><p>我们还是简单介绍一下，接收两个参数，一个是path,还有一个是ext（可选参数）.</p>
+<pre><code>const path = require(&apos;path&apos;)
+console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;, &apos;.js&apos;));
+</code></pre><p>输出结果:</p>
+<pre><code>task
+</code></pre><h2 id="path-dirname"><a href="#path-dirname" class="headerlink" title="path.dirname"></a>path.dirname</h2><p>这个接口比basename还要简单，我就不多说了，看例子，看结果</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
+</code></pre><p>输出的结果:</p>
+<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
+</code></pre><p>注意一下，接收的参数是字符串类型</p>
+<h2 id="path-extname"><a href="#path-extname" class="headerlink" title="path.extname"></a>path.extname</h2><p>这个就是展示文件的扩展名，我们得注意几种情况</p>
+<pre><code>const path = require(&apos;path&apos;);
+path.extname(&apos;index.html&apos;);
+path.extname(&apos;index.coffee.md&apos;);
+path.extname(&apos;index.&apos;);
+path.extname(&apos;index&apos;);
+path.extname(&apos;.index&apos;);
+</code></pre><p>输出的结果是：</p>
+<pre><code>.html
+.md
+.
+&apos;&apos;
+&apos;&apos;
+</code></pre><p>自己注意一下这几个情况</p>
+<h2 id="path-resolve"><a href="#path-resolve" class="headerlink" title="path.resolve"></a>path.resolve</h2><p>我们通过下面这几个例子先来熟悉一下：</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.resolve(&apos;/foo/bar&apos;, &apos;/bar/faa&apos;, &apos;..&apos;, &apos;a/../c&apos;));
+</code></pre><p>输出的结果是</p>
+<pre><code>/bar/c
+</code></pre><p>他就相当于一堆cd操作，我们一步一步看</p>
+<pre><code>cd /foo/bar/    //这是第一步, 现在的位置是/foo/bar/
+cd /bar/faa     //这是第二步，这里和第一步有区别，他是从/进入的，也就时候根目录，现在的位置是/bar/faa
+cd ..       //第三步，从faa退出来，现在的位置是 /bar
+cd a/../c   //第四步，进入a，然后在推出，在进入c，最后位置是/bar/c
+</code></pre><p>但是这个操作和cd还是有区别的，这个路径不一定要存在，而且最后的可以是文件</p>
+<h2 id="path-relative"><a href="#path-relative" class="headerlink" title="path.relative"></a>path.relative</h2><p>这个返回的是from到to的相对路径，什么意思呢，我们看下面的例子就知道了.</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.relative(&apos;src/bar/baz&apos;, &apos;src/aaa/bbb&apos;));
+</code></pre><p>输出的结果是：</p>
+<pre><code>../../aaa/bbb
+</code></pre><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这些比较实用的方法，分享给大家，自己还是老老实实去看weektool的webpack的配置文件了，喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1869,6 +2111,194 @@ foo();
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/19/for-in-、Object-keys-和Object-getOwnPropertyNames-for-of/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/19/for-in-、Object-keys-和Object-getOwnPropertyNames-for-of/" itemprop="url">(for..in)、Object.keys()和Object.getOwnPropertyNames(),for...of</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-19T23:15:50+08:00">
+                2018-05-19
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="https://pic2.zhimg.com/v2-8b77517cd30c95a804e67ebf584d888a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-8b77517cd30c95a804e67ebf584d888a_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-474fc5622ed4a673ef33d34a682250bc_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-474fc5622ed4a673ef33d34a682250bc_hd.jpg" alt=""></p>
+<p>Object.keys（obj），返回一个数组，数组里是该obj可被枚举的所有属性。请看示例：</p>
+<p>示例一：</p>
+<pre><code>function Pasta(grain, width, shape) {
+          this.grain = grain;
+          this.width = width;
+          this.shape = shape;
+          this.toString = function () {
+                  return (this.grain + &quot;, &quot; + this.width + &quot;, &quot; + this.shape);
+          }
+  }
+  console.log(Object.keys(Pasta)); //console: []
+  var spaghetti = new Pasta(&quot;wheat&quot;, 0.2, &quot;circle&quot;);
+  console.log(Object.keys(spaghetti)); //console: [&quot;grain&quot;, &quot;width&quot;, &quot;shape&quot;, &quot;toString&quot;]
+</code></pre><p>示例二：</p>
+<pre><code>var arr = [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;];
+   console.log(Object.keys(arr)); // console: [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]
+   var obj = { 0 : &quot;a&quot;, 1 : &quot;b&quot;, 2 : &quot;c&quot;};
+   console.log(Object.keys(obj)); // console: [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]
+   var an_obj = { 100: &quot;a&quot;, 2: &quot;b&quot;, 7: &quot;c&quot;};
+   console.log(Object.keys(an_obj)); // console: [&quot;2&quot;, &quot;7&quot;, &quot;100&quot;]
+   var my_obj = Object.create({}, { getFoo : { value : function () { return this.foo } } });
+   my_obj.foo = 1;
+   console.log(Object.keys(my_obj)); // console: [&quot;foo&quot;]
+</code></pre><p>js中几种遍历对象的方法，包括for in、Object.keys、Object.getOwnProperty,它们在使用场景方面各有不同。</p>
+<p>for in</p>
+<p>主要用于遍历对象的可枚举属性，包括自有属性、继承自原型的属性</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;For In : &quot;);
+for(var a in obj) console.log(a);
+</code></pre><p><img src="https://pic4.zhimg.com/v2-07286d25bcdcd379c3da29cf98076e14_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-07286d25bcdcd379c3da29cf98076e14_hd.jpg" alt=""></p>
+<p><img src="https://pic4.zhimg.com/v2-ae93be2db86b326d8c5081a88bcf7636_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-ae93be2db86b326d8c5081a88bcf7636_hd.jpg" alt=""></p>
+<p>Object.keys</p>
+<p>返回一个数组，元素均为对象自有的可枚举属性</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;Object.keys:&quot;)
+console.log(Object.keys(obj));
+</code></pre><p><img src="https://pic1.zhimg.com/v2-a1f7c5f0d6d306c25660d0087ccd477e_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-a1f7c5f0d6d306c25660d0087ccd477e_hd.jpg" alt=""></p>
+<p><img src="https://pic4.zhimg.com/v2-fd283ee34f31f9aa9133cd96c0ac3fdd_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-fd283ee34f31f9aa9133cd96c0ac3fdd_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-e02bca1186672970087d9a8bc8a5ff08_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-e02bca1186672970087d9a8bc8a5ff08_hd.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/v2-65ab14f08c0821aaddf792402b19aeec_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-65ab14f08c0821aaddf792402b19aeec_hd.jpg" alt=""></p>
+<p>Object.getOwnProperty</p>
+<p>用于返回对象的自有属性，包括可枚举和不可枚举的</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;Object.getOwnPropertyNames: &quot;);
+console.log(Object.getOwnPropertyNames(obj));
+</code></pre><p><img src="https://pic3.zhimg.com/v2-e58a5ceb8f77c623bd452a5fc8063745_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-e58a5ceb8f77c623bd452a5fc8063745_hd.jpg" alt=""></p>
+<p>for..of</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;For of : &quot;);
+for(var a of Object.entries(obj)) console.log(a);
+</code></pre><p><img src="https://pic1.zhimg.com/v2-cb632b12eee1e290befbd61a0da022fd_b.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/v2-32223787728e13f239b4f59b0aa64a94_b.jpg" alt=""></p>
+<p><img src="https://pic1.zhimg.com/v2-6ce8346c2e1e4479f49c6acf22292fac_b.jpg" alt=""></p>
+<p><img src="https://pic1.zhimg.com/v2-ec6d7c3be11ccc0101407a2f40ef803a_b.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-84d13fa8dbdace85c39378fd2e9dc09a_b.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/19/CSS等比例缩放的盒子/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3039,503 +3469,11 @@ h2[data-text]::after {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/Vue源码必知必会/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/02/Vue源码必知必会/" itemprop="url">Vue源码必知必会</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T16:24:04+08:00">
-                2018-05-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>Vue.js源码分析，记录了个人学习Vue.js源码的过程中的一些心得以及收获。以及对于Vue框架，周边库的一些学习心得和个人见解。</p>
-<p>在学习的过程中我分别为Vue.js、Vuex、Vue-router加上了注释，分别在文件夹<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-src" target="_blank" rel="noopener">vue-src</a>、<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vuex-src" target="_blank" rel="noopener">vuex-src</a>以及<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-router-src" target="_blank" rel="noopener">vue-router-src</a>中，希望可以帮助有需要的同学更好地学习理解Vue.js及周边库的源码。</p>
-<p>感谢尤大提高生产力。</p>
-<p>当前Vue.js源码版本2.3.0，Vuex版本为2.4.0，Vue-router版本为3.0.1。</p>
-<p>本项目希望对Vue.js做更进一步的探索与学习，Vue.js基础内容请参考Vue.js官网，<a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/guide/" target="_blank" rel="noopener">https://cn.vuejs.org/v2/guide/</a>。 可能会有理解存在偏差的地方，欢迎提issue指出，共同学习，共同进步。</p>
-<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><h2 id="源码相关"><a href="#源码相关" class="headerlink" title="源码相关"></a>源码相关</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E5%2593%258D%25E5%25BA%2594%25E5%25BC%258F%25E5%258E%259F%25E7%2590%2586.MarkDown" target="_blank" rel="noopener">Vue.js响应式原理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BE%259D%25E8%25B5%2596%25E6%2594%25B6%25E9%259B%2586.MarkDown" target="_blank" rel="noopener">Vue.js依赖收集</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258E%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E5%2586%258D%25E7%259C%258B%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.MarkDown" target="_blank" rel="noopener">从Vue.js源码角度再看数据绑定</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E4%25BA%258B%25E4%25BB%25B6%25E6%259C%25BA%25E5%2588%25B6.MarkDown" target="_blank" rel="noopener">Vue.js事件机制</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VNode%25E8%258A%2582%25E7%2582%25B9.MarkDown" target="_blank" rel="noopener">VNode节点(Vue.js实现)</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VirtualDOM%25E4%25B8%258Ediff%28Vue%25E5%25AE%259E%25E7%258E%25B0%29.MarkDown" target="_blank" rel="noopener">Virtual DOM与diff(Vue.js实现)</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%2581%258A%25E8%2581%258AVue%25E7%259A%2584template%25E7%25BC%2596%25E8%25AF%2591.MarkDown" target="_blank" rel="noopener">聊聊Vue.js的template编译</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue.js%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0DOM%25E7%25AD%2596%25E7%2595%25A5%25E5%258F%258AnextTick.MarkDown" target="_blank" rel="noopener">Vue.js异步更新DOM策略及nextTick</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258Etemplate%25E5%2588%25B0DOM%28Vue.js%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E7%259C%258B%25E5%2586%2585%25E9%2583%25A8%25E8%25BF%2590%25E8%25A1%258C%25E6%259C%25BA%25E5%2588%25B6%29.MarkDown" target="_blank" rel="noopener">从template到DOM（Vue.js源码角度看内部运行机制）</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vuex%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%25A3%25E6%259E%2590.MarkDown" target="_blank" rel="noopener">Vuex源码解析</a></p>
-<h2 id="随笔杂谈"><a href="#随笔杂谈" class="headerlink" title="随笔杂谈"></a>随笔杂谈</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E7%25BB%2584%25E4%25BB%25B6%25E9%2597%25B4%25E9%2580%259A%25E4%25BF%25A1.MarkDown" target="_blank" rel="noopener">Vue组件间通信</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%25AF%25B4%25E8%25AF%25B4element%25E7%25BB%2584%25E4%25BB%25B6%25E5%25BA%2593broadcast%25E4%25B8%258Edispatch.MarkDown" target="_blank" rel="noopener">说说element组件库broadcast与dispatch</a></p>
-<p>该源码分析，会带着大家一起学习<code>Vue</code>的大部分代码，而不是简单的讲一下它的原理，我会尽可能的多解释每一行主要的代码含义，另外一些辅助方法什么的，大家可以在学习的过程中，自己看一眼就知道了。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E6%25BA%2590%25E7%25A0%2581%25E7%259B%25AE%25E5%25BD%2595%25E7%25BB%2593%25E6%259E%2584%25E6%2595%25B4%25E7%2590%2586.md" target="_blank" rel="noopener">Vue源码目录结构整理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E5%2585%25A5%25E5%258F%25A3%25E6%2596%2587%25E4%25BB%25B6%25E6%259F%25A5%25E7%259C%258BVue%25E6%25BA%2590%25E7%25A0%2581.md" target="_blank" rel="noopener">从入口文件查看Vue源码</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E4%25B8%2580%25E4%25B8%25AA%25E5%25B0%258F%25E6%25A0%2597%25E5%25AD%2590%25E6%259F%25A5%25E7%259C%258BVue%25E7%259A%2584%25E7%2594%259F%25E5%2591%25BD%25E5%2591%25A8%25E6%259C%259F.md" target="_blank" rel="noopener">从小栗子查看Vue的生命周期</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E5%258F%258C%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.md" target="_blank" rel="noopener">双向数据绑定</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">compile概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590ast.md" target="_blank" rel="noopener">compile——生成ast</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E4%25BC%2598%25E5%258C%2596%25E9%259D%2599%25E6%2580%2581%25E5%2586%2585%25E5%25AE%25B9.md" target="_blank" rel="noopener">compile——优化静态内容</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590render%25E5%25AD%2597%25E7%25AC%25A6%25E4%25B8%25B2.md" target="_blank" rel="noopener">compile——生成render字符串</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">vdom概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue.extend.md" target="_blank" rel="noopener">Vue.extend</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E2%2580%2594%25E2%2580%2594VNode.md" target="_blank" rel="noopener">vdom——VNode</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/children%25E7%259A%2584%25E5%25BD%2592%25E4%25B8%2580%25E5%258C%2596%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">children的归一化处理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E5%2588%259B%25E5%25BB%25BAdom.md" target="_blank" rel="noopener">patch——创建dom</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594diff.md" target="_blank" rel="noopener">patch——diff</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E7%25BB%2584%25E4%25BB%25B6%25E7%259A%2584%25E5%25A4%2584%25E7%2590%2586%25E6%25B5%2581%25E7%25A8%258B.md" target="_blank" rel="noopener">patch——自定义组件的处理流程</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BA%258B%25E4%25BB%25B6%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">事件处理</a></p>
-<p>指令的处理</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/directives%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">directives概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E6%258C%2587%25E4%25BB%25A4.md" target="_blank" rel="noopener">自定义指令</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-for.md" target="_blank" rel="noopener">v-for</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-if.md" target="_blank" rel="noopener">v-if</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-once.md" target="_blank" rel="noopener">v-once</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-show.md" target="_blank" rel="noopener">v-show</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-text%25E3%2580%2581v-html%25E3%2580%2581v-cloak%25E3%2580%2581v-pre.md" target="_blank" rel="noopener">v-text、v-html、v-cloak、v-pre</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-model.md" target="_blank" rel="noopener">v-model</a></p>
-<p>内置组件和标签</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/slot%25E5%2592%258C%25E4%25BD%259C%25E7%2594%25A8%25E5%259F%259F%25E6%258F%2592%25E6%25A7%25BD.md" target="_blank" rel="noopener">slot和作用域插槽</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/keep-alive.md" target="_blank" rel="noopener">keep-alive</a></p>
-<p>以下是整理一些比较零散的数据，主要是记录结构中每个数据表示什么意思，会不断完善更新：</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue-globals.md" target="_blank" rel="noopener">Vue全局属性</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E5%25AE%259E%25E4%25BE%258B%25E5%25B1%259E%25E6%2580%25A7.md" target="_blank" rel="noopener">Vue实例属性</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/AstElement.md" target="_blank" rel="noopener">AstElement</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/VNode.md" target="_blank" rel="noopener">VNode</a></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/23/前端性能监控：window-performance/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/23/前端性能监控：window-performance/" itemprop="url">前端性能监控：window.performance</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-23T22:51:24+08:00">
-                2018-04-23
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><a href="https://link.zhihu.com/?target=https%3A//www.w3.org/TR/2014/WD-navigation-timing-2-20140325/" target="_blank" rel="noopener">window.performance</a> 是W3C性能小组引入的新的API，目前IE9以上的浏览器都支持。一个performance对象的完整结构如下图所示：</p>
-<h2 id="Window-performance"><a href="#Window-performance" class="headerlink" title="Window.performance"></a>Window.performance</h2><p>虽然叫 <code>Timing API</code> 但是用起来却是 <code>window.performance</code></p>
-<pre><code>// 兼容性写法
-const performance = window.performance || 
-                      window.msPerformance || 
-                      window.webkitPerformance;
-</code></pre><p>memory字段代表JavaScript对内存的占用。</p>
-<h2 id="performance-memory-内存"><a href="#performance-memory-内存" class="headerlink" title="performance.memory(内存)"></a>performance.memory(内存)</h2><ul>
-<li>usedJSHeapSize<br>JS 对象（包括V8引擎内部对象）占用的内存</li>
-<li>totalJSHeapSize<br>可使用的内存</li>
-<li>jsHeapSizeLimit<br>内存大小限制</li>
-</ul>
-<p><img src="https://pic4.zhimg.com/v2-f4a0fa5f8a8a1c4ef07f83d0f393fd9a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-f4a0fa5f8a8a1c4ef07f83d0f393fd9a_hd.jpg" alt=""></p>
-<h2 id="performance-navigation-我从哪里来"><a href="#performance-navigation-我从哪里来" class="headerlink" title="performance.navigation(我从哪里来)"></a>performance.navigation(我从哪里来)</h2><ul>
-<li>redirectCount<br>如果有重定向的话，页面通过几次重定向跳转而来</li>
-<li><p>type</p>
-</li>
-<li><p>0 即 TYPE_NAVIGATENEXT 正常进入的页面（非刷新、非重定向等）</p>
-</li>
-<li>1 即 TYPE_RELOAD 通过 window.location.reload() 刷新的页面</li>
-<li>2 即 TYPE_BACK_FORWARD 通过浏览器的前进后退按钮进入的页面（历史记录）</li>
-<li>255 即 TYPE_UNDEFINED 非以上方式进入的页面</li>
-</ul>
-<p>navigation字段统计的是一些网页导航相关的数据：</p>
-<ol>
-<li>redirectCount:重定向的数量（只读），但是这个接口有同源策略限制，即仅能检测同源的重定向；</li>
-<li>type 返回值应该是0,1,2 中的一个。分别对应三个枚举值:</li>
-</ol>
-<ul>
-<li>0 : TYPE_NAVIGATE (用户通过常规导航方式访问页面，比如点一个链接，或者一般的get方式)</li>
-<li>1 : TYPE_RELOAD (用户通过刷新，包括JS调用刷新接口等方式访问页面)</li>
-<li>2 : TYPE_BACK_FORWARD (用户通过后退按钮访问本页面)</li>
-</ul>
-<p>最重要的是timing字段的统计数据，它包含了网络、解析等一系列的时间数据。</p>
-<h2 id="performance-timing-时间"><a href="#performance-timing-时间" class="headerlink" title="performance.timing(时间)"></a>performance.timing(时间)</h2><p><img src="https://pic4.zhimg.com/v2-a9f7be2c5aaa973e405bd0b8da7e6890_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-a9f7be2c5aaa973e405bd0b8da7e6890_hd.jpg" alt=""></p>
-<p>2.2.1 timing API</p>
-<p>timing的整体结构如上图所示：</p>
-<p><img src="https://pic2.zhimg.com/v2-95d9e0f1ff8257f3c007045c6a2d07bb_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-95d9e0f1ff8257f3c007045c6a2d07bb_hd.jpg" alt=""></p>
-<p>各字段的含义如下：</p>
-<ul>
-<li>startTime：有些浏览器实现为<a href="https://link.zhihu.com/?target=https%3A//msdn.microsoft.com/en-us/library/ff974724%28v%3Dvs.85%29.aspx" target="_blank" rel="noopener">navigationStart</a>，代表浏览器开始unload前一个页面文档的开始时间节点。比如我们当前正在浏览baidu.com，在地址栏输入google.com并回车，浏览器的执行动作依次为：unload当前文档（即<a href="https://link.zhihu.com/?target=http%3A//baidu.com" target="_blank" rel="noopener">http://baidu.com</a>）-&gt;请求下一文档（即<a href="https://link.zhihu.com/?target=http%3A//google.com" target="_blank" rel="noopener">http://google.com</a>）。navigationStart的值便是触发unload当前文档的时间节点。</li>
-</ul>
-<p>如果当前文档为空，则navigationStart的值等于fetchStart。</p>
-<ul>
-<li>redirectStart和redirectEnd：如果页面是由redirect而来，则redirectStart和redirectEnd分别代表redirect开始和结束的时间节点；</li>
-<li>unloadEventStart和unloadEventEnd：如果前一个文档和请求的文档是同一个域的，则unloadEventStart和unloadEventEnd分别代表浏览器unload前一个文档的开始和结束时间节点。否则两者都等于0；</li>
-<li>fetchStart是指在浏览器发起任何请求之前的时间值。在fetchStart和domainLookupStart之间，浏览器会检查当前文档的缓存；</li>
-<li>domainLookupStart和domainLookupEnd分别代表DNS查询的开始和结束时间节点。如果浏览器没有进行DNS查询（比如使用了cache），则两者的值都等于fetchStart；</li>
-<li>connectStart和connectEnd分别代表TCP建立连接和连接成功的时间节点。如果浏览器没有进行TCP连接（比如使用持久化连接webscoket），则两者都等于domainLookupEnd；</li>
-<li>secureConnectionStart：可选。如果页面使用HTTPS，它的值是安全连接握手之前的时刻。如果该属性不可用，则返回undefined。如果该属性可用，但没有使用HTTPS，则返回0；</li>
-<li>requestStart代表浏览器发起请求的时间节点，请求的方式可以是请求服务器、缓存、本地资源等；</li>
-<li>responseStart和responseEnd分别代表浏览器收到从服务器端（或缓存、本地资源）响应回的第一个字节和最后一个字节数据的时刻；</li>
-<li>domLoading代表浏览器开始解析html文档的时间节点。我们知道IE浏览器下的document有readyState属性，domLoading的值就等于readyState改变为loading的时间节点；</li>
-<li>domInteractive代表浏览器解析html文档的状态为interactive时的时间节点。domInteractive并非DOMReady，它早于DOMReady触发，代表html文档解析完毕（即dom tree创建完成）但是内嵌资源（比如外链css、js等）还未加载的时间点；</li>
-<li>domContentLoadedEventStart：代表DOMContentLoaded事件触发的时间节点：</li>
-</ul>
-<p>页面文档完全加载并解析完毕之后,会触发DOMContentLoaded事件，HTML文档不会等待样式文件,图片文件,子框架页面的加载(load事件可以用来检测HTML页面是否完全加载完毕(fully-loaded))。</p>
-<ul>
-<li>domContentLoadedEventEnd：代表DOMContentLoaded事件完成的时间节点，此刻用户可以对页面进行操作，也就是jQuery中的domready时间；</li>
-<li>domComplete：html文档完全解析完毕的时间节点；</li>
-<li>loadEventStart和loadEventEnd分别代表onload事件触发和结束的时间节点</li>
-</ul>
-<p>2.2.2 计算性能指标</p>
-<p>可以使用Navigation.timing 统计到的时间数据来计算一些页面性能指标，比如DNS查询耗时、白屏时间、domready等等。如下：</p>
-<ul>
-<li>DNS查询耗时 = domainLookupEnd - domainLookupStart</li>
-<li>TCP链接耗时 = connectEnd - connectStart</li>
-<li>request请求耗时 = responseEnd - responseStart</li>
-<li>解析dom树耗时 = domComplete - domInteractive</li>
-<li>白屏时间 = domloadng - fetchStart</li>
-<li>domready时间 = domContentLoadedEventEnd - fetchStart</li>
-<li><p>onload时间 = loadEventEnd - fetchStart</p>
-<p>  所以根据上面的时间点，我们可以计算常规的性能值，如下：<br>  （使用该api时需要在页面完全加载完成之后才能使用，最简单的办法是在window.onload事件中读取各种数据，因为很多值必须在页面完全加载之后才能得出。）</p>
-<p>  var timing = window.performance &amp;&amp; window.performance.timing;<br>  var navigation = window.performance &amp;&amp; window.performance.navigation;</p>
-</li>
-</ul>
-<pre><code>重定向次数：
-var redirectCount = navigation &amp;&amp; navigation.redirectCount;
-
-跳转耗时：
-var redirect = timing.redirectEnd - timing.redirectStart;
-
-APP CACHE 耗时：
-var appcache = Math.max(timing.domainLookupStart - timing.fetchStart, 0);
-
-DNS 解析耗时：
-var dns = timing.domainLookupEnd - timing.domainLookupStart;
-
-TCP 链接耗时：
-var conn = timing.connectEnd - timing.connectStart;
-
-等待服务器响应耗时（注意是否存在cache）：
-var request = timing.responseStart - timing.requestStart;
-
-内容加载耗时（注意是否存在cache）:
-var response = timing.responseEnd - timing.responseStart;
-
-总体网络交互耗时，即开始跳转到服务器资源下载完成：
-var network = timing.responseEnd - timing.navigationStart;
-
-渲染处理：
-var processing = (timing.domComplete || timing.domLoading) - timing.domLoading;
-
-抛出 load 事件：
-var load = timing.loadEventEnd - timing.loadEventStart;
-
-总耗时：
-var total = (timing.loadEventEnd || timing.loadEventStart || timing.domComplete || timing.domLoading) - timing.navigationStart;
-
-可交互：
-var active = timing.domInteractive - timing.navigationStart;
-
-请求响应耗时，即 T0，注意cache：
-var t0 = timing.responseStart - timing.navigationStart;
-
-首次出现内容，即 T1：
-var t1 = timing.domLoading - timing.navigationStart;
-
-内容加载完毕，即 T3：
-var t3 = timing.loadEventEnd - timing.navigationStart;
-</code></pre><p>2.2.3 Resource timing API</p>
-<p>Resource timing API是用来统计静态资源相关的时间信息，详细的内容请参考<a href="https://link.zhihu.com/?target=https%3A//www.w3.org/TR/resource-timing/" target="_blank" rel="noopener">W3C Resource timing</a>。这里我们只介绍performance.getEntries方法，它可以获取页面中每个静态资源的请求，【以百度移动版首页的logo为例】如下：</p>
-<p>比较有用的几个属性：</p>
-<pre><code>name：资源的链接
-
-initiatorType: 初始类型（注意这个类型并不准确，例如在css中的图片资源会这个值显示css，所以还是推荐用name中的后缀名）
-
-duration: 资源的总耗时（包括等待时长，请求时长，响应时长 相当于responseEnd - startTime）
-
-transferSize: 转换后的文件大小(略大于encodedBodySize, 为什么我取这个呢，因为这个值是和chrome的devtool Network里的size一致) 
-</code></pre><p><img src="https://pic4.zhimg.com/v2-cff2a7e449c4e6260c2cb8fa0b18c948_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-cff2a7e449c4e6260c2cb8fa0b18c948_hd.jpg" alt=""></p>
-<p>可以看到performance.getEntries返回一个数组，数组的每个元素代表对应的静态资源的信息，比如上图展示的第一个元素对应的资源类型initiatorType是图片img，请求花费的时间就是duration的值。</p>
-<p>关于Resource timing API的使用场景，感兴趣的同学可以深入研究。</p>
-<p><img src="https://pic2.zhimg.com/v2-23c6a6e3744a117368fbd9b0789867ff_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-23c6a6e3744a117368fbd9b0789867ff_hd.jpg" alt=""></p>
-<pre><code>;
-(function() {
-
-    handleAddListener(&apos;load&apos;, getTiming)
-
-    function handleAddListener(type, fn) {
-        if(window.addEventListener) {
-            window.addEventListener(type, fn)
-        } else {
-            window.attachEvent(&apos;on&apos; + type, fn)
-        }
-    }
-
-    function getTiming() {
-        try {
-            var time = performance.timing;
-            var timingObj = {};
-
-            var loadTime = (time.loadEventEnd - time.loadEventStart) / 1000;
-
-            if(loadTime &lt; 0) {
-                setTimeout(function() {
-                    getTiming();
-                }, 200);
-                return;
-            }
-
-            timingObj[&apos;重定向时间&apos;] = (time.redirectEnd - time.redirectStart) / 1000;
-            timingObj[&apos;DNS解析时间&apos;] = (time.domainLookupEnd - time.domainLookupStart) / 1000;
-            timingObj[&apos;TCP完成握手时间&apos;] = (time.connectEnd - time.connectStart) / 1000;
-            timingObj[&apos;HTTP请求响应完成时间&apos;] = (time.responseEnd - time.requestStart) / 1000;
-            timingObj[&apos;DOM开始加载前所花费时间&apos;] = (time.responseEnd - time.navigationStart) / 1000;
-            timingObj[&apos;DOM加载完成时间&apos;] = (time.domComplete - time.domLoading) / 1000;
-            timingObj[&apos;DOM结构解析完成时间&apos;] = (time.domInteractive - time.domLoading) / 1000;
-            timingObj[&apos;脚本加载时间&apos;] = (time.domContentLoadedEventEnd - time.domContentLoadedEventStart) / 1000;
-            timingObj[&apos;onload事件时间&apos;] = (time.loadEventEnd - time.loadEventStart) / 1000;
-            timingObj[&apos;页面完全加载时间&apos;] = (timingObj[&apos;重定向时间&apos;] + timingObj[&apos;DNS解析时间&apos;] + timingObj[&apos;TCP完成握手时间&apos;] + timingObj[&apos;HTTP请求响应完成时间&apos;] + timingObj[&apos;DOM结构解析完成时间&apos;] + timingObj[&apos;DOM加载完成时间&apos;]);
-
-            for(item in timingObj) {
-                console.log(item + &quot;:&quot; + timingObj[item] + &apos;毫秒(ms)&apos;);
-            }
-
-            console.log(performance.timing);
-
-        } catch(e) {
-            console.log(timingObj)
-            console.log(performance.timing);
-        }
-    }
-})();
-
-&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-
-    &lt;head&gt;
-        &lt;meta charset=&quot;utf-8&quot; /&gt;
-        &lt;title&gt;&lt;/title&gt;
-        &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&quot; /&gt;
-        &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;//cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.css&quot; /&gt;
-        &lt;script src=&quot;&quot;&gt;&lt;/script&gt;
-        &lt;script type=&quot;text/javascript&quot; src=&quot;&quot;&gt;&lt;/script&gt;
-    &lt;/head&gt;
-
-    &lt;body&gt;
-
-    &lt;/body&gt;
-
-&lt;/html&gt;
-</code></pre><p><img src="https://pic2.zhimg.com/v2-23c6a6e3744a117368fbd9b0789867ff_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-23c6a6e3744a117368fbd9b0789867ff_hd.jpg" alt=""></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3585,7 +3523,7 @@ transferSize: 转换后的文件大小(略大于encodedBodySize, 为什么我取
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">29</span>
+                  <span class="site-state-item-count">36</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3598,7 +3536,7 @@ transferSize: 转换后的文件大小(略大于encodedBodySize, 为什么我取
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">22</span>
+                  <span class="site-state-item-count">26</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
