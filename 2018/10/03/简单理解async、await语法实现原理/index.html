@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="现在最新的前端框架生态都开始用上了Generator和yield，有的甚至已经开始使用最新的async、await语法了，这两样都是基于Generator自动执行的原理。 阮一峰 async-函数的实现原理async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。async function fn(args) {   // ... }  // 等同于 functi">
+<meta property="og:type" content="article">
+<meta property="og:title" content="简单理解async、await语法实现原理">
+<meta property="og:url" content="http://yoursite.com/2018/10/03/简单理解async、await语法实现原理/index.html">
+<meta property="og:site_name" content="LuckDay">
+<meta property="og:description" content="现在最新的前端框架生态都开始用上了Generator和yield，有的甚至已经开始使用最新的async、await语法了，这两样都是基于Generator自动执行的原理。 阮一峰 async-函数的实现原理async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。async function fn(args) {   // ... }  // 等同于 functi">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2018/10/1/166303d7d823557e?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="data:image/svg+xml;utf8,<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="1280" height="604"></svg>">
+<meta property="og:updated_time" content="2018-10-02T15:52:20.625Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="简单理解async、await语法实现原理">
+<meta name="twitter:description" content="现在最新的前端框架生态都开始用上了Generator和yield，有的甚至已经开始使用最新的async、await语法了，这两样都是基于Generator自动执行的原理。 阮一峰 async-函数的实现原理async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。async function fn(args) {   // ... }  // 等同于 functi">
+<meta name="twitter:image" content="https://user-gold-cdn.xitu.io/2018/10/1/166303d7d823557e?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2018/10/03/简单理解async、await语法实现原理/"/>
+
+
+
+
+
+  <title>简单理解async、await语法实现原理 | LuckDay</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">LuckDay</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/简单理解async、await语法实现原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">简单理解async、await语法实现原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T23:51:38+08:00">
+                2018-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><img src="https://user-gold-cdn.xitu.io/2018/10/1/166303d7d823557e?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>现在最新的前端框架生态都开始用上了Generator和yield，<br>有的甚至已经开始使用最新的async、await语法了，<br><strong>这两样都是基于Generator自动执行的原理。</strong></p>
+<h2 id="阮一峰-async-函数的实现原理"><a href="#阮一峰-async-函数的实现原理" class="headerlink" title="阮一峰 async-函数的实现原理"></a>阮一峰 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fasync%23async-%25E5%2587%25BD%25E6%2595%25B0%25E7%259A%2584%25E5%25AE%259E%25E7%258E%25B0%25E5%258E%259F%25E7%2590%2586" target="_blank" rel="noopener">async-函数的实现原理</a></h2><h4 id="async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><a href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。" class="headerlink" title="async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。"></a>async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</h4><pre><code>async function fn(args) {
+  // ...
+}
+
+// 等同于
+function fn(args) {
+  return spawn(function* () {
+    // ...
+  });
+}
+复制代码
+</code></pre><p>所有的async函数都可以写成上面的第二种形式，其中的spawn函数就是自动执行器。</p>
+<p>下面给出spawn函数的实现，基本就是前文自动执行器的翻版。</p>
+<pre><code>function spawn(genF) {
+  return new Promise(function(resolve, reject) {
+    const gen = genF();
+    function step(nextF) {
+      let next;
+      try {
+        next = nextF();
+      } catch(e) {
+        return reject(e);
+      }
+      if(next.done) {
+        return resolve(next.value);
+      }
+      Promise.resolve(next.value).then(function(v) {
+        step(function() { return gen.next(v); });
+      }, function(e) {
+        step(function() { return gen.throw(e); });
+      });
+    }
+    step(function() { return gen.next(undefined); });
+  });
+}
+复制代码
+</code></pre><h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h2><pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;UTF-8&quot;&gt;
+        &lt;title&gt;&lt;/title&gt;
+        &lt;script type=&quot;text/javascript&quot;&gt;
+            function timeout(ms) {
+                return {
+                    text: &apos;done&apos;
+                }
+            }
+
+            function* start() {
+                const res = yield timeout(1000);
+                return res;
+            };
+
+
+
+
+            function fn(args) {
+                return spawn(start);
+            }
+
+            function spawn(genF) {
+                return new Promise(function(resolve, reject) {
+                    const gen = genF();
+                    function step(nextF) {
+                        let next;
+                        try {
+                            next = nextF();
+                        } catch(e) {
+                            return reject(e);
+                        }
+                        if(next.done) {
+                            return resolve(next.value);
+                        }
+
+
+                        Promise.resolve(next.value).then(function(v) {
+                            step(function() {
+                                return gen.next(v);
+                            });
+                        }, function(e) {
+                            step(function() {
+                                return gen.throw(e);
+                            });
+                        });
+                    }
+                    step(function() {
+                        return gen.next();
+                    });
+                });
+            }
+
+             fn().then((data)=&gt;{
+                console.log(data)
+            })
+        &lt;/script&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+    &lt;/body&gt;
+
+&lt;/html&gt;
+复制代码
+</code></pre><h3 id="看下babel转换后的"><a href="#看下babel转换后的" class="headerlink" title="看下babel转换后的"></a>看下babel转换后的</h3><pre><code>async function fns(args) {
+                const res = await fetch(&apos;google.com&apos;);
+                return res.text();
+            }
+复制代码
+</code></pre><p><img src="data:image/svg+xml;utf8,&lt;?xml version=&quot;1.0&quot;?&gt;&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; version=&quot;1.1&quot; width=&quot;1280&quot; height=&quot;604&quot;&gt;&lt;/svg&gt;" alt=""><br>    ‘use strict’;</p>
+<pre><code>            var fns = function() {
+                var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(args) {
+                    var res;
+                    return regeneratorRuntime.wrap(function _callee$(_context) {
+                        while(1) {
+                            switch(_context.prev = _context.next) {
+                                case 0:
+                                    _context.next = 2;
+                                    return fetch(&apos;google.com&apos;);
+
+                                case 2:
+                                    res = _context.sent;
+                                    return _context.abrupt(&apos;return&apos;, res.text());
+
+                                case 4:
+                                case&apos;end&apos;:
+                                    return _context.stop();
+                            }
+                        }
+                    }, _callee, this);
+                }));
+
+                returnfunction fns(_x) {
+                    return _ref.apply(this, arguments);
+                };
+            }();
+
+            function _asyncToGenerator(fn) {  //Generator函数自动执行
+                returnfunction() {
+                    var gen = fn.apply(this, arguments);
+                    return new Promise(function(resolve, reject) {
+                        function step(key, arg) {
+                            try {
+                                var info = gen[key](arg);
+                                var value = info.value;
+                            } catch(error) {
+                                reject(error);
+                                return;
+                            }
+                            if(info.done) {
+                                resolve(value);
+                            } else {
+                                return Promise.resolve(value).then(function(value) {
+                                    step(&quot;next&quot;, value);
+                                }, function(err) {
+                                    step(&quot;throw&quot;, err);
+                                });
+                            }
+                        }
+                        return step(&quot;next&quot;);
+                    });
+                };
+            }
+复制代码
+</code></pre><p>一、thunk函数<br>thunk函数指的是能将执行结果传入回调函数，并将该回调函数返回的函数。<br>是不是有点抽象，举个例子:</p>
+<pre><code>var readFile = function (fileName) {
+    returnfunction (callback) {
+        return fs.readFile(fileName, callback)
+    }
+}
+复制代码
+</code></pre><p>下面我们来看下thunk函数怎样执行</p>
+<pre><code>readFile(&apos;./package.json&apos;)((err, str) =&gt; {
+    console.log(str.toString())
+})
+复制代码
+</code></pre><p>问: thunk的执行比普通函数要麻烦不少，那么它有什么优势呢？</p>
+<h3 id="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><a href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，" class="headerlink" title="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"></a>thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</h3><p>而不是将异步操作结果传入thunk函数本身的作用域内，这点很重要，<br>因为它能结合Generator语法让Generator函数自动执行</p>
+<p>二、Generator<br>es6的Generator函数，具体语法这里就不介绍了，</p>
+<p>我们来编写一个基于thunk函数的Generator：</p>
+<pre><code>let gen = function* () {
+    let r1 = yield readFile(&apos;./package.json&apos;)
+    console.log(r1.toString())
+    let r2 = yield readFile(&apos;./index.js&apos;)
+    console.log(r2.toString())
+}
+复制代码
+</code></pre><p>我们来手动执行一下这个Generator:</p>
+<pre><code>let g = gen()
+let r1 = g.next()
+r1.value(function (err, data) {
+    if (err) {
+        throw err
+    }
+    let r2 = g.next(data)
+    r2.value(function (err, data) {
+        if (err) {
+            throw err
+        }
+        g.next(data)
+    })
+})
+复制代码
+</code></pre><p>可以注意到，在我们手动执行基于thunk函数的Generator时，<br>有很多代码是可以复用的，<br>没错，所谓的Generator自动执行就是把这些可复用的部分封装成函数，<br>然后让它们递归执行，直到执行完所有的yield。</p>
+<p>三、Generator自动执行器<br>下面就是Generator自动执行的核心代码</p>
+<pre><code>function run(fn) {
+    let gen = fn()
+    function next(err, data) {
+        let result = gen.next(data)
+        if (result.done) {
+            return
+        }
+        result.value(next)
+    }
+    next()
+}
+复制代码
+</code></pre><p>可以看到无非就是把可复用的部分封装成next函数，然后让其<strong>递归</strong>执行，<br>直到执行完所有的yield</p>
+<p>其调用代码为:</p>
+<pre><code>run(gen)
+复制代码
+</code></pre><p>这样就将原本繁杂的异步操作封装的十分简单了</p>
+<p>基于Promise的Generator的自动执行<br>上面的例子是基于thunk函数的，而即将出现的es7的async、await语法是基于Promise的</p>
+<p>这里再上一个基于Promise的Generator的自动执行</p>
+<pre><code>//包装返回Promise对象的函数
+functionreadFile(fileName) {
+    return new Promise((resolve, reject) =&gt; {
+        fs.readFile(fileName, (error, data) =&gt; {
+            if (error) {
+                reject(error)
+            } else {
+                resolve(data)
+            }
+        })
+    })
+}
+
+// 编写Generator
+let gen = function* () {
+    let r1 = yield readFile(&apos;./package.json&apos;)
+    console.log(r1.toString())
+    let r2 = yield readFile(&apos;./index.js&apos;)
+    console.log(r2.toString())
+}
+
+// 编写Generator执行器
+function run(gen) {
+    let g = gen()
+    function next(data) {
+        let result = g.next(data)
+        if (result.done) {
+            return result.value
+        }
+        result.value.then((data) =&gt; next(data))
+    }
+    next()
+}
+
+//用Generator执行器自动执行
+run(gen)
+复制代码
+</code></pre><p>这个和基于thunk函数的大同小异，只是把函数返回值的获取权以Promise的方式交出</p>
+<h4 id="参考-简单理解Generator自执行及async、await语法原理"><a href="#参考-简单理解Generator自执行及async、await语法原理" class="headerlink" title="参考 简单理解Generator自执行及async、await语法原理"></a>参考 <a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000008254704" target="_blank" rel="noopener">简单理解Generator自执行及async、await语法原理</a></h4>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/09/25/Promise-必知必会/" rel="next" title="Promise 必知必会">
+                <i class="fa fa-chevron-left"></i> Promise 必知必会
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/images/tx.jpg"
+                alt="李斌" />
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">37</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">26</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="3120217729@qq.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#阮一峰-async-函数的实现原理"><span class="nav-number">1.</span> <span class="nav-text">阮一峰 async-函数的实现原理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><span class="nav-number">1.0.1.</span> <span class="nav-text">async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DEMO"><span class="nav-number">2.</span> <span class="nav-text">DEMO</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#看下babel转换后的"><span class="nav-number">2.1.</span> <span class="nav-text">看下babel转换后的</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><span class="nav-number">2.2.</span> <span class="nav-text">thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#参考-简单理解Generator自执行及async、await语法原理"><span class="nav-number">2.2.1.</span> <span class="nav-text">参考 简单理解Generator自执行及async、await语法原理</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
+<script type="text/javascript" src="/js/src/clicklove.js"></script>
+
