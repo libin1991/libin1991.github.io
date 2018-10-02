@@ -252,6 +252,341 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/我也来实现一把MVVM/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/03/我也来实现一把MVVM/" itemprop="url">我也来实现一把MVVM</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T00:20:32+08:00">
+                2018-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>大家都知道，vue是个MVVM框架，能够实现view和model的双向绑定，不像backbone那样，model改变需要手动去通知view更新，而vue实现的原理就是通过Object.defineProperty实现数据挟持，定义setter，然后数据改变的时候通知视图更新。</p>
+<p>下面是网上vue的实现原理图：</p>
+<p> <img src="https://user-gold-cdn.xitu.io/2018/4/10/162ad3d5be3e5105?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="image"></p>
+<h3 id="实现效果"><a href="#实现效果" class="headerlink" title="实现效果"></a>实现效果</h3><p><img src="https://user-gold-cdn.xitu.io/2018/8/15/1653b294cd1b80e3?imageslim" alt=""></p>
+<h4 id="1、MVVM"><a href="#1、MVVM" class="headerlink" title="1、MVVM"></a>1、MVVM</h4><p>入口文件，在这里对vue当中的$el、methods、$data进行初始化，调用observer遍历$data的数据并进行挟持，调用compile遍历$el下的所有节点，解析指令和取值操作。遍历$data的数据，通过Object.defineProperty的getter和setter实现对$data的代理。</p>
+<h4 id="2、Observer"><a href="#2、Observer" class="headerlink" title="2、Observer"></a>2、Observer</h4><p>遍历data，通过Object.defineProperty设置getter和setter，在setter知道数据发生了改变，然后通知Wacher去更新view。</p>
+<h4 id="3、Compile"><a href="#3、Compile" class="headerlink" title="3、Compile"></a>3、Compile</h4><p>遍历$el下的所有节点，解析指令和取值操作等，为每个节点绑定更新函数（为什么在compile这里绑定呢？因为这里刚好是遍历的节点☺），绑定事件和method的关系，同时也添加订阅者，当接受到视图更新的订阅消息后，调用更新函数，实现视图更新。同时在添加订阅者的时候，初始化渲染视图。</p>
+<h4 id="4、Watcher"><a href="#4、Watcher" class="headerlink" title="4、Watcher"></a>4、Watcher</h4><p>Watcher作为订阅者，充当Observer和Compile的中间桥梁，包含update方法，update方法调用Compile中绑定的事件更新函数，实现对视图的初始化和更新操作。</p>
+<h3 id="MVVM的实现"><a href="#MVVM的实现" class="headerlink" title="MVVM的实现"></a>MVVM的实现</h3><p>MVVM完成初始化操作，并且调用observer和compile。对$data进行代理，如此便可以通过this.attribute来代理this.$data.attribute。因为一个属性可能对应多个指令，所以需要一个_binding属性来存放属性对应的所有订阅者，这样属性一改变，就可以取出所有的订阅者去更新视图。</p>
+<pre><code>function MVVM(options) {
+  // 初始化
+  this.$data = options.data;
+  this.$methods = options.methods;
+  this.$el = options.el;
+  // 保存data的每个属性对应的所有watcher
+  this._binding  = {};
+  // 调用observer和compile
+  this._observer(options.data);
+  this._compile();
+  // this.xxx 代理this.$data.xxx
+  this.proxyAttribute();
+}
+</code></pre><h3 id="Observer的实现"><a href="#Observer的实现" class="headerlink" title="Observer的实现"></a>Observer的实现</h3><p>Observer遍历$data，通过Object.defineProperty的setter的挟持数据改变，监听到数据改变后取出所有该属性对应的订阅者，然后通知更新函数更新视图。</p>
+<p>注意：这里有循环，且闭包（getter和setter）里面需要依赖循环项（value和key），所以用立即执行函数解决循环项获取不对的问题。</p>
+<pre><code>MVVM.prototype._observer = function(data) {
+  var self = this;
+  for(var key in this.$data) {
+    if (this.$data.hasOwnProperty(key)) {
+      // 初始化属性对应的订阅者容器（数组）
+      this._binding[key] = {
+        _directives: [],
+        _texts: []
+      };
+
+      if(typeof this.$data[key] === &quot;object&quot;) {
+        return this._observer(this.$data[key]);
+      }
+      var val = data[key];
+      // 立即执行函数获取正确的循环项
+      (function(value, key) {
+        Object.defineProperty(self.$data, key, {
+          enumerable: true,
+          configurable: true,
+          get: function() {
+            return value;
+          },
+          set(newval) {
+            if(newval === value) {
+              return;
+            }
+            value = newval;
+            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-属性
+            if(self._binding[key]._directives) {
+              self._binding[key]._directives.forEach(function(watcher) {
+                watcher.update();
+              }, self);
+            }
+            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-文本
+            if(self._binding[key]._texts) {
+              self._binding[key]._texts.forEach(function(watcher) {
+                watcher.update();
+              }, self);
+            }
+          }
+        });
+      })(val, key);
+    }
+  }
+}
+</code></pre><h3 id="Compile的实现"><a href="#Compile的实现" class="headerlink" title="Compile的实现"></a>Compile的实现</h3><p>Compile遍历所有的节点，解析指令，为每个节点绑定更新函数，且添加订阅者，当订阅者通知view更新的时候，调用更新函数，实现对视图的更新。</p>
+<p>这里同样需要使用立即执行函数来解决闭包依赖的循环项问题。</p>
+<p>还有一点需要解决的是，如果节点的innerText依赖多个属性的话，如何做到只替换改变属性对应的文本问题。</p>
+<p>比如：已经被编译解析成“欢迎： 鸣人”，如果message改变为“你好”，怎么让使得“欢迎：鸣人”改为“你好：鸣人”。</p>
+<pre><code>MVVM.prototype._compile = function() {
+  var dom = document.querySelector(this.$el);
+  var children = dom.children;
+  var self = this;
+  var i = 0, j = 0;
+  // 更新函数，但observer中model的数据改变的时候，通过Watcher的update调用更新函数，从而更新dom
+  var updater = null;
+  for(; i &lt; children.length; i++) {
+    var node = children[i];
+    (function(node) {
+      // 解析{{}}里面的内容
+      // 保存指令原始内容，不然数据更新时无法完成替换
+      var text = node.innerText;
+      var matches = text.match(/{{([^{}]+)}}/g);
+      if(matches &amp;&amp; matches.length &gt; 0) {
+        // 保存和node绑定的所有属性
+        node.bindingAttributes = [];
+        for(j = 0; j &lt; matches.length; j++) {
+          // data某个属性
+          var attr = matches[j].match(/{{([^{}]+)}}/)[1];
+          // 将和该node绑定的data属性保存起来
+          node.bindingAttributes.push(attr);
+          (function(attr) {
+            updater = function() {
+              // 改变的属性值对应的文本进行替换
+              var innerText = text.replace(new RegExp(&quot;{{" + attr + "}}&quot;, &quot;g&quot;), self.$data[attr]);
+              // 如果该node绑定多个属性 eg:&lt;div&gt;{{title}}{{description}}&lt;/div&gt;
+              for(var k = 0; k &lt; node.bindingAttributes.length; k++) {
+                if(node.bindingAttributes[k] !== attr) {
+                  // 恢复原来没改变的属性对应的文本
+                  innerText = innerText.replace(&quot;{{" + node.bindingAttributes[k] + "}}&quot;, self.$data[node.bindingAttributes[k]]);
+                }
+              }
+              node.innerText = innerText;
+            }
+            self._binding[attr]._texts.push(new Watcher(self, attr, updater));
+          })(attr);
+        }
+      }
+
+      // 解析vue指令
+      var attributes = node.getAttributeNames();
+      for(j = 0; j &lt; attributes.length; j++) {
+        // vue指令
+        var attribute = attributes[j];
+        // DOM attribute
+        var domAttr = null;
+        // 绑定的data属性
+        var vmDataAttr = node.getAttribute(attribute);
+
+        if(/v-bind:([^=]+)/.test(attribute)) {
+          // 解析v-bind
+          domAttr = RegExp.$1;
+          // 更新函数
+          updater = function(val) {
+            node[domAttr] = val;
+          }
+          // data属性绑定多个watcher
+          self._binding[vmDataAttr]._directives.push(
+            new Watcher(self, vmDataAttr, updater)
+          )
+        } elseif(attribute === &quot;v-model&quot; &amp;&amp; (node.tagName = &apos;INPUT&apos; || node.tagName == &apos;TEXTAREA&apos;)) {
+          // 解析v-model
+          // 更新函数
+          updater = function(val) {
+            node.value = val;
+          }
+          // data属性绑定多个watcher
+          self._binding[vmDataAttr]._directives.push(
+            new Watcher(self, vmDataAttr, updater)
+          )
+          // 监听input/textarea的数据变化，同步到model去，实现双向绑定
+          node.addEventListener(&quot;input&quot;, function(evt) {
+            var $el = evt.currentTarget;
+            self.$data[vmDataAttr] = $el.value;
+          });
+        } elseif(/v-on:([^=]+)/.test(attribute)) {
+          // 解析v-on
+          var event = RegExp.$1;
+          var method = vmDataAttr;
+          node.addEventListener(event, function(evt) {
+            self.$methods[method] &amp;&amp; self.$methods[method].call(self, evt);
+          });
+        }
+      }
+    })(node);
+  }
+
+}
+</code></pre><h3 id="Watcher的实现"><a href="#Watcher的实现" class="headerlink" title="Watcher的实现"></a>Watcher的实现</h3><p>Watcher充当订阅者的角色，架起了Observer和Compile的桥梁，Observer监听到数据变化后，通知Wathcer更新视图(调用Wathcer的update方法)，Watcher再告诉Compile去调用更新函数，实现dom的更新。同时页面的初始化渲染也交给了Watcher（当然也可以放到Compile进行）。</p>
+<pre><code>function Watcher(vm, attr, cb) {
+  this.vm = vm; // viewmodel
+  this.attr = attr; // data的属性，一个watcher订阅一个data属性
+  this.cb = cb; // 更新函数，在compile那边定义
+  // 初始化渲染视图
+  this.update();
+}
+
+Watcher.prototype.update = function() {
+  // 通知comile中的更新函数更新dom 
+  this.cb(this.vm.$data[this.attr]);
+}
+</code></pre><h3 id="全部代码"><a href="#全部代码" class="headerlink" title="全部代码"></a>全部代码</h3><p>git地址：<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FVikiLee%2FMVVM.git" target="_blank" rel="noopener">github.com/VikiLee/MVV…</a></p>
+<p>鸣谢：<a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F5acc17cb51882555745a03f8" target="_blank" rel="noopener">juejin.im/post/5acc17…</a></p>
+<h3 id="使用例子"><a href="#使用例子" class="headerlink" title="使用例子"></a>使用例子</h3><pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;
+  &lt;title&gt;Document&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id=&quot;view&quot;&gt;
+    &lt;div v-bind:id=&quot;id&quot;&gt;
+      {{message}}:{{name}}
+    &lt;/div&gt;
+    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;
+    &lt;button v-on:click=&quot;handleClick&quot;&gt;获取输入值&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;script src=&quot;js/MVVM.js&quot;type=&quot;text/javascript&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+  var vue = new MVVM({
+    el: &quot;#view&quot;,
+    data: {
+      message: &quot;欢迎光临&quot;,
+      name: &quot;鸣人&quot;,
+      id: &quot;id&quot;
+    },
+    methods: {
+      handleClick: function() {
+        alert(this.message + &quot;:&quot; + this.name + &quot;, 点击确定路飞会出来&quot;);
+        this.name = &apos;路飞&apos;;
+      }
+    }
+  })
+
+  setTimeout(function() {
+    vue.message = &quot;你好&quot;;
+  }, 1000);
+&lt;/script&gt;
+&lt;/html&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/HTTP三种缓存方式/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -4402,288 +4737,11 @@ export const asyncComponent = loadComponent =&gt; (
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/08/HTML5的Websocket/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/08/HTML5的Websocket/" itemprop="url">HTML5的Websocket</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-08T22:18:50+08:00">
-                2018-08-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <blockquote>
-<ul>
-<li>先请来TA的邻居：*<br>http：无状态、基于tcp请求/响应模式的应用层协议 （A:哎呀，上次你请我吃饭了么? B:我想想, 上次请你吃了么）tcp：面向连接、保证高可靠性(数据无丢失、数据无失序、数据无错误、数据无重复到达) 传输层协议。（看啊，大阅兵，如此规整有秩序）</li>
-</ul>
-</blockquote>
-<h2 id="为什么要引入Websocket："><a href="#为什么要引入Websocket：" class="headerlink" title="为什么要引入Websocket："></a>为什么要引入Websocket：</h2><blockquote>
-<p>RFC开篇介绍：本协议的目的是为了解决基于浏览器的程序需要拉取资源时必须发起多个HTTP请求和长时间的轮询的问题。</p>
-</blockquote>
-<p>long poll(长轮询): 客户端发送一个request后，服务器拿到这个连接，如果有消息，才返回response给客户端。没有消息，就一直不返回response。之后客户端再次发送request, 重复上次的动作。</p>
-<p><img src="https://pic3.zhimg.com/v2-b900392bfe564de524ec5460a2b5d235_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-b900392bfe564de524ec5460a2b5d235_hd.jpg" alt=""></p>
-<p>从上可以看出，http协议的特点是服务器不能主动联系客户端，只能由客户端发起。它的被动性预示了在完成双向通信时需要不停的连接或连接一直打开，这就需要服务器快速的处理速度或高并发的能力，是非常消耗资源的。</p>
-<p>这个时候，Websocket出现了。</p>
-<h2 id="Websocket是什么："><a href="#Websocket是什么：" class="headerlink" title="Websocket是什么："></a>Websocket是什么：</h2><blockquote>
-<p>RFC中写到：WebSocket协议使在控制环境下运行不受信任代码的客户端和能够选择与那些代码通信的远程主机之间能够双向通信。</p>
-</blockquote>
-<p>对，划重点：双向通信</p>
-<p>Websocket在连接之后，客户端可以主动发送消息给服务器，服务器也可以主动向客户端推送消息。比如：预订车票信息，除了我们发请求询问车票如何，当然更希望如果有新消息，可以直接通知我们。</p>
-<p>其特点：</p>
-<p>（1）握手阶段采用 HTTP 协议，默认端口是80和443</p>
-<p>（2）建立在TCP协议基础之上，和http协议同属于应用层</p>
-<p>（4）可以发送文本，也可以发送二进制数据</p>
-<p>（5）没有同源限制，客户端可以与任意服务器通信</p>
-<p>（6）协议标识符是ws（如果加密，为wss），如ws://localhost:8023</p>
-<p>简单来说，Websocket协议分为两部分：握手和数据传输。</p>
-<p><img src="https://pic2.zhimg.com/v2-5b1e92b99d352ba977f69cbe28604ecf_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-5b1e92b99d352ba977f69cbe28604ecf_hd.jpg" alt=""></p>
-<h2 id="Websocket-API："><a href="#Websocket-API：" class="headerlink" title="Websocket API："></a>Websocket API：</h2><blockquote>
-<p>这里是指客户端 API。</p>
-</blockquote>
-<h2 id="WebSocket-构造函数"><a href="#WebSocket-构造函数" class="headerlink" title="WebSocket 构造函数"></a>WebSocket 构造函数</h2><ol>
-<li><code>通过调用WebSocket构造函数来创建一个WebSocket实例对象，建立客户端与服务器的连接。</code></li>
-<li><code>const ws =`</code>new<code></code>WebSocket(‘ws://localhost:8023’);`</li>
-</ol>
-<h2 id="Websocket事件"><a href="#Websocket事件" class="headerlink" title="Websocket事件"></a>Websocket事件</h2><ol>
-<li><code>WebSocket`</code>是纯事件驱动，通过监听事件可以处理到来的数据和改变的连接状态。服务端发送数据后，消息和事件会异步到达。`</li>
-</ol>
-<p>open:</p>
-<p>服务端响应WebSocket连接请求，就会触发open事件。onopen是响应的回调函数。</p>
-<p><code>// 连接请求open事件处理：</code></p>
-<pre><code>ws.onopen=e=&gt;{
-   console.log(&apos;Connection success&apos;);
-   ws.send(`Hello ${e}`);
-};
-</code></pre><p>如果要指定多个回调函数，可以使用addEventListener方法。</p>
-<pre><code>ws.addEventListener(&apos;open&apos;, e =&gt; {
- ws.send(`Hello ${e}`);
-});
-</code></pre><p>当open事件触发时，意味着握手阶段已结束。服务端已经处理了连接的请求，可以准备收发数据。</p>
-<p>Message:</p>
-<p>收到服务器数据，会触发消息事件，onmessage是响应的回调函数。如下：</p>
-<pre><code>// 接受文本消息的事件处理：
-ws.onmessage = e =&gt; {
-const data = e.data;
-if (typeof data === &quot;string&quot;) {
-       console.log(&quot;Received string message &quot;,data);
-} else if (data instanceof Blob) {
-       console.log(&quot;Received blob message &quot;, data);
-}
-};
-</code></pre><p>服务器数据可能是文本，也可能是二进制数据，有Blob和ArrayBuffer两种类型，在读取到数据之前需要决定好数据的类型。</p>
-<p>Error</p>
-<p>发生错误会触发error事件, onerror是响应的回调函数, 会导致连接关闭。</p>
-<pre><code>//异常处理
-ws.onerror = e =&gt; {
-   console.log(&quot;WebSocket Error: &quot; , e);
-   handleErrors(e);
-};
-</code></pre><p>当连接关闭时触发close事件，对应onclose方法，连接关闭之后，服务端和客户端就不能再通信。</p>
-<p>WebSocket 规范中定义了ping 帧 和pong 帧，可以用来做心跳重连，网络状态查询等，但是目前 浏览器只会自动发送pong帧，而不会发ping 帧。（有兴趣可详查ping和pong帧）</p>
-<pre><code>//关闭连接处理
-ws.onclose = e =&gt; {
-const code = e.code;
-const reason = e.reason;
-   console.log(&quot;Connection close&quot;, code, reason);
-};
-</code></pre><h2 id="WebSocket-方法："><a href="#WebSocket-方法：" class="headerlink" title="WebSocket 方法："></a>WebSocket 方法：</h2><blockquote>
-<p>WebSocket 对象有两个方法：send 和 close</p>
-</blockquote>
-<p>send:</p>
-<p>客户端和服务器建立连接后，可以调用send方法去发送消息。</p>
-<pre><code>//发送一个文本消息
-ws.send(&quot;this is websocket&quot;);
-</code></pre><p>在open事件的回调中调用send()方法传送数据：</p>
-<pre><code>const ws = new WebSocket(&apos;ws://localhost:8023&apos;);
-ws.onopen = e =&gt; {
-   console.log(&apos;Connection success&apos;);
-   ws.send(`Hello ${e}`);
-};
-</code></pre><p>如果想通过响应其他事件发送消息，可通过判断当前的Websocket的readyState属性。接下来会说到readyState.</p>
-<p>close</p>
-<p>close方法用来关闭连接。调用close方法后，将不能发送数据。close方法可以传入两个可选的参数，code 和reason, 以告诉服务端为什么终止连接。</p>
-<pre><code>ws.close();
-
-//1000是状态码，代表正常结束。
-ws.close(1000, &quot;Closing normally&quot;);
-</code></pre><h2 id="WebSocket-属性"><a href="#WebSocket-属性" class="headerlink" title="WebSocket 属性"></a>WebSocket 属性</h2><ul>
-<li>readyState：</li>
-</ul>
-<p>readyState值表示连接状态，是只读属性。它有以下四个值：</p>
-<blockquote>
-<p>WebSocket.CONNECTING ：连接正在进行，但还没有建立 WebSocket.OPEN ：连接已经建立，可以发送消息 WebSocket.CLOSING ：连接正在进行关闭握手 WebSocket.CLOSED ：连接已经关闭或不能打开</p>
-</blockquote>
-<p>除了在open事件回调中调用send方法，可通过判断readyState值来发送消息。</p>
-<pre><code>function bindEventHandler(data) {
-if (ws.readyState === WebSocket.OPEN) {
-       ws.send(data);
-} else {
-//do something
-}
-} 
-</code></pre><p>bufferedAmount：</p>
-<p>当客户端传输大量数据时，浏览器会缓存将要流出的数据，bufferedAmount属性可判断有多少字节的二进制数据没有发送出去，发送是否结束。</p>
-<pre><code>ws.onopen = function () {
-   setInterval( function() {
-//缓存未满的时候发送
-if (ws.bufferedAmount &lt; 1024 * 5) {
-           ws.send(data);
-}
-}, 2000);
-};
-</code></pre><p>protocol：</p>
-<p>protocol代表客户端使用的WebSocket协议。当握手协议未成功，这个属性是空。</p>
-<ul>
-<li>接下来，我们说说握手阶段过程。*</li>
-</ul>
-<p>当我们创建Websocket实例对象与服务器建立连接时，</p>
-<pre><code>const ws = new WebSocket(&apos;ws://localhost:8023&apos;)；
-</code></pre><p>首先客户端向服务器发起一个握手请求，其请求报文的内容如下：</p>
-<pre><code>GET /game HTTP/1.1
-Host: 10.242.17.102:8023
-Cache-Control: no-cache
-Upgrade: websocket
-Connection: Upgrade
-Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
-Sec-WebSocket-Protocol: game
-Sec-WebSocket-Version: 10
-Origin: http://192.168.185.16
-Accept-Encoding: gzip, deflate, sdch
-Accept-Language: zh-CN,zh;q=0.8
-</code></pre><p>从请求头中可以看出，其实是一个基于http的握手请求。与通常的http请求不同的是，增加了一些头信息。</p>
-<ul>
-<li>Upgrade字段: 通知服务器，现在要使用一个升级版协议 - Websocket。</li>
-<li>Sec-WebSocket-Key: 是一个Base64编码的值，这个是浏览器随机生成,通知服务器，需要验证下是否可以进行Websocket通信</li>
-<li>Sec_WebSocket-Protocol: 是用户自定义的字符串，用来标识服务所需要的协议</li>
-<li>Sec-WebSocket-Version: 通知服务器所使用的协议版本</li>
-</ul>
-<p>服务器响应：</p>
-<pre><code>当服务器返回以下内容，就表示已经接受客户端请求啦，可以建立Websocket通信啦。 
-HTTP/1.1 101 Switching Protocols
-Upgrade: websocket
-Connection: Upgrade
-Sec-WebSocket-Accept: SIEylb7zRYJAEgiqJXaOW3V+ZWQ=
-</code></pre><ul>
-<li>101 状态码，表示要转换协议啦</li>
-<li>Upgrde: 通知客户端将要升级成Websocket协议</li>
-<li>Sec-WebSocket-Accept： 经过服务器确认，并且加密过后的 Sec-WebSocket-Key。用来证明客户端和服务器之间能进行通信了。</li>
-</ul>
-<p><img src="https://pic4.zhimg.com/v2-05e821d0db32cf8cb5ebf51625870cb1_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-05e821d0db32cf8cb5ebf51625870cb1_hd.jpg" alt=""></p>
-<p>至此，客户端和服务器握手成功建立了Websocket连接，通信不再使用http数据帧，而采用Websocket独立的数据帧。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -4733,7 +4791,7 @@ Sec-WebSocket-Accept: SIEylb7zRYJAEgiqJXaOW3V+ZWQ=
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">38</span>
+                  <span class="site-state-item-count">41</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4746,7 +4804,7 @@ Sec-WebSocket-Accept: SIEylb7zRYJAEgiqJXaOW3V+ZWQ=
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">28</span>
+                  <span class="site-state-item-count">30</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
