@@ -1024,6 +1024,132 @@ server.listen(3000)
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/01/为什么Redux-需要-reducers是纯函数？/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/01/为什么Redux-需要-reducers是纯函数？/" itemprop="url">为什么Redux 需要 reducers是纯函数？</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-01T00:13:40+08:00">
+                2018-10-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="为什么Redux-需要-reducers是纯函数？"><a href="#为什么Redux-需要-reducers是纯函数？" class="headerlink" title="为什么Redux 需要 reducers是纯函数？"></a>为什么Redux 需要 reducers是纯函数？</h4><p> 这又是一个很厉害的问题了，使用Redux的都知道，reducers会接收上一个state和action作为参数，然后返回一个新的state，这个新的state不能是在原来state基础上的修改。所以经常可以看到以下的写法：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">return Object.assign(...)</span><br><span class="line">//或者----------</span><br><span class="line">return &#123;...state,xx:xxx&#125;</span><br></pre></td></tr></table></figure></p>
+<p>其作用，都是为了返回一个全新的对象。</p>
+<p><strong>为什么reducers要求是纯函数(返回全新的对象，不影响原对象)?</strong>  –某面试官</p>
+<h3 id="纯函数"><a href="#纯函数" class="headerlink" title="纯函数"></a>纯函数</h3><p>从本质上讲，纯函数的定义如下：不修改函数的输入值，依赖于外部状态（比如数据库，DOM和全局变量），同时对于任何相同的输入有着相同的输出结果。<br>举个例子，下面的add函数不修改变量a或b，同时不依赖外部状态，对于相同的输入始终返回相同的结果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">const add = (a,b) =&gt; &#123;a + b&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>这就是一个纯函数，结果对a、b没有任何影响，回头去看reducer，它符合纯函数的所有特征，所以就是一个纯函数<br>为什么必须是纯函数?<br>先告诉你结果吧，如果在reducer中，在原来的state上进行操作，并返回的话，并不会让React重新渲染。 完全不会有任何变化！<br>接下来看下Redux的源码：<br><img src="https://user-gold-cdn.xitu.io/2018/8/22/165609de895ae1ae?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>Redux接收一个给定的state（对象），然后通过循环将state的每一部分传递给每个对应的reducer。如果有发生任何改变，reducer将返回一个新的对象。如果不发生任何变化，reducer将返回旧的state。<br>Redux只通过比较新旧两个对象的存储位置来比较新旧两个对象是否相同。如果你在reducer内部直接修改旧的state对象的属性值，那么新的state和旧的state将都指向同一个对象。因此Redux认为没有任何改变，返回的state将为旧的state。<br>好了，也就是说，从源码的角度来讲，redux要求开发者必须让新的state是全新的对象。那么为什么非要这么麻烦开发者呢？<br>请看下面的例子：尝试比较a和b是否相同<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 12,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">var b = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 13,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p> 思路是怎样的？我们需要遍历对象，如果对象的属性是数组，还需要进行递归遍历，去看内容是否一致、是否发生了变化。 这带来的性能损耗是非常巨大的。 有没有更好的办法？<br>有！<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//接上面的例子</span><br><span class="line">a === b  //false</span><br></pre></td></tr></table></figure></p>
+<p> 我不要进行深度比较，只是浅比较，引用值不一样(不是同一个对象),那就是不一样的。 这就是redux的reducer如此设计的原因了</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/25/Promise-必知必会/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -4475,233 +4601,6 @@ rootMargin = `-500px 0px`
     }
   }
 &lt;/script&gt;
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/11/Raect-异步加载组件/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/11/Raect-异步加载组件/" itemprop="url">Raect 异步加载组件</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-11T23:09:27+08:00">
-                2018-08-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>首先需要知道的是dynamic import通过返回Promise的方式实现异步加载功能。</p>
-<pre><code>import(&apos;./component.js&apos;)  
-    .then((m) =&gt; {
-        // 处理异步加载到的模块m
-    })
-    .catch((err) =&gt; {
-        // 错误处理
-    });
-</code></pre><p>要注意的是import的参数不能使用变量，简单原则是至少要让Webpack知晓应该预先加载哪些内容。这里的参数除了使用常量之外，还可以使用模板字符串<code>componentDir/${name}.js</code>。</p>
-<p>其实到这里基本完成代码切割了，接下来做得就是结合react-router实现按模块异步加载。这是跟业务代码相关的，因此每个人的做法都是不一样的。所以以下代码仅供参考。</p>
-<p>异步加载</p>
-<p>我参考react-router的例子写了个简单的异步加载组件AsyncLoader.js，内容：</p>
-<pre><code>import React from &apos;react&apos;;
-
-export default class AsyncLoader extends React.Component {
-
-  static propTypes = {
-    path: React.PropTypes.string.isRequired,
-    loading: React.PropTypes.element,
-  };
-
-  static defaultProps = {
-    path: &apos;&apos;,
-    loading: &lt;p&gt;Loading...&lt;/p&gt;,
-    error: &lt;p&gt;Error&lt;/p&gt;
-  };
-
-  constructor(props) {
-    super(props);
-    this.state = {
-      module: null
-    };
-  }
-
-  componentWillMount() {
-    this.load(this.props);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.path !== this.props.path
-      || nextProps.error !== this.props.error
-      || nextProps.loading !== this.props.loading) {
-      this.load(nextProps);
-    }
-  }
-
-  load(props) {
-
-    this.setState({module: props.loading});
-
-    // TODO：异步代码的路径希望做成可以配置的方式
-    import(`./path/${props.path}`)
-      .then((m) =&gt; {
-        let Module = m.default ? m.default : m;
-        console.log(&quot;module: &quot;, Module);
-        this.setState({module: &lt;Module/&gt;});
-      }).catch(() =&gt; {
-        this.setState({module: props.error});
-      });
-  }
-
-  render() {
-    return this.state.module;
-  }
-}
-</code></pre><p>使用方法</p>
-<pre><code>&lt;Route  
-    exact path=&apos;/book&apos; 
-    render={()=&gt;&lt;AsyncLoader path={&apos;./components/Book.js&apos;}/&gt;} 
-/&gt;
-</code></pre><p>Webpack打包的时候会根据import的参数生成相应的js文件，默认使用id（webpack生成的，从0开始）命名这个文件。</p>
-<pre><code>const Search = asyncComponent(() =&gt; import(/* webpackChunkName: &quot;search&quot; */ &quot;./containers/Search/SearchContainer&quot;))
-const BookList = asyncComponent(() =&gt; import(/* webpackChunkName: &quot;bookList&quot; */ &quot;./containers/BookList/BookListContainer&quot;))
-
-
-import React from &apos;react&apos;
-export const asyncComponent = loadComponent =&gt; (
-    class AsyncComponent extends React.Component {
-        state = {
-            Component: null,
-        }
-
-        componentWillMount() {
-            if (this.hasLoadedComponent()) {
-                return;
-            }
-
-            loadComponent()
-                .then(module =&gt; module.default) ////兼容 module.default ? module.default : module
-                .then((Component) =&gt; {
-                    this.setState({ Component });
-                })
-                .catch((err) =&gt; {
-                    console.error(`Cannot load component in &lt;AsyncComponent /&gt;`);
-                    throw err;
-                });
-        }
-
-        hasLoadedComponent() {
-            return this.state.Component !== null;
-        }
-
-        render() {
-            const { Component } = this.state;
-            return (Component) ? &lt;Component {...this.props} /&gt; : null;
-        }
-    }
-); 
 </code></pre>
           
         
