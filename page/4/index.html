@@ -252,6 +252,502 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/30/深入理解ES6  Async Functions/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/30/深入理解ES6  Async Functions/" itemprop="url">深入理解ES6 Async Functions (异步函数)</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-30T18:35:10+08:00">
+                2018-05-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h2 id="async-异步-函数变体"><a href="#async-异步-函数变体" class="headerlink" title="async(异步) 函数变体"></a>async(异步) 函数变体</h2><p>以下是已经存在的异步函数变体。请注意无处不在的 <code>async</code> 关键字。</p>
+<ul>
+<li>异步函数声明： <code>async function foo() {}</code></li>
+<li>异步函数表达式： <code>const foo = async function () {};</code></li>
+<li>异步函数定义：<code>let obj = { async foo() {} }</code></li>
+<li>异步箭头函数： <code>const foo = async () =&gt; {};</code></li>
+</ul>
+<h2 id="async-异步-函数总是返回-Promises"><a href="#async-异步-函数总是返回-Promises" class="headerlink" title="async(异步) 函数总是返回 Promises"></a>async(异步) 函数总是返回 Promises</h2><p>async(异步) 函数的 Promise 完成状态：</p>
+<pre><code>async function asyncFunc() {
+return 123;
+}
+
+asyncFunc()
+.then(x =&gt; console.log(x));
+// 123
+</code></pre><p>async(异步) 函数的 Promise 拒绝状态：</p>
+<pre><code>async function asyncFunc() {
+throw new Error(&apos;Problem!&apos;);
+}
+
+asyncFunc()
+.catch(err =&gt; console.log(err));
+// Error: Problem!
+</code></pre><h2 id="通过-await-处理-async-异步-计算的结果和错误"><a href="#通过-await-处理-async-异步-计算的结果和错误" class="headerlink" title="通过 await 处理 async(异步) 计算的结果和错误"></a>通过 <code>await</code> 处理 async(异步) 计算的结果和错误</h2><p><code>await</code>（只允许在 async(异步) 函数内部使用）等待其操作对象 Promise 返回：</p>
+<ul>
+<li>如果 Promise 是完成状态，<code>await</code> 的结果是完成态的值。</li>
+<li>如果 Promise 是拒绝状态，<code>await</code> 会抛出拒绝值。</li>
+</ul>
+<p>处理单个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const result = await otherAsyncFunc();
+   console.log(result);
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc()
+.then(result =&gt; {
+       console.log(result);
+});
+}
+</code></pre><p>按顺序处理多个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const result1 = await otherAsyncFunc1();
+   console.log(result1);
+const result2 = await otherAsyncFunc2();
+   console.log(result2);
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc1()
+.then(result1 =&gt; {
+       console.log(result1);
+return otherAsyncFunc2();
+})
+.then(result2 =&gt; {
+       console.log(result2);
+});
+}
+</code></pre><p>并行处理多个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const [result1, result2] = await Promise.all([
+       otherAsyncFunc1(),
+       otherAsyncFunc2(),
+]);
+   console.log(result1, result2);
+}
+
+// 等价于:
+function asyncFunc() {
+return Promise.all([
+       otherAsyncFunc1(),
+       otherAsyncFunc2(),
+])
+.then([result1, result2] =&gt; {
+       console.log(result1, result2);
+});
+}
+</code></pre><p>错误处理：</p>
+<pre><code>async function asyncFunc() {
+try {
+await otherAsyncFunc();
+} catch (err) {
+       console.error(err);
+}
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc()
+.catch(err =&gt; {
+       console.error(err);
+});
+}
+</code></pre><h2 id="理解-async-异步-函数"><a href="#理解-async-异步-函数" class="headerlink" title="理解 async(异步) 函数"></a>理解 async(异步) 函数</h2><p>在我解释 async(异步) 函数之前，我需要解释一下如何组合使用 Promises 和 Generator ，通过看起来同步的代码来执行 async(异步) 操作。</p>
+<p>对于能够 async(异步) 计算其一次性结果的函数，作为 ES6 一部分的 Promises 已经变得流行起来。一个例子是 <a href="https://link.zhihu.com/?target=https%3A//fetch.spec.whatwg.org/%23concept-request" target="_blank" rel="noopener">客户端 fetch API</a> ，它是 XMLHttpRequest 获取数据的替代方法。使用示例如下：</p>
+<pre><code>function fetchJson(url) {
+return fetch(url)
+.then(request =&gt; request.text())
+.then(text =&gt; {
+return JSON.parse(text);
+})
+.catch(error =&gt; {
+       console.log(`ERROR: ${error.stack}`);
+});
+}
+fetchJson(&apos;http://example.com/some_file.json&apos;)
+.then(obj =&gt; console.log(obj));
+</code></pre><h2 id="通过-generator-来编写异步代码"><a href="#通过-generator-来编写异步代码" class="headerlink" title="通过 generator 来编写异步代码"></a>通过 generator 来编写异步代码</h2><p>co 是一个使用 Promise 和 generator 来实现看似同步编码的库，但与上一示例中使用的样式相同：</p>
+<pre><code>const fetchJson = co.wrap(function* (url) {
+try {
+let request = yield fetch(url);
+let text = yield request.text();
+return JSON.parse(text);
+}
+catch (error) {
+       console.log(`ERROR: ${error.stack}`);
+}
+});
+</code></pre><p>每次回调函数（ generator 函数）产生一个 Promise 对象给 co ，回调会被暂停，只有当 Promise 执行完成后，co 才会继续执行回调 。 如果 Promise 处于完成状态，<code>yield</code> 返回完成状态的值，如果处于拒绝状态，<code>yield</code> 抛出拒绝状态的错误。此外，co 保证结果是通过回调执行完成才返回的（类似于 <code>then()</code> 所做的工作）。</p>
+<h2 id="通过-async-异步-函数来编写异步代码"><a href="#通过-async-异步-函数来编写异步代码" class="headerlink" title="通过 async(异步) 函数来编写异步代码"></a>通过 async(异步) 函数来编写异步代码</h2><p>async(异步) 函数用的特定语法基本上和 co 类似：</p>
+<pre><code>async function fetchJson(url) {
+try {
+let request = await fetch(url);
+let text = await request.text();
+return JSON.parse(text);
+}
+catch (error) {
+       console.log(`ERROR: ${error.stack}`);
+}
+}
+</code></pre><p>在内部，异步函数写法更类似于 generators 。</p>
+<h2 id="以同步开始，异步处理的-async-异步-函数"><a href="#以同步开始，异步处理的-async-异步-函数" class="headerlink" title="以同步开始，异步处理的 async(异步) 函数"></a>以同步开始，异步处理的 async(异步) 函数</h2><p>以下是 async(异步)函数是如何工作的：</p>
+<ol>
+<li>async(异步) 函数总是返回一个 Promise 对象 <code>p</code> 。Promise 对象在 async(异步) 函数开始执行时被创建。</li>
+<li>函数体执行过程中，可以通过 <code>return</code> 或 <code>throw</code> 终止执行。或者通过 <code>await</code> 暂停执行，在这种情况下，通常会在以后继续执行。</li>
+<li>返回 Promise 对象 <code>p</code>。</li>
+</ol>
+<p>当执行 async(异步) 函数的函数体时，<code>return x</code> 中的 <code>x</code> 是 Promise 对象 <code>p</code> 的完成状态的结果，而 <code>throw err</code> 是 <code>p</code> 的拒绝状态的结果。执行结果是异步返回的。换句话说：<code>then()</code> 和 <code>catch()</code> 的回调总是在当前代码完成后执行。</p>
+<p>以下是代码示例：</p>
+<pre><code>async function asyncFunc() {
+   console.log(&apos;asyncFunc()&apos;); // (A)
+return &apos;abc&apos;;
+}
+asyncFunc().
+then(x =&gt; console.log(`Resolved: ${x}`)); // (B)
+console.log(&apos;main&apos;); // (C)
+
+// Output:
+// asyncFunc()
+// main
+// Resolved: abc
+</code></pre><p>您可以认为是以下的执行顺序：</p>
+<ol>
+<li>行A：async(异步) 函数以同步开始。async(异步) 函数的 Promise 通过 <code>return</code> 来返回完成状态的结果。</li>
+<li>行C：执行继续。</li>
+<li>行B：Promise 完成状态通知是异步发生的。</li>
+</ol>
+<h2 id="返回不被包裹的-Promise-对象"><a href="#返回不被包裹的-Promise-对象" class="headerlink" title="返回不被包裹的 Promise 对象"></a>返回不被包裹的 Promise 对象</h2><p>Promise 的 resolve 是一项标准操作。 <code>return</code> 就是使用它来 resolve async(异步) 函数的 Promise <code>p</code> 的。这意味着：</p>
+<ol>
+<li>返回一个非 Promise 值，该值将被处理成 <code>p</code> 的完成状态值。</li>
+<li>返回一个 Promise 对象，那么 <code>p</code> 此时相当于是该 Promise 的状态。</li>
+</ol>
+<p>因此，您可以返回一个 Promise ，并且这个 Promise 不会包裹在别的 Promise 中：</p>
+<pre><code>async function asyncFunc() {
+return Promise.resolve(123);
+}
+asyncFunc()
+.then(x =&gt; console.log(x)) // 123
+</code></pre><p>有趣的是，返回一个拒绝状态（reject）的 Promise 对象会导致 async(异步) 函数被拒绝（reject）（通常，您可以使用 <code>throw</code> ）：</p>
+<pre><code>async function asyncFunc() {
+return Promise.reject(new Error(&apos;Problem!&apos;));
+}
+asyncFunc()
+.catch(err =&gt; console.error(err)); // Error: Problem!
+</code></pre><p>这与 Promise 解决方案的工作方式是一致的。 使你能够在不使用 <code>await</code> 的情况下，使用其他 async(异步) 计算来执行完成和拒绝处理：</p>
+<pre><code>async function asyncFunc() {
+return anotherAsyncFunc();
+}
+</code></pre><p>上面的代码示例和下面的类似，但是比下面的更高效。（以下代码示例没有包裹 <code>anotherAsyncFunc()</code> 的 Promise ，而是包裹 <code>anotherAsyncFunc()</code> 本身 ）：</p>
+<pre><code>async function asyncFunc() {
+return await anotherAsyncFunc();
+}
+</code></pre><h2 id="使用-await-小贴士"><a href="#使用-await-小贴士" class="headerlink" title="使用 await 小贴士"></a>使用 <code>await</code> 小贴士</h2><h2 id="不要忘记使用-await"><a href="#不要忘记使用-await" class="headerlink" title="不要忘记使用 await"></a>不要忘记使用 <code>await</code></h2><p>在 async(异步) 函数中容易犯的一个错误就是在调用 async(异步) 函数时忘记使用 <code>await</code> ：</p>
+<pre><code>async function asyncFunc() {
+const value = otherAsyncFunc(); // missing `await`!
+···
+}
+</code></pre><p>在这个例子中，方法执行返回的 Promise 对象赋值给了 <code>value</code> ，它通常不是你在 async(异步) 函数中想要的结果。</p>
+<p>await 甚至可以在 async(异步) 函数不返回任何值的情况下起作用。它的 Promise 只是用来告诉调用者完成状态。例如：</p>
+<pre><code>async function foo() {
+await step1(); // (A)
+···
+}
+</code></pre><p>行A中的 <code>await</code> 确保在执行 <code>foo()</code> 剩余部分之前， <code>step1()</code> 已经执行完成。</p>
+<h2 id="不需要使用-await-的情况"><a href="#不需要使用-await-的情况" class="headerlink" title="不需要使用 await 的情况"></a>不需要使用 await 的情况</h2><p>有时，你只想触发异步计算，并且不需要关注它什么时候完成。以下是代码示例：</p>
+<pre><code>async function asyncFunc() {
+const writer = openFile(&apos;someFile.txt&apos;);
+   writer.write(&apos;hello&apos;); // don’t wait
+   writer.write(&apos;world&apos;); // don’t wait
+await writer.close(); // wait for file to close
+}
+</code></pre><p>在这里，我们不关心单个的写入操作是否完成，只需要他们以正确的顺序执行 (API必须保证，但这是由 async(异步) 函数的执行模型所鼓励的，正如我们所见)。</p>
+<p><code>asyncFunc()</code> 函数最后一行的 <code>await</code> 确保该函数仅在文件写入关闭后才会执行。</p>
+<p>由于返回的 Promises 没有被其他 async(异步) 函数包裹，所以你可以用 <code>return</code> 替换 <code>await writer.close()</code> ：</p>
+<pre><code>async function asyncFunc() {
+const writer = openFile(&apos;someFile.txt&apos;);
+   writer.write(&apos;hello&apos;);
+   writer.write(&apos;world&apos;);
+return writer.close();
+}
+</code></pre><p>这两个版本各有利弊，<code>await</code> 版本可能稍微更容易理解。</p>
+<h2 id="await-是顺序执行的，Promise-all-是并行的"><a href="#await-是顺序执行的，Promise-all-是并行的" class="headerlink" title="await 是顺序执行的，Promise.all() 是并行的"></a>await 是顺序执行的，Promise.all() 是并行的</h2><p>下面的代码调用了两个 async(异步) 函数， <code>asyncFunc1()</code> 和 <code>asyncFunc1()</code> 。</p>
+<pre><code>async function foo() {
+const result1 = await asyncFunc1();
+const result2 = await asyncFunc2();
+}
+</code></pre><p>这两个函数调用顺序执行。但是并行执行它们往往会加快速度。您可以使用 Promise.all() ：</p>
+<pre><code>async function foo() {
+const [result1, result2] = await Promise.all([
+       asyncFunc1(),
+       asyncFunc2(),
+]);
+}
+</code></pre><p>我们现在正在等待一个包含两个元素的数组的 Promise ，而不是等待两个 Promise。</p>
+<h2 id="异步函数和回调"><a href="#异步函数和回调" class="headerlink" title="异步函数和回调"></a>异步函数和回调</h2><p>async(异步) 函数的一个限制是 <code>await</code>(等待) 只影响直接相关的 async(异步) 函数。因此，async(异步) 函数无法在回调（但是，回调可以是 async(异步) 函数本身，稍后我们将会看到）中使用 <code>await</code>(等待)。这使得基于回调的实用函数和方法难以使用。例子中我们将使用数组方法 <code>map()</code> 和 <code>forEach()</code>。</p>
+<h2 id="Array-prototype-map"><a href="#Array-prototype-map" class="headerlink" title="Array.prototype.map()"></a>Array.prototype.map()</h2><p>我们从数组方法 <code>map()</code> 开始讲解。在下面的代码示例中，我们想要加载由 URLs 数组指向的文件，并将它们返回到数组中。</p>
+<pre><code>async function downloadContent(urls) {
+return urls.map(url =&gt; {
+// 错误的语法!
+const content = await httpGet(url);
+return content;
+});
+}
+</code></pre><p>这不起作用，因为在正常箭头函数中 <code>await</code> 语法上是非法的(愚人码头注： <code>await</code>(等待) 只影响直接相关的 async(异步) 函数)。那么如何使用异步的箭头函数呢？</p>
+<pre><code>async function downloadContent(urls) {
+return urls.map(async (url) =&gt; { // 注意这一行中的 async ;
+const content = await httpGet(url);
+return content;
+});
+}
+</code></pre><p>这段代码有两个问题：</p>
+<ul>
+<li>现在返回的结果是一个 Promises 对象的数组，而不是一个字符串的数组。</li>
+<li>一旦 <code>map()</code> 执行完成，回调执行的工作并不能同时完成，因为 <code>await</code> 只暂停了包裹它的箭头函数 和 <code>httpGet()</code> 异步执行达到完成状态。这意味着你不能使用 <code>await</code>，来等待 <code>downloadContent()</code> 执行结束。</li>
+</ul>
+<p>我们可以通过 <code>Promise.all()</code> 来解决这两个问题，<code>Promise.all()</code> 可以将一系列的 Promise 转换为一个 Promise 数组（所有值都是经过 Promise 完成并返回）：</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(async (url) =&gt; {
+const content = await httpGet(url);
+return content;
+});
+return await Promise.all(promiseArray);
+}
+</code></pre><p><code>map()</code> 的回调并不对 <code>httpGet()</code> 的结果起作用，只是起到不断执行的作用。因此，这里我们不需要一个异步的箭头函数，只需要一个普通的箭头函数就能达到相同的结果。</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(
+       url =&gt; httpGet(url));
+return await Promise.all(promiseArray);
+}
+</code></pre><p>我们仍然可以做一个小的改进：这个异步函数稍微有点低效 – 首先通过 <code>await</code> 来解开 <code>Promise.all()</code> 的结果，然后通过 <code>return</code> 再次包裹它。 假设 <code>return</code> 不包裹 Promises，我们可以直接返回 <code>Promise.all()</code> 的结果：</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(
+       url =&gt; httpGet(url));
+return Promise.all(promiseArray);
+}
+</code></pre><h2 id="Array-prototype-forEach"><a href="#Array-prototype-forEach" class="headerlink" title="Array.prototype.forEach()"></a>Array.prototype.forEach()</h2><p>我们使用数组的 forEach() 方法在控制台中打印几个通过 URLs 加载的文件的内容：</p>
+<pre><code>async function logContent(urls) {
+   urls.forEach(url =&gt; {
+// Wrong syntax
+const content = await httpGet(url);
+       console.log(content);
+});
+}
+</code></pre><p>同样的，这里的代码会产生一个语法错误，因为你不能在通常的箭头函数内部使用 <code>await</code> 。</p>
+<p>我们换作异步箭头函数：</p>
+<pre><code>async function logContent(urls) {
+   urls.forEach(async url =&gt; {
+const content = await httpGet(url);
+       console.log(content);
+});
+// Not finished here
+}
+</code></pre><p>这段代码起作用了，但是会出现一个警告：<code>httpGet()</code> 返回的 Promise 对象是异步完成的，这也意味着当 <code>forEach()</code> 返回的时候回调可能还没有结束，因此你无法等到 <code>logContent()</code> 只能结束。</p>
+<p>如果你并不想要这个结果，你可以将 <code>forEach()</code> 转换为 <code>for-of</code> 循环。</p>
+<pre><code>async function logContent(urls) {
+for (const url of urls) {
+const content = await httpGet(url);
+       console.log(content);
+}
+}
+</code></pre><p>现在一切都在 <code>for-of</code> 循环完成后完成。但是，处理步骤依次发生：<code>httpGet()</code> 只是在第一次调用完成后再次调用。如果您希望处理步骤并行执行，你必须使用 <code>Promise.all()</code>：</p>
+<pre><code>async function logContent(urls) {
+await Promise.all(urls.map(
+async url =&gt; {
+const content = await httpGet(url);
+           console.log(content);
+}));
+}
+</code></pre><p><code>map()</code> 用于创建一个 Promises 数组。 我们对他们的完成结果并不感兴趣，我们只要 <code>await</code>(等待) 所有方法执行完成。这意味着我们希望的是在 async(异步) 函数完成之后所有的执行都已经完成。我们也可以返回 <code>Promise.all()</code> ，但是该函数的结果是一个数组，其元素都是未完成状态的。</p>
+<h2 id="使用异步函数小贴士"><a href="#使用异步函数小贴士" class="headerlink" title="使用异步函数小贴士"></a>使用异步函数小贴士</h2><h2 id="了解你的-Promises"><a href="#了解你的-Promises" class="headerlink" title="了解你的 Promises"></a>了解你的 Promises</h2><p>async(异步) 函数的基础就是 <a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">Promises</a> 对象，这就是为什么理解 Promises 对于理解 async(异步) 函数至关重要。特别是当遇到不是基于 Promises 的老代码来实现 async(异步) 函数时，你通常别无选择，只能用 Promise 来重构。</p>
+<p>举个例子，这里有个 “promisified” 版本的 <code>XMLHttpRequest</code> ：</p>
+<pre><code>function httpGet(url, responseType=&quot;&quot;) {
+return new Promise(
+function (resolve, reject) {
+const request = new XMLHttpRequest();
+           request.onload = function () {
+if (this.status === 200) {
+// Success
+                   resolve(this.response);
+} else {
+// Something went wrong (404 etc.)
+                   reject(new Error(this.statusText));
+}
+};
+           request.onerror = function () {
+               reject(new Error(
+&apos;XMLHttpRequest Error: &apos;+this.statusText));
+};
+           request.open(&apos;GET&apos;, url);
+           xhr.responseType = responseType;
+           request.send();
+});
+}
+</code></pre><p>XMLHttpRequest 的 API 是基于回调的。通过一个 async(异步) 函数来实现它，意味着你必须在回调中返回 Promise 的完成(fulfill) 或拒绝(reject) 状态。这是不可能的，因为你只能通过 <code>return</code> 或者 <code>throw</code> 来完成这样的操作。你不能从回调函数内部 <code>return</code> 一个函数的结果。<code>throw</code>也有类似的约束。</p>
+<p>因此，异步函数的通用编码风格是：</p>
+<ul>
+<li>直接使用 Promise 对象来构建异步原语。</li>
+<li>用异步函数来使用这些原语。</li>
+</ul>
+<p>扩展阅读：“Exploring ES6” 中的 “<a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">异步编程中的 Promises 对象</a>” 章节</p>
+<h2 id="立即调用异步函数表达式"><a href="#立即调用异步函数表达式" class="headerlink" title="立即调用异步函数表达式"></a>立即调用异步函数表达式</h2><p>有时，如果你可以在模块或脚本的顶层使用 await ，那将是一种很好的选择。当然，它只能在异步函数中使用。您可以创建一个异步函数 <code>main()</code> 并立即调用它：</p>
+<pre><code>async function main() {
+   console.log(await asyncFunction());
+}
+main();
+</code></pre><p>或者您可以使用立即调用异步函数表达式：</p>
+<pre><code>(async function () {
+   console.log(await asyncFunction());
+})();
+</code></pre><p>另一个选择是立即调用异步箭头函数：</p>
+<pre><code>(async () =&gt; {
+   console.log(await asyncFunction());
+})();
+</code></pre><h2 id="用异步函数进行单元测试"><a href="#用异步函数进行单元测试" class="headerlink" title="用异步函数进行单元测试"></a>用异步函数进行单元测试</h2><p>以下代码使用 <a href="https://link.zhihu.com/?target=https%3A//mochajs.org/" target="_blank" rel="noopener">测试框架 mocha</a> 对异步函数 asyncFun1() 和 asyncFun2() 来进行单元测试：</p>
+<pre><code>import assert from &apos;assert&apos;;
+
+// Bug: the following test always succeeds
+test(&apos;Testing async code&apos;, function () {
+   asyncFunc1() // (A)
+.then(result1 =&gt; {
+assert.strictEqual(result1, &apos;a&apos;); // (B)
+return asyncFunc2();
+})
+.then(result2 =&gt; {
+assert.strictEqual(result2, &apos;b&apos;); // (C)
+});
+});
+</code></pre><p>然而，这个测试总是成功的，因为 mocha 不会等待 B 行和 C 行断言执行完成。</p>
+<p>你可以通过返回链式调用的 Promise 来解决这个问题，因为 mocha 会识别一个测试是否返回一个 Promise ，然后等待该 Promise 完成 再进行下一步（除非超时）。</p>
+<pre><code>return asyncFunc1() // (A)
+</code></pre><p>异步函数总是返回 Promises ，这使得它们能方便的、完美的来进行这种单元测试：</p>
+<pre><code>import assert from &apos;assert&apos;;
+test(&apos;Testing async code&apos;, async function () {
+const result1 = await asyncFunc1();
+assert.strictEqual(result1, &apos;a&apos;);
+const result2 = await asyncFunc2();
+assert.strictEqual(result2, &apos;b&apos;);
+});
+</code></pre><p>在 mocha 中使用异步单元测试异步函数有两个优点：代码更简洁，能够准确处理返回的 Promise 对象。</p>
+<h2 id="不要担心没有处理的拒绝拒态"><a href="#不要担心没有处理的拒绝拒态" class="headerlink" title="不要担心没有处理的拒绝拒态"></a>不要担心没有处理的拒绝拒态</h2><p>当前的 JavaScript 引擎可以在拒绝态未处理的情况下提出警告。以下代码在过去会经常执行失败，但是当前的 JavaScript 引擎可以进行警告：</p>
+<pre><code>JavaScript 代码:
+async function foo() {
+throw new Error(&apos;Problem!&apos;);
+}
+foo();
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/21/跨域，你需要知道的全在这里/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3244,302 +3740,6 @@ socket.listen(server).on(&apos;connection&apos;, function(client) {
     });
 }); 
 </code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/19/HTTP三种缓存方式/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/19/HTTP三种缓存方式/" itemprop="url">HTTP三种缓存方式</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-19T00:03:50+08:00">
-                2018-04-19
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>依然在学习node的艰辛过程中，最近学习了http相关的知识，学到了东西当然第一时间就来和大家分享分享，今天呢就教大家来看看利用node中的http模块去实现不同的缓存策略！！！</p>
-<p>我们都知道，对于我们前端开发来说，缓存是一个十分重要的东西，即希望用户不能每次请求过来都要重复下载我们的页面内容，希望为用户节省流量，并且能提高我们页面的浏览流畅度，但是同时当我们修改了一个bug后，又希望线上能够及时更新，这时候就要求爷爷告奶奶让运维小哥哥帮我们刷新一下缓存了，那么有没有一些比较好的缓存策略可以针对我们修改bug又能不麻烦运维及时更新呢，今天我们就利用node来看一下后端中的缓存策略是如何设置的。</p>
-<h2 id="强制缓存"><a href="#强制缓存" class="headerlink" title="强制缓存"></a>强制缓存</h2><p>通常我们对于强制缓存的设置是服务端告诉客户端你刚刚已经请求过一次了，我们约定好十分钟内你再过来请求都直接读取缓存吧，意思也就是当客户端在十分钟内多次请求的话只有第一次会下载页面内容，其他的请求都是直接走缓存，不管我们页面在这期间有没有变化都不会影响客户端读取缓存。<br>那我们来看一下代码的实现</p>
-<pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-// 创建一个服务
-let server = http.createServer();
-// 监听请求
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    console.log(readPath)
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 服务端设置响应头 Cache-Control 也就是缓存多久以秒为单位
-        res.setHeader(&apos;Cache-Control&apos;,&apos;max-age=10&apos;);
-        // 服务器设置响应头Expires 过期时间 获取当前时间加上刚刚设置的缓存秒数
-        res.setHeader(&apos;Expires&apos;,new Date(Date.now()+10*1000).toGMTString());
-        //判断如果路径是一件文件夹 就默认查找该文件下的index.html
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            console.log(p);
-            // 判断是否有index.html 没有就返回404
-            fs.statSync(p);
-            // 创建文件可读流 并且pipe到响应res可写流中
-            fs.createReadStream(p).pipe(res)
-        }else{
-            // 如果请求的就是一个文件 那么久直接返回
-            fs.createReadStream(readPath).pipe(res)
-        }
-    } catch (error) {
-        // 读取不到 返回404 
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-// 监听3000端口
-server.listen(3000)
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过上面代码测试我们会发现当我们在10秒内进行对同一文件的请求，那么我们浏览器就会直接走缓存 通过上图可以看到我们重复请求的时候我们会看到css变成from memory cache，我们也看到我们刚刚的响应头也被设置上了</p>
-<p><a href="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
-<h2 id="协商缓存"><a href="#协商缓存" class="headerlink" title="协商缓存"></a>协商缓存</h2><p>上面的强制缓存我们就发现了 就是我们平时改完bug上线要苦苦等待的一个原因了，那么有没有其他的好的缓存处理方法呢，我们设想一下 假如我们能够知道我们文件有没有修改，假如我们修改了服务器就返回最新的内容假如没有修改 就一直默认缓存 ，这样是不是听起来十分的棒！那我们就想如果我们能够知道文件的最后修改时间是不是就可以实现了！</p>
-<h3 id="通过文件最后修改时间来缓存"><a href="#通过文件最后修改时间来缓存" class="headerlink" title="通过文件最后修改时间来缓存"></a>通过文件最后修改时间来缓存</h3><pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-let server = http.createServer();
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 为了方便测试 我们告诉客户端不要走强制缓存了
-        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            let statObj = fs.statSync(p);
-            // 我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧
-            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
-            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
-                res.statusCode = 304;
-                res.end();
-                return
-            }
-            // 修改了那么我们就直接返回新的内容
-            fs.createReadStream(p).pipe(res)
-        }else{
-            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
-            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
-                res.statusCode = 304;
-                res.end();
-                return
-            }
-            fs.createReadStream(readPath).pipe(res)
-        }
-    } catch (error) {
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-
-server.listen(3000)
-
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
-<p>我们通过请求可以看到，当我们第一次请求过后，无论怎么刷新请求都是304 直接读取的缓存，假如我们在服务端把这个文件修改了 那么我们就能看到又能请求到最新的内容了，这就是我们通过协商缓存来处理的，我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧</p>
-<h3 id="通过文件内容来缓存"><a href="#通过文件内容来缓存" class="headerlink" title="通过文件内容来缓存"></a>通过文件内容来缓存</h3><p>再再再再再假如我们在文件中删除了字符a然后又还原了，那么这时候保存我们的文件的修改时间其实也发生了变化，但是其实我们文件的真正内容并没有发生变化，所以这时候其实客户端继续走缓存也是可以的 ，我们来看看这样的缓存策略如何实现。</p>
-<pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-let crypto = require(&apos;crypto&apos;);
-let server = http.createServer();
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 为了方便测试 我们告诉客户端不要走强制缓存了
-        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            let statObj = fs.statSync(p);
-            // 我们通过流把文件读取出来 然后对读取问来的内容进行md5加密 得到一个base64加密hash值
-            let rs = fs.createReadStream(p);
-            let md5 = crypto.createHash(&apos;md5&apos;);
-            let arr = [];
-            rs.on(&apos;data&apos;,(data)=&gt;{
-                arr.push(data);
-                md5.update(data);
-            })
-            rs.on(&apos;end&apos;,(data)=&gt;{
-                let r = md5.digest(&apos;base64&apos;);
-                // 然后我们将这个hash值通过响应头Etag传给客户端，客户端再下一次请求的时候会把上一次的Etag值通过请求头if-none-match带过来，然后我们就可以继续比对文件生成的hash值和上次产生的hash是否一样 如果一样说明文件内容没有发生变化 就告诉客户端304 读取缓存
-                res.setHeader(&apos;Etag&apos;,r);
-                if(req.headers[&apos;if-none-match&apos;]===r){
-                    res.statusCode=304;
-                    res.end();
-                    return;
-                }
-                res.end(Buffer.concat(arr))
-            })
-        }else{
-            let rs = fs.createReadStream(readPath);
-            let md5 = crypto.createHash(&apos;md5&apos;);
-            let arr = [];
-            rs.on(&apos;data&apos;,(data)=&gt;{
-                arr.push(data);
-                md5.update(data);
-            })
-            rs.on(&apos;end&apos;,(data)=&gt;{
-                let r = md5.digest(&apos;base64&apos;);
-                res.setHeader(&apos;Etag&apos;,r);
-                if(req.headers[&apos;if-none-match&apos;]===r){
-                    res.statusCode=304;
-                    res.end();
-                    return;
-                }
-                res.end(Buffer.concat(arr))
-            })
-        }
-    } catch (error) {
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-
-server.listen(3000)
-
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过控制台我们可以看出来 请求头和响应头中都有我们上面所说的对应的值，但是从代码里我们也能看出来，我们每次在请求到来的时候都会把文件全部读取出来并且进行加密生产hash然后再做对比，这样其实十分的消耗性能，因此这种缓存方式也有他自己的缺点</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们通过node来亲自实现了三种缓存方式，我们可以总结出每种缓存方式对应的实现：</p>
-<ul>
-<li>强制缓存 服务端设置响应头Cache-Control:max-age=xxx，并且设置Expires响应头过期时间，客户端自行判断是否读取缓存</li>
-<li><p>协商缓存 通过状态码304告诉客户端该走缓存</p>
-</li>
-<li><p>修改时间：通过文件的最后修改时间判断该不该读取缓存，服务端设置响应头Last-Modified,客户端把上次服务端响应头中的Last-modified值通过if-modified-since 传递给服务端 ， 服务端通过比较当前文件的修改时间和上次修改时间(上次传给客户端的值),如果相等那么说明文件修改时间没变也就是没变化</p>
-</li>
-<li>文件内容：通过文件的内容来判断该不该读取缓存，服务端通过把文件内容读取出来，通过md5进行base64加密得出hash值，把这个值设置响应头Etag，客户端下一次请求通过if-none-match带过来，服务端再比对当前文件内容加密得出的hash值和上次是否一样，如果一样说明文件内容没有发生改变，这种方式是最准确的方式，但是也是最耗性能</li>
-</ul>
-
           
         
       
