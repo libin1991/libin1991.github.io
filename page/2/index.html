@@ -252,6 +252,147 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/01/简单理解async、await语法实现原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/01/简单理解async、await语法实现原理/" itemprop="url">简单理解async、await语法实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-01T23:57:27+08:00">
+                2018-10-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>现在最新的前端框架生态都开始用上了Generator和yield，<br>有的甚至已经开始使用最新的async、await语法了，<br><strong>这两样都是基于Generator自动执行的原理。</strong></p>
+<h2 id="阮一峰-async-函数的实现原理"><a href="#阮一峰-async-函数的实现原理" class="headerlink" title="阮一峰 async-函数的实现原理"></a>阮一峰 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fasync%23async-%25E5%2587%25BD%25E6%2595%25B0%25E7%259A%2584%25E5%25AE%259E%25E7%258E%25B0%25E5%258E%259F%25E7%2590%2586" target="_blank" rel="noopener">async-函数的实现原理</a></h2><h4 id="async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><a href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。" class="headerlink" title="async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。"></a>async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">async function fn(args) &#123;</span><br><span class="line">  // ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 等同于</span><br><span class="line">function fn(args) &#123;</span><br><span class="line">  return spawn(function* () &#123;</span><br><span class="line">    // ...</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>所有的async函数都可以写成上面的第二种形式，其中的spawn函数就是自动执行器。</p>
+<p>下面给出spawn函数的实现，基本就是前文自动执行器的翻版。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function spawn(genF) &#123;</span><br><span class="line">  return new Promise(function(resolve, reject) &#123;</span><br><span class="line">    const gen = genF();</span><br><span class="line">    function step(nextF) &#123;</span><br><span class="line">      let next;</span><br><span class="line">      try &#123;</span><br><span class="line">        next = nextF();</span><br><span class="line">      &#125; catch(e) &#123;</span><br><span class="line">        return reject(e);</span><br><span class="line">      &#125;</span><br><span class="line">      if(next.done) &#123;</span><br><span class="line">        return resolve(next.value);</span><br><span class="line">      &#125;</span><br><span class="line">      Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">        step(function() &#123; return gen.next(v); &#125;);</span><br><span class="line">      &#125;, function(e) &#123;</span><br><span class="line">        step(function() &#123; return gen.throw(e); &#125;);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    step(function() &#123; return gen.next(undefined); &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function timeout(ms) &#123;</span><br><span class="line">				return &#123;</span><br><span class="line">					text: &apos;done&apos;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function* start() &#123;</span><br><span class="line">				const res = yield timeout(1000);</span><br><span class="line">				return res;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">		 </span><br><span class="line">             </span><br><span class="line"></span><br><span class="line">			function fn(args) &#123;</span><br><span class="line">				return spawn(start);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function spawn(genF) &#123;</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					const gen = genF();</span><br><span class="line">					function step(nextF) &#123;</span><br><span class="line">						let next;</span><br><span class="line">						try &#123;</span><br><span class="line">							next = nextF();</span><br><span class="line">						&#125; catch(e) &#123;</span><br><span class="line">							return reject(e);</span><br><span class="line">						&#125;</span><br><span class="line">						if(next.done) &#123;</span><br><span class="line">							return resolve(next.value);</span><br><span class="line">						&#125;</span><br><span class="line">						</span><br><span class="line">					</span><br><span class="line">						Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.next(v);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;, function(e) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.throw(e);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;);</span><br><span class="line">					&#125;</span><br><span class="line">					step(function() &#123;</span><br><span class="line">						return gen.next();</span><br><span class="line">					&#125;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			 fn().then((data)=&gt;&#123;</span><br><span class="line">				console.log(data)</span><br><span class="line">			&#125;)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h3 id="看下babel转换后的"><a href="#看下babel转换后的" class="headerlink" title="看下babel转换后的"></a>看下babel转换后的</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">async function fns(args) &#123;</span><br><span class="line">				const res = await fetch(&apos;google.com&apos;);</span><br><span class="line">				return res.text();</span><br><span class="line">			&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">&apos;use strict&apos;;</span><br><span class="line">    </span><br><span class="line">		var fns = function() &#123;</span><br><span class="line">			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(args) &#123;</span><br><span class="line">				var res;</span><br><span class="line">				return regeneratorRuntime.wrap(function _callee$(_context) &#123;</span><br><span class="line">					while(1) &#123;</span><br><span class="line">						switch(_context.prev = _context.next) &#123;</span><br><span class="line">							case 0:</span><br><span class="line">								_context.next = 2;</span><br><span class="line">								return fetch(&apos;google.com&apos;);</span><br><span class="line">    </span><br><span class="line">							case 2:</span><br><span class="line">								res = _context.sent;</span><br><span class="line">								return _context.abrupt(&apos;return&apos;, res.text());</span><br><span class="line">    </span><br><span class="line">							case 4:</span><br><span class="line">							case&apos;end&apos;:</span><br><span class="line">								return _context.stop();</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;, _callee, this);</span><br><span class="line">			&#125;));</span><br><span class="line">    </span><br><span class="line">			returnfunction fns(_x) &#123;</span><br><span class="line">				return _ref.apply(this, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;();</span><br><span class="line">    </span><br><span class="line">		function _asyncToGenerator(fn) &#123;  //Generator函数自动执行</span><br><span class="line">			returnfunction() &#123;</span><br><span class="line">				var gen = fn.apply(this, arguments);</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					function step(key, arg) &#123;</span><br><span class="line">						try &#123;</span><br><span class="line">							var info = gen[key](arg);</span><br><span class="line">							var value = info.value;</span><br><span class="line">						&#125; catch(error) &#123;</span><br><span class="line">							reject(error);</span><br><span class="line">							return;</span><br><span class="line">						&#125;</span><br><span class="line">						if(info.done) &#123;</span><br><span class="line">							resolve(value);</span><br><span class="line">						&#125; else &#123;</span><br><span class="line">							return Promise.resolve(value).then(function(value) &#123;</span><br><span class="line">								step(&quot;next&quot;, value);</span><br><span class="line">							&#125;, function(err) &#123;</span><br><span class="line">								step(&quot;throw&quot;, err);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">					return step(&quot;next&quot;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br></pre></td></tr></table></figure>
+<p>一、thunk函数<br>thunk函数指的是能将执行结果传入回调函数，并将该回调函数返回的函数。<br>是不是有点抽象，举个例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var readFile = function (fileName) &#123;</span><br><span class="line">    returnfunction (callback) &#123;</span><br><span class="line">        return fs.readFile(fileName, callback)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>下面我们来看下thunk函数怎样执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readFile(&apos;./package.json&apos;)((err, str) =&gt; &#123;</span><br><span class="line">    console.log(str.toString())</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>问: thunk的执行比普通函数要麻烦不少，那么它有什么优势呢？</p>
+<h3 id="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><a href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，" class="headerlink" title="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"></a>thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</h3><p>而不是将异步操作结果传入thunk函数本身的作用域内，这点很重要，<br>因为它能结合Generator语法让Generator函数自动执行</p>
+<p>二、Generator<br>es6的Generator函数，具体语法这里就不介绍了，</p>
+<p>我们来编写一个基于thunk函数的Generator：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们来手动执行一下这个Generator:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">let g = gen()</span><br><span class="line">let r1 = g.next()</span><br><span class="line">r1.value(function (err, data) &#123;</span><br><span class="line">    if (err) &#123;</span><br><span class="line">        throw err</span><br><span class="line">    &#125;</span><br><span class="line">    let r2 = g.next(data)</span><br><span class="line">    r2.value(function (err, data) &#123;</span><br><span class="line">        if (err) &#123;</span><br><span class="line">            throw err</span><br><span class="line">        &#125;</span><br><span class="line">        g.next(data)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>可以注意到，在我们手动执行基于thunk函数的Generator时，<br>有很多代码是可以复用的，<br>没错，所谓的Generator自动执行就是把这些可复用的部分封装成函数，<br>然后让它们递归执行，直到执行完所有的yield。</p>
+<p>三、Generator自动执行器<br>下面就是Generator自动执行的核心代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">function run(fn) &#123;</span><br><span class="line">    let gen = fn()</span><br><span class="line">    function next(err, data) &#123;</span><br><span class="line">        let result = gen.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return</span><br><span class="line">        &#125;</span><br><span class="line">        result.value(next)</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到无非就是把可复用的部分封装成next函数，然后让其<strong>递归</strong>执行，<br>直到执行完所有的yield</p>
+<p>其调用代码为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
+<p>这样就将原本繁杂的异步操作封装的十分简单了</p>
+<p>基于Promise的Generator的自动执行<br>上面的例子是基于thunk函数的，而即将出现的es7的async、await语法是基于Promise的</p>
+<p>这里再上一个基于Promise的Generator的自动执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">//包装返回Promise对象的函数</span><br><span class="line">functionreadFile(fileName) &#123;</span><br><span class="line">    return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">        fs.readFile(fileName, (error, data) =&gt; &#123;</span><br><span class="line">            if (error) &#123;</span><br><span class="line">                reject(error)</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                resolve(data)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">// 编写Generator</span><br><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 编写Generator执行器</span><br><span class="line">function run(gen) &#123;</span><br><span class="line">    let g = gen()</span><br><span class="line">    function next(data) &#123;</span><br><span class="line">        let result = g.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return result.value</span><br><span class="line">        &#125;</span><br><span class="line">        result.value.then((data) =&gt; next(data))</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//用Generator执行器自动执行</span><br><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
+<p>这个和基于thunk函数的大同小异，只是把函数返回值的获取权以Promise的方式交出</p>
+<h4 id="参考-简单理解Generator自执行及async、await语法原理"><a href="#参考-简单理解Generator自执行及async、await语法原理" class="headerlink" title="参考 简单理解Generator自执行及async、await语法原理"></a>参考 <a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000008254704" target="_blank" rel="noopener">简单理解Generator自执行及async、await语法原理</a></h4>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/30/pm2-常用配置及命令/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -693,296 +834,6 @@ const decodingMap = {
 <li><a href="https://www.ibm.com/developerworks/cn/web/1102_niugang_csrf/index.html" target="_blank" rel="noopener">CSRF 攻击的应对之道</a></li>
 <li>《白帽子讲 Web 安全》</li>
 </ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/25/Promise-必知必会/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/25/Promise-必知必会/" itemprop="url">Promise 必知必会</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-25T23:18:00+08:00">
-                2018-09-25
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="你不知道的-Promise-对象黑科技"><a href="#你不知道的-Promise-对象黑科技" class="headerlink" title="你不知道的 Promise 对象黑科技"></a><a href="https://zhuanlan.zhihu.com/p/30735250" target="_blank" rel="noopener">你不知道的 Promise 对象黑科技</a></h2><p>Promise 想必大家都十分熟悉，想想就那么几个 api，可是你真的了解 Promise 吗？本文根据 Promise 的一些知识点总结了十道题，看看你能做对几道。</p>
-<p>以下 promise 均指代 Promise 实例，环境是 Node.js。</p>
-<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  console.log(1)
-  resolve()
-  console.log(2)
-})
-promise.then(() =&gt; {
-  console.log(3)
-})
-console.log(4)
-</code></pre><p>运行结果：</p>
-<pre><code>1
-2
-4
-3
-</code></pre><p>解释：Promise 构造函数是同步执行的，promise.then 中的函数是异步执行的。</p>
-<h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  setTimeout(() =&gt; {
-    resolve(&apos;success&apos;)
-  }, 1000)
-})
-console.log(promise)
-promise
-  .then(() =&gt; {
-    console.log(promise)
-    throw new Error(&apos;error!!!&apos;)
-  })
-  .catch(err =&gt; {
-    console.log(promise)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>Promise { &lt;pending&gt; }
-Promise { &apos;success&apos; }
-Promise { &apos;success&apos; }
-</code></pre><p>解释：promise 有 3 种状态：pending、fulfilled 和 rejected。状态改变只能是 pending-&gt;fulfilled 或者 pending-&gt;rejected，状态一旦改变则不能再变。</p>
-<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  resolve(&apos;success1&apos;)
-  reject(&apos;error&apos;)
-  resolve(&apos;success2&apos;)
-})
-
-promise
-  .then((res) =&gt; {
-    console.log(&apos;then: &apos;, res)
-  })
-  .catch((err) =&gt; {
-    console.log(&apos;catch: &apos;, err)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>then: success1
-</code></pre><p>解释：构造函数中的 resolve 或 reject 只有第一次执行有效，多次调用没有任何作用，呼应代码二结论：promise 状态一旦改变则不能再变。</p>
-<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>Promise.resolve(1)
-  .then((res) =&gt; {
-    console.log(res)
-    return 2
-  })
-  .catch((err) =&gt; {
-    return 3
-  })
-  .then((res) =&gt; {
-    console.log(res)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>1
-2
-</code></pre><p>解释：promise 可以链式调用。提起链式调用我们通常会想到通过 return this 实现，不过 Promise 并不是这样实现的。promise 每次调用 .then 或者 .catch 都会返回一个新的 promise，从而实现了链式调用。</p>
-<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  setTimeout(() =&gt; {
-    console.log(&apos;once&apos;)
-    resolve(&apos;success&apos;)
-  }, 1000)
-})
-
-const start = Date.now()
-promise.then((res) =&gt; {
-  console.log(res, Date.now() - start)
-})
-promise.then((res) =&gt; {
-  console.log(res, Date.now() - start)
-})
-</code></pre><p>运行结果：</p>
-<pre><code>once
-success 1005
-success 1007
-</code></pre><p>解释：promise 的 .then 或者 .catch 可以被调用多次，但这里 Promise 构造函数只执行一次。或者说 promise 内部状态一经改变，并且有了一个值，那么后续每次调用 .then 或者 .catch 都会直接拿到该值。</p>
-<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>Promise.resolve()
-  .then(() =&gt; {
-    return new Error(&apos;error!!!&apos;)
-  })
-  .then((res) =&gt; {
-    console.log(&apos;then: &apos;, res)
-  })
-  .catch((err) =&gt; {
-    console.log(&apos;catch: &apos;, err)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>then: Error: error!!!
-    at Promise.resolve.then (...)
-    at ...
-</code></pre><p>解释：.then 或者 .catch 中 return 一个 error 对象并不会抛出错误，所以不会被后续的 .catch 捕获，需要改成其中一种：</p>
-<ol>
-<li>return Promise.reject(new Error(‘error!!!’))</li>
-<li>throw new Error(‘error!!!’)</li>
-</ol>
-<p>因为返回任意一个非 promise 的值都会被包裹成 promise 对象，即 return new Error(‘error!!!’) 等价于 return Promise.resolve(new Error(‘error!!!’))。</p>
-<h2 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h2><pre><code>const promise = Promise.resolve()
-  .then(() =&gt; {
-    return promise
-  })
-promise.catch(console.error)
-</code></pre><p>运行结果：</p>
-<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
-    at &lt;anonymous&gt;
-    at process._tickCallback (internal/process/next_tick.js:188:7)
-    at Function.Module.runMain (module.js:667:11)
-    at startup (bootstrap_node.js:187:16)
-    at bootstrap_node.js:607:3
-</code></pre><p>解释：.then 或 .catch 返回的值不能是 promise 本身，否则会造成死循环。类似于：</p>
-<pre><code>process.nextTick(function tick () {
-  console.log(&apos;tick&apos;)
-  process.nextTick(tick)
-})
-</code></pre><h2 id="题目八"><a href="#题目八" class="headerlink" title="题目八"></a>题目八</h2><pre><code>Promise.resolve(1)
-  .then(2)
-  .then(Promise.resolve(3))
-  .then(console.log)
-</code></pre><p>运行结果：</p>
-<pre><code>1
-</code></pre><p>解释：.then 或者 .catch 的参数期望是函数，传入非函数则会发生值穿透。</p>
-<h2 id="题目九"><a href="#题目九" class="headerlink" title="题目九"></a>题目九</h2><pre><code>Promise.resolve()
-  .then(function success (res) {
-    throw new Error(&apos;error&apos;)
-  }, function fail1 (e) {
-    console.error(&apos;fail1: &apos;, e)
-  })
-  .catch(function fail2 (e) {
-    console.error(&apos;fail2: &apos;, e)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>fail2: Error: error
-    at success (...)
-    at ...
-</code></pre><p>解释：.then 可以接收两个参数，第一个是处理成功的函数，第二个是处理错误的函数。.catch 是 .then 第二个参数的简便写法，但是它们用法上有一点需要注意：.then 的第二个处理错误的函数捕获不了第一个处理成功的函数抛出的错误，而后续的 .catch 可以捕获之前的错误。当然以下代码也可以：</p>
-<pre><code>Promise.resolve()
-  .then(function success1 (res) {
-    throw new Error(&apos;error&apos;)
-  }, function fail1 (e) {
-    console.error(&apos;fail1: &apos;, e)
-  })
-  .then(function success2 (res) {
-  }, function fail2 (e) {
-    console.error(&apos;fail2: &apos;, e)
-  })
-</code></pre><h2 id="题目十"><a href="#题目十" class="headerlink" title="题目十"></a>题目十</h2><pre><code>process.nextTick(() =&gt; {
-  console.log(&apos;nextTick&apos;)
-})
-Promise.resolve()
-  .then(() =&gt; {
-    console.log(&apos;then&apos;)
-  })
-setImmediate(() =&gt; {
-  console.log(&apos;setImmediate&apos;)
-})
-console.log(&apos;end&apos;)
-</code></pre><p>运行结果：</p>
-<pre><code>end
-nextTick
-then
-setImmediate
-</code></pre><p>解释：process.nextTick 和 promise.then 都属于 microtasks，而 setImmediate 属于 macrotasks，在事件循环的 check 阶段执行。事件循环的每个阶段（macrotasks）之间都会执行 microtasks，事件循环的开始会先执行一次 microtasks。</p>
 
           
         
