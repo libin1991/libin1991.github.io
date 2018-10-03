@@ -252,6 +252,237 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/浅谈-instanceof-和-typeof-的实现原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/03/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T13:17:32+08:00">
+                2018-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
+<pre><code>let s =newString(&apos;abc&apos;);
+typeof s ===&apos;object&apos;// true
+s instanceofString// true
+</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
+<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
+<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>1：整数</li>
+</ul>
+<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
+<p><code>null</code>：所有机器码均为0</p>
+<p><code>undefined</code>：用 −2^30 整数来表示</p>
+<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
+<p>然而用 <code>instanceof</code> 来判断的话👉</p>
+<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
+</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
+<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
+<p>还有一个不错的判断类型的方法，就是<font color="#dd0000">Object.prototype.toString</font>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
+<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
+Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
+Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
+Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
+Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
+Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
+Object.prototype.toString.call(null)// &quot;[object Null]&quot;
+Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
+Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
+</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
+<pre><code>let person =function(){
+}
+let nicole =new person()
+nicole instanceof person // true
+</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
+<pre><code>let person =function(){
+}
+let programmer =function(){
+}
+programmer.prototype =new person()
+let nicole =new programmer()
+nicole instanceof person // true
+nicole instanceof programmer // true
+</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
+<pre><code>function new_instance_of(leftVaule, rightVaule){
+    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
+    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
+    while(true){
+        if(leftVaule ===null){
+            returnfalse;    
+        }
+        if(leftVaule === rightProto){
+            returntrue;    
+        }
+        leftVaule = leftVaule.__proto__ 
+    }
+}
+</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
+<pre><code>functionFoo(){
+}
+Object instanceof Object// true
+Function instanceof Function// true
+Function instanceof Object// true
+Foo instanceof Foo// false
+Foo instanceof Object// true
+Foo instanceof Function// true
+</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
+<p>关于原型继承的原理，我简单用一张图来表示</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
+<p><code>Object instanceof Object</code></p>
+<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
+<pre><code>leftValue =Object.__proto__ =Function.prototype;
+rightValue =Object.prototype;
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true
+</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
+<p><code>Foo instanceof Foo</code></p>
+<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
+<p>我们用代码简单的表示一下</p>
+<pre><code>leftValue =Foo, rightValue =Foo
+leftValue =Foo.__proto =Function.prototype
+rightValue =Foo.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue != rightValue
+leftValue =Object.prototype =null
+// 第三次判断
+leftValue ===null
+// 返回 false
+</code></pre><p><code>Foo instanceof Object</code></p>
+<pre><code>leftValue =Foo, rightValue =Object
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Object.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><p><code>Foo instanceof Function</code></p>
+<pre><code>leftValue =Foo, rightValue =Function
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Function.prototype
+// 第一次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/你可能会忽略的vue-router技巧/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2319,296 +2550,6 @@ const decodingMap = {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/25/Promise-必知必会/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/25/Promise-必知必会/" itemprop="url">Promise 必知必会</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-25T23:18:00+08:00">
-                2018-09-25
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="你不知道的-Promise-对象黑科技"><a href="#你不知道的-Promise-对象黑科技" class="headerlink" title="你不知道的 Promise 对象黑科技"></a><a href="https://zhuanlan.zhihu.com/p/30735250" target="_blank" rel="noopener">你不知道的 Promise 对象黑科技</a></h2><p>Promise 想必大家都十分熟悉，想想就那么几个 api，可是你真的了解 Promise 吗？本文根据 Promise 的一些知识点总结了十道题，看看你能做对几道。</p>
-<p>以下 promise 均指代 Promise 实例，环境是 Node.js。</p>
-<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  console.log(1)
-  resolve()
-  console.log(2)
-})
-promise.then(() =&gt; {
-  console.log(3)
-})
-console.log(4)
-</code></pre><p>运行结果：</p>
-<pre><code>1
-2
-4
-3
-</code></pre><p>解释：Promise 构造函数是同步执行的，promise.then 中的函数是异步执行的。</p>
-<h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  setTimeout(() =&gt; {
-    resolve(&apos;success&apos;)
-  }, 1000)
-})
-console.log(promise)
-promise
-  .then(() =&gt; {
-    console.log(promise)
-    throw new Error(&apos;error!!!&apos;)
-  })
-  .catch(err =&gt; {
-    console.log(promise)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>Promise { &lt;pending&gt; }
-Promise { &apos;success&apos; }
-Promise { &apos;success&apos; }
-</code></pre><p>解释：promise 有 3 种状态：pending、fulfilled 和 rejected。状态改变只能是 pending-&gt;fulfilled 或者 pending-&gt;rejected，状态一旦改变则不能再变。</p>
-<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  resolve(&apos;success1&apos;)
-  reject(&apos;error&apos;)
-  resolve(&apos;success2&apos;)
-})
-
-promise
-  .then((res) =&gt; {
-    console.log(&apos;then: &apos;, res)
-  })
-  .catch((err) =&gt; {
-    console.log(&apos;catch: &apos;, err)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>then: success1
-</code></pre><p>解释：构造函数中的 resolve 或 reject 只有第一次执行有效，多次调用没有任何作用，呼应代码二结论：promise 状态一旦改变则不能再变。</p>
-<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>Promise.resolve(1)
-  .then((res) =&gt; {
-    console.log(res)
-    return 2
-  })
-  .catch((err) =&gt; {
-    return 3
-  })
-  .then((res) =&gt; {
-    console.log(res)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>1
-2
-</code></pre><p>解释：promise 可以链式调用。提起链式调用我们通常会想到通过 return this 实现，不过 Promise 并不是这样实现的。promise 每次调用 .then 或者 .catch 都会返回一个新的 promise，从而实现了链式调用。</p>
-<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
-  setTimeout(() =&gt; {
-    console.log(&apos;once&apos;)
-    resolve(&apos;success&apos;)
-  }, 1000)
-})
-
-const start = Date.now()
-promise.then((res) =&gt; {
-  console.log(res, Date.now() - start)
-})
-promise.then((res) =&gt; {
-  console.log(res, Date.now() - start)
-})
-</code></pre><p>运行结果：</p>
-<pre><code>once
-success 1005
-success 1007
-</code></pre><p>解释：promise 的 .then 或者 .catch 可以被调用多次，但这里 Promise 构造函数只执行一次。或者说 promise 内部状态一经改变，并且有了一个值，那么后续每次调用 .then 或者 .catch 都会直接拿到该值。</p>
-<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>Promise.resolve()
-  .then(() =&gt; {
-    return new Error(&apos;error!!!&apos;)
-  })
-  .then((res) =&gt; {
-    console.log(&apos;then: &apos;, res)
-  })
-  .catch((err) =&gt; {
-    console.log(&apos;catch: &apos;, err)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>then: Error: error!!!
-    at Promise.resolve.then (...)
-    at ...
-</code></pre><p>解释：.then 或者 .catch 中 return 一个 error 对象并不会抛出错误，所以不会被后续的 .catch 捕获，需要改成其中一种：</p>
-<ol>
-<li>return Promise.reject(new Error(‘error!!!’))</li>
-<li>throw new Error(‘error!!!’)</li>
-</ol>
-<p>因为返回任意一个非 promise 的值都会被包裹成 promise 对象，即 return new Error(‘error!!!’) 等价于 return Promise.resolve(new Error(‘error!!!’))。</p>
-<h2 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h2><pre><code>const promise = Promise.resolve()
-  .then(() =&gt; {
-    return promise
-  })
-promise.catch(console.error)
-</code></pre><p>运行结果：</p>
-<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
-    at &lt;anonymous&gt;
-    at process._tickCallback (internal/process/next_tick.js:188:7)
-    at Function.Module.runMain (module.js:667:11)
-    at startup (bootstrap_node.js:187:16)
-    at bootstrap_node.js:607:3
-</code></pre><p>解释：.then 或 .catch 返回的值不能是 promise 本身，否则会造成死循环。类似于：</p>
-<pre><code>process.nextTick(function tick () {
-  console.log(&apos;tick&apos;)
-  process.nextTick(tick)
-})
-</code></pre><h2 id="题目八"><a href="#题目八" class="headerlink" title="题目八"></a>题目八</h2><pre><code>Promise.resolve(1)
-  .then(2)
-  .then(Promise.resolve(3))
-  .then(console.log)
-</code></pre><p>运行结果：</p>
-<pre><code>1
-</code></pre><p>解释：.then 或者 .catch 的参数期望是函数，传入非函数则会发生值穿透。</p>
-<h2 id="题目九"><a href="#题目九" class="headerlink" title="题目九"></a>题目九</h2><pre><code>Promise.resolve()
-  .then(function success (res) {
-    throw new Error(&apos;error&apos;)
-  }, function fail1 (e) {
-    console.error(&apos;fail1: &apos;, e)
-  })
-  .catch(function fail2 (e) {
-    console.error(&apos;fail2: &apos;, e)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>fail2: Error: error
-    at success (...)
-    at ...
-</code></pre><p>解释：.then 可以接收两个参数，第一个是处理成功的函数，第二个是处理错误的函数。.catch 是 .then 第二个参数的简便写法，但是它们用法上有一点需要注意：.then 的第二个处理错误的函数捕获不了第一个处理成功的函数抛出的错误，而后续的 .catch 可以捕获之前的错误。当然以下代码也可以：</p>
-<pre><code>Promise.resolve()
-  .then(function success1 (res) {
-    throw new Error(&apos;error&apos;)
-  }, function fail1 (e) {
-    console.error(&apos;fail1: &apos;, e)
-  })
-  .then(function success2 (res) {
-  }, function fail2 (e) {
-    console.error(&apos;fail2: &apos;, e)
-  })
-</code></pre><h2 id="题目十"><a href="#题目十" class="headerlink" title="题目十"></a>题目十</h2><pre><code>process.nextTick(() =&gt; {
-  console.log(&apos;nextTick&apos;)
-})
-Promise.resolve()
-  .then(() =&gt; {
-    console.log(&apos;then&apos;)
-  })
-setImmediate(() =&gt; {
-  console.log(&apos;setImmediate&apos;)
-})
-console.log(&apos;end&apos;)
-</code></pre><p>运行结果：</p>
-<pre><code>end
-nextTick
-then
-setImmediate
-</code></pre><p>解释：process.nextTick 和 promise.then 都属于 microtasks，而 setImmediate 属于 macrotasks，在事件循环的 check 阶段执行。事件循环的每个阶段（macrotasks）之间都会执行 microtasks，事件循环的开始会先执行一次 microtasks。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2663,7 +2604,7 @@ setImmediate
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">55</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -2676,7 +2617,7 @@ setImmediate
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">35</span>
+                  <span class="site-state-item-count">38</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

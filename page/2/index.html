@@ -252,6 +252,296 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/25/Promise-必知必会/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/25/Promise-必知必会/" itemprop="url">Promise 必知必会</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-25T23:18:00+08:00">
+                2018-09-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="你不知道的-Promise-对象黑科技"><a href="#你不知道的-Promise-对象黑科技" class="headerlink" title="你不知道的 Promise 对象黑科技"></a><a href="https://zhuanlan.zhihu.com/p/30735250" target="_blank" rel="noopener">你不知道的 Promise 对象黑科技</a></h2><p>Promise 想必大家都十分熟悉，想想就那么几个 api，可是你真的了解 Promise 吗？本文根据 Promise 的一些知识点总结了十道题，看看你能做对几道。</p>
+<p>以下 promise 均指代 Promise 实例，环境是 Node.js。</p>
+<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  console.log(1)
+  resolve()
+  console.log(2)
+})
+promise.then(() =&gt; {
+  console.log(3)
+})
+console.log(4)
+</code></pre><p>运行结果：</p>
+<pre><code>1
+2
+4
+3
+</code></pre><p>解释：Promise 构造函数是同步执行的，promise.then 中的函数是异步执行的。</p>
+<h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  setTimeout(() =&gt; {
+    resolve(&apos;success&apos;)
+  }, 1000)
+})
+console.log(promise)
+promise
+  .then(() =&gt; {
+    console.log(promise)
+    throw new Error(&apos;error!!!&apos;)
+  })
+  .catch(err =&gt; {
+    console.log(promise)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>Promise { &lt;pending&gt; }
+Promise { &apos;success&apos; }
+Promise { &apos;success&apos; }
+</code></pre><p>解释：promise 有 3 种状态：pending、fulfilled 和 rejected。状态改变只能是 pending-&gt;fulfilled 或者 pending-&gt;rejected，状态一旦改变则不能再变。</p>
+<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  resolve(&apos;success1&apos;)
+  reject(&apos;error&apos;)
+  resolve(&apos;success2&apos;)
+})
+
+promise
+  .then((res) =&gt; {
+    console.log(&apos;then: &apos;, res)
+  })
+  .catch((err) =&gt; {
+    console.log(&apos;catch: &apos;, err)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>then: success1
+</code></pre><p>解释：构造函数中的 resolve 或 reject 只有第一次执行有效，多次调用没有任何作用，呼应代码二结论：promise 状态一旦改变则不能再变。</p>
+<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>Promise.resolve(1)
+  .then((res) =&gt; {
+    console.log(res)
+    return 2
+  })
+  .catch((err) =&gt; {
+    return 3
+  })
+  .then((res) =&gt; {
+    console.log(res)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>1
+2
+</code></pre><p>解释：promise 可以链式调用。提起链式调用我们通常会想到通过 return this 实现，不过 Promise 并不是这样实现的。promise 每次调用 .then 或者 .catch 都会返回一个新的 promise，从而实现了链式调用。</p>
+<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  setTimeout(() =&gt; {
+    console.log(&apos;once&apos;)
+    resolve(&apos;success&apos;)
+  }, 1000)
+})
+
+const start = Date.now()
+promise.then((res) =&gt; {
+  console.log(res, Date.now() - start)
+})
+promise.then((res) =&gt; {
+  console.log(res, Date.now() - start)
+})
+</code></pre><p>运行结果：</p>
+<pre><code>once
+success 1005
+success 1007
+</code></pre><p>解释：promise 的 .then 或者 .catch 可以被调用多次，但这里 Promise 构造函数只执行一次。或者说 promise 内部状态一经改变，并且有了一个值，那么后续每次调用 .then 或者 .catch 都会直接拿到该值。</p>
+<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>Promise.resolve()
+  .then(() =&gt; {
+    return new Error(&apos;error!!!&apos;)
+  })
+  .then((res) =&gt; {
+    console.log(&apos;then: &apos;, res)
+  })
+  .catch((err) =&gt; {
+    console.log(&apos;catch: &apos;, err)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>then: Error: error!!!
+    at Promise.resolve.then (...)
+    at ...
+</code></pre><p>解释：.then 或者 .catch 中 return 一个 error 对象并不会抛出错误，所以不会被后续的 .catch 捕获，需要改成其中一种：</p>
+<ol>
+<li>return Promise.reject(new Error(‘error!!!’))</li>
+<li>throw new Error(‘error!!!’)</li>
+</ol>
+<p>因为返回任意一个非 promise 的值都会被包裹成 promise 对象，即 return new Error(‘error!!!’) 等价于 return Promise.resolve(new Error(‘error!!!’))。</p>
+<h2 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h2><pre><code>const promise = Promise.resolve()
+  .then(() =&gt; {
+    return promise
+  })
+promise.catch(console.error)
+</code></pre><p>运行结果：</p>
+<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
+    at &lt;anonymous&gt;
+    at process._tickCallback (internal/process/next_tick.js:188:7)
+    at Function.Module.runMain (module.js:667:11)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+</code></pre><p>解释：.then 或 .catch 返回的值不能是 promise 本身，否则会造成死循环。类似于：</p>
+<pre><code>process.nextTick(function tick () {
+  console.log(&apos;tick&apos;)
+  process.nextTick(tick)
+})
+</code></pre><h2 id="题目八"><a href="#题目八" class="headerlink" title="题目八"></a>题目八</h2><pre><code>Promise.resolve(1)
+  .then(2)
+  .then(Promise.resolve(3))
+  .then(console.log)
+</code></pre><p>运行结果：</p>
+<pre><code>1
+</code></pre><p>解释：.then 或者 .catch 的参数期望是函数，传入非函数则会发生值穿透。</p>
+<h2 id="题目九"><a href="#题目九" class="headerlink" title="题目九"></a>题目九</h2><pre><code>Promise.resolve()
+  .then(function success (res) {
+    throw new Error(&apos;error&apos;)
+  }, function fail1 (e) {
+    console.error(&apos;fail1: &apos;, e)
+  })
+  .catch(function fail2 (e) {
+    console.error(&apos;fail2: &apos;, e)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>fail2: Error: error
+    at success (...)
+    at ...
+</code></pre><p>解释：.then 可以接收两个参数，第一个是处理成功的函数，第二个是处理错误的函数。.catch 是 .then 第二个参数的简便写法，但是它们用法上有一点需要注意：.then 的第二个处理错误的函数捕获不了第一个处理成功的函数抛出的错误，而后续的 .catch 可以捕获之前的错误。当然以下代码也可以：</p>
+<pre><code>Promise.resolve()
+  .then(function success1 (res) {
+    throw new Error(&apos;error&apos;)
+  }, function fail1 (e) {
+    console.error(&apos;fail1: &apos;, e)
+  })
+  .then(function success2 (res) {
+  }, function fail2 (e) {
+    console.error(&apos;fail2: &apos;, e)
+  })
+</code></pre><h2 id="题目十"><a href="#题目十" class="headerlink" title="题目十"></a>题目十</h2><pre><code>process.nextTick(() =&gt; {
+  console.log(&apos;nextTick&apos;)
+})
+Promise.resolve()
+  .then(() =&gt; {
+    console.log(&apos;then&apos;)
+  })
+setImmediate(() =&gt; {
+  console.log(&apos;setImmediate&apos;)
+})
+console.log(&apos;end&apos;)
+</code></pre><p>运行结果：</p>
+<pre><code>end
+nextTick
+then
+setImmediate
+</code></pre><p>解释：process.nextTick 和 promise.then 都属于 microtasks，而 setImmediate 属于 macrotasks，在事件循环的 check 阶段执行。事件循环的每个阶段（macrotasks）之间都会执行 microtasks，事件循环的开始会先执行一次 microtasks。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/16/前端代码异常监控实战/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -4108,132 +4398,6 @@ store.dispatch = function(action){
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/31/为什么Redux-需要-reducers是纯函数？/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/07/31/为什么Redux-需要-reducers是纯函数？/" itemprop="url">为什么Redux 需要 reducers是纯函数？</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-31T00:13:40+08:00">
-                2018-07-31
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h4 id="为什么Redux-需要-reducers是纯函数？"><a href="#为什么Redux-需要-reducers是纯函数？" class="headerlink" title="为什么Redux 需要 reducers是纯函数？"></a>为什么Redux 需要 reducers是纯函数？</h4><p> 这又是一个很厉害的问题了，使用Redux的都知道，reducers会接收上一个state和action作为参数，然后返回一个新的state，这个新的state不能是在原来state基础上的修改。所以经常可以看到以下的写法：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">return Object.assign(...)</span><br><span class="line">//或者----------</span><br><span class="line">return &#123;...state,xx:xxx&#125;</span><br></pre></td></tr></table></figure></p>
-<p>其作用，都是为了返回一个全新的对象。</p>
-<p><strong>为什么reducers要求是纯函数(返回全新的对象，不影响原对象)?</strong>  –某面试官</p>
-<h3 id="纯函数"><a href="#纯函数" class="headerlink" title="纯函数"></a>纯函数</h3><p>从本质上讲，纯函数的定义如下：不修改函数的输入值，依赖于外部状态（比如数据库，DOM和全局变量），同时对于任何相同的输入有着相同的输出结果。<br>举个例子，下面的add函数不修改变量a或b，同时不依赖外部状态，对于相同的输入始终返回相同的结果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">const add = (a,b) =&gt; &#123;a + b&#125;;</span><br></pre></td></tr></table></figure></p>
-<p>这就是一个纯函数，结果对a、b没有任何影响，回头去看reducer，它符合纯函数的所有特征，所以就是一个纯函数<br>为什么必须是纯函数?<br>先告诉你结果吧，如果在reducer中，在原来的state上进行操作，并返回的话，并不会让React重新渲染。 完全不会有任何变化！<br>接下来看下Redux的源码：<br><img src="https://user-gold-cdn.xitu.io/2018/8/22/165609de895ae1ae?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>Redux接收一个给定的state（对象），然后通过循环将state的每一部分传递给每个对应的reducer。如果有发生任何改变，reducer将返回一个新的对象。如果不发生任何变化，reducer将返回旧的state。<br>Redux只通过比较新旧两个对象的存储位置来比较新旧两个对象是否相同。如果你在reducer内部直接修改旧的state对象的属性值，那么新的state和旧的state将都指向同一个对象。因此Redux认为没有任何改变，返回的state将为旧的state。<br>好了，也就是说，从源码的角度来讲，redux要求开发者必须让新的state是全新的对象。那么为什么非要这么麻烦开发者呢？<br>请看下面的例子：尝试比较a和b是否相同<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 12,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">var b = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 13,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p> 思路是怎样的？我们需要遍历对象，如果对象的属性是数组，还需要进行递归遍历，去看内容是否一致、是否发生了变化。 这带来的性能损耗是非常巨大的。 有没有更好的办法？<br>有！<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//接上面的例子</span><br><span class="line">a === b  //false</span><br></pre></td></tr></table></figure></p>
-<p> 我不要进行深度比较，只是浅比较，引用值不一样(不是同一个对象),那就是不一样的。 这就是redux的reducer如此设计的原因了</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4288,7 +4452,7 @@ store.dispatch = function(action){
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">55</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4301,7 +4465,7 @@ store.dispatch = function(action){
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">35</span>
+                  <span class="site-state-item-count">38</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
