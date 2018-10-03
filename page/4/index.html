@@ -252,6 +252,654 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/18/探索webpack-机制/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/18/探索webpack-机制/" itemprop="url">探索webpack 机制</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-18T22:20:52+08:00">
+                2018-05-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>本文从简单的例子入手，从打包文件去分析以下三个问题：webpack打包文件是怎样的？如何做到兼容各大模块化方案的？webpack3带来的新特性又是什么？</p>
+<h2 id="一个简单的例子"><a href="#一个简单的例子" class="headerlink" title="一个简单的例子"></a>一个简单的例子</h2><p>webpack配置</p>
+<pre><code>// webpack.config.js
+module.exports = {
+  entry: &apos;./src/index.js&apos;,
+  output: {
+    filename: &apos;bundle.js&apos;,
+    path: path.resolve(__dirname, &apos;dist&apos;)
+  },
+};
+</code></pre><p>简单的js文件</p>
+<pre><code>// src/index.js
+ console.log(&apos;hello world&apos;);
+</code></pre><p>webpack打包后的代码</p>
+<pre><code>// dist/bundle.js
+ /******/ (function(modules) { // webpackBootstrap
+/******/     // The module cache
+/******/     var installedModules = {};
+/******/
+/******/     // The require function
+/******/     function __webpack_require__(moduleId) {
+/******/
+/******/         // Check if module is in cache
+/******/         if(installedModules[moduleId]) {
+/******/             return installedModules[moduleId].exports;
+/******/         }
+/******/         // Create a new module (and put it into the cache)
+/******/         var module = installedModules[moduleId] = {
+/******/             i: moduleId,
+/******/             l: false,
+/******/             exports: {}
+/******/         };
+/******/
+/******/         // Execute the module function
+/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/         // Flag the module as loaded
+/******/         module.l = true;
+/******/
+/******/         // Return the exports of the module
+/******/         return module.exports;
+/******/     }
+/******/
+/******/
+/******/     // expose the modules object (__webpack_modules__)
+/******/     __webpack_require__.m = modules;
+/******/
+/******/     // expose the module cache
+/******/     __webpack_require__.c = installedModules;
+/******/
+/******/     // define getter function for harmony exports
+/******/     __webpack_require__.d = function(exports, name, getter) {
+/******/         if(!__webpack_require__.o(exports, name)) {
+/******/             Object.defineProperty(exports, name, {
+/******/                 configurable: false,
+/******/                 enumerable: true,
+/******/                 get: getter
+/******/             });
+/******/         }
+/******/     };
+/******/
+/******/     // getDefaultExport function for compatibility with non-harmony modules
+/******/     __webpack_require__.n = function(module) {
+/******/         var getter = module &amp;&amp; module.__esModule ?
+/******/             function getDefault() { return module[&apos;default&apos;]; } :
+/******/             function getModuleExports() { return module; };
+/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
+/******/         return getter;
+/******/     };
+/******/
+/******/     // Object.prototype.hasOwnProperty.call
+/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/     // __webpack_public_path__
+/******/     __webpack_require__.p = &quot;&quot;;
+/******/
+/******/     // Load entry module and return exports
+/******/     return __webpack_require__(__webpack_require__.s = 0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports) {
+
+console.log(&apos;hello world&apos;);
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>一看你就会想，我就一行代码，你给我打包那么多？？？（黑人问号）</p>
+<p>我们来分析一下这部分代码，先精简一下，其实整体就是一个自执行函数，然后传入一个模块数组</p>
+<pre><code>(function(modules) { 
+     //...
+ })([function(module, exports) {
+     //..
+ }])
+</code></pre><p>好了，传入模块数组做了什么(其实注释都很明显了，我只是大概翻译一下）</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+/******/     // The module cache  缓存已经load过的模块
+/******/     var installedModules = {};
+/******/
+/******/     // The require function  引用的函数
+/******/     function __webpack_require__(moduleId) {
+/******/
+/******/         // Check if module is in cache 假如在缓存里就直接返回
+/******/         if(installedModules[moduleId]) {
+/******/             return installedModules[moduleId].exports;
+/******/         }
+/******/         // Create a new module (and put it into the cache) 构造一个模块并放入缓存
+/******/         var module = installedModules[moduleId] = {
+/******/             i: moduleId, //模块id
+/******/             l: false, // 是否已经加载完毕
+/******/             exports: {} // 对外暴露的内容
+/******/         };
+/******/
+/******/         // Execute the module function 传入模块参数，并执行模块
+/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/         // Flag the module as loaded 标记模块已经加载完毕
+/******/         module.l = true;
+/******/
+/******/         // Return the exports of the module 返回模块暴露的内容
+/******/         return module.exports;
+/******/     }
+/******/
+/******/
+/******/     // expose the modules object (__webpack_modules__) 暴露模块数组
+/******/     __webpack_require__.m = modules;
+/******/
+/******/     // expose the module cache 暴露缓存数组
+/******/     __webpack_require__.c = installedModules;
+/******/
+/******/     // define getter function for harmony exports 为ES6 exports定义getter
+/******/     __webpack_require__.d = function(exports, name, getter) {
+/******/         if(!__webpack_require__.o(exports, name)) { // 假如exports本身不含有name这个属性
+/******/             Object.defineProperty(exports, name, {
+/******/                 configurable: false,
+/******/                 enumerable: true,
+/******/                 get: getter
+/******/             });
+/******/         }
+/******/     };
+/******/
+/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
+/******/     __webpack_require__.n = function(module) {
+/******/         var getter = module &amp;&amp; module.__esModule ?
+/******/             function getDefault() { return module[&apos;default&apos;]; } :
+/******/             function getModuleExports() { return module; };
+/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
+/******/         return getter;
+/******/     };
+/******/
+/******/     // Object.prototype.hasOwnProperty.call
+/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/     // __webpack_public_path__ webpack配置下的公共路径
+/******/     __webpack_require__.p = &quot;&quot;;
+/******/
+/******/     // Load entry module and return exports 最后执行entry模块并且返回它的暴露内容
+/******/     return __webpack_require__(__webpack_require__.s = 0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports) {
+
+console.log(&apos;hello world&apos;);
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>整体流程是怎样的呢</p>
+<ul>
+<li>传入module数组</li>
+<li><p>调用<strong>webpack_require</strong>(<strong>webpack_require</strong>.s = 0)</p>
+</li>
+<li><p>构造module对象，放入缓存</p>
+</li>
+<li>调用module,传入相应参数modules[moduleId].call(module.exports, module, module.exports, <strong>webpack_require</strong>); （这里exports会被函数内部的东西修改）</li>
+<li>标记module对象已经加载完毕</li>
+<li><p>返回模块暴露的内容（注意到上面函数传入了module.exports,可以对引用进行修改）</p>
+</li>
+<li><p>模块函数中传入module, module.exports, webpack_require</p>
+</li>
+<li>执行过程中通过对上面三者的引用修改，完成变量暴露和引用</li>
+</ul>
+<h2 id="webpack模块机制是怎样的"><a href="#webpack模块机制是怎样的" class="headerlink" title="webpack模块机制是怎样的"></a>webpack模块机制是怎样的</h2><p>我们可以去官网看下webpack模块</p>
+<blockquote>
+<p><a href="https://link.zhihu.com/?target=https%3A//doc.webpack-china.org/concepts/modules%23-webpack-" target="_blank" rel="noopener">https://doc.webpack-china.org/concepts/modules#-webpack-</a><br>webpack 模块能够以各种方式表达它们的依赖关系，几个例子如下：</p>
+</blockquote>
+<ul>
+<li>ES2015 import 语句</li>
+<li>CommonJS require() 语句</li>
+<li>AMD define 和 require 语句</li>
+<li>css/sass/less 文件中的 @import 语句。</li>
+<li>样式(url(…))或 HTML 文件(<img src="...">)中的图片链接(image url)</li>
+</ul>
+<p>强大的webpack模块可以兼容各种模块化方案，并且无侵入性(non-opinionated)</p>
+<p>我们可以再编写例子一探究竟</p>
+<h2 id="CommonJS"><a href="#CommonJS" class="headerlink" title="CommonJS"></a>CommonJS</h2><p>修改src/index.js</p>
+<pre><code>var cj = require(&apos;./cj.js&apos;);
+
+console.log(&apos;hello world&apos;);
+cj();
+</code></pre><p>新增src/cj.js，保持前面例子其他不变</p>
+<pre><code>// src/cj.js
+function a() {
+    console.log(&quot;CommonJS&quot;);
+}
+module.exports = a;
+</code></pre><p>再次运行webpack</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+  //... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports, __webpack_require__) {
+
+let cj = __webpack_require__(1);
+
+console.log(&apos;hello world&apos;);
+cj();
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports) {
+
+function a() {
+    console.log(&quot;CommonJS&quot;);
+}
+module.exports = a;
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>我们可以看到模块数组多了个引入的文件，然后index.js模块函数多了个参数<strong>webpack_require</strong>，去引用文件（<strong>webpack_require</strong>在上一节有介绍），整体上就是依赖的模块修改了module.exports，然后主模块执行依赖模块，获取exports即可</p>
+<h2 id="ES2015-import"><a href="#ES2015-import" class="headerlink" title="ES2015 import"></a>ES2015 import</h2><p>新增src/es.js</p>
+<pre><code>// src/es.js
+export default function b() {
+    console.log(&apos;ES Modules&apos;);
+}
+</code></pre><p>修改src/index.js</p>
+<pre><code>// src/index.js
+import es from &apos;./es.js&apos;;
+
+console.log(&apos;hello world&apos;);
+es();
+</code></pre><p>webpack.config.js不变，执行webpack</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
+
+
+console.log(&apos;hello world&apos;);
+Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* default */])();
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = b;
+function b() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>我们可以看到它们都变成了严格模式，webpack自动采用的</p>
+<p>表现其实跟CommonJS相似，也是传入export然后修改，在主模块再require进来，</p>
+<p>我们可以看到这个</p>
+<pre><code>Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+</code></pre><p>这个干嘛用的？其实就是标记当前的exports是es模块，还记得之前的<strong>webpack_require</strong>.n吗，我们再拿出来看看</p>
+<pre><code>/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
+/******/     __webpack_require__.n = function(module) {
+/******/         var getter = module &amp;&amp; module.__esModule ?
+/******/             function getDefault() { return module[&apos;default&apos;]; } :
+/******/             function getModuleExports() { return module; };
+/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
+/******/         return getter;
+/******/     };
+</code></pre><p>为了避免跟非ES Modules冲突？冲突在哪里呢？<br>其实这部分如果你看到babel转换ES Modules源码就知道了，为了兼容模块，会把ES Modules直接挂在exports.default上，然后加上__esModule属性，引入的时候判断一次是否是转换模块，是则引入module[‘default’]，不是则引入module</p>
+<p>我们再多引入几个ES Modules看看效果</p>
+<pre><code>// src/es.js
+export function es() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+export function esTwo() {
+    console.log(&apos;ES Modules Two&apos;);
+}
+
+export function esThree() {
+    console.log(&apos;ES Modules Three&apos;);
+}
+
+export function esFour() {
+    console.log(&apos;ES Modules Four&apos;);
+}
+</code></pre><p>我们多引入esTwo和esFour，但是不使用esFour</p>
+<pre><code>// src/index.js
+import { es, esTwo, esFour} from &apos;./es.js&apos;;
+
+console.log(&apos;hello world&apos;);
+es();
+esTwo();
+</code></pre><p>得出</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ...
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
+
+
+console.log(&apos;hello world&apos;);
+Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* es */])();
+Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;b&quot; /* esTwo */])();
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = es;
+/* harmony export (immutable) */ __webpack_exports__[&quot;b&quot;] = esTwo;
+/* unused harmony export esThree */
+/* unused harmony export esFour */
+function es() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+function esTwo() {
+    console.log(&apos;ES Modules Two&apos;);
+}
+
+function esThree() {
+    console.log(&apos;ES Modules Three&apos;);
+}
+
+function esFour() {
+    console.log(&apos;ES Modules Four&apos;);
+}
+
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>嗯嗯其实跟前面是一样的，举出这个例子重点在哪里呢，有没有注意到注释中</p>
+<pre><code>/* unused harmony export esThree */
+/* unused harmony export esFour */
+</code></pre><p>esThree是我们没有引入的模块，esFour是我们引用但是没有使用的模块，webpack均对它们做了unused的标记，其实这个如果你使用了webpack插件uglify，通过标记，就会把esThree和esFour这两个未使用的代码消除（其实它就是tree-shaking)</p>
+<h2 id="AMD"><a href="#AMD" class="headerlink" title="AMD"></a>AMD</h2><p>我们再来看看webpack怎么支持AMD</p>
+<p>新增src/amd.js</p>
+<pre><code>// src/amd.js
+define([
+],function(){
+    return {
+        amd:function(){
+            console.log(&apos;AMD&apos;);
+        }
+    };
+});
+</code></pre><p>修改index.js</p>
+<pre><code>// src/index.js
+define([
+    &apos;./amd.js&apos;
+],function(amdModule){
+    amdModule.amd();
+});
+</code></pre><p>得到</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
+    __webpack_require__(1)
+], __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule){
+    amdModule.amd();
+}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
+], __WEBPACK_AMD_DEFINE_RESULT__ = function(){
+    return {
+        amd:function(){
+            console.log(&apos;AMD&apos;);
+        }
+    };
+}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>先看amd.js整理一下代码</p>
+<pre><code>function(module, exports, __webpack_require__) {
+    var __WEBPACK_AMD_DEFINE_ARRAY__,
+        __WEBPACK_AMD_DEFINE_RESULT__;
+
+    !(
+        __WEBPACK_AMD_DEFINE_ARRAY__ = [],
+
+        __WEBPACK_AMD_DEFINE_RESULT__ = function() {
+            return {
+                amd: function() {
+                    console.log(&apos;AMD&apos;);
+                }
+            };
+        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+
+        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp;
+        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
+
+    );
+})
+</code></pre><p>简单来讲收集define Array然后置入返回函数，根据参数获取依赖</p>
+<blockquote>
+<p>apply对数组拆解成一个一个参数</p>
+</blockquote>
+<p>再看index.js模块部分</p>
+<pre><code>function(module, exports, __webpack_require__) {
+
+    var __WEBPACK_AMD_DEFINE_ARRAY__,
+        __WEBPACK_AMD_DEFINE_RESULT__;
+    !(
+        __WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)],
+        __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule) {
+                amdModule.amd();
+        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+
+        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; 
+        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
+    );
+}
+</code></pre><p>其实就是引入了amd.js暴露的{amd:[Function: amd]}</p>
+<h2 id="css-image"><a href="#css-image" class="headerlink" title="css/image?"></a>css/image?</h2><p>css和image也可以成为webpack的模块，这是令人震惊的，这就不能通过普通的hack commonjs或者函数调用简单去调用了，这就是anything to JS，它就需要借助webpack loader去实现了</p>
+<blockquote>
+<p>像css就是转换成一段js代码，通过处理，调用时就是可以用js将这段css插入到style中，image也类似，这部分就不详细阐述了，有兴趣的读者可以深入去研究</p>
+</blockquote>
+<h2 id="webpack3新特性"><a href="#webpack3新特性" class="headerlink" title="webpack3新特性"></a>webpack3新特性</h2><p>我们可以再顺便看下webpack3新特性的表现<br>具体可以看这里<a href="https://link.zhihu.com/?target=https%3A//medium.com/webpack/webpack-3-official-release-15fd2dd8f07b" target="_blank" rel="noopener">https://medium.com/webpack/webpack-3-official-release-15fd2dd8f07b</a></p>
+<h2 id="Scope-Hoisting"><a href="#Scope-Hoisting" class="headerlink" title="Scope Hoisting"></a>Scope Hoisting</h2><p>我们可以发现模块数组是一个一个独立的函数然后闭包引用webpack主函数的相应内容，每个模块都是独立的，然后带来的结果是在浏览器中执行速度变慢，然后webpack3学习了Closure Compiler和RollupJS这两个工具，连接所有闭包到一个闭包里，放入一个函数，让执行速度更快,并且整体代码体积也会有所缩小</p>
+<p>我们可以实际看一下效果（要注意的是这个特性只支持ES Modules,是不支持CommonJs和AMD的）<br>使用上面的例子，配置webpack.config.js，增加new webpack.optimize.ModuleConcatenationPlugin()</p>
+<pre><code>const path = require(&apos;path&apos;);
+const webpack = require(&apos;webpack&apos;);
+
+module.exports = {
+  entry: &apos;./src/index.js&apos;,
+  output: {
+    filename: &apos;bundle.js&apos;,
+    path: path.resolve(__dirname, &apos;dist&apos;)
+  },
+  module: {
+  },
+  plugins: [
+    new webpack.optimize.ModuleConcatenationPlugin(),
+  ]
+};
+</code></pre><p>打包</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+
+// CONCATENATED MODULE: ./src/es.js
+function es() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+function esTwo() {
+    console.log(&apos;ES Modules Two&apos;);
+}
+
+function esThree() {
+    console.log(&apos;ES Modules Three&apos;);
+}
+
+function esFour() {
+    console.log(&apos;ES Modules Four&apos;);
+}
+
+
+// CONCATENATED MODULE: ./src/index.js
+// src/index.js
+
+
+console.log(&apos;hello world&apos;);
+es();
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>我们可以惊喜的发现没有什么require了，它们拼接成了一个函数，good!?</p>
+<h2 id="Magic-Comments"><a href="#Magic-Comments" class="headerlink" title="Magic Comments"></a>Magic Comments</h2><p>code splitting是webpack一个重点特性之一，涉及到要动态引入的时候，webpack可以使用 require.ensure去实现，后来webpack2支持使用了符合 ECMAScript 提案 的 import() 语法，但是它有个不足之处，无法指定chunk的名称chunkName,为了解决这个问题，出现了Magic Comments，支持用注释的方式去指定，如下</p>
+<pre><code>import(/* webpackChunkName: &quot;my-chunk-name&quot; */ &apos;module&apos;);
+</code></pre><h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>webpack是一个强大的模块打包工具，在处理依赖、模块上都很优秀，本文从bundle.js文件分析出发去探索了不同模块方案的加载机制，初步去理解webpack，并且对webpack3特性进行阐述，当然，webpack还有很多地方需要去探索深究，敬请期待以后的文章吧～</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/Vue源码必知必会/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -728,6 +1376,192 @@ h2[data-text]::after {
   text-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 </code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/跨域之由Request-Method-OPTIONS初窥CORS/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/02/跨域之由Request-Method-OPTIONS初窥CORS/" itemprop="url">跨域之由Request Method:OPTIONS初窥CORS</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T11:09:02+08:00">
+                2018-05-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="不就是跨域么-慌个XX-掘金"><a href="#不就是跨域么-慌个XX-掘金" class="headerlink" title="不就是跨域么?慌个XX - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a2f92c65188253e2470f16d" target="_blank" rel="noopener">不就是跨域么?慌个XX - 掘金</a></h2><p>刚接触前端的时候，以为HTTP的Request Method只有GET与POST两种，后来才了解到，原来还有HEAD、PUT、DELETE、OPTIONS……</p>
+<p>目前的工作中，HEAD、PUT、DELETE我是真的没有见过……但是OPTIONS几乎天天都会遇到。本地环境跑公司项目的时候，每次POST之前，为啥浏览器还偷偷给我来一次没有返回的OPTIONS请求？</p>
+<blockquote>
+<p>原来，浏览器在某些请求中，在正式通信前会增加一次HTTP查询请求，称为”预检”请求（preflight）。OPTIONS方法是用于请求获得由Request-URI标识的资源在请求/响应的通信过程中可以使用的功能选项。通过这个方法，客户端可以在采取具体资源请求之前，决定对该资源采取何种必要措施，或者了解服务器的性能。该请求方法的响应不能缓存。浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
+</blockquote>
+<p>如果这个OPTIONS请求包含一个正文（有Content-Length或Transfer-Encoding存在），则必须有Content-Type来指定媒体类型。虽然规范里没有定义这种正文的用法，但是HTTP将来的扩展可能会用它来查询服务器上更详细的信息。不支持该扩展的服务器可以忽略该请求正文。</p>
+<p>如果该URI是一个星号（“<em>”），OPTIONS请求将试图应用于服务器，而不是某个指定资源。由于服务器的通信选项通常依赖于资源，所以此“</em>”请求只能作为“ping”或者“no-op”方法；或者用来测试服务器的性能。例如，用来测试HTTP/1.1代理。</p>
+<p>如果该URI不是星号，则只能用来获取该资源通信中可用的选项。</p>
+<p>得到的200响应应该包含一个头域，指明服务器实现的和适用于该资源的可选特征（如：Allow），可能还包括该规范尚未定义的扩展。如果有响应正文，则应包含关于通信选项的信息。本规范没有定义该正文格式，但可能在HTTO将来的扩展中定义。可以利用内容协商来选择合适的响应格式。如果没有响应正文，响应必须包含Content-Length，并且值为“0”。</p>
+<p>请求头的Max-Forwards用来请求特定代理。当代理收到一个允许URI转发的OPTIONS请求，则检查Max-Forwards。如果Max-Forwards值为0，则不能转发该消息；相反，代理会将自己的通信选项去响应。如果Max-Forwards是正整数，代理转发请求的时候会将该值减1。如果请求中没有Max-Forwards，转发的请求也不会有。</p>
+<h2 id="简而言之"><a href="#简而言之" class="headerlink" title="简而言之"></a>简而言之</h2><p>OPTIONS请求方法的主要用途有两个：</p>
+<p>1、获取服务器支持的HTTP请求方法；也是黑客经常使用的方法。</p>
+<p>2、用来检查服务器的性能。例如：AJAX进行跨域请求时的预检，需要向另外一个域名的资源发送一个HTTP OPTIONS请求头，用以判断实际发送的请求是否安全。<br><img src="https://pic3.zhimg.com/v2-8f8d34a757502c306d82fa44f4645068_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8f8d34a757502c306d82fa44f4645068_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-38b8f2ec0da0115511cee8a1b604c6a4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-38b8f2ec0da0115511cee8a1b604c6a4_hd.jpg" alt=""><br>如上两张图片，图2就是本地环境，本地环境请求接口的时候，每次请求接口之前都会多一次OPTIONS请求。</p>
+<p><img src="https://pic4.zhimg.com/v2-31c4436fae8e077e9d935ac58bd861d6_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-31c4436fae8e077e9d935ac58bd861d6_hd.jpg" alt=""></p>
+<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS"></a>CORS</h2><p>CORS是一个W3C标准，全称是”跨域资源共享”（Cross-origin resource sharing）。</p>
+<p>它允许浏览器向跨源服务器，发出<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2012/09/xmlhttprequest_level_2.html" target="_blank" rel="noopener">XMLHttpRequest</a>请求，从而克服了AJAX只能<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/same-origin-policy.html" target="_blank" rel="noopener">同源</a>使用的限制。</p>
+<blockquote>
+<p>CORS需要浏览器和服务器同时支持。目前，所有浏览器都支持该功能，IE浏览器不能低于IE10。<br>整个CORS通信过程，都是浏览器自动完成，不需要用户参与。对于开发者来说，CORS通信与同源的AJAX通信没有差别，代码完全一样。浏览器一旦发现AJAX请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。<br>因此，实现CORS通信的关键是服务器。只要服务器实现了CORS接口，就可以跨源通信。</p>
+</blockquote>
+<h2 id="两种请求"><a href="#两种请求" class="headerlink" title="两种请求"></a>两种请求</h2><p>浏览器将CORS请求分为两类：简单请求（simple request）和非简单请求（not-so-simple request）。</p>
+<p>同时满足以下条件，就是简单请求：</p>
+<blockquote>
+<p>（1) 请求方法是以下三种方法之一：</p>
+</blockquote>
+<ul>
+<li>HEAD</li>
+<li>GET</li>
+<li>POST</li>
+</ul>
+<p>（2）HTTP的头信息不超出以下几种字段：</p>
+<ul>
+<li>Accept</li>
+<li>Accept-Language</li>
+<li>Content-Language</li>
+<li>Last-Event-ID</li>
+<li>Content-Type：只限于三个值application/x-www-form-urlencoded、multipart/form-data、text/plain</li>
+</ul>
+<h2 id="简单请求"><a href="#简单请求" class="headerlink" title="简单请求"></a>简单请求</h2><p>对于简单请求，浏览器直接发出CORS请求。具体来说，就是在头信息之中，增加一个Origin字段。</p>
+<p>Origin字段用来说明，本次请求来自哪个源（协议 + 域名 + 端口）。服务器根据这个值，决定是否同意这次请求。</p>
+<p>如果Origin指定的源，不在许可范围内，服务器会返回一个正常的HTTP回应。浏览器发现，这个回应的头信息没有包含Access-Control-Allow-Origin字段（详见下文），就知道出错了，从而抛出一个错误，被XMLHttpRequest的onerror回调函数捕获。注意，这种错误无法通过状态码识别，因为HTTP回应的状态码有可能是200。</p>
+<p>如果Origin指定的域名在许可范围内，服务器返回的响应，会多出几个头信息字段。都以Access-Control- 开头：</p>
+<p>（1）Access-Control-Allow-Origin</p>
+<p>该字段是必须的。它的值要么是请求时Origin字段的值，要么是一个*，表示接受任意域名的请求。</p>
+<blockquote>
+<p>需要注意的是，如果要发送Cookie，Access-Control-Allow-Origin就不能设为星号，必须指定明确的、与请求网页一致的域名。同时，Cookie依然遵循同源政策，只有用服务器域名设置的Cookie才会上传，其他域名的Cookie并不会上传，且（跨源）原网页代码中的document.cookie也无法读取服务器域名下的Cookie。</p>
+</blockquote>
+<p>（2）Access-Control-Allow-Credentials</p>
+<p>该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。默认情况下，Cookie不包括在CORS请求之中。设为true，即表示服务器明确许可，Cookie可以包含在请求中，一起发给服务器。这个值也只能设为true，如果服务器不要浏览器发送Cookie，删除该字段即可。</p>
+<p>（3）Access-Control-Expose-Headers</p>
+<p>该字段可选。CORS请求时，XMLHttpRequest对象的getResponseHeader()方法只能拿到6个基本字段：Cache-Control、Content-Language、Content-Type、Expires、Last-Modified、Pragma。如果想拿到其他字段，就必须在Access-Control-Expose-Headers里面指定。</p>
+<h2 id="非简单请求"><a href="#非简单请求" class="headerlink" title="非简单请求"></a>非简单请求</h2><p>非简单请求是那种对服务器有特殊要求的请求，比如请求方法是PUT或DELETE，或者Content-Type字段的类型是application/json。</p>
+<p>我工作中写的所有页面拉的接口都是非简单请求。<br><img src="https://pic1.zhimg.com/v2-6749c6523db660ed4e194e16779c5fa3_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-6749c6523db660ed4e194e16779c5fa3_hd.jpg" alt=""><br>非简单请求的CORS请求，会在正式通信之前，增加一次HTTP查询请求，称为”预检”请求（preflight）。</p>
+<p>浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
+<p>在页面域名与接口域名不一致的情况下，就出现了每次请求前先发送一个options请求的问题。</p>
+<p>OPTIONS请求头信息中，除了Origin字段，还至少会多两个特殊字段：</p>
+<p>（1）Access-Control-Request-Method</p>
+<p>该字段是必须的，用来列出浏览器的CORS请求会用到哪些HTTP方法。</p>
+<p>（2）Access-Control-Request-Headers</p>
+<p>该字段是一个逗号分隔的字符串，指定浏览器CORS请求会额外发送的头信息字段。</p>
+<p><img src="https://pic3.zhimg.com/v2-da5ae04890068d4ffc9f4714e48719dd_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-da5ae04890068d4ffc9f4714e48719dd_hd.jpg" alt=""><br>至于其他乱七八糟的字段，现在的我还用不到也不懂，将会慢慢深入了解。</p>
+<p>服务器收到预检请求后，检查了Origin、Access-Control-Request-Method和Access-Control-Request-Headers字段以后，确认允许跨源请求，就可以做出回应。</p>
+<p>上面的HTTP回应中，关键的是Access-Control-Allow-Origin字段，表示<a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a>可以请求数据。该字段也可以设为星号，表示同意任意跨源请求。</p>
+<p>如果浏览器否定了”预检”请求，会返回一个正常的HTTP回应，但是没有任何CORS相关的头信息字段。这时，浏览器就会认定，服务器不同意预检请求，因此触发一个错误，被XMLHttpRequest对象的onerror回调函数捕获。控制台会打印出如下的报错信息。</p>
+<p>XMLHttpRequest cannot load <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a><br>Origin <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a> is not allowed by Access-Control-Allow-Origin.</p>
+<p>其他字段中Access-Control-Max-Age 用来指定本次预检请求的有效期，单位为秒。该字段可选。</p>
+<h2 id="与JSONP的对比"><a href="#与JSONP的对比" class="headerlink" title="与JSONP的对比"></a>与JSONP的对比</h2><p>CORS与JSONP的使用目的相同，但是比JSONP更强大。</p>
+<p>JSONP只支持GET请求，JSONP的优势在于支持老旧浏览器。</p>
+
           
         
       
@@ -1649,6 +2483,302 @@ socket.listen(server).on(&apos;connection&apos;, function(client) {
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/19/HTTP三种缓存方式/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/19/HTTP三种缓存方式/" itemprop="url">HTTP三种缓存方式</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-19T00:03:50+08:00">
+                2018-04-19
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>依然在学习node的艰辛过程中，最近学习了http相关的知识，学到了东西当然第一时间就来和大家分享分享，今天呢就教大家来看看利用node中的http模块去实现不同的缓存策略！！！</p>
+<p>我们都知道，对于我们前端开发来说，缓存是一个十分重要的东西，即希望用户不能每次请求过来都要重复下载我们的页面内容，希望为用户节省流量，并且能提高我们页面的浏览流畅度，但是同时当我们修改了一个bug后，又希望线上能够及时更新，这时候就要求爷爷告奶奶让运维小哥哥帮我们刷新一下缓存了，那么有没有一些比较好的缓存策略可以针对我们修改bug又能不麻烦运维及时更新呢，今天我们就利用node来看一下后端中的缓存策略是如何设置的。</p>
+<h2 id="强制缓存"><a href="#强制缓存" class="headerlink" title="强制缓存"></a>强制缓存</h2><p>通常我们对于强制缓存的设置是服务端告诉客户端你刚刚已经请求过一次了，我们约定好十分钟内你再过来请求都直接读取缓存吧，意思也就是当客户端在十分钟内多次请求的话只有第一次会下载页面内容，其他的请求都是直接走缓存，不管我们页面在这期间有没有变化都不会影响客户端读取缓存。<br>那我们来看一下代码的实现</p>
+<pre><code>let http = require(&apos;http&apos;);
+let path = require(&apos;path&apos;);
+let fs = require(&apos;fs&apos;);
+let url = require(&apos;url&apos;);
+// 创建一个服务
+let server = http.createServer();
+// 监听请求
+server.on(&apos;request&apos;,(req,res)=&gt;{
+    // 获取到请求的路径
+    let {pathname,query} = url.parse(req.url,true);
+    // 将路径拼接成服务器上对应得文件路径
+    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
+    console.log(readPath)
+    try {
+        // 获取路径状态
+        let statObj = fs.statSync(readPath);
+        // 服务端设置响应头 Cache-Control 也就是缓存多久以秒为单位
+        res.setHeader(&apos;Cache-Control&apos;,&apos;max-age=10&apos;);
+        // 服务器设置响应头Expires 过期时间 获取当前时间加上刚刚设置的缓存秒数
+        res.setHeader(&apos;Expires&apos;,new Date(Date.now()+10*1000).toGMTString());
+        //判断如果路径是一件文件夹 就默认查找该文件下的index.html
+        if(statObj.isDirectory()){
+            let p = path.join(readPath,&apos;index.html&apos;);
+            console.log(p);
+            // 判断是否有index.html 没有就返回404
+            fs.statSync(p);
+            // 创建文件可读流 并且pipe到响应res可写流中
+            fs.createReadStream(p).pipe(res)
+        }else{
+            // 如果请求的就是一个文件 那么久直接返回
+            fs.createReadStream(readPath).pipe(res)
+        }
+    } catch (error) {
+        // 读取不到 返回404 
+        console.log(error)
+        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
+        res.statusCode = 404;
+        res.end(`未发现文件`)
+    }
+})
+// 监听3000端口
+server.listen(3000)
+复制代码
+</code></pre><p><a href="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过上面代码测试我们会发现当我们在10秒内进行对同一文件的请求，那么我们浏览器就会直接走缓存 通过上图可以看到我们重复请求的时候我们会看到css变成from memory cache，我们也看到我们刚刚的响应头也被设置上了</p>
+<p><a href="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
+<h2 id="协商缓存"><a href="#协商缓存" class="headerlink" title="协商缓存"></a>协商缓存</h2><p>上面的强制缓存我们就发现了 就是我们平时改完bug上线要苦苦等待的一个原因了，那么有没有其他的好的缓存处理方法呢，我们设想一下 假如我们能够知道我们文件有没有修改，假如我们修改了服务器就返回最新的内容假如没有修改 就一直默认缓存 ，这样是不是听起来十分的棒！那我们就想如果我们能够知道文件的最后修改时间是不是就可以实现了！</p>
+<h3 id="通过文件最后修改时间来缓存"><a href="#通过文件最后修改时间来缓存" class="headerlink" title="通过文件最后修改时间来缓存"></a>通过文件最后修改时间来缓存</h3><pre><code>let http = require(&apos;http&apos;);
+let path = require(&apos;path&apos;);
+let fs = require(&apos;fs&apos;);
+let url = require(&apos;url&apos;);
+let server = http.createServer();
+server.on(&apos;request&apos;,(req,res)=&gt;{
+    // 获取到请求的路径
+    let {pathname,query} = url.parse(req.url,true);
+    // 将路径拼接成服务器上对应得文件路径
+    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
+    try {
+        // 获取路径状态
+        let statObj = fs.statSync(readPath);
+        // 为了方便测试 我们告诉客户端不要走强制缓存了
+        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
+        if(statObj.isDirectory()){
+            let p = path.join(readPath,&apos;index.html&apos;);
+            let statObj = fs.statSync(p);
+            // 我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧
+            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
+            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
+                res.statusCode = 304;
+                res.end();
+                return
+            }
+            // 修改了那么我们就直接返回新的内容
+            fs.createReadStream(p).pipe(res)
+        }else{
+            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
+            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
+                res.statusCode = 304;
+                res.end();
+                return
+            }
+            fs.createReadStream(readPath).pipe(res)
+        }
+    } catch (error) {
+        console.log(error)
+        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
+        res.statusCode = 404;
+        res.end(`未发现文件`)
+    }
+})
+
+server.listen(3000)
+
+复制代码
+</code></pre><p><a href="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
+<p>我们通过请求可以看到，当我们第一次请求过后，无论怎么刷新请求都是304 直接读取的缓存，假如我们在服务端把这个文件修改了 那么我们就能看到又能请求到最新的内容了，这就是我们通过协商缓存来处理的，我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧</p>
+<h3 id="通过文件内容来缓存"><a href="#通过文件内容来缓存" class="headerlink" title="通过文件内容来缓存"></a>通过文件内容来缓存</h3><p>再再再再再假如我们在文件中删除了字符a然后又还原了，那么这时候保存我们的文件的修改时间其实也发生了变化，但是其实我们文件的真正内容并没有发生变化，所以这时候其实客户端继续走缓存也是可以的 ，我们来看看这样的缓存策略如何实现。</p>
+<pre><code>let http = require(&apos;http&apos;);
+let path = require(&apos;path&apos;);
+let fs = require(&apos;fs&apos;);
+let url = require(&apos;url&apos;);
+let crypto = require(&apos;crypto&apos;);
+let server = http.createServer();
+server.on(&apos;request&apos;,(req,res)=&gt;{
+    // 获取到请求的路径
+    let {pathname,query} = url.parse(req.url,true);
+    // 将路径拼接成服务器上对应得文件路径
+    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
+    try {
+        // 获取路径状态
+        let statObj = fs.statSync(readPath);
+        // 为了方便测试 我们告诉客户端不要走强制缓存了
+        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
+        if(statObj.isDirectory()){
+            let p = path.join(readPath,&apos;index.html&apos;);
+            let statObj = fs.statSync(p);
+            // 我们通过流把文件读取出来 然后对读取问来的内容进行md5加密 得到一个base64加密hash值
+            let rs = fs.createReadStream(p);
+            let md5 = crypto.createHash(&apos;md5&apos;);
+            let arr = [];
+            rs.on(&apos;data&apos;,(data)=&gt;{
+                arr.push(data);
+                md5.update(data);
+            })
+            rs.on(&apos;end&apos;,(data)=&gt;{
+                let r = md5.digest(&apos;base64&apos;);
+                // 然后我们将这个hash值通过响应头Etag传给客户端，客户端再下一次请求的时候会把上一次的Etag值通过请求头if-none-match带过来，然后我们就可以继续比对文件生成的hash值和上次产生的hash是否一样 如果一样说明文件内容没有发生变化 就告诉客户端304 读取缓存
+                res.setHeader(&apos;Etag&apos;,r);
+                if(req.headers[&apos;if-none-match&apos;]===r){
+                    res.statusCode=304;
+                    res.end();
+                    return;
+                }
+                res.end(Buffer.concat(arr))
+            })
+        }else{
+            let rs = fs.createReadStream(readPath);
+            let md5 = crypto.createHash(&apos;md5&apos;);
+            let arr = [];
+            rs.on(&apos;data&apos;,(data)=&gt;{
+                arr.push(data);
+                md5.update(data);
+            })
+            rs.on(&apos;end&apos;,(data)=&gt;{
+                let r = md5.digest(&apos;base64&apos;);
+                res.setHeader(&apos;Etag&apos;,r);
+                if(req.headers[&apos;if-none-match&apos;]===r){
+                    res.statusCode=304;
+                    res.end();
+                    return;
+                }
+                res.end(Buffer.concat(arr))
+            })
+        }
+    } catch (error) {
+        console.log(error)
+        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
+        res.statusCode = 404;
+        res.end(`未发现文件`)
+    }
+})
+
+server.listen(3000)
+
+复制代码
+</code></pre><p><a href="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过控制台我们可以看出来 请求头和响应头中都有我们上面所说的对应的值，但是从代码里我们也能看出来，我们每次在请求到来的时候都会把文件全部读取出来并且进行加密生产hash然后再做对比，这样其实十分的消耗性能，因此这种缓存方式也有他自己的缺点</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们通过node来亲自实现了三种缓存方式，我们可以总结出每种缓存方式对应的实现：</p>
+<ul>
+<li>强制缓存 服务端设置响应头Cache-Control:max-age=xxx，并且设置Expires响应头过期时间，客户端自行判断是否读取缓存</li>
+<li><p>协商缓存 通过状态码304告诉客户端该走缓存</p>
+</li>
+<li><p>修改时间：通过文件的最后修改时间判断该不该读取缓存，服务端设置响应头Last-Modified,客户端把上次服务端响应头中的Last-modified值通过if-modified-since 传递给服务端 ， 服务端通过比较当前文件的修改时间和上次修改时间(上次传给客户端的值),如果相等那么说明文件修改时间没变也就是没变化</p>
+</li>
+<li>文件内容：通过文件的内容来判断该不该读取缓存，服务端通过把文件内容读取出来，通过md5进行base64加密得出hash值，把这个值设置响应头Etag，客户端下一次请求通过if-none-match带过来，服务端再比对当前文件内容加密得出的hash值和上次是否一样，如果一样说明文件内容没有发生改变，这种方式是最准确的方式，但是也是最耗性能</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/vue2-0模板渲染底层思想/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2028,7 +3158,8 @@ return {
       
         
           
-            <h1 id="什么是-NPM什么是-NPM"><a href="#什么是-NPM什么是-NPM" class="headerlink" title="什么是-NPM什么是 NPM"></a><a href="#什么是-NPM">什么是-NPM</a>什么是 NPM</h1><p><code>npm</code> 之于 <code>Node</code> ，就像 <code>pip</code> 之于 <code>Python</code> , <code>gem</code> 之于 <code>Ruby</code> , <code>composer</code> 之于 <code>PHP</code> 。</p>
+            <h1 id="10个-NPM-使用技巧"><a href="#10个-NPM-使用技巧" class="headerlink" title="10个 NPM 使用技巧"></a><a href="https://github.com/dwqs/blog/issues/40" target="_blank" rel="noopener">10个 NPM 使用技巧</a></h1><h1 id="NPM-学习笔记整理"><a href="#NPM-学习笔记整理" class="headerlink" title="NPM 学习笔记整理"></a><a href="https://blog.ihoey.com/posts/Node/2017-05-10-npm.html" target="_blank" rel="noopener">NPM 学习笔记整理</a></h1><hr>
+<h1 id="什么是-NPM什么是-NPM"><a href="#什么是-NPM什么是-NPM" class="headerlink" title="什么是-NPM什么是 NPM"></a><a href="#什么是-NPM">什么是-NPM</a>什么是 NPM</h1><p><code>npm</code> 之于 <code>Node</code> ，就像 <code>pip</code> 之于 <code>Python</code> , <code>gem</code> 之于 <code>Ruby</code> , <code>composer</code> 之于 <code>PHP</code> 。</p>
 <p><code>npm</code> 是 <code>Node</code> 官方提供的包管理工具，他已经成了 <code>Node</code> 包的标准发布平台，用于 <code>Node</code> 包的发布、传播、依赖控制。<br><code>npm</code> 提供了命令行工具，使你可以方便地下载、安装、升级、删除包，也可以让你作为开发者发布并维护包。</p>
 <h1 id="为什么要使用-NPM为什么要使用-NPM"><a href="#为什么要使用-NPM为什么要使用-NPM" class="headerlink" title="为什么要使用-NPM为什么要使用 NPM"></a><a href="#为什么要使用-NPM">为什么要使用-NPM</a>为什么要使用 NPM</h1><p><code>npm</code> 是随同 <code>Node</code> 一起安装的包管理工具，能解决 <code>Node</code> 代码部署上的很多问题，常见的场景有以下几种：</p>
 <ul>
@@ -2436,1324 +3567,11 @@ $ npm bin
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/JS-继承/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/03/02/JS-继承/" itemprop="url">JS 继承</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-02T22:49:01+08:00">
-                2018-03-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
-<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-function Child(name) {
-    this.name = name;
-}
-
-Child.prototype = new Parent(&apos;father&apos;);
-Child.prototype.constructor = Child;
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();    // child name: son
-</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
-<p>这种方法存在两个缺点：</p>
-<ol>
-<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
-<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
-</ol>
-<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomthing = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      // child name: son
-child.doSomthing();   // TypeError: child.doSomthing is not a function
-</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
-<p>缺点：</p>
-<ol>
-<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
-</ol>
-<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();      
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();       // child name: son
-child.doSomething();   // parent do something!
-</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
-<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
-<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
-<pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);      // 第二次调用
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();         // 第一次调用
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      
-child.doSomething();   
-</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
-<pre><code>Child.prototype = Parent.prototype;
-</code></pre><p>这样写显然是不对的：</p>
-<ol>
-<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
-<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
-</ol>
-<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
-<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function create(proto) {
-    function F(){}
-    F.prototype = proto;
-    F.prototype.construtor = F;
-    return new F();
-}
-
-Child.prototype = create(Parent.prototype);
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-Child.prototype.construtor = Child;
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();    // parent name: father
-
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();     // child name: son
-</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
-<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
-<pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function inheritPrototype(Parent, Child) {
-    Child.prototype = Object.create(Parent.prototype);   //修改
-    Child.prototype.construtor = Child;
-}
-
-inheritPrototype(Parent, Child);
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();      // parent name: father
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();       // child name: son
-</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
-<pre><code>class Parent {
-    constructor(name) {
-    this.name = name;
-    }
-    doSomething() {
-    console.log(&apos;parent do something!&apos;);
-    }
-    sayName() {
-    console.log(&apos;parent name:&apos;, this.name);
-    }
-}
-
-class Child extends Parent {
-    constructor(name, parentName) {
-    super(parentName);
-    this.name = name;
-    }
-    sayName() {
-     console.log(&apos;child name:&apos;, this.name);
-    }
-}
-
-const child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();            // child name: son
-child.doSomething();        // parent do something!
-
-const parent = new Parent(&apos;father&apos;);
-parent.sayName();           // parent name: father
-</code></pre><p>JavaScript前端开发</p>
-<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
-<pre><code>/**
- * JavaScript(ES5)中实现继承的几种方法
- */
-
-// 定义基类Person
-function Person(name, age) {
-  this.name = name;
-  this.age = age;
-}
-
-// 共享数据
-Person.prototype.LEGS_NUM = 2;
-
-// 共享方法
-Person.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
-};
-
-Person.prototype.walk = function () {
-  console.log(this.name + &apos; is walking...&apos;);
-};
-
-// Student子类
-function Student(name, age, className) {
-  // 调用父类
-  Person.call(this, name, age);
-  this.className = className;
-}
-
-// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
-// Student.prototype = Person.prototype;
-
-// 2⃣️ 方法二：Student.prototype为Person的实例
-// Student.prototype = new Person();
-
-// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
-Student.prototype = Object.create(Person.prototype);
-
-Student.prototype.constructor = Student;
-
-// 覆盖父类的info方法
-Student.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
-};
-
-// Student类的共享方法
-Student.prototype.learn = function (subject) {
-  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
-};
-
-// 测试,创建一个Student的实例
-var microzz = new Student(&apos;Microzz&apos;, 22, 5);
-microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
-console.log(microzz.LEGS_NUM); // 2
-microzz.walk(); // Microzz is walking...
-microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
-console.log(microzz.__proto__.__proto__ === Person.prototype); // true
-console.log(microzz.__proto__ === Student.prototype); // true
-console.log(microzz.__proto__.constructor === Student); // true
-</code></pre><p>三种方法比较</p>
-<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>1⃣️这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>2⃣️第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>3⃣️第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
-<pre><code>if (!Object.create) {
-  Object.prototype.create = function (proto) {
-    function F() {}
-    F.prototype = proto;
-    return new F;
-  }
-}
-</code></pre><p>这样在ES5中就完美实现了继承😄</p>
-<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
-<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
-<p>代码</p>
-<pre><code>// 基类 Person
-class Person {
-  // 父类的构造方法
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-    // 共享变量
-    this.LEGS_NUM = 2;
-  }
-  // 父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
-  }
-
-  // 父类的walk方法
-  walk() {
-    console.log(this.name + &apos; is walking...&apos;);
-  }
-
-}
-
-// 子类 Student
-class Student extends Person {
-  constructor(name, age, className) {
-    // 调用基类的构造方法
-    super(name, age);
-    this.className = className;
-  }
-
-  // 覆盖父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
-  }
-}
-
-// 实例化一个Student的实例
-let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
-stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
-stu.walk(); // Zhaohui is walking...
-console.log(stu.LEGS_NUM); // 2
-console.log(stu instanceof Student); // true
-console.log(stu instanceof Person); // true
-</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了😄</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/02/Vue大数据渲染虚拟滚动列表/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/02/Vue大数据渲染虚拟滚动列表/" itemprop="url">Vue大数据渲染虚拟滚动列表</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-02T22:59:12+08:00">
-                2018-01-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Github：<a href="https://link.zhihu.com/?target=https%3A//github.com/tangbc/vue-virtual-scroll-list" target="_blank" rel="noopener">tangbc/vue-virtual-scroll-list</a><br><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.gif" alt=""></p>
-<p><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.jpg" alt=""></p>
-<pre><code>;
-(function(root, factory) {
-    var namespace = &apos;VirtualScrollList&apos;
-    if(typeof exports === &apos;object&apos; &amp;&amp; typeof module === &apos;object&apos;) {
-        module.exports = factory(namespace, require(&apos;vue&apos;))
-    } else if(typeof define === &apos;function&apos; &amp;&amp; define.amd) {
-        define([&apos;vue&apos;], factory.bind(root, namespace))
-    } else if(typeof exports === &apos;object&apos;) {
-        exports[namespace] = factory(namespace, require(&apos;vue&apos;))
-    } else {
-        root[namespace] = factory(namespace, root[&apos;Vue&apos;])
-    }
-})(this, function(namespace, Vue2) {
-    if(typeof Vue2 === &apos;object&apos; &amp;&amp; typeof Vue2.default === &apos;function&apos;) {
-        Vue2 = Vue2.default
-    }
-
-    var _debounce = function(func, wait, immediate) {
-        var timeout
-        return function() {
-            var context = this
-            var args = arguments
-            var later = function() {
-                timeout = null
-                if(!immediate) {
-                    func.apply(context, args)
-                }
-            }
-            var callNow = immediate &amp;&amp; !timeout
-            clearTimeout(timeout)
-            timeout = setTimeout(later, wait)
-            if(callNow) {
-                func.apply(context, args)
-            }
-        }
-    }
-
-    return Vue2.component(namespace, {
-        props: {
-            size: {
-                type: Number,
-                required: true
-            },
-            remain: {
-                type: Number,
-                required: true
-            },
-            rtag: {
-                type: String,
-                default: &apos;div&apos;
-            },
-            wtag: {
-                type: String,
-                default: &apos;p&apos;
-            },
-            wclass: {
-                type: String,
-                default: &apos;&apos;
-            },
-            start: {
-                type: Number,
-                default: 0
-            },
-            offset: {
-                type: Number,
-                default: 0
-            },
-            variable: [Function, Boolean],
-            bench: Number,
-            debounce: Number,
-            totop: Function,
-            tobottom: Function,
-            onscroll: Function
-        },
-
-        data(){
-            return {
-                delta:{}
-            }
-        },
-
-        created: function() {   // :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;44&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;
-            var start = this.start &gt;= this.remain ? this.start : 0
-            var keeps = this.remain + (this.bench || this.remain)
-
-            console.log(start)
-            console.log(keeps)
-
-            this.delta = {
-                start: start, // start index.   //起始index
-                end: start + keeps - 1, // end index.   //显示列表last index
-                keeps: keeps, // nums keeping in real dom.      //要显示的列表数据
-                total: 0, // all items count, update in filter.    //总的列表数据
-                offsetAll: 0, // cache all the scrollable offset.
-                paddingTop: 0, // container wrapper real padding-top.
-                paddingBottom: 0, // container wrapper real padding-bottom.
-                varCache: {}, // object to cache variable index height and scroll offset.
-                varAverSize: 0, // average/estimate item height before variable be calculated.
-                varLastCalcIndex: 0 // last calculated variable height/offset index, always increase.
-            }
-
-
-        },
-
-        watch: {
-            size: function() {
-                this.alter = &apos;size&apos;
-            },
-            remain: function() {
-                this.alter = &apos;remain&apos;
-            },
-            bench: function() {
-                this.alter = &apos;bench&apos;
-            },
-            start: function() {
-                this.alter = &apos;start&apos;
-            },
-            offset: function() {
-                this.alter = &apos;offset&apos;
-            }
-        },
-
-        methods: {
-            onScroll: function(e) {
-                var delta = this.delta
-                var offset = this.$refs.vsl.scrollTop
-
-                if(delta.total &gt; delta.keeps) {
-                    this.updateZone(offset)
-                } else {
-                    delta.end = delta.total - 1
-                }
-
-                var offsetAll = delta.offsetAll
-                if(this.onscroll) {
-                    this.onscroll(e, {
-                        offset: offset,
-                        offsetAll: offsetAll,
-                        start: delta.start,
-                        end: delta.end
-                    })
-                }
-
-                if(!offset &amp;&amp; delta.total) {
-                    this.triggerEvent(&apos;totop&apos;)
-                }
-
-                if(offset &gt;= offsetAll) {
-                    this.triggerEvent(&apos;tobottom&apos;)
-                }
-            },
-
-            // update render zone by scroll offset.
-            updateZone: function(offset) {
-                var overs = this.variable ?
-                    this.getVarOvers(offset) :
-                    Math.floor(offset / this.size)
-
-                var delta = this.delta
-                var zone = this.getZone(overs)
-                var bench = this.bench || this.remain
-
-                // for better performance, if scroll pass items within now bench, do not update.
-                if(!zone.isLast &amp;&amp; (overs &gt; delta.start) &amp;&amp; (overs - delta.start &lt;= bench)) {
-                    return
-                }
-
-                delta.end = zone.end
-                delta.start = zone.start
-                this.$forceUpdate()
-            },
-
-            // return the scroll passed items count in variable.
-            getVarOvers: function(offset) {
-                var low = 0
-                var middle = 0
-                var middleOffset = 0
-                var delta = this.delta
-                var high = delta.total
-
-                while(low &lt;= high) {
-                    middle = low + Math.floor((high - low) / 2)
-                    middleOffset = this.getVarOffset(middle)
-
-                    // calculate the average variable height at first binary search.
-                    if(!delta.varAverSize) {
-                        delta.varAverSize = Math.floor(middleOffset / middle)
-                    }
-
-                    if(middleOffset === offset) {
-                        return middle
-                    } else if(middleOffset &lt; offset) {
-                        low = middle + 1
-                    } else if(middleOffset &gt; offset) {
-                        high = middle - 1
-                    }
-                }
-
-                return low &gt; 0 ? --low : 0
-            },
-
-            // return a variable scroll offset from given index.
-            getVarOffset: function(index, nocache) {
-                var delta = this.delta
-                var cache = delta.varCache[index]
-
-                if(!nocache &amp;&amp; cache) {
-                    return cache.offset
-                }
-
-                var offset = 0
-                for(var i = 0; i &lt; index; i++) {
-                    var size = this.getVarSize(i, nocache)
-                    delta.varCache[i] = {
-                        size: size,
-                        offset: offset
-                    }
-                    offset += size
-                }
-
-                delta.varLastCalcIndex = Math.max(delta.varLastCalcIndex, index - 1)
-                delta.varLastCalcIndex = Math.min(delta.varLastCalcIndex, delta.total - 1)
-
-                return offset
-            },
-
-            // return a variable size (height) from given index.
-            getVarSize: function(index, nocache) {
-                var cache = this.delta.varCache[index]
-                if(!nocache &amp;&amp; cache) {
-                    return cache.size
-                }
-
-                if(typeof this.variable === &apos;function&apos;) {
-                    return this.variable(index) || 0
-                } else {
-                    var slot = this.$slots.default[index]
-                    var style = slot &amp;&amp; slot.data &amp;&amp; slot.data.style
-                    if(style &amp;&amp; style.height) {
-                        var shm = style.height.match(/^(.*)px$/)
-                        return(shm &amp;&amp; +shm[1]) || 0
-                    }
-                }
-                return 0
-            },
-
-            // return the variable paddingTop base current zone.
-            // @todo: if set a large `start` before variable was calculated,
-            // here will also case too much offset calculate when list is very large,
-            // consider use estimate paddingTop in this case just like `getVarPaddingBottom`.
-            getVarPaddingTop: function() {
-                return this.getVarOffset(this.delta.start)
-            },
-
-            // return the variable paddingBottom base current zone.
-            getVarPaddingBottom: function() {
-                var delta = this.delta
-                var last = delta.total - 1
-                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === last) {
-                    return this.getVarOffset(last) - this.getVarOffset(delta.end)
-                } else {
-                    // if unreached last zone or uncalculate real behind offset
-                    // return the estimate paddingBottom avoid too much calculate.
-                    return(delta.total - delta.end) * (delta.varAverSize || this.size)
-                }
-            },
-
-            // retun the variable all heights use to judge reach bottom.
-            getVarAllHeight: function() {
-                var delta = this.delta
-                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === delta.total - 1) {
-                    return this.getVarOffset(delta.total)
-                } else {
-                    return this.getVarOffset(delta.start) + (delta.total - delta.end) * (delta.varAverSize || this.size)
-                }
-            },
-
-            // the ONLY ONE public method, allow the parent update variable by index.
-            updateVariable: function(index) {
-                // clear/update all the offfsets and heights ahead of index.
-                this.getVarOffset(index, true)
-            },
-
-            // return the right zone info base on `start/index`.
-            getZone: function(index) {
-                var start, end
-                var delta = this.delta
-
-                index = parseInt(index, 10)
-                index = Math.max(0, index)
-
-                var lastStart = delta.total - delta.keeps
-                var isLast = (index &lt;= delta.total &amp;&amp; index &gt;= lastStart) || (index &gt; delta.total)
-                if(isLast) {
-                    end = delta.total - 1
-                    start = Math.max(0, lastStart)
-                } else {
-                    start = index
-                    end = start + delta.keeps - 1
-                }
-
-                return {
-                    end: end,
-                    start: start,
-                    isLast: isLast
-                }
-            },
-
-            // trigger a props event on parent.
-            triggerEvent: function(event) {
-                if(this[event]) {
-                    this[event]()
-                }
-            },
-
-            // set manual scroll top.
-            setScrollTop: function(scrollTop) {
-                this.$refs.vsl.scrollTop = scrollTop
-            },
-
-            // filter the shown items base on `start` and `end`.
-            filter: function() {
-                var delta = this.delta
-                var slots = this.$slots.default
-
-                if(!slots) {
-                    slots = []
-                    delta.start = 0
-                }
-
-                delta.total = slots.length
-
-                var paddingTop, paddingBottom, allHeight;
-
-
-                var hasPadding = delta.total &gt; delta.keeps
-
-                if(this.variable) {
-                    allHeight = this.getVarAllHeight()
-                    paddingTop = hasPadding ? this.getVarPaddingTop() : 0
-                    paddingBottom = hasPadding ? this.getVarPaddingBottom() : 0
-                } else {
-                    allHeight = this.size * delta.total
-                    paddingTop = this.size * (hasPadding ? delta.start : 0)
-                    paddingBottom = this.size * (hasPadding ? delta.total - delta.keeps : 0) - paddingTop
-                }
-
-                delta.paddingTop = paddingTop
-                delta.paddingBottom = paddingBottom
-                delta.offsetAll = allHeight - this.size * this.remain  //总高度减去窗口的高度
-
-                return slots.filter(function(slot, index) {
-                    return index &gt;= delta.start &amp;&amp; index &lt;= delta.end
-                })
-            }
-        },
-
-        mounted: function() {
-            if(this.start) {
-                var start = this.getZone(this.start).start
-                this.setScrollTop(this.variable ? this.getVarOffset(start) : start * this.size)
-            } else if(this.offset) {
-                this.setScrollTop(this.offset)
-            }
-        },
-
-        // check if delta should update when prorps change.
-        beforeUpdate: function() {
-            var delta = this.delta
-            delta.keeps = this.remain + (this.bench || this.remain)
-
-            var calcstart = this.alter === &apos;start&apos; ? this.start : delta.start
-            var zone = this.getZone(calcstart)
-
-            // if start, size or offset change, update scroll position.
-            if(~[&apos;start&apos;, &apos;size&apos;, &apos;offset&apos;].indexOf(this.alter)) {
-                this.$nextTick(this.setScrollTop.bind(this, this.alter === &apos;offset&apos; ?
-                    this.offset : this.variable ?
-                    this.getVarOffset(zone.isLast ? delta.total : zone.start) :
-                    zone.isLast ? delta.total * this.size : zone.start * this.size))
-            }
-
-            // if points out difference, force update once again.
-            if(calcstart !== zone.start || delta.end !== zone.end || this.alter) {
-                this.alter = &apos;&apos;
-                delta.end = zone.end
-                delta.start = zone.start
-                this.$forceUpdate()
-            }
-        },
-
-        render: function(h) {
-            var list = this.filter()
-            var delta = this.delta
-            var dbc = this.debounce
-            console.log(list)
-            return h(this.rtag, {
-                &apos;ref&apos;: &apos;vsl&apos;,
-                &apos;style&apos;: {
-                    &apos;display&apos;: &apos;block&apos;,
-                    &apos;overflow-y&apos;: &apos;auto&apos;,
-                    &apos;height&apos;: this.size * this.remain + &apos;px&apos;
-                },
-                &apos;on&apos;: {
-                    &apos;scroll&apos;: dbc ? _debounce(this.onScroll.bind(this), dbc) : this.onScroll
-                }
-            }, [
-                h(this.wtag, {
-                    &apos;style&apos;: {
-                        &apos;display&apos;: &apos;block&apos;,
-                        &apos;padding-top&apos;: delta.paddingTop + &apos;px&apos;,
-                        &apos;padding-bottom&apos;: delta.paddingBottom + &apos;px&apos;
-                    },
-                    &apos;class&apos;: this.wclass
-                }, list)
-            ])
-        }
-    })
-})
-
-
-&lt;template&gt;
-    &lt;div class=&quot;appWraper&quot;&gt;
-        &lt;div class=&quot;scrollToIndex&quot;&gt;
-            &lt;span&gt;Scroll to index: &lt;/span&gt;
-            &lt;input type=&quot;text&quot; v-model.number.lazy=&quot;startIndex&quot;&gt;
-            &lt;small&gt;Change and blur to set start index.&lt;/small&gt;
-        &lt;/div&gt;
-        &lt;VirtualList :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;24&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;&gt;
-            &lt;Item v-for=&quot;(udf, index) of items&quot; :index=&quot;index&quot; :key=&quot;index&quot;&gt;&lt;/Item&gt;
-        &lt;/VirtualList&gt;
-
-
-
-
-        &lt;div class=&quot;source&quot;&gt;
-            &lt;a href=&quot;https://github.com/tangbc/vue-virtual-scroll-list/blob/master/examples/finite/finite.vue#L1&quot;&gt;
-                View this demo source code
-            &lt;/a&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/template&gt;
-
-&lt;script&gt;
-    import Item from &apos;./item.vue&apos;
-    import VirtualList from &apos;./VirtualScrollList.js&apos;
-
-    export default {
-        name: &apos;finite-test&apos;,
-
-        components: {
-            Item,
-            VirtualList
-        },
-
-        data() {
-            return {
-                startIndex: 9,
-                items: new Array(100)
-            }
-        }
-    }
-&lt;/script&gt;
-
-&lt;style&gt;
-
-    body {
-        background: #fffaf0;
-    }
-    .appWraper {
-        width: 440px;
-        margin: 0 auto;
-        overflow-y: auto;
-    }
-    .title {
-        font-size: 25px;
-        font-weight: 100;
-        text-align: center;
-    }
-    @media (max-width: 640px) {
-        .appWraper {
-            width: 100%;
-        }
-        .title {
-            font-size: 16px;
-        }
-    }
-
-
-
-
-
-    .scrollToIndex {
-        padding-bottom: 20px;
-    }
-
-    input {
-        outline: none;
-        padding: .4em .5em;
-        width: 55px;
-        height: 16px;
-        border-radius: 3px;
-        border: 1px solid;
-        border-color: #dddddd;
-        font-size: 16px;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-    }
-
-    input:focus {
-        border-color: #6495ed;
-    }
-
-    small {
-        color: #999;
-    }
-
-    .list {
-        background: #fff;
-        border-radius: 3px;
-        border: 1px solid #ddd;
-        -webkit-overflow-scrolling: touch;
-        overflow-scrolling: touch;
-    }
-
-    .source {
-        text-align: center;
-        padding-top: 20px;
-    }
-
-    .source a {
-        color: #999;
-        text-decoration: none;
-        font-weight: 100;
-    }
-
-    @media (max-width: 640px) {
-        small {
-            display: none;
-        }
-    }
-&lt;/style&gt;
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/11/call和apply的第一个参数是null-undefined时函数内的的this指向window或global/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/11/call和apply的第一个参数是null-undefined时函数内的的this指向window或global/" itemprop="url">call和apply的第一个参数是null/undefined时函数内的的this指向window或global</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-11T23:25:16+08:00">
-                2017-11-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="谁说-JavaScript-很简单了？"><a href="#谁说-JavaScript-很简单了？" class="headerlink" title="谁说 JavaScript 很简单了？"></a><a href="https://link.zhihu.com/?target=https%3A//segmentfault.com/a/1190000009024648" target="_blank" rel="noopener">谁说 JavaScript 很简单了？</a></h2><h2 id="JavaScript系列——数组元素左右移动N位算法实现"><a href="#JavaScript系列——数组元素左右移动N位算法实现" class="headerlink" title="JavaScript系列——数组元素左右移动N位算法实现"></a><a href="https://link.zhihu.com/?target=https%3A//segmentfault.com/a/1190000012882330" target="_blank" rel="noopener">JavaScript系列——数组元素左右移动N位算法实现</a></h2><p>14年的面试题，想不到今天在群里有人还问了这个！<br><img src="https://pic1.zhimg.com/v2-2ba203f9e2e5fd627521c12d5e8f4e91_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-2ba203f9e2e5fd627521c12d5e8f4e91_hd.jpg" alt=""><br>call/apply用来改变函数的执行上下文（this），它们的第一个参数thisArg是个对象，即作为函数内的this。</p>
-<p>多数时候你传啥函数内就是啥。仅以call示例</p>
-<pre><code>function fun() {
-alert(this);
-}
-fun.call(1);
-fun.call(&apos;a&apos;);
-fun.call(true);
-fun.call({name:&apos;jack&apos;});
-</code></pre><p>分别弹出“1”、“a”、“true”、“[object Object]”。</p>
-<p>有两种情况需要注意，传null或undefined时，将是JS执行环境的全局变量。浏览器中是window，其它环境（如node）则是global。</p>
-<pre><code>fun.call(null); // window or global
-fun.call(undefined); // window or global
-</code></pre><p>这在ECMAScript5.1 15.3.4.4中有解释，如下<br><img src="https://pic2.zhimg.com/v2-a55dd237510bbfca06ff1f5ad5c1ac2e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-a55dd237510bbfca06ff1f5ad5c1ac2e_hd.jpg" alt=""><br>严格模式下情况又有所不同，ES3比较宽容尽量去揣测代码意图。ES5严格模式（ie6/7/8/9除外）则不再揣测，给call/apply传入的任何参数不再转换。如下</p>
-<pre><code>&apos;use strict&apos;
-function fun() {
-alert(this);
-}
-fun.call(null)      // null
-fun.call(undefined) // undefined 
-</code></pre><h2 id="几个面试小题："><a href="#几个面试小题：" class="headerlink" title="几个面试小题："></a>几个面试小题：</h2><p><img src="https://pic1.zhimg.com/v2-99d1bfc9bfa325ea383e8e5209a46384_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-99d1bfc9bfa325ea383e8e5209a46384_hd.jpg" alt=""><br>1.alert(alert(1)&amp;&amp;alert(2)):    第一个alert执行没返回undefined【alert 是函数，alert（1）相当调用，但没有返回值，所以是undefined】，alert（2） 直接短路掉。</p>
-<p>2.alert(1&amp;&amp;2)   &amp;&amp;第一个为true，才会执行第二个，如果全部是true返回最后一个值。</p>
-<p>3.<br><img src="https://pic3.zhimg.com/v2-3c568d3cbe2ee035f846917f7907903d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-3c568d3cbe2ee035f846917f7907903d_hd.jpg" alt=""><br>多次bind只保留第一次的。</p>
-<p>4.<br><img src="https://pic3.zhimg.com/v2-99af21478704f737a974a986e9fd41cc_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-99af21478704f737a974a986e9fd41cc_hd.jpg" alt=""><br>5.<br><img src="https://pic4.zhimg.com/v2-eef9d265365a8782e55efa78ad718b01_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-eef9d265365a8782e55efa78ad718b01_hd.jpg" alt=""><img src="https://pic4.zhimg.com/v2-d355491fab6f0917e3b6b141992dac5c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-d355491fab6f0917e3b6b141992dac5c_hd.jpg" alt=""><img src="https://pic4.zhimg.com/v2-698cc4f2c86dccb91268ae9b597089dc_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-698cc4f2c86dccb91268ae9b597089dc_hd.jpg" alt=""><br>6.自定义事件</p>
-<pre><code>var myEvent = new Event(&apos;myEvent&apos;);
-document.addEventListener(&apos;myEvent&apos;, log, false);
-function log() {
-  console.log(&apos;hello event&apos;);
-}
-document.dispatchEvent(myEvent);
-</code></pre><p>7.数组循环移动<br><img src="https://pic4.zhimg.com/v2-c996087a776f590d84df53c1827872d2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-c996087a776f590d84df53c1827872d2_hd.jpg" alt=""><br>需求</p>
-<p>假设有这样一个数组</p>
-<pre><code>[1,2,3,4,5]
-</code></pre><p>现在想要左移或者右移N位，比如移动1位</p>
-<pre><code>//左移1位
-[2,3,4,5,1]
-
-//右移1位
-[5,1,2,3,4]
-</code></pre><p>算法实现</p>
-<p>这样一道题目，你先不要看我下面的代码，自己思考一下如何实现它，不管是复杂的还是简单的方法。<br>可以先告诉你我用了2行代码实现左、右移动元素。</p>
-<p>拆分法</p>
-<p>当我们没有具体思路的时候，就先假设数组移动1位的情况。</p>
-<pre><code>[1,2,3,4,5]
-=&gt;
-[null,1,2,3,4] and [5,null,null,null,null]
-=&gt;
-[5,1,2,3,4]
-</code></pre><p>这里可以看成2个数组，一个是没有到达边界的元素移动[null,1,2,3,4]，一个是到达了边界的元素移动[5,null,null,null,null]，当元素到达边界，就会往数组的初始位置移动，形成了一个循环的过程。</p>
-<p>很明显，如果我们将这2个移动后的数组合并起来，就是需求的结果。</p>
-<p>移动2位</p>
-<p>同样符合2个移动后的数组合并起来为结果的情况</p>
-<pre><code>[1,2,3,4,5]
-=&gt;
-[null,null,1,2,3] and [4,5,null,null,null]
-=&gt;
-[4,5,1,2,3]
-</code></pre><p>刚好移动数组长度</p>
-<pre><code>[1,2,3,4,5]
-=&gt;
-[1,2,3,4,5] and [] //如果没有，就假设为空数组
-</code></pre><p>合并数组</p>
-<p>假设移动1位的情况<br>上面的步骤，我们找到了规律，接下来要做的是找到2个数组，需要用到slice截取数组元素。<br>截取第一个数组</p>
-<pre><code>arr.slice(0,-1)
-// [1,2,3,4]
-</code></pre><p>截取第二个数组</p>
-<pre><code>arr.slice(-1)
-// [5]
-</code></pre><p>合并数组</p>
-<pre><code>arr.slice(-1).concat(arr.slice(0,-1))
-// [5,1,2,3,4]
-</code></pre><p>这样你就实现了移动1位的情况，接着，你继续拿+5和-5范围内的数字进行测试，发现都可以正常移动，当数字大于5或者小于-5的时候，代码就无效了，始终输出[1,2,3,4,5]</p>
-<pre><code>arr.slice(-6).concat(arr.slice(0,-6))
-// [1,2,3,4,5]
-</code></pre><p>我们再加上一个小技巧，求余数，假设是移动6，那么，实际上和移动1是相同的，我们就可以根据公式求余数</p>
-<pre><code>n = n%arr.length
-// n = 6%5 余1
-</code></pre><p>同理，当移动-6时</p>
-<pre><code>n = n%arr.length
-// n = -6%5 余-1
-</code></pre><p>接着带入公式，发现输出全部都正确了！！</p>
-<p>思路分析完了，应该很清晰了吧，源码在下面、</p>
-<p>算法源码</p>
-<p>arr表示原始数组，n表示移动的距离，可以是正数、可以是0、也可以是负数、正数表示右移，负数表示左移，0表示不移动。</p>
-<pre><code>function moveElement(arr, n) {
-  if(Math.abs(n)&gt;arr.length) n = n%arr.length
-  return arr.slice(-n).concat(arr.slice(0,-n))
-}
-
-// moveElement(arr, 9)
-// moveElement(arr, 0)
-// moveElement(arr, -9)
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3803,7 +3621,7 @@ document.dispatchEvent(myEvent);
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">47</span>
+                  <span class="site-state-item-count">51</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3816,7 +3634,7 @@ document.dispatchEvent(myEvent);
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">32</span>
+                  <span class="site-state-item-count">35</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

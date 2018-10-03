@@ -252,7 +252,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/JavaScript的事件循环/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/async-await-小技巧/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -271,7 +271,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2018/10/03/JavaScript的事件循环/" itemprop="url">JavaScript的事件循环</a></h1>
+                <a class="post-title-link" href="/2018/10/03/async-await-小技巧/" itemprop="url">async/await 小技巧</a></h1>
         
 
         <div class="post-meta">
@@ -283,7 +283,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T11:15:38+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T11:58:49+08:00">
                 2018-10-03
               </time>
             
@@ -323,375 +323,324 @@
       
         
           
-            <h2 id="Node-js-事件循环一-浅析"><a href="#Node-js-事件循环一-浅析" class="headerlink" title="Node.js 事件循环一: 浅析"></a>Node.js 事件循环一: 浅析</h2><blockquote>
-<p>理解事件循环系列第一步 浅析和总览</p>
-</blockquote>
-<p>多数的网站不需要大量计算，程序花费的时间主要集中在磁盘 I/O 和网络 I/O 上面</p>
-<p>SSD读取很快，但和CPU处理指令的速度比起来也不在一个数量级上，而且网络上一个数据包来回的时间更慢：</p>
-<p><img src="https://pic1.zhimg.com/v2-67a42368c7dffa3348730760c9c0b907_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-67a42368c7dffa3348730760c9c0b907_hd.jpg" alt=""></p>
-<p>一个数据包来回的延迟平均320ms(我网速慢，ping国内网站会更快)，这段时间内一个普通 cpu 执行几千万个周期应该没问题</p>
-<p>因此异步IO就要发挥作用了，比如用多线程，如果用 Java 去读一个文件，这是一个阻塞的操作，在等待数据返回的过程中什么也干不了，因此就开一个新的线程来处理文件读取，读取操作结束后再去通知主线程。</p>
-<p>这样虽然行得通，但是代码写起来比较麻烦。像 Node.js V8 这种无法开一个线程的怎么办？</p>
-<p>先看下面函数执行过程</p>
-<h2 id="栈-Stack"><a href="#栈-Stack" class="headerlink" title="栈 Stack"></a>栈 Stack</h2><p>当我们调用一个函数，它的地址、参数、局部变量都会压入到一个 stack 中</p>
-<pre><code>function fire() {
-    const result = sumSqrt(3, 4)
-    console.log(result);
-}
-function sumSqrt(x, y) {
-    const s1 = square(x)
-    const s2 = square(y)
-    const sum = s1 + s2;
-    return Math.sqrt(sum)
-}
-function square(x) {
-    return x * x;
+            <h1 id="async-await-小技巧"><a href="#async-await-小技巧" class="headerlink" title="async/await 小技巧"></a>async/await 小技巧</h1><h2 id="sleep-函数"><a href="#sleep-函数" class="headerlink" title="sleep 函数"></a>sleep 函数</h2><p>以前只接使用 <code>setTimeout</code> 和回调函数实现一个 <code>sleep</code> 会有很多的副作用，用起来很不方便。</p>
+<p>所以让 <code>setTimeout</code> 搭配使用 <code>async/await</code></p>
+<pre><code>constsleep=delay=&gt; {
+  returnnewPromise(resolve=&gt; {
+    setTimeout(resolve, delay)
+  })
 }
 
-fire()
-</code></pre><blockquote>
-<p>下面的图都是用 keynote 做的 <a href="https://link.zhihu.com/?target=https%3A//github.com/ccforward/cc/blob/master/Blog/pic/event-loop.key" target="_blank" rel="noopener">keynote地址</a></p>
-</blockquote>
-<p>函数 <code>fire</code> 首先被调用</p>
-<p><img src="https://pic3.zhimg.com/v2-a3840ed51ad7ccaedb915e05b087e1e4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-a3840ed51ad7ccaedb915e05b087e1e4_hd.jpg" alt=""></p>
-<p><code>fire</code> 调用 <code>sumSqrt</code> 函数 参数为3和4</p>
-<p><img src="https://pic4.zhimg.com/v2-5871549477044a0e7a657f9a16e9367c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-5871549477044a0e7a657f9a16e9367c_hd.jpg" alt=""></p>
-<p>之后调用 <code>square</code> 参数为 x, x==3</p>
-<p><img src="https://pic2.zhimg.com/v2-ced7e64c06861509c593cdb0cfbc594e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-ced7e64c06861509c593cdb0cfbc594e_hd.jpg" alt=""></p>
-<p>当 <code>square</code> 执行结束返回时，从 stack 中弹出，并将返回值赋值给 s1<br>s1加入到 sumSqrt 的 stack frame 中</p>
-<p><img src="https://pic2.zhimg.com/v2-0f214a42ee6c2226c343edb7431116be_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-0f214a42ee6c2226c343edb7431116be_hd.jpg" alt=""></p>
-<p>以同样的方式调用下一个 <code>square</code> 函数</p>
-<p><img src="https://pic4.zhimg.com/v2-6488db685f7ba396d9bb72b80daf0465_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-6488db685f7ba396d9bb72b80daf0465_hd.jpg" alt=""></p>
-<p><img src="https://pic1.zhimg.com/v2-4900e4ce2e398d085ceb6f2ea31ad6d9_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-4900e4ce2e398d085ceb6f2ea31ad6d9_hd.jpg" alt=""></p>
-<p>在下一行的表达式中计算出 s1+s2 并赋值给 sum</p>
-<p><img src="https://pic3.zhimg.com/v2-0045b1427a3fd41aa31cbac4271b6200_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-0045b1427a3fd41aa31cbac4271b6200_hd.jpg" alt=""></p>
-<p>之后调用 <code>Math.sqrt</code> 参数为sum</p>
-<p><img src="https://pic4.zhimg.com/v2-89dc079ce6308a32fbf78c29b67c4985_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-89dc079ce6308a32fbf78c29b67c4985_hd.jpg" alt=""></p>
-<p>现在就剩下 <code>sumSqrt</code> 函数返回计算结果了</p>
-<p><img src="https://pic2.zhimg.com/v2-3fe1e6705f665c11f3c350bdd4f643c9_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-3fe1e6705f665c11f3c350bdd4f643c9_hd.jpg" alt=""></p>
-<p>返回值赋值给 result</p>
-<p><img src="https://pic4.zhimg.com/v2-d55914f97f05518c2f31b10909efb4f4_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-d55914f97f05518c2f31b10909efb4f4_hd.jpg" alt=""></p>
-<p>在 console 中打印出 result</p>
-<p><img src="https://pic3.zhimg.com/v2-99d7b0ece63e888549b258944fe0e1e4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-99d7b0ece63e888549b258944fe0e1e4_hd.jpg" alt=""></p>
-<p>最终 <code>fire</code> 没有任何返回值 从stack中弹出 stack也清空了</p>
-<p><img src="https://pic4.zhimg.com/v2-bd4e4983cbba11fe080913f2a1d0ef43_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-bd4e4983cbba11fe080913f2a1d0ef43_hd.jpg" alt=""></p>
-<p>当函数执行完毕后本地变量会从 stack 中弹出，这只有在使用 numbers string boolean 这种基本数据类型时才会发生。而对象、数组的值是存在于 heap(堆) 中的，stack 只存放了他们对应的指针。</p>
-<p>当函数之行结束从 stack 中弹出来时，只有对象的指针被弹出，而真正的值依然存在 heap 中，然后由垃圾回收器自动的清理回收。</p>
-<h2 id="事件循环"><a href="#事件循环" class="headerlink" title="事件循环"></a>事件循环</h2><p>通过一个例子来了解函数的执行顺序</p>
-<pre><code>&apos;use strict&apos;
-
-const express = require(&apos;express&apos;)
-const superagent = require(&apos;superagent&apos;)
-const app = express()
-
-app.get(&apos;/&apos;, getArticle)
-
-function getArticle(req, res) {
-    fetchArticle(req, res)
-    print()
+constfn=async_=&gt; {
+  console.log(&apos;starting....&apos;)
+  awaitsleep(1000)
+  console.log(&apos;after sleeping for 1 second&apos;)
+}
+</code></pre><h2 id="搭配-map-函数"><a href="#搭配-map-函数" class="headerlink" title="搭配 map() 函数"></a>搭配 map() 函数</h2><p>在 <code>map</code> 中引入异步处理:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constasyncFn=data=&gt; {
+  // 异步处理函数
 }
 
-const aids = [4564824, 4506868, 4767667, 4856099, 7456996];
+constresults=arr.map(asyncnum=&gt; {
+  awaitasyncFn(num)
+  return++num
+})
 
-function fetchArticle(req, res) {
-    const aid = aids[Math.floor(Math.random() * aids.length)]
-    superagent.get(`http://news-at.zhihu.com/api/4/news/${aid}`)
-        .end((err, res) =&gt; {
-            if(err) {
-                console.log(&apos;error ......&apos;);
-                return res.status(500).send(&apos;an error ......&apos;)
-            }
-            const article = res.body
-            res.send(article)
-            console.log(&apos;Got an article&apos;)
-        })
+console.log(results)
+</code></pre><p>代码执行后的结果 <code>[Promise, Promise, Promise, Promise, Promise]</code> 而且 <code>map</code> 函数并不会等异步函数 <code>asyncFn</code> 执行完毕后再返回结果</p>
+<p>既然 <code>async</code> 执行后会返回一个 <code>Promise</code> 对象，所以可以通过 <code>Promise.all</code> 的状态来判断异步函数的状态:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constasyncFn=data=&gt; {
+  // 异步处理函数
+}
+constp=arr.map(asyncnum=&gt; {
+  awaitasyncFn(num)
+  return++num
+})
 
-    console.log(&apos;Now is fetching an article&apos;)
+Promise.all(p).then(results=&gt; {
+  console.log(results)
+})
+</code></pre><p>这样就能正常返回结果 <code>[2, 3, 4, 5, 6]</code></p>
+<h2 id="使用-await-代替-then-函数"><a href="#使用-await-代替-then-函数" class="headerlink" title="使用 await 代替 then() 函数"></a>使用 await 代替 then() 函数</h2><p>上面的例子最后使用了 <code>Promise.all</code>  还是回到了使用回调函数的方式</p>
+<p>这个也很好解决，只需要在外层再加一个 <code>async</code> 函数</p>
+<pre><code>constmain=async_=&gt; {
+  constresults=awaitPromise.all(arr.map(num=&gt; {
+    awaitasyncFn()
+    return++num
+  }))
+  console.log(results)
 }
 
-function print(){
-    console.log(&apos;Print something&apos;)
-}
-
-
-app.listen(&apos;5000&apos;)
-</code></pre><p>请求 <code>http://localhost:5000/</code> 后打印出</p>
-<pre><code>Now is fetching an article
-
-Print something
-
-Got an article
-</code></pre><p>虽然 V8 是单线程的，但底层的 C++ API 却不是。这意味着当我们执行一些非阻塞的操作，Node会调用一些代码，与引擎里的js代码同时执行。一旦这个隐藏的线程收到了等待的返回值或者抛出一个异常，之前提供的回调函数就会执行。</p>
-<p>上面的说的Node调用的一些代码其实就是 <a href="https://link.zhihu.com/?target=https%3A//github.com/libuv/libuv" target="_blank" rel="noopener">libuv</a>，一个开源的跨平台的异步 I/O 。最初就是为 Node.js 开发的，现在<a href="https://link.zhihu.com/?target=https%3A//github.com/libuv/libuv/wiki/Projects-that-use-libuv" target="_blank" rel="noopener">很多项目</a>都在用</p>
-<h2 id="任务队列"><a href="#任务队列" class="headerlink" title="任务队列"></a>任务队列</h2><p>javascript 是单线程事件驱动的语言，那我们可以给时间添加监听器，当事件触发时，监听器就能执行回调函数。</p>
-<p>当我们去调用 <code>setTimeout`</code>http.get<code></code>fs.readFile`, Node.js 会把这些定时器、http、IO操作发送给另一个线程以保证V8继续执行我们的代码。</p>
-<p>然而我们只有一个主线程和一个 call-stack ，这样当一个读取文件的操作还在执行时，有一个网络请求request过来，那这时他的回调就需要等stack变空才能执行。</p>
-<p>回调函数正在等待轮到自己执行所排的队就被称为任务队列(或者事件队列、消息队列)。每当主线程完成前一个任务，回调函数就会在一个无限循环圈里被调用，因此这个圈被称为事件循环。</p>
-<p>我们前面那个获取文章的例子的执行顺序就会如下：</p>
-<ol>
-<li>express 给 request 事件注册了一个 handler，并且当请求到达路径 ‘/‘ 时来触发handler</li>
-<li>调过各个函数并且在端口 5000 上启动监听</li>
-<li>stack 为空，等待 <code>request</code> 事件触发</li>
-<li>根据传入的请求，事件触发，express 调用之前提供的函数 <code>getArticle</code></li>
-<li><code>getArticle</code> 压入(push) stack</li>
-<li><code>fetchArticle</code> 被调用 同时压入 stack</li>
-<li><code>Math.floor</code> 和 <code>Math.random</code> 被调用压入 stack 然后再 弹出(pop), 从 aids 里面取出的一个值被赋值给变量 aid</li>
-<li><code>superagent.get</code> 被执行，参数为 <code>&#39;http://news-at.zhihu.com/api/4/news/${aid}&#39;</code> ,并且回调函数注册给了 <code>end</code> 事件</li>
-<li>到 <code>http://news-at.zhihu.com/api/4/news/${aid}</code> 的HTTP请求被发送到后台线程，然后函数继续往下执行</li>
-<li><code>&#39;Now is fetching an article&#39;</code> 打印在 console 中。 函数 <code>fetchArticle</code> 返回</li>
-<li><code>print</code> 函数被调用, <code>&#39;Print something&#39;</code> 打印在 console 中</li>
-<li>函数 <code>getArticle</code> 返回，并从 stack 中弹出， stack 为空</li>
-<li>等待 <code>http://news-at.zhihu.com/api/4/news/${aid}</code> 发送相应信息</li>
-<li>响应信息到达，<code>end</code> 事件被触发</li>
-<li>注册给 <code>end</code> 事件的匿名回调函数被执行，这个匿名函数和他闭包中的所有变量压入 stack，这意味着这个匿名函数可以访问并修改 <code>express</code>, <code>superagent</code>, <code>app</code>, <code>aids</code>, <code>req</code>, <code>res</code>, <code>aid</code> 的值以及之前所有已经定义的函数</li>
-<li>函数 <code>res.send()</code> 伴随着 200 或 500 的状态码被执行，但同时又被放入到后台线程中，因此 响应流 不会阻塞我们函数的执行。匿名函数也被 pop 出 stack。</li>
-</ol>
-<h2 id="Microtasks-Macrotasks"><a href="#Microtasks-Macrotasks" class="headerlink" title="Microtasks Macrotasks"></a>Microtasks Macrotasks</h2><p>任务队列不止一个，还有 microtasks 和 macrotasks</p>
-<p>microtasks:</p>
-<ul>
-<li>process.nextTick</li>
-<li>promise</li>
-<li>Object.observe</li>
-</ul>
-<p>macrotasks:</p>
-<ul>
-<li>setTimeout</li>
-<li>setInterval</li>
-<li>setImmediate</li>
-<li>I/O</li>
-</ul>
-<p>这两个的详细区别下一篇再写，先看一段代码</p>
-<pre><code>console.log(&apos;start&apos;)
-
-const interval = setInterval(() =&gt; {  
-  console.log(&apos;setInterval&apos;)
+main()
+</code></pre><h2 id="搭配-reduce-函数"><a href="#搭配-reduce-函数" class="headerlink" title="搭配 reduce() 函数"></a>搭配 reduce() 函数</h2><p>通过引入 <code>async/await</code> 可以把 <code>reduce</code> 扩展成一个按顺序执行异步函数的工具</p>
+<p><code>reduce</code> 用起来很简单:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constresult=arr.reduce((prev, next) =&gt; {
+  return prev+next
 }, 0)
 
-setTimeout(() =&gt; {  
-  console.log(&apos;setTimeout 1&apos;)
-  Promise.resolve()
-      .then(() =&gt; {
-        console.log(&apos;promise 3&apos;)
-      })
-      .then(() =&gt; {
-        console.log(&apos;promise 4&apos;)
-      })
-      .then(() =&gt; {
-        setTimeout(() =&gt; {
-          console.log(&apos;setTimeout 2&apos;)
-          Promise.resolve()
-              .then(() =&gt; {
-                console.log(&apos;promise 5&apos;)
-              })
-              .then(() =&gt; {
-                console.log(&apos;promise 6&apos;)
-              })
-              .then(() =&gt; {
-                clearInterval(interval)
-              })
-        }, 0)
-      })
-}, 0)
+console.log(result)
+</code></pre><p>像 <code>map</code> 函数一样引入 <code>async/await</code> :</p>
+<pre><code>constarr= [1,2,3,4,5]
+constmain=async_=&gt; {
+  constresult=awaitarr.reduce(async (prev, next) =&gt; {
+    consttmp=await prev
+    return tmp + next
+  }, Promise.resolve(0))
 
-Promise.resolve()
-    .then(() =&gt; {  
-        console.log(&apos;promise 1&apos;)
-    })
-    .then(() =&gt; {
-        console.log(&apos;promise 2&apos;)
-    })
-</code></pre><p>理解了node的事件循环还是比较容易得出答案的：</p>
-<pre><code>start
-promise 1
-promise 2
-setInterval
-setTimeout 1
-promise 3
-promise 4
-setInterval
-setTimeout 2
-promise 5
-promise 6
-</code></pre><p>根据 <a href="https://link.zhihu.com/?target=https%3A//html.spec.whatwg.org/multipage/webappapis.html%23task-queue" target="_blank" rel="noopener">WHATVG</a> 的说明，在一个事件循环的周期(cycle)中一个 (macro)task 应该从 macrotask 队列开始执行。当这个 macrotask 结束后，所有的 microtasks 将在同一个 cycle 中执行。在 microtasks 执行时还可以加入更多的 microtask，然后一个一个的执行，直到 microtask 队列清空。</p>
-<p>规范理解起来有点晦涩，来看下上面的例子</p>
-<h2 id="Cycle-1"><a href="#Cycle-1" class="headerlink" title="Cycle 1"></a>Cycle 1</h2><p>1)<code>setInterval</code> 被列为 task</p>
-<p>2)<code>setTimeout 1</code> 被列为 task</p>
-<p>3)<code>Promise.resolve 1</code> 中两个 <code>then</code> 被列为 microtask</p>
-<p>4) stack 清空 microtasks 执行</p>
-<p>任务队列： <code>setInterval`</code>setTimeout 1`</p>
-<h2 id="Cycle-2"><a href="#Cycle-2" class="headerlink" title="Cycle 2"></a>Cycle 2</h2><p>5) microtasks 队列清空 <code>setInteval</code> 的回调可以执行。另一个 <code>setInterval</code> 被列为 task , 位于 <code>setTimeout 1</code>后面</p>
-<p>任务队列： <code>setTimeout 1`</code>setInterval`</p>
-<h2 id="Cycle-3"><a href="#Cycle-3" class="headerlink" title="Cycle 3"></a>Cycle 3</h2><p>6) microtask 队列清空，<code>setTimeout 1</code> 的回调可以执行，<code>promise 3</code> 和 <code>promise 4</code> 被列为 microtasks</p>
-<p>7)<code>promise 3</code> 和 <code>promise 4</code> 执行。 <code>setTimeout 2</code> 被列为 task</p>
-<p>任务队列 <code>setInterval`</code>setTimeout 2`</p>
-<h2 id="Cycle-4"><a href="#Cycle-4" class="headerlink" title="Cycle 4"></a>Cycle 4</h2><p>8) microtask 队列清空 <code>setInteval</code> 的回调可以执行。然后另一个 <code>setInterval</code> 被列为 task ，位于 <code>setTimeout 2</code> 后面</p>
-<p>任务队列： <code>setTimeout 2`</code>setInterval`</p>
-<p>9)<code>setTimeout 2</code> 的回调执行， <code>promise 5</code> 和 <code>promise 6</code> 被列为 microtasks</p>
-<p>现在 <code>promise 5</code> 和 <code>promise 6</code> 的回调应该执行，并且 clear 掉 <code>interval</code>。 但有的时候不知道为什么 <code>setInterval</code> 还会在执行一遍，变成下面结果</p>
-<pre><code>...
-setTimeout 2
-setInterval
-promise 5
-promise 6
-</code></pre><p>但是把上面的代码放入 chrome console 中执行却没有问题。这一点还要再根据不同的 node版本 查一下。</p>
-<h2 id="关于-macrotask-和-microtask"><a href="#关于-macrotask-和-microtask" class="headerlink" title="关于 macrotask 和 microtask"></a>关于 macrotask 和 microtask</h2><p>用例子简单理解了下 macrotask 和 microtask</p>
-<p>这里再详细的总结下两者的区别和使用</p>
-<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>一个事件循环(EventLoop)中会有一个正在执行的任务(Task)，而这个任务就是从 macrotask 队列中来的。在<a href="https://link.zhihu.com/?target=https%3A//html.spec.whatwg.org/multipage/webappapis.html%23task-queue" target="_blank" rel="noopener">whatwg规范</a>中有 queue 就是任务队列。当这个 macrotask 执行结束后所有可用的 microtask 将会在同一个事件循环中执行，当这些 microtask 执行结束后还能继续添加 microtask 一直到真个 microtask 队列执行结束。</p>
-<h2 id="怎么用"><a href="#怎么用" class="headerlink" title="怎么用"></a>怎么用</h2><p>基本来说，当我们想以同步的方式来处理异步任务时候就用 microtask（比如我们需要直接在某段代码后就去执行某个任务，就像Promise一样）。</p>
-<p>其他情况就直接用 macrotask。</p>
-<h2 id="两者的具体实现"><a href="#两者的具体实现" class="headerlink" title="两者的具体实现"></a>两者的具体实现</h2><ul>
-<li>macrotasks: setTimeout setInterval setImmediate I/O UI渲染</li>
-<li>microtasks: Promise process.nextTick Object.observe MutationObserver</li>
-</ul>
-<h2 id="从规范中理解"><a href="#从规范中理解" class="headerlink" title="从规范中理解"></a>从规范中理解</h2><p>whatwg规范：<a href="https://link.zhihu.com/?target=https%3A//html.spec.whatwg.org/multipage/webappapis.html%23task-queue" target="_blank" rel="noopener">https://html.spec.whatwg.org/multipage/webappapis.html#task-queue</a></p>
-<ul>
-<li>一个事件循环(event loop)会有一个或多个任务队列(task queue) task queue 就是 macrotask queue</li>
-<li>每一个 event loop 都有一个 microtask queue</li>
-<li>task queue == macrotask queue != microtask queue</li>
-<li>一个任务 task 可以放入 macrotask queue 也可以放入 microtask queue 中</li>
-<li>当一个 task 被放入队列 queue(macro或micro) 那这个 task 就可以被立即执行了</li>
-</ul>
-<p>再来回顾下事件循环如何执行一个任务的流程</p>
-<p>当执行栈(call stack)为空的时候，开始依次执行：</p>
-<ol>
-<li>把最早的任务(task A)放入任务队列</li>
-<li>如果 task A 为null (那任务队列就是空)，直接跳到第6步</li>
-<li>将 currently running task 设置为 task A</li>
-<li>执行 task A (也就是执行回调函数)</li>
-<li>将 currently running task 设置为 null 并移出 task A</li>
-<li>执行 microtask 队列</li>
-</ol>
-<ul>
-<li>a: 在 microtask 中选出最早的任务 task X</li>
-<li>b: 如果 task X 为null (那 microtask 队列就是空)，直接跳到 g</li>
-<li>c: 将 currently running task 设置为 task X</li>
-<li>d: 执行 task X</li>
-<li>e: 将 currently running task 设置为 null 并移出 task X</li>
-<li>f: 在 microtask 中选出最早的任务 , 跳到 b</li>
-<li>g: 结束 microtask 队列</li>
-</ul>
-<ol>
-<li>跳到第一步</li>
-</ol>
-<p>上面就算是一个简单的 event-loop 执行模型</p>
-<p>再简单点可以总结为：</p>
-<ol>
-<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
-<li>执行 microtask 队列中所有可用的任务，然后移出</li>
-<li>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</li>
-</ol>
-<h2 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h2><ul>
-<li>当一个task(在 macrotask 队列中)正处于执行状态，也可能会有新的事件被注册，那就会有新的 task 被创建。比如下面两个</li>
-</ul>
-<ol>
-<li>promiseA.then() 的回调就是一个 task</li>
-</ol>
-<ul>
-<li>promiseA 是 resolved或rejected: 那这个 task 就会放入当前事件循环回合的 microtask queue</li>
-<li>promiseA 是 pending: 这个 task 就会放入 事件循环的未来的某个(可能下一个)回合的 microtask queue 中</li>
-<li><p>setTimeout 的回调也是个 task ，它会被放入 macrotask queue 即使是 0ms 的情况</p>
-</li>
-<li><p>microtask queue 中的 task 会在事件循环的当前回合中执行，因此 macrotask queue 中的 task 就只能等到事件循环的下一个回合中执行了</p>
-</li>
-<li>click ajax setTimeout 的回调是都是 task, 同时，包裹在一个 script 标签中的js代码也是一个 task 确切说是 macrotask。</li>
-</ul>
-<p>两者的具体实现</p>
-<ul>
-<li>macrotasks: setTimeout ，setInterval， setImmediate， I/O ，UI渲染，requestAnimationFrame</li>
-<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
-</ul>
-<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
-<ol>
-<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
-<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
-<li>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</li>
-</ol>
-<p>这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。<br>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。<br>如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。</p>
-<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
+  console.log(result)
+}
+
+main()
+</code></pre><p>而且还可以在 <code>reduce</code> 内部加入异步函数:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constmain=async_=&gt; {
+  constresult=awaitarr.reduce(async (prev, next) =&gt; {
+    consttmp=await prev
+
+    // 异步处理 暂停1sawaitsleep(1000)
+    console.log(tmp + next)
+
+    return tmp + next
+  }, Promise.resolve(0))
+}
+
+main()
+</code></pre><p>上述代码会每隔一秒依次打出 1 3 6 10 15</p>
+<p>参考自</p>
 <blockquote>
-<p>JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、 MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>实在不行，只能用 setTimeout 创建 task 了。<br>为啥要用 microtask？<br>根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
+<p><a href="http://2ality.com/2016/10/async-function-tips.html" target="_blank" rel="noopener">http://2ality.com/2016/10/async-function-tips.html</a></p>
 </blockquote>
-<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
-<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
-<p>setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
-<pre><code>setTimeout(function(){
-    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
-},0);
-</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
-<pre><code>setTimeout(function(){console.log(4)},0);
-new Promise(function(resolve){
-    console.log(1)
-    for( var i=0 ; i&lt;10000 ; i++ ){
-        i==9999 &amp;&amp; resolve()
-    }
-    console.log(2)
-}).then(function(){
-    console.log(5)
-});
-console.log(3);
-结果是：
-1,2,3,5,4
-</code></pre><p>再看这个，两个自执行同时执行：</p>
-<pre><code>&lt;script&gt;
-(function test() {
-  setTimeout(function () {
-    console.log(4)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(1);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(2);
-  }).then(function() {
-    console.log(5);
-  });
-  console.log(3);
-})()
 
-(function test2() {
-  setTimeout(function () {
-    console.log(42)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(12);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(22);
-  }).then(function() {
-    console.log(52);
-  });
-  console.log(32);
-})()
-&lt;/script&gt;
-</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的<code>setTimeout</code>进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
-<p>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：</p>
-<p>1.先执行 macrotasks：I/O -》 UI渲染</p>
-<p>2.再执行 microtasks ：process.nextTick -》 Promise -》MutationObserver -&gt;Object.observe</p>
-<p>3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
-<p>setTimeout ，setInterval –》setImmediate</p>
-<p>综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。</p>
-<pre><code>setImmediate(function(){
-    console.log(1);
-},0);
-setTimeout(function(){
-    console.log(2);
-},0);
-new Promise(function(resolve){
-    console.log(3);
-    resolve();
-    console.log(4);
-}).then(function(){
-    console.log(5);
-});
-console.log(6);
-process.nextTick(function(){
-    console.log(7);
-});
-console.log(8);
-结果是：3 4 6 8 7 5 2 1 
-</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/Event-Loop-必知必会（六道题）/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/03/Event-Loop-必知必会（六道题）/" itemprop="url">Event Loop 必知必会（六道题）</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T11:48:09+08:00">
+                2018-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>一直想写一篇关于 Event Loop 的文章，前不久发现 CNode 上有位同学写了一篇原理分析的<a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/5a9108d78d6e16e56bb80882%235a98d9a2ce1c90bc44c445af" target="_blank" rel="noopener">文章</a>很详细，这里我就不献丑了。本文就拿出六道题来补充一下，放出一张我认为非常直观的图。<br><img src="https://pic4.zhimg.com/v2-3a59c624e6ff95a7e8c5a23c979f5abe_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3a59c624e6ff95a7e8c5a23c979f5abe_hd.jpg" alt=""><br>绿色小块是 macrotask（宏任务），macrotask 中间的粉红箭头是 microtask（微任务）。</p>
+<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate
+setTimeout
+</code></pre><p>或者：</p>
+<pre><code>setTimeout
+setImmediate
+</code></pre><p>为什么结果不确定呢？</p>
+<p>解释：setTimeout/setInterval 的第二个参数取值范围是：[1, 2^31 - 1]，如果超过这个范围则会初始化为 1，即 setTimeout(fn, 0) === setTimeout(fn, 1)。我们知道 setTimeout 的回调函数在 timer 阶段执行，setImmediate 的回调函数在 check 阶段执行，event loop 的开始会先检查 timer 阶段，但是在开始之前到 timer 阶段会消耗一定时间，所以就会出现两种情况：</p>
+<ol>
+<li>timer 前的准备时间超过 1ms，满足  loop-&gt;time &gt;= 1，则执行 timer 阶段（setTimeout）的回调函数</li>
+<li>timer 前的准备时间小于 1ms，则先执行 check 阶段（setImmediate）的回调函数，下一次 event loop 执行 timer 阶段（setTimeout）的回调函数</li>
+</ol>
+<p>再看个例子：</p>
+<pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})conststart=Date.now()while(Date.now()-start&lt;10);
+</code></pre><p>运行结果一定是：</p>
+<pre><code>setTimeout
+setImmediate
+</code></pre><h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>constfs=require(&apos;fs&apos;)fs.readFile(__filename,()=&gt;{setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate
+setTimeout
+</code></pre><p>解释：fs.readFile 的回调函数执行完后：</p>
+<ol>
+<li>注册 setTimeout 的回调函数到 timer 阶段</li>
+<li>注册 setImmediate 的回调函数到 check 阶段</li>
+<li>event loop 从 pool 阶段出来继续往下一个阶段执行，恰好是 check 阶段，所以 setImmediate 的回调函数先执行</li>
+<li>本次 event loop 结束后，进入下一次 event loop，执行 setTimeout 的回调函数</li>
+</ol>
+<p>所以，在 I/O Callbacks 中注册的 setTimeout 和 setImmediate，永远都是 setImmediate 先执行。</p>
+<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)process.nextTick(functiontick(){process.nextTick(tick)})
+</code></pre><p>运行结果：setInterval 永远不会打印出来。</p>
+<p>解释：process.nextTick 会无限循环，将 event loop 阻塞在 microtask 阶段，导致 event loop 上其他 macrotask 阶段的回调函数没有机会执行。</p>
+<p>解决方法通常是用 setImmediate 替代 process.nextTick，如下：</p>
+<pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)setImmediate(functionimmediate(){setImmediate(immediate)})
+</code></pre><p>运行结果：每 100ms 打印一次 setInterval。</p>
+<p>解释：process.nextTick 内执行 process.nextTick 仍然将 tick 函数注册到当前 microtask 的尾部，所以导致 microtask 永远执行不完； setImmediate 内执行 setImmediate 会将 immediate 函数注册到下一次 event loop 的 check 阶段，而不是当前正在执行的 check 阶段，所以给了 event loop 上其他 macrotask 执行的机会。</p>
+<p>再看个例子：</p>
+<pre><code>setImmediate(()=&gt;{console.log(&apos;setImmediate1&apos;)setImmediate(()=&gt;{console.log(&apos;setImmediate2&apos;)})process.nextTick(()=&gt;{console.log(&apos;nextTick&apos;)})})setImmediate(()=&gt;{console.log(&apos;setImmediate3&apos;)})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate1
+setImmediate3
+nextTick
+setImmediate2
+</code></pre><p>注意：并不是说 setImmediate 可以完全替代 process.nextTick，process.nextTick 在特定场景下还是无法被替代的，比如我们就想将一些操作放到最近的 microtask 里执行。</p>
+<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>constpromise=Promise.resolve().then(()=&gt;{returnpromise})promise.catch(console.error)
+</code></pre><p>运行结果：</p>
+<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
+    at &lt;anonymous&gt;
+    at process._tickCallback (internal/process/next_tick.js:188:7)
+    at Function.Module.runMain (module.js:667:11)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+</code></pre><p>解释：promise.then 类似于 process.nextTick，都会将回调函数注册到 microtask 阶段。上面代码会导致死循环，类似前面提到的：</p>
+<pre><code>process.nextTick(functiontick(){process.nextTick(tick)})
+</code></pre><p>再看个例子：</p>
+<pre><code>constpromise=Promise.resolve()
+promise.then(()=&gt;{
+  console.log(&apos;promise&apos;)})
+  process.nextTick(()=&gt;{
+      console.log(&apos;nextTick&apos;)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>nextTick
+promise
+</code></pre><p>解释：promise.then 虽然和 process.nextTick 一样，都将回调函数注册到 microtask，但优先级不一样。process.nextTick 的 microtask queue 总是优先于 promise 的 microtask queue 执行。</p>
+<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>setTimeout(()=&gt;{
+    console.log(1)
+},0)
+newPromise((resolve,reject)=&gt;{
+   console.log(2)
+   for(leti=0;i&lt;10000;i++){
+     i===9999&amp;&amp;resolve()
+   }
+   console.log(3)
+}).then(()=&gt;{
+   console.log(4)
+})
+console.log(5)
+</code></pre><p>运行结果：</p>
+<p>解释：Promise 构造函数是同步执行的，所以先打印 2、3，然后打印 5，接下来 event loop 进入执行 microtask 阶段，执行 promise.then 的回调函数打印出 4，然后执行下一个 macrotask，恰好是 timer 阶段的 setTimeout 的回调函数，打印出 1。</p>
+<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>setImmediate(()=&gt;{
+    console.log(1)
+    setTimeout(()=&gt;{
+       console.log(2)
+    },100)
+    setImmediate(()=&gt;{
+       console.log(3)
+    })
+    process.nextTick(
+       ()=&gt;{console.log(4)})
+     })
+     process.nextTick(()=&gt;{
+       console.log(5)
+       setTimeout(()=&gt;{
+        console.log(6)},100)
+        setImmediate(()=&gt;{
+        console.log(7)})
+        process.nextTick(
+        ()=&gt;{console.log(8)})
+        })console.log(9)
+</code></pre><p>运行结果：</p>
+<p>process.nextTick、setTimeout 和 setImmediate 的组合，请读者自己推理吧。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a href="https://link.zhihu.com/?target=https%3A//medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c" target="_blank" rel="noopener">https://medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/57d68794cb6f605d360105bf" target="_blank" rel="noopener">https://cnodejs.org/topic/57d68794cb6f605d360105bf</a></li>
+</ul>
+
           
         
       
@@ -1511,302 +1460,6 @@ Watcher.prototype.update = function() {
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/HTTP三种缓存方式/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/10/03/HTTP三种缓存方式/" itemprop="url">HTTP三种缓存方式</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T00:03:50+08:00">
-                2018-10-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>依然在学习node的艰辛过程中，最近学习了http相关的知识，学到了东西当然第一时间就来和大家分享分享，今天呢就教大家来看看利用node中的http模块去实现不同的缓存策略！！！</p>
-<p>我们都知道，对于我们前端开发来说，缓存是一个十分重要的东西，即希望用户不能每次请求过来都要重复下载我们的页面内容，希望为用户节省流量，并且能提高我们页面的浏览流畅度，但是同时当我们修改了一个bug后，又希望线上能够及时更新，这时候就要求爷爷告奶奶让运维小哥哥帮我们刷新一下缓存了，那么有没有一些比较好的缓存策略可以针对我们修改bug又能不麻烦运维及时更新呢，今天我们就利用node来看一下后端中的缓存策略是如何设置的。</p>
-<h2 id="强制缓存"><a href="#强制缓存" class="headerlink" title="强制缓存"></a>强制缓存</h2><p>通常我们对于强制缓存的设置是服务端告诉客户端你刚刚已经请求过一次了，我们约定好十分钟内你再过来请求都直接读取缓存吧，意思也就是当客户端在十分钟内多次请求的话只有第一次会下载页面内容，其他的请求都是直接走缓存，不管我们页面在这期间有没有变化都不会影响客户端读取缓存。<br>那我们来看一下代码的实现</p>
-<pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-// 创建一个服务
-let server = http.createServer();
-// 监听请求
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    console.log(readPath)
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 服务端设置响应头 Cache-Control 也就是缓存多久以秒为单位
-        res.setHeader(&apos;Cache-Control&apos;,&apos;max-age=10&apos;);
-        // 服务器设置响应头Expires 过期时间 获取当前时间加上刚刚设置的缓存秒数
-        res.setHeader(&apos;Expires&apos;,new Date(Date.now()+10*1000).toGMTString());
-        //判断如果路径是一件文件夹 就默认查找该文件下的index.html
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            console.log(p);
-            // 判断是否有index.html 没有就返回404
-            fs.statSync(p);
-            // 创建文件可读流 并且pipe到响应res可写流中
-            fs.createReadStream(p).pipe(res)
-        }else{
-            // 如果请求的就是一个文件 那么久直接返回
-            fs.createReadStream(readPath).pipe(res)
-        }
-    } catch (error) {
-        // 读取不到 返回404 
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-// 监听3000端口
-server.listen(3000)
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过上面代码测试我们会发现当我们在10秒内进行对同一文件的请求，那么我们浏览器就会直接走缓存 通过上图可以看到我们重复请求的时候我们会看到css变成from memory cache，我们也看到我们刚刚的响应头也被设置上了</p>
-<p><a href="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
-<h2 id="协商缓存"><a href="#协商缓存" class="headerlink" title="协商缓存"></a>协商缓存</h2><p>上面的强制缓存我们就发现了 就是我们平时改完bug上线要苦苦等待的一个原因了，那么有没有其他的好的缓存处理方法呢，我们设想一下 假如我们能够知道我们文件有没有修改，假如我们修改了服务器就返回最新的内容假如没有修改 就一直默认缓存 ，这样是不是听起来十分的棒！那我们就想如果我们能够知道文件的最后修改时间是不是就可以实现了！</p>
-<h3 id="通过文件最后修改时间来缓存"><a href="#通过文件最后修改时间来缓存" class="headerlink" title="通过文件最后修改时间来缓存"></a>通过文件最后修改时间来缓存</h3><pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-let server = http.createServer();
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 为了方便测试 我们告诉客户端不要走强制缓存了
-        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            let statObj = fs.statSync(p);
-            // 我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧
-            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
-            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
-                res.statusCode = 304;
-                res.end();
-                return
-            }
-            // 修改了那么我们就直接返回新的内容
-            fs.createReadStream(p).pipe(res)
-        }else{
-            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
-            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
-                res.statusCode = 304;
-                res.end();
-                return
-            }
-            fs.createReadStream(readPath).pipe(res)
-        }
-    } catch (error) {
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-
-server.listen(3000)
-
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
-<p>我们通过请求可以看到，当我们第一次请求过后，无论怎么刷新请求都是304 直接读取的缓存，假如我们在服务端把这个文件修改了 那么我们就能看到又能请求到最新的内容了，这就是我们通过协商缓存来处理的，我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧</p>
-<h3 id="通过文件内容来缓存"><a href="#通过文件内容来缓存" class="headerlink" title="通过文件内容来缓存"></a>通过文件内容来缓存</h3><p>再再再再再假如我们在文件中删除了字符a然后又还原了，那么这时候保存我们的文件的修改时间其实也发生了变化，但是其实我们文件的真正内容并没有发生变化，所以这时候其实客户端继续走缓存也是可以的 ，我们来看看这样的缓存策略如何实现。</p>
-<pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-let crypto = require(&apos;crypto&apos;);
-let server = http.createServer();
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 为了方便测试 我们告诉客户端不要走强制缓存了
-        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            let statObj = fs.statSync(p);
-            // 我们通过流把文件读取出来 然后对读取问来的内容进行md5加密 得到一个base64加密hash值
-            let rs = fs.createReadStream(p);
-            let md5 = crypto.createHash(&apos;md5&apos;);
-            let arr = [];
-            rs.on(&apos;data&apos;,(data)=&gt;{
-                arr.push(data);
-                md5.update(data);
-            })
-            rs.on(&apos;end&apos;,(data)=&gt;{
-                let r = md5.digest(&apos;base64&apos;);
-                // 然后我们将这个hash值通过响应头Etag传给客户端，客户端再下一次请求的时候会把上一次的Etag值通过请求头if-none-match带过来，然后我们就可以继续比对文件生成的hash值和上次产生的hash是否一样 如果一样说明文件内容没有发生变化 就告诉客户端304 读取缓存
-                res.setHeader(&apos;Etag&apos;,r);
-                if(req.headers[&apos;if-none-match&apos;]===r){
-                    res.statusCode=304;
-                    res.end();
-                    return;
-                }
-                res.end(Buffer.concat(arr))
-            })
-        }else{
-            let rs = fs.createReadStream(readPath);
-            let md5 = crypto.createHash(&apos;md5&apos;);
-            let arr = [];
-            rs.on(&apos;data&apos;,(data)=&gt;{
-                arr.push(data);
-                md5.update(data);
-            })
-            rs.on(&apos;end&apos;,(data)=&gt;{
-                let r = md5.digest(&apos;base64&apos;);
-                res.setHeader(&apos;Etag&apos;,r);
-                if(req.headers[&apos;if-none-match&apos;]===r){
-                    res.statusCode=304;
-                    res.end();
-                    return;
-                }
-                res.end(Buffer.concat(arr))
-            })
-        }
-    } catch (error) {
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-
-server.listen(3000)
-
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过控制台我们可以看出来 请求头和响应头中都有我们上面所说的对应的值，但是从代码里我们也能看出来，我们每次在请求到来的时候都会把文件全部读取出来并且进行加密生产hash然后再做对比，这样其实十分的消耗性能，因此这种缓存方式也有他自己的缺点</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们通过node来亲自实现了三种缓存方式，我们可以总结出每种缓存方式对应的实现：</p>
-<ul>
-<li>强制缓存 服务端设置响应头Cache-Control:max-age=xxx，并且设置Expires响应头过期时间，客户端自行判断是否读取缓存</li>
-<li><p>协商缓存 通过状态码304告诉客户端该走缓存</p>
-</li>
-<li><p>修改时间：通过文件的最后修改时间判断该不该读取缓存，服务端设置响应头Last-Modified,客户端把上次服务端响应头中的Last-modified值通过if-modified-since 传递给服务端 ， 服务端通过比较当前文件的修改时间和上次修改时间(上次传给客户端的值),如果相等那么说明文件修改时间没变也就是没变化</p>
-</li>
-<li>文件内容：通过文件的内容来判断该不该读取缓存，服务端通过把文件内容读取出来，通过md5进行base64加密得出hash值，把这个值设置响应头Etag，客户端下一次请求通过if-none-match带过来，服务端再比对当前文件内容加密得出的hash值和上次是否一样，如果一样说明文件内容没有发生改变，这种方式是最准确的方式，但是也是最耗性能</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/01/简单理解async、await语法实现原理/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1948,7 +1601,7 @@ server.listen(3000)
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/01/为什么Redux-需要-reducers是纯函数？/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/30/pm2-常用配置及命令/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -1967,7 +1620,7 @@ server.listen(3000)
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2018/10/01/为什么Redux-需要-reducers是纯函数？/" itemprop="url">为什么Redux 需要 reducers是纯函数？</a></h1>
+                <a class="post-title-link" href="/2018/09/30/pm2-常用配置及命令/" itemprop="url">pm2 常用配置及命令</a></h1>
         
 
         <div class="post-meta">
@@ -1979,8 +1632,8 @@ server.listen(3000)
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-01T00:13:40+08:00">
-                2018-10-01
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-30T12:11:05+08:00">
+                2018-09-30
               </time>
             
 
@@ -2019,13 +1672,376 @@ server.listen(3000)
       
         
           
-            <h4 id="为什么Redux-需要-reducers是纯函数？"><a href="#为什么Redux-需要-reducers是纯函数？" class="headerlink" title="为什么Redux 需要 reducers是纯函数？"></a>为什么Redux 需要 reducers是纯函数？</h4><p> 这又是一个很厉害的问题了，使用Redux的都知道，reducers会接收上一个state和action作为参数，然后返回一个新的state，这个新的state不能是在原来state基础上的修改。所以经常可以看到以下的写法：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">return Object.assign(...)</span><br><span class="line">//或者----------</span><br><span class="line">return &#123;...state,xx:xxx&#125;</span><br></pre></td></tr></table></figure></p>
-<p>其作用，都是为了返回一个全新的对象。</p>
-<p><strong>为什么reducers要求是纯函数(返回全新的对象，不影响原对象)?</strong>  –某面试官</p>
-<h3 id="纯函数"><a href="#纯函数" class="headerlink" title="纯函数"></a>纯函数</h3><p>从本质上讲，纯函数的定义如下：不修改函数的输入值，依赖于外部状态（比如数据库，DOM和全局变量），同时对于任何相同的输入有着相同的输出结果。<br>举个例子，下面的add函数不修改变量a或b，同时不依赖外部状态，对于相同的输入始终返回相同的结果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">const add = (a,b) =&gt; &#123;a + b&#125;;</span><br></pre></td></tr></table></figure></p>
-<p>这就是一个纯函数，结果对a、b没有任何影响，回头去看reducer，它符合纯函数的所有特征，所以就是一个纯函数<br>为什么必须是纯函数?<br>先告诉你结果吧，如果在reducer中，在原来的state上进行操作，并返回的话，并不会让React重新渲染。 完全不会有任何变化！<br>接下来看下Redux的源码：<br><img src="https://user-gold-cdn.xitu.io/2018/8/22/165609de895ae1ae?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>Redux接收一个给定的state（对象），然后通过循环将state的每一部分传递给每个对应的reducer。如果有发生任何改变，reducer将返回一个新的对象。如果不发生任何变化，reducer将返回旧的state。<br>Redux只通过比较新旧两个对象的存储位置来比较新旧两个对象是否相同。如果你在reducer内部直接修改旧的state对象的属性值，那么新的state和旧的state将都指向同一个对象。因此Redux认为没有任何改变，返回的state将为旧的state。<br>好了，也就是说，从源码的角度来讲，redux要求开发者必须让新的state是全新的对象。那么为什么非要这么麻烦开发者呢？<br>请看下面的例子：尝试比较a和b是否相同<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 12,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">var b = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 13,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p> 思路是怎样的？我们需要遍历对象，如果对象的属性是数组，还需要进行递归遍历，去看内容是否一致、是否发生了变化。 这带来的性能损耗是非常巨大的。 有没有更好的办法？<br>有！<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//接上面的例子</span><br><span class="line">a === b  //false</span><br></pre></td></tr></table></figure></p>
-<p> 我不要进行深度比较，只是浅比较，引用值不一样(不是同一个对象),那就是不一样的。 这就是redux的reducer如此设计的原因了</p>
+            <p><code>PM2</code> 是 <code>node</code> 进程管理工具，可以利用它来简化很多 <code>node</code> 应用管理的繁琐任务，如性能监控、自动重启、负载均衡等，而且使用非常简单。本文就 <code>PM2</code> 进行入门性的介绍，基本涵盖了 <code>PM2</code> 的常用的功能和配置。</p>
+<h2 id="安装安装"><a href="#安装安装" class="headerlink" title="#安装安装"></a><a href="#安装">#安装</a>安装</h2><pre><code>npm install -g pm2
+</code></pre><h2 id="常用命令常用命令"><a href="#常用命令常用命令" class="headerlink" title="#常用命令常用命令"></a><a href="#常用命令">#常用命令</a>常用命令</h2><pre><code>pm2 start [server.js]
+# 启动服务
+pm2 list
+# 查看当前所跑服务的详情
+pm2 show [name]
+# 查看更加详细的信息这个命令可查看pm2配置 包括日志文件存放的位置等
+pm2 stop [id/name]
+# 关闭某个服务
+pm2 delete [id/name]
+# 删除某个服务
+pm2 stop all
+# 关闭所有服务
+pm2 logs
+# 查看实时日志
+pm2 restart [name]
+# 重新启动服务
+</code></pre><h2 id="启动启动"><a href="#启动启动" class="headerlink" title="#启动启动"></a><a href="#启动">#启动</a>启动</h2><p>参数说明：</p>
+<ul>
+<li><code>--watch</code>：监听应用目录的变化，一旦发生变化，自动重启。如果要精确监听、不见听的目录，最好通过配置文件。</li>
+<li><code>-i --instances</code>：启用多少个实例，可用于负载均衡。如果 <code>-i 0</code> 或者 <code>-i max</code>，则根据当前机器核数确定实例数目。</li>
+<li><code>--ignore-watch</code>：排除监听的目录/文件，可以是特定的文件名，也可以是正则。比如 <code>--ignore-watch=&quot;test node_modules &quot;some scripts&quot;&quot;</code></li>
+<li><code>-n --name</code>：应用的名称。查看应用信息的时候可以用到。</li>
+<li><code>-o --output &lt;path&gt;</code>：标准输出日志文件的路径。</li>
+<li><code>-e --error &lt;path&gt;</code>：错误输出日志文件的路径。</li>
+</ul>
+<h2 id="监听监听"><a href="#监听监听" class="headerlink" title="#监听监听"></a><a href="#监听">#监听</a>监听</h2><pre><code>pm2 start ./bin/www --watch
+#注意，这里用了--watch参数，意味着当你的应用代码发生变化时，pm2会帮你自动重启服务
+</code></pre><h2 id="配置及部署配置及部署"><a href="#配置及部署配置及部署" class="headerlink" title="#配置及部署配置及部署"></a><a href="#配置及部署">#配置及部署</a>配置及部署</h2><p>部署的配置文件示例</p>
+<pre><code>{
+  // 数组中放的是需要发布的项目一些变量的定义
+  &quot;apps&quot;: [{
+    &quot;name&quot;: &quot;xxx&quot;, //项目名称
+    &quot;script&quot;: &quot;server.js&quot;, //用来启动的脚本
+    // &quot;instances&quot;:2,
+    // 启动项目所需要的环境变量
+    &quot;env&quot;: {
+      &quot;COMMON_VARIABLE&quot;: &quot;true&quot;, //设置为true 可以在启动的时传入外部的变量进去
+    },
+    &quot;env_production&quot;: {
+      &quot;NODE_ENV&quot;: &quot;production&quot;
+    }
+  }],
+  // 部署
+  &quot;deploy&quot;: {
+    &quot;production&quot;: {
+      &quot;user&quot;: &quot;root&quot;,
+      &quot;host&quot;: &quot;0.0.0.0&quot;, //可以是数组 部署到多台主机
+      &quot;ref&quot;: &quot;origin/master&quot;, //选择拿哪个个分支的代码
+      &quot;repo&quot;: &quot;git@github.com:ihoey/hitalk.git&quot;, //仓库地址
+      &quot;path&quot;: &quot;/root/www/hitalk/production&quot;, //要发布到服务器上哪个目录下面
+      &quot;ssh_options&quot;: &quot;StrictHostKeyChecking=no&quot;, //避免key验证导致代码更新到远程仓库失败
+      &quot;post-deploy&quot;: &quot;source ~/.nvm/nvm.sh &amp;&amp; pm2 startOrRestart ecosystem.json --env production&quot;, //发布之后执行的动作 执行开启或更新pm2运行的服务
+      &quot;pre-deploy-local&quot;: &quot;echo &apos;Deploy Done!&apos;&quot;, //本地发布之前的动作
+      &quot;env&quot;: { //指定部署到远程的仓库的环境 是production生产环境
+        &quot;NODE_ENV&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+</code></pre><h3 id="初始化配置初始化配置"><a href="#初始化配置初始化配置" class="headerlink" title="#初始化配置初始化配置"></a><a href="#初始化配置">#初始化配置</a>初始化配置</h3><p>第一次部署</p>
+<pre><code>pm2 deploy ecosystem.json production setup
+</code></pre><h3 id="部署部署"><a href="#部署部署" class="headerlink" title="#部署部署"></a><a href="#部署">#部署</a>部署</h3><pre><code>pm2 deploy ecosystem.json production
+</code></pre><p>好了，先记录这么多~</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/29/浅说-XSS-和-CSRF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/29/浅说-XSS-和-CSRF/" itemprop="url">浅说 XSS 和 CSRF</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-29T12:06:38+08:00">
+                2018-09-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>在 Web 安全领域中，XSS 和 CSRF 是最常见的攻击方式。本文将会简单介绍 XSS 和 CSRF 的攻防问题。</p>
+<blockquote>
+<p>声明：本文的示例仅用于演示相关的攻击原理</p>
+</blockquote>
+<h2 id="XSS"><a href="#XSS" class="headerlink" title="XSS"></a>XSS</h2><p>XSS，即 Cross Site Script，中译是跨站脚本攻击；其原本缩写是 CSS，但为了和层叠样式表(Cascading Style Sheet)有所区分，因而在安全领域叫做 XSS。</p>
+<p>XSS 攻击是指攻击者在网站上注入恶意的客户端代码，通过恶意脚本对客户端网页进行篡改，从而在用户浏览网页时，对用户浏览器进行控制或者获取用户隐私数据的一种攻击方式。</p>
+<p>攻击者对客户端网页注入的恶意脚本一般包括 JavaScript，有时也会包含 HTML 和 Flash。有很多种方式进行 XSS 攻击，但它们的共同点为：将一些隐私数据像 cookie、session 发送给攻击者，将受害者重定向到一个由攻击者控制的网站，在受害者的机器上进行一些恶意操作。</p>
+<p>XSS攻击可以分为3类：反射型（非持久型）、存储型（持久型）、基于DOM。</p>
+<h4 id="反射型"><a href="#反射型" class="headerlink" title="反射型"></a>反射型</h4><p>反射型 XSS 只是简单地把用户输入的数据 “反射” 给浏览器，这种攻击方式往往需要攻击者诱使用户点击一个恶意链接，或者提交一个表单，或者进入一个恶意网站时，注入脚本进入被攻击者的网站。</p>
+<p>看一个示例。我先准备一个如下的静态页：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" alt="反射型xss1"></a></p>
+<p>恶意链接的地址指向了 <code>localhost:8001/?q=111&amp;p=222</code>。然后，我再启一个简单的 Node 服务处理恶意链接的请求：</p>
+<pre><code>consthttp=require(&apos;http&apos;);
+functionhandleReequest(req, res) {
+    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
+    res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
+    res.write(&apos;&lt;script&gt;alert(&quot;反射型 XSS 攻击&quot;)&lt;/script&gt;&apos;);
+    res.end();
+}
+
+constserver=newhttp.Server();
+server.listen(8001, &apos;127.0.0.1&apos;);
+server.on(&apos;request&apos;, handleReequest);
+</code></pre><p>当用户点击恶意链接时，页面跳转到攻击者预先准备的页面，会发现在攻击者的页面执行了 js 脚本：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" alt="执行脚本"></a></p>
+<p>这样就产生了反射型 XSS 攻击。攻击者可以注入任意的恶意脚本进行攻击，可能注入恶作剧脚本，或者注入能获取用户隐私数据(如cookie)的脚本，这取决于攻击者的目的。</p>
+<h4 id="存储型"><a href="#存储型" class="headerlink" title="存储型"></a>存储型</h4><p>存储型 XSS 会把用户输入的数据 “存储” 在服务器端，当浏览器请求数据时，脚本从服务器上传回并执行。这种 XSS 攻击具有很强的稳定性。</p>
+<p>比较常见的一个场景是攻击者在社区或论坛上写下一篇包含恶意 JavaScript 代码的文章或评论，文章或评论发表后，所有访问该文章或评论的用户，都会在他们的浏览器中执行这段恶意的 JavaScript 代码。</p>
+<p>举一个示例。</p>
+<p>先准备一个输入页面：</p>
+<pre><code>&lt;input type=&quot;text&quot; id=&quot;input&quot;&gt;
+&lt;button id=&quot;btn&quot;&gt;Submit&lt;/button&gt;   
+
+&lt;script&gt;
+    const input = document.getElementById(&apos;input&apos;);
+    const btn = document.getElementById(&apos;btn&apos;);
+
+    let val;
+
+    input.addEventListener(&apos;change&apos;, (e) =&gt; {
+        val = e.target.value;
+    }, false);
+
+    btn.addEventListener(&apos;click&apos;, (e) =&gt; {
+        fetch(&apos;http://localhost:8001/save&apos;, {
+            method: &apos;POST&apos;,
+            body: val
+        });
+    }, false);
+&lt;/script&gt;     
+</code></pre><p>启动一个 Node 服务监听 <code>save</code> 请求。为了简化，用一个变量来保存用户的输入：</p>
+<pre><code>consthttp=require(&apos;http&apos;);
+
+let userInput =&apos;&apos;;
+
+functionhandleReequest(req, res) {
+    constmethod=req.method;
+    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
+    res.setHeader(&apos;Access-Control-Allow-Headers&apos;, &apos;Content-Type&apos;)
+
+    if (method ===&apos;POST&apos;&amp;&amp;req.url===&apos;/save&apos;) {
+        let body =&apos;&apos;;
+        req.on(&apos;data&apos;, chunk=&gt; {
+            body += chunk;
+        });
+
+        req.on(&apos;end&apos;, () =&gt; {
+            if (body) {
+                userInput = body;
+            }
+            res.end();
+        });
+    } else {
+        res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
+        res.write(userInput);
+        res.end();
+    }
+}
+
+constserver=newhttp.Server();
+server.listen(8001, &apos;127.0.0.1&apos;);
+
+server.on(&apos;request&apos;, handleReequest);
+</code></pre><p>当用户点击提交按钮将输入信息提交到服务端时，服务端通过 <code>userInput</code> 变量保存了输入内容。当用户通过 <code>http://localhost:8001/${id}</code> 访问时，服务端会返回与 <code>id</code> 对应的内容(本示例简化了处理)。如果用户输入了恶意脚本内容，则其他用户访问该内容时，恶意脚本就会在浏览器端执行：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" alt="存储型xss"></a></p>
+<h4 id="基于DOM"><a href="#基于DOM" class="headerlink" title="基于DOM"></a>基于DOM</h4><p>基于 DOM 的 XSS 攻击是指通过恶意脚本修改页面的 DOM 结构，是纯粹发生在客户端的攻击。</p>
+<p>看如下代码：</p>
+<pre><code>&lt;h2&gt;XSS: &lt;/h2&gt;
+&lt;inputtype=&quot;text&quot;id=&quot;input&quot;&gt;
+&lt;buttonid=&quot;btn&quot;&gt;Submit&lt;/button&gt;
+&lt;divid=&quot;div&quot;&gt;&lt;/div&gt;
+&lt;script&gt;constinput=document.getElementById(&apos;input&apos;);constbtn=document.getElementById(&apos;btn&apos;);constdiv=document.getElementById(&apos;div&apos;);let val;input.addEventListener(&apos;change&apos;, (e) =&gt; {        val =e.target.value;    }, false);btn.addEventListener(&apos;click&apos;, () =&gt; {div.innerHTML=`&lt;ahref=${val}&gt;testLink&lt;/a&gt;`    }, false);&lt;/script&gt;
+</code></pre><p>点击 <code>Submit</code> 按钮后，会在当前页面插入一个链接，其地址为用户的输入内容。如果用户在输入时构造了如下内容：</p>
+<pre><code>&apos;&apos; onclick=alert(/xss/)
+</code></pre><p>用户提交之后，页面代码就变成了：</p>
+<pre><code>&lt;ahrefonlick=&quot;alert(/xss/)&quot;&gt;testLink&lt;/a&gt;
+</code></pre><p>此时，用户点击生成的链接，就会执行对应的脚本：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" alt="dom-xss"></a></p>
+<h3 id="XSS-攻击的防范"><a href="#XSS-攻击的防范" class="headerlink" title="XSS 攻击的防范"></a>XSS 攻击的防范</h3><p>现在主流的浏览器内置了防范 XSS 的措施，例如 <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP" target="_blank" rel="noopener">CSP</a>。但对于开发者来说，也应该寻找可靠的解决方案来防止 XSS 攻击。</p>
+<h4 id="HttpOnly-防止劫取-Cookie"><a href="#HttpOnly-防止劫取-Cookie" class="headerlink" title="HttpOnly 防止劫取 Cookie"></a>HttpOnly 防止劫取 Cookie</h4><p>HttpOnly 最早由微软提出，至今已经成为一个标准。浏览器将禁止页面的Javascript 访问带有 HttpOnly 属性的Cookie。</p>
+<p>上文有说到，攻击者可以通过注入恶意脚本获取用户的 Cookie 信息。通常 Cookie 中都包含了用户的登录凭证信息，攻击者在获取到 Cookie 之后，则可以发起 Cookie 劫持攻击。所以，严格来说，HttpOnly 并非阻止 XSS 攻击，而是能阻止 XSS 攻击后的 Cookie 劫持攻击。</p>
+<h4 id="输入检查"><a href="#输入检查" class="headerlink" title="输入检查"></a>输入检查</h4><p><strong>不要相信用户的任何输入。</strong> 对于用户的任何输入要进行检查、过滤和转义。建立可信任的字符和 HTML 标签白名单，对于不在白名单之列的字符或者标签进行过滤或编码。</p>
+<p>在 XSS 防御中，输入检查一般是检查用户输入的数据中是否包含 <code>&lt;</code>，<code>&gt;</code> 等特殊字符，如果存在，则对特殊字符进行过滤或编码，这种方式也称为 XSS Filter。</p>
+<p>而在一些前端框架中，都会有一份 <code>decodingMap</code>， 用于对用户输入所包含的特殊字符或标签进行编码或过滤，如 <code>&lt;</code>，<code>&gt;</code>，<code>script</code>，防止 XSS 攻击：</p>
+<pre><code>// vuejs 中的 decodingMap
+// 在 vuejs 中，如果输入带 script 标签的内容，会直接过滤掉
+const decodingMap = {
+  &apos;&amp;lt;&apos;: &apos;&lt;&apos;,
+  &apos;&amp;gt;&apos;: &apos;&gt;&apos;,
+  &apos;&amp;quot;&apos;: &apos;&quot;&apos;,
+  &apos;&amp;amp;&apos;: &apos;&amp;&apos;,
+  &apos;&amp;#10;&apos;: &apos;\n&apos;
+}
+</code></pre><h4 id="输出检查"><a href="#输出检查" class="headerlink" title="输出检查"></a>输出检查</h4><p>用户的输入会存在问题，服务端的输出也会存在问题。一般来说，除富文本的输出外，在变量输出到 HTML 页面时，可以使用编码或转义的方式来防御 XSS 攻击。例如利用 <a href="https://github.com/punkave/sanitize-html" target="_blank" rel="noopener">sanitize-html</a> 对输出内容进行有规则的过滤之后再输出到页面中。</p>
+<h2 id="CSRF"><a href="#CSRF" class="headerlink" title="CSRF"></a>CSRF</h2><p>CSRF，即 Cross Site Request Forgery，中译是跨站请求伪造，是一种劫持受信任用户向服务器发送非预期请求的攻击方式。</p>
+<p>通常情况下，CSRF 攻击是攻击者借助受害者的 Cookie 骗取服务器的信任，可以在受害者毫不知情的情况下以受害者名义伪造请求发送给受攻击服务器，从而在并未授权的情况下执行在权限保护之下的操作。</p>
+<p>在举例子之前，先说说浏览器的 Cookie 策略。</p>
+<h3 id="浏览器的-Cookie-策略"><a href="#浏览器的-Cookie-策略" class="headerlink" title="浏览器的 Cookie 策略"></a>浏览器的 Cookie 策略</h3><p>Cookie 是服务器发送到用户浏览器并保存在本地的一小块数据，它会在浏览器下次向同一服务器再发起请求时被携带并发送到服务器上。Cookie 主要用于以下三个方面：</p>
+<ul>
+<li>会话状态管理（如用户登录状态、购物车、游戏分数或其它需要记录的信息）</li>
+<li>个性化设置（如用户自定义设置、主题等）</li>
+<li>个性化设置（如用户自定义设置、主题等）</li>
+</ul>
+<p>而浏览器所持有的 Cookie 分为两种：</p>
+<ul>
+<li>Session Cookie(会话期 Cookie)：会话期 Cookie 是最简单的Cookie，它不需要指定过期时间（Expires）或者有效期（Max-Age），它仅在会话期内有效，浏览器关闭之后它会被自动删除。</li>
+<li><p>Permanent Cookie(持久性 Cookie)：与会话期 Cookie 不同的是，持久性 Cookie 可以指定一个特定的过期时间（Expires）或有效期（Max-Age）。</p>
+<p>  res.setHeader(‘Set-Cookie’, [‘mycookie=222’, ‘test=3333; expires=Sat, 21 Jul 2018 00:00:00 GMT;’]);</p>
+</li>
+</ul>
+<p>上述代码创建了两个 Cookie：<code>mycookie</code> 和 <code>test</code>，前者属于会话期 Cookie，后者则属于持久性 Cookie。当我们去查看 Cookie 相关的属性时，不同的浏览器对会话期 Cookie 的 <code>Expires</code> 属性值会不一样：</p>
+<p>Firefox：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" alt="firefox cookie"></a></p>
+<p>Chrome:</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" alt="chrome cookie"></a></p>
+<p>此外，每个 Cookie 都会有与之关联的域，这个域的范围一般通过 <code>donmain</code> 属性指定。如果 Cookie 的域和页面的域相同，那么我们称这个 Cookie 为第一方 Cookie（first-party cookie），如果 Cookie 的域和页面的域不同，则称之为第三方 Cookie（third-party cookie）。一个页面包含图片或存放在其他域上的资源（如图片）时，第一方的 Cookie 也只会发送给设置它们的服务器。</p>
+<h3 id="通过-Cookie-进行-CSRF-攻击"><a href="#通过-Cookie-进行-CSRF-攻击" class="headerlink" title="通过 Cookie 进行 CSRF 攻击"></a>通过 Cookie 进行 CSRF 攻击</h3><p>假设有一个 bbs 站点：<code>http://www.c.com</code>，当登录后的用户发起如下 GET 请求时，会删除 ID 指定的帖子：</p>
+<pre><code>http://www.c.com:8002/content/delete/:id
+</code></pre><p>如发起 <code>http://www.c.com:8002/content/delete/87343</code> 请求时，会删除 id 为 87343 的帖子。当用户登录之后，会设置如下 cookie：</p>
+<pre><code>res.setHeader(&apos;Set-Cookie&apos;, [&apos;user=22333; expires=Sat, 21 Jul 2018 00:00:00 GMT;&apos;]);
+</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" alt="user"></a></p>
+<p><code>user</code> 对应的值是用户 ID。然后构造一个页面 A：</p>
+<pre><code>&lt;p&gt;CSRF 攻击者准备的网站：&lt;/p&gt;
+&lt;img src=&quot;http://www.c.com:8002/content/delete/87343&quot;&gt;
+</code></pre><p>页面 A 使用了一个 <code>img</code> 标签，其地址指向了删除用户帖子的链接：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" alt="A"></a></p>
+<p>可以看到，当登录用户访问攻击者的网站时，会向 <code>www.c.com</code> 发起一个删除用户帖子的请求。此时若用户在切换到 <code>www.c.com</code> 的帖子页面刷新，会发现ID 为 87343 的帖子已经被删除。</p>
+<p>由于 Cookie 中包含了用户的认证信息，当用户访问攻击者准备的攻击环境时，攻击者就可以对服务器发起 CSRF 攻击。在这个攻击过程中，攻击者借助受害者的 Cookie 骗取服务器的信任，但并不能拿到 Cookie，也看不到 Cookie 的内容。而对于服务器返回的结果，由于浏览器同源策略的限制，攻击者也无法进行解析。因此，攻击者无法从返回的结果中得到任何东西，他所能做的就是给服务器发送请求，以执行请求中所描述的命令，在服务器端直接改变数据的值，而非窃取服务器中的数据。</p>
+<p>但若 CSRF 攻击的目标并不需要使用 Cookie，则也不必顾虑浏览器的 Cookie 策略了。</p>
+<h3 id="CSRF-攻击的防范"><a href="#CSRF-攻击的防范" class="headerlink" title="CSRF 攻击的防范"></a>CSRF 攻击的防范</h3><p>当前，对 CSRF 攻击的防范措施主要有如下几种方式。</p>
+<h4 id="验证码"><a href="#验证码" class="headerlink" title="验证码"></a>验证码</h4><p>验证码被认为是对抗 CSRF 攻击最简洁而有效的防御方法。</p>
+<p>从上述示例中可以看出，CSRF 攻击往往是在用户不知情的情况下构造了网络请求。而验证码会强制用户必须与应用进行交互，才能完成最终请求。因为通常情况下，验证码能够很好地遏制 CSRF 攻击。</p>
+<p>但验证码并不是万能的，因为出于用户考虑，不能给网站所有的操作都加上验证码。因此，验证码只能作为防御 CSRF 的一种辅助手段，而不能作为最主要的解决方案。</p>
+<h4 id="Referer-Check"><a href="#Referer-Check" class="headerlink" title="Referer Check"></a>Referer Check</h4><p>根据 HTTP 协议，在 HTTP 头中有一个字段叫 Referer，它记录了该 HTTP 请求的来源地址。通过 Referer Check，可以检查请求是否来自合法的”源”。</p>
+<p>比如，如果用户要删除自己的帖子，那么先要登录 <code>www.c.com</code>，然后找到对应的页面，发起删除帖子的请求。此时，Referer 的值是 <code>http://www.c.com</code>；当请求是从 <code>www.a.com</code> 发起时，Referer 的值是 <code>http://www.a.com</code> 了。因此，要防御 CSRF 攻击，只需要对于每一个删帖请求验证其 Referer 值，如果是以 <code>www.c.com</code> 开头的域名，则说明该请求是来自网站自己的请求，是合法的。如果 Referer 是其他网站的话，则有可能是 CSRF 攻击，可以拒绝该请求。</p>
+<p>针对上文的例子，可以在服务端增加如下代码：</p>
+<pre><code>if (req.headers.referer!==&apos;http://www.c.com:8002/&apos;) {
+    res.write(&apos;csrf 攻击&apos;);
+    return;
+}
+</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" alt="referer check"></a></p>
+<p>Referer Check 不仅能防范 CSRF 攻击，另一个应用场景是 “防止图片盗链”。</p>
+<h4 id="添加-token-验证"><a href="#添加-token-验证" class="headerlink" title="添加 token 验证"></a>添加 token 验证</h4><p>CSRF 攻击之所以能够成功，是因为攻击者可以完全伪造用户的请求，该请求中所有的用户验证信息都是存在于 Cookie 中，因此攻击者可以在不知道这些验证信息的情况下直接利用用户自己的 Cookie 来通过安全验证。要抵御 CSRF，关键在于在请求中放入攻击者所不能伪造的信息，并且该信息不存在于 Cookie 之中。可以在 HTTP 请求中以参数的形式加入一个随机产生的 token，并在服务器端建立一个拦截器来验证这个 token，如果请求中没有 token 或者 token 内容不正确，则认为可能是 CSRF 攻击而拒绝该请求。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了 XSS 和 CSRF 的攻击原理和防御措施。当然，在 Web 安全领域，除了这两种常见的攻击方式，也存在这 SQL 注入等其它攻击方式，这不在本文的讨论范围之内，如果你对其感兴趣，可以阅读<a href="https://zhuanlan.zhihu.com/p/23569276" target="_blank" rel="noopener">SQL注入技术专题</a>的专栏详细了解相关信息。最后，总结一下 XSS 攻击和 CSRF 攻击的常见防御措施：</p>
+<ol>
+<li>防御 XSS 攻击</li>
+</ol>
+<ul>
+<li>HttpOnly 防止劫取 Cookie</li>
+<li>用户的输入检查</li>
+<li>服务端的输出检查</li>
+</ul>
+<ol start="2">
+<li>防御 CSRF 攻击</li>
+</ol>
+<ul>
+<li>验证码</li>
+<li>Referer Check</li>
+<li>Token 验证</li>
+</ul>
+<p>&lt;完&gt;</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a href="https://developer.mozilla.org/zh-CN/docs/Glossary/Cross-site_scripting" target="_blank" rel="noopener">Cross-site scripting</a></li>
+<li><a href="https://www.ibm.com/developerworks/cn/web/1102_niugang_csrf/index.html" target="_blank" rel="noopener">CSRF 攻击的应对之道</a></li>
+<li>《白帽子讲 Web 安全》</li>
+</ul>
 
           
         
@@ -2316,630 +2332,6 @@ nextTick
 then
 setImmediate
 </code></pre><p>解释：process.nextTick 和 promise.then 都属于 microtasks，而 setImmediate 属于 macrotasks，在事件循环的 check 阶段执行。事件循环的每个阶段（macrotasks）之间都会执行 microtasks，事件循环的开始会先执行一次 microtasks。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/21/跨域，你需要知道的全在这里/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/21/跨域，你需要知道的全在这里/" itemprop="url">跨域，你需要知道的全在这里</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-21T11:05:10+08:00">
-                2018-09-21
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>最近在面试的时候常被问到如何解决跨域的问题，看了网上的一些文章后，许多文章并没有介绍清楚，经常使读者(我)感到困惑，所以今天我整理一下常用的跨域技巧，写这篇关于跨域的文章目的在于：</p>
-<ol>
-<li>介绍常见的跨域的解决方案以及其优缺点</li>
-<li>模拟实际的跨域场景，在每种方案后给出一个简单的实例，能够让读者和我一起敲代码，直观地理解这些跨域技巧</li>
-</ol>
-<p>如果觉得本文有帮助，可以点 star 鼓励下，本文所有代码都可以从 github 仓库下载，读者可以按照下述打开:</p>
-<pre><code>git clone https://github.com/happylindz/blog.git
-cd blog/code/crossOrigin/
-yarn
-</code></pre><p>建议你 clone 下来，方便你阅读代码，跟我一起测试。</p>
-<h2 id="同源策略"><a href="#同源策略" class="headerlink" title="同源策略"></a>同源策略</h2><p>使用过 Ajax 的同学都知道其便利性，可以在不向服务端提交完整页面的情况下，实现局部刷新，在当今 SPA 应用普遍使用，但是浏览器处于对安全方面的考虑，不允许跨域调用其它页面的对象，这对于我们在注入 iframe 或是 ajax 应用上带来不少麻烦。</p>
-<p>简单来说，只有当协议，域名，端口号相同的时候才算是同一个域名，否则，均认为需要做跨域处理。</p>
-<p><img src="https://pic4.zhimg.com/v2-5fa29773fc875bf58e4513fdba402bf0_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-5fa29773fc875bf58e4513fdba402bf0_hd.jpg" alt=""></p>
-<h2 id="跨域方法"><a href="#跨域方法" class="headerlink" title="跨域方法"></a>跨域方法</h2><p>今天一共介绍七种常用的跨域技巧，关于跨域技巧大致可以分为 iframe 跨域和 API 跨域请求。</p>
-<p>下面就先介绍三种 API 跨域的方法:</p>
-<h2 id="1-JSONP："><a href="#1-JSONP：" class="headerlink" title="1. JSONP："></a>1. JSONP：</h2><p>只要说到跨域，就必须聊到 JSONP，JSONP 全称为：JSON with padding，可用于解决老版本浏览器的跨域数据访问问题。</p>
-<p>由于 web 页面上调用 js 文件不受浏览器同源策略的影响，所以通过 script 标签可以进行跨域请求：</p>
-<ol>
-<li>首先前端需要先设置好回调函数，并将其作为 url 的参数。</li>
-<li>服务端接收到请求后，通过该参数获取到回调函数名，并将数据放在参数中将其返回</li>
-<li>收到结果后因为是 script 标签，所以浏览器会当做是脚本进行运行，从而达到跨域获取数据的目的</li>
-</ol>
-<p>jsonp 之所以能够跨域的关键在于页面调用 JS 脚本是不受同源策略的影响，相当于向后端发起一条 http 请求，跟后端约定好函数名，后端拿到函数名，动态计算出返回结果并返回给前端执行 JS 脚本，相当于是一种 “动态 JS 脚本”</p>
-<p>接下来我们通过一个实例来尝试：</p>
-<p>后端逻辑：</p>
-<pre><code>// jsonp/server.js
-const url = require(&apos;url&apos;);
-
-require(&apos;http&apos;).createServer((req, res) =&gt; {
-    const data = {
-        x: 10
-    };
-    // 拿到回调函数名
-    const callback = url.parse(req.url, true).query.callback;
-    console.log(callback);
-    res.writeHead(200);
-    res.end(`${callback}(${JSON.stringify(data)})`);
-
-}).listen(3000, &apos;127.0.0.1&apos;);
-
-console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
-</code></pre><p>前端逻辑：</p>
-<pre><code>// jsonp/index.html
-&lt;script&gt;
-    function jsonpCallback(data) {
-        alert(&apos;获得 X 数据:&apos; + data.x);
-    }
-&lt;/script&gt;
-&lt;script src=&quot;http://127.0.0.1:3000?callback=jsonpCallback&quot;&gt;&lt;/script&gt;
-</code></pre><p>然后在终端开启服务：</p>
-<p>之所以能用脚本指令，是因为我在 package.json 里面设置好了脚本命令：</p>
-<pre><code>{
-  // 输入 yarn jsonp 等于 &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;
-  &quot;scripts&quot;: {
-    &quot;jsonp&quot;: &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;,
-    &quot;cors&quot;: &quot;node ./cors/server.js &amp; http-server ./cors&quot;,
-    &quot;proxy&quot;: &quot;node ./serverProxy/server.js&quot;,
-    &quot;hash&quot;: &quot;http-server ./hash/client/ -p 8080 &amp; http-server ./hash/server/ -p 8081&quot;,
-    &quot;name&quot;: &quot;http-server ./name/client/ -p 8080 &amp; http-server ./name/server/ -p 8081&quot;,
-    &quot;postMessage&quot;: &quot;http-server ./postMessage/client/ -p 8080 &amp; http-server ./postMessage/server/ -p 8081&quot;,
-    &quot;domain&quot;: &quot;http-server ./domain/client/ -p 8080 &amp; http-server ./domain/server/ -p 8081&quot;
-  },
-  // ...
-}
-
-yarn jsonp
-// 因为端口 3000 和 8080 分别属于不同域名下
-// 在 localhost:3000 查看效果，即可收到后台返回的数据 10
-</code></pre><p>打开浏览器访问 <code>localhost:8080</code> 即可看到获取到的数据。</p>
-<p><img src="https://pic2.zhimg.com/v2-1bd48c160110899a8ad7e08e56d36560_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-1bd48c160110899a8ad7e08e56d36560_hd.jpg" alt=""></p>
-<p>至此，通过 JSONP 跨域获取数据已经成功了，但是通过这种方式也存在着一定的优缺点：</p>
-<p>优点：</p>
-<ol>
-<li>它不像XMLHttpRequest 对象实现 Ajax 请求那样受到同源策略的限制</li>
-<li>兼容性很好，在古老的浏览器也能很好的运行</li>
-<li>不需要 XMLHttpRequest 或 ActiveX 的支持；并且在请求完毕后可以通过调用 callback 的方式回传结果。</li>
-</ol>
-<p>缺点：</p>
-<ol>
-<li>它支持 GET 请求而不支持 POST 等其它类行的 HTTP 请求。</li>
-<li>它只支持跨域 HTTP 请求这种情况，不能解决不同域的两个页面或 iframe 之间进行数据通信的问题</li>
-<li>无法捕获 Jsonp 请求时的连接异常，只能通过超时进行处理</li>
-</ol>
-<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS:"></a>CORS:</h2><p>CORS 是一个 W3C 标准，全称是”跨域资源共享”（Cross-origin resource sharing）它允许浏览器向跨源服务器，发出 XMLHttpRequest 请求，从而克服了 ajax 只能同源使用的限制。</p>
-<p>CORS 需要浏览器和服务器同时支持才可以生效，对于开发者来说，CORS 通信与同源的 ajax 通信没有差别，代码完全一样。浏览器一旦发现 ajax 请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。</p>
-<p>因此，实现 CORS 通信的关键是服务器。只要服务器实现了 CORS 接口，就可以跨域通信。</p>
-<p>前端逻辑很简单，只要正常发起 ajax 请求即可:</p>
-<pre><code>// cors/index.html
-&lt;script&gt;
-    const xhr = new XMLHttpRequest();
-    xhr.open(&apos;GET&apos;, &apos;http://127.0.0.1:3000&apos;, true);
-    xhr.onreadystatechange = function() {
-        if(xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
-            alert(xhr.responseText);
-        }
-    }
-    xhr.send(null);
-&lt;/script&gt;
-</code></pre><p>这似乎跟一次正常的异步 ajax 请求没有什么区别，关键是在服务端收到请求后的处理：</p>
-<pre><code>// cors/server.js
-require(&apos;http&apos;).createServer((req, res) =&gt; {
-
-    res.writeHead(200, {
-        &apos;Access-Control-Allow-Origin&apos;: &apos;http://localhost:8080&apos;,
-        &apos;Content-Type&apos;: &apos;text/html;charset=utf-8&apos;,
-    });
-    res.end(&apos;这是你要的数据：1111&apos;);
-
-}).listen(3000, &apos;127.0.0.1&apos;);
-
-console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
-</code></pre><p>关键是在于设置相应头中的 Access-Control-Allow-Origin，该值要与请求头中 Origin 一致才能生效，否则将跨域失败。</p>
-<p>然后我们执行命令：<code>yarn cors</code> 打开浏览器访问 <code>localhost:3000</code> 即可看到效果：</p>
-<p><img src="https://pic2.zhimg.com/v2-13ee0a40a998948019749da80e1d259a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-13ee0a40a998948019749da80e1d259a_hd.jpg" alt=""></p>
-<p>成功的关键在于 Access-Control-Allow-Origin 是否包含请求页面的域名，如果不包含的话，浏览器将认为这是一次失败的异步请求，将会调用 xhr.onerror 中的函数。</p>
-<p>CORS 的优缺点：</p>
-<ol>
-<li>使用简单方便，更为安全</li>
-<li>支持 POST 请求方式</li>
-<li>CORS 是一种新型的跨域问题的解决方案，存在兼容问题，仅支持 IE 10 以上</li>
-</ol>
-<p>这里只是对 CORS 做一个简单的介绍，如果想更详细地了解其原理的话，可以看看下面这篇文章：</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/cors.html" target="_blank" rel="noopener">跨域资源共享 CORS 详解 - 阮一峰的网络日志</a></p>
-<h2 id="3-服务端代理："><a href="#3-服务端代理：" class="headerlink" title="3. 服务端代理："></a>3. 服务端代理：</h2><p>服务器代理，顾名思义，当你需要有跨域的请求操作时发送请求给后端，让后端帮你代为请求，然后最后将获取的结果发送给你。</p>
-<p>假设有这样的一个场景，你的页面需要获取 <a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/api" target="_blank" rel="noopener">CNode：Node.js专业中文社区</a> 论坛上一些数据，如通过 <code>https://cnodejs.org/api/v1/topics</code>，当时因为不同域，所以你可以将请求后端，让其对该请求代为转发。</p>
-<p>代码如下：</p>
-<pre><code>// serverProxy/server.js
-const url = require(&apos;url&apos;);
-const http = require(&apos;http&apos;);
-const https = require(&apos;https&apos;);
-
-const server = http.createServer((req, res) =&gt; {
-    const path = url.parse(req.url).path.slice(1);
-    if(path === &apos;topics&apos;) {
-        https.get(&apos;https://cnodejs.org/api/v1/topics&apos;, (resp) =&gt; {
-            let data = &quot;&quot;;
-            resp.on(&apos;data&apos;, chunk =&gt; {
-                data += chunk;
-            });
-            resp.on(&apos;end&apos;, () =&gt; {
-                res.writeHead(200, {
-                    &apos;Content-Type&apos;: &apos;application/json; charset=utf-8&apos;
-                });
-                res.end(data);
-            });
-        })        
-    }
-}).listen(3000, &apos;127.0.0.1&apos;);
-console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
-</code></pre><p>通过代码你可以看出，当你访问 <code>http://127.0.0.1:3000/topics</code> 的时候，服务器收到请求，会代你发送请求 <code>https://cnodejs.org/api/v1/topics</code> 最后将获取到的数据发送给浏览器。</p>
-<p>启动服务 <code>yarn proxy</code> 并访问 <code>http://localhost:3000/topics</code> 即可看到效果：<br><img src="https://pic1.zhimg.com/v2-a14f2dd5cfd124187cabff0fdfabe5a9_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-a14f2dd5cfd124187cabff0fdfabe5a9_hd.jpg" alt=""></p>
-<p>跨域请求成功。纯粹的获取跨域获取后端数据的请求的方式已经介绍完了，另外介绍四种通过 iframe 跨域与其它页面通信的方式。</p>
-<h2 id="location-hash："><a href="#location-hash：" class="headerlink" title="location.hash："></a>location.hash：</h2><p>在 url 中，<code>http://www.baidu.com#helloworld</code> 的 “#helloworld” 就是 location.hash，改变 hash 值不会导致页面刷新，所以可以利用 hash 值来进行数据的传递，当然数据量是有限的。</p>
-<p>假设 <code>localhost:8080</code> 下有文件 index.html 要和 <code>localhost:8081</code> 下的 data.html 传递消息，index.html 首先创建一个隐藏的 iframe，iframe 的 src 指向 <code>localhost:8081/data.html</code>，这时的 hash 值就可以做参数传递。</p>
-<pre><code>// hash/client/index.html 对应 localhost:8080/index.html
-&lt;script&gt;
-    let ifr = document.createElement(&apos;iframe&apos;);
-    ifr.style.display = &apos;none&apos;;
-    ifr.src = &quot;http://localhost:8081/data.html#data&quot;;
-    document.body.appendChild(ifr);
-
-    function checkHash() {
-        try {
-            let data = location.hash ? location.hash.substring(1) : &apos;&apos;;
-            console.log(&apos;获得到的数据是：&apos;, data);
-        }catch(e) {
-
-        }
-    }
-    window.addEventListener(&apos;hashchange&apos;, function(e) {
-        console.log(&apos;获得的数据是：&apos;, location.hash.substring(1));
-    });
-&lt;/script&gt;
-</code></pre><p>data.html 收到消息后通过 parent.location.hash 值来修改 index.html 的 hash 值，从而达到数据传递。</p>
-<pre><code>// hash/server/data.html 对应 localhost:8081/data.html
-&lt;script&gt;
-    switch(location.hash) {
-        case &quot;#data&quot;:
-            callback();
-            break;
-    }
-    function callback() {
-        const data = &quot;data.html 的数据&quot;
-        try {
-            parent.location.hash = data;
-        }catch(e) {
-            // ie, chrome 下的安全机制无法修改 parent.location.hash
-            // 所以要利用一个中间的代理 iframe 
-            var ifrproxy = document.createElement(&apos;iframe&apos;);
-            ifrproxy.style.display = &apos;none&apos;;
-            ifrproxy.src = &apos;http://localhost:8080/proxy.html#&apos; + data;     // 该文件在 client 域名的域下
-            document.body.appendChild(ifrproxy);
-        }
-    }
-&lt;/script&gt;
-</code></pre><p>由于两个页面不在同一个域下 IE、Chrome 不允许修改 parent.location.hash 的值，所以要借助于 <code>localhost:8080</code> 域名下的一个代理 iframe 的 proxy.html 页面</p>
-<pre><code>// hash/client/proxy.html 对应 localhost:8080/proxy.html
-&lt;script&gt;
-    parent.parent.location.hash = self.location.hash.substring(1);
-&lt;/script&gt;
-</code></pre><p>之后启动服务 <code>yarn hash</code>，即可在 <code>localhost:8080</code> 下观察到：</p>
-<p><img src="https://pic2.zhimg.com/v2-278b33c730dc9aaf499f172424adde00_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-278b33c730dc9aaf499f172424adde00_hd.jpg" alt=""></p>
-<p>当然这种方法存在着诸多的缺点：</p>
-<ol>
-<li>数据直接暴露在了 url 中</li>
-<li>数据容量和类型都有限等等</li>
-</ol>
-<h2 id="window-name"><a href="#window-name" class="headerlink" title="window.name:"></a>window.name:</h2><p>window.name（一般在 js 代码里出现）的值不是一个普通的全局变量，而是当前窗口的名字，这里要注意的是每个 iframe 都有包裹它的 window，而这个 window 是 top window 的子窗口，而它自然也有 window.name 的属性，window.name 属性的神奇之处在于 name 值在不同的页面（甚至不同域名）加载后依旧存在（如果没修改则值不会变化），并且可以支持非常长的 name 值（2MB）。</p>
-<p>举个简单的例子：</p>
-<p>你在某个页面的控制台输入：</p>
-<pre><code>window.name = &quot;Hello World&quot;
-window.location = &quot;http://www.baidu.com&quot;
-</code></pre><p>页面跳转到了百度首页，但是 window.name 却被保存了下来，还是 Hello World，跨域解决方案似乎可以呼之欲出了：</p>
-<p>前端逻辑：</p>
-<pre><code>// name/client/index.html 对应 localhost:8080/index.html 
-&lt;script&gt;
-    let data = &apos;&apos;;
-    const ifr = document.createElement(&apos;iframe&apos;);
-    ifr.src = &quot;http://localhost:8081/data.html&quot;;
-    ifr.style.display = &apos;none&apos;;
-    document.body.appendChild(ifr);
-    ifr.onload = function() {
-        ifr.onload = function() {
-            data = ifr.contentWindow.name;
-            console.log(&apos;收到数据:&apos;, data);
-        }
-        ifr.src = &quot;http://localhost:8080/proxy.html&quot;;
-    }
-&lt;/script&gt;
-</code></pre><p>数据页面：</p>
-<pre><code>// name/server/data.html 对应 localhost:8081/data.html
-&lt;script&gt;
-    window.name = &quot;data.html 的数据!&quot;;
-&lt;/script&gt;
-</code></pre><p><code>localhost:8080index.html</code> 在请求数据端 <code>localhost:8081/data.html</code> 时，我们可以在该页面新建一个 iframe，该 iframe 的 src 指向数据端地址(利用 iframe 标签的跨域能力)，数据端文件设置好 window.name 的值。</p>
-<p>但是由于 index.html 页面与该页面 iframe 的 src 如果不同源的话，则无法操作 iframe 里的任何东西，所以就取不到 iframe 的 name 值，所以我们需要在 data.html 加载完后重新换个 src 去指向一个同源的 html 文件，或者设置成 ‘about:blank;’ 都行，这时候我只要在 index.html 相同目录下新建一个 proxy.html 的空页面即可。如果不重新指向 src 的话直接获取的 window.name 的话会报错：</p>
-<p><img src="https://pic2.zhimg.com/v2-7bd77f4df4565cd258bbeeed28515152_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7bd77f4df4565cd258bbeeed28515152_hd.jpg" alt=""></p>
-<p>之后运行 <code>yarn name</code> 即可看到效果：</p>
-<p><img src="https://pic4.zhimg.com/v2-4dcf4a5d25982ce71bdbe6f14af4620c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-4dcf4a5d25982ce71bdbe6f14af4620c_hd.jpg" alt=""></p>
-<h2 id="6-postMessage"><a href="#6-postMessage" class="headerlink" title="6.postMessage"></a>6.postMessage</h2><p>postMessage 是 HTML5 新增加的一项功能，跨文档消息传输(Cross Document Messaging)，目前：Chrome 2.0+、Internet Explorer 8.0+, Firefox 3.0+, Opera 9.6+, 和 Safari 4.0+ 都支持这项功能，使用起来也特别简单。</p>
-<p>前端逻辑：</p>
-<pre><code>// postMessage/client/index.html 对应 localhost:8080/index.html
-&lt;iframe src=&quot;http://localhost:8081/data.html&quot; style=&apos;display: none;&apos;&gt;&lt;/iframe&gt;
-&lt;script&gt;
-    window.onload = function() {
-        let targetOrigin = &apos;http://localhost:8081&apos;;
-        window.frames[0].postMessage(&apos;index.html 的 data!&apos;, targetOrigin);
-    }
-    window.addEventListener(&apos;message&apos;, function(e) {
-        console.log(&apos;index.html 接收到的消息:&apos;, e.data);
-    });
-&lt;/script&gt;
-</code></pre><p>创建一个 iframe，使用 iframe 的一个方法 postMessage 可以想 <code>http://localhost:8081/data.html</code> 发送消息，然后监听 message，可以获得其文档发来的消息。</p>
-<p>数据端逻辑：</p>
-<pre><code>// postMessage/server/data.html 对应 localhost:8081/data.html
-&lt;script&gt;
-    window.addEventListener(&apos;message&apos;, function(e) {
-        if(e.source != window.parent) {
-            return;
-        }
-        let data = e.data;
-        console.log(&apos;data.html 接收到的消息:&apos;, data);
-        parent.postMessage(&apos;data.html 的 data!&apos;, e.origin);
-    });
-&lt;/script&gt;
-</code></pre><p>启动服务：<code>yarn postMessage</code> 并打开浏览器访问：</p>
-<p><img src="https://pic1.zhimg.com/v2-62c2ff153980a18ddd08110cd41cfde4_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-62c2ff153980a18ddd08110cd41cfde4_hd.jpg" alt=""></p>
-<p>对 postMessage 感兴趣的详细内容可以看看教程：</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//baike.baidu.com/item/PostMessage/6373972%3Ffr%3Daladdin" target="_blank" rel="noopener">PostMessage_百度百科</a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/Window/postMessage" target="_blank" rel="noopener">Window.postMessage()</a></p>
-<h2 id="7-document-domain"><a href="#7-document-domain" class="headerlink" title="7.document.domain"></a>7.document.domain</h2><p>对于主域相同而子域不同的情况下，可以通过设置 document.domain 的办法来解决，具体做法是可以在 <code>http://www.example.com/index.html</code> 和 <code>http://sub.example.com/data.html</code> 两个文件分别加上 <code>document.domain = &quot;example.com&quot;</code> 然后通过 index.html 文件创建一个 iframe，去控制 iframe 的 window，从而进行交互，当然这种方法只能解决主域相同而二级域名不同的情况，如果你异想天开的把 script.example.com 的 domain 设为 qq.com 显然是没用的，那么如何测试呢？</p>
-<p>测试的方式稍微复杂点，需要安装 nginx 做域名映射，如果你电脑没有安装 nginx，请先去安装一下: <a href="https://link.zhihu.com/?target=http%3A//nginx.org/" target="_blank" rel="noopener">nginx</a></p>
-<p>前端逻辑：</p>
-<pre><code>// domain/client/index.html 对应 sub1.example.com/index.html
-&lt;script&gt;
-    document.domain = &apos;example.com&apos;;
-    let ifr = document.createElement(&apos;iframe&apos;);
-    ifr.src = &apos;http://sub2.example.com/data.html&apos;;
-    ifr.style.display = &apos;none&apos;;
-    document.body.append(ifr);
-    ifr.onload = function() {
-        let win = ifr.contentWindow;
-        alert(win.data);
-    }
-&lt;/script&gt;
-</code></pre><p>数据端逻辑：</p>
-<pre><code>// domain/server/data 对应 sub2.example.com/data.html
-&lt;script&gt;
-    document.domain = &apos;example.com&apos;;
-    window.data = &apos;data.html 的数据！&apos;;
-&lt;/script&gt;
-</code></pre><p>打开操作系统下的 hosts 文件：mac 是位于 /etc/hosts 文件，并添加：</p>
-<pre><code>127.0.0.1 sub1.example.com
-127.0.0.1 sub2.example.com
-</code></pre><p>之后打开 nginx 的配置文件：/usr/local/etc/nginx/nginx.conf，并在 http 模块里添加，记得输入 nginx 启动 nginx 服务：</p>
-<pre><code>/usr/local/etc/nginx/nginx.conf
-http {
-    // ...
-    server {
-        listen 80;
-        server_name sub1.example.com;
-        location / {
-            proxy_pass http://127.0.0.1:8080/;
-        }
-    }
-    server {
-        listen 80;
-        server_name sub2.example.com;
-        location / {
-            proxy_pass http://127.0.0.1:8081/;
-        }
-    }
-    // ...
-}
-</code></pre><p>相当于是讲 <code>sub1.example.com</code> 和 <code>sub2.example.com</code> 这些域名地址指向本地 <code>127.0.0.1:80</code>，然后用 nginx 做反向代理分别映射到 8080 和 8081 端口。</p>
-<p>这样访问 <code>sub1(2).example.com</code> 等于访问 <code>127.0.0.1:8080(1)</code></p>
-<p>启动服务 <code>yarn domain</code> 访问浏览器即可看到效果：</p>
-<p><img src="https://pic2.zhimg.com/v2-19277c077856648ca1d593f44afadf6e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-19277c077856648ca1d593f44afadf6e_hd.jpg" alt=""></p>
-<h2 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h2><p>前面七种跨域方式我已经全部讲完，其实讲道理，常用的也就是前三种方式，后面四种更多时候是一些小技巧，虽然在工作中不一定会用到，但是如果你在面试过程中能够提到这些跨域的技巧，无疑在面试官的心中是一个加分项。</p>
-<p>上面阐述方法的时候可能有些讲的不明白，希望在阅读的过程中建议你跟着我敲代码，当你打开浏览器看到结果的时候，你也就能掌握到这种方法。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/20/跨域之由Request-Method-OPTIONS初窥CORS/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/20/跨域之由Request-Method-OPTIONS初窥CORS/" itemprop="url">跨域之由Request Method:OPTIONS初窥CORS</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-20T11:09:02+08:00">
-                2018-09-20
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="不就是跨域么-慌个XX-掘金"><a href="#不就是跨域么-慌个XX-掘金" class="headerlink" title="不就是跨域么?慌个XX - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a2f92c65188253e2470f16d" target="_blank" rel="noopener">不就是跨域么?慌个XX - 掘金</a></h2><p>刚接触前端的时候，以为HTTP的Request Method只有GET与POST两种，后来才了解到，原来还有HEAD、PUT、DELETE、OPTIONS……</p>
-<p>目前的工作中，HEAD、PUT、DELETE我是真的没有见过……但是OPTIONS几乎天天都会遇到。本地环境跑公司项目的时候，每次POST之前，为啥浏览器还偷偷给我来一次没有返回的OPTIONS请求？</p>
-<blockquote>
-<p>原来，浏览器在某些请求中，在正式通信前会增加一次HTTP查询请求，称为”预检”请求（preflight）。OPTIONS方法是用于请求获得由Request-URI标识的资源在请求/响应的通信过程中可以使用的功能选项。通过这个方法，客户端可以在采取具体资源请求之前，决定对该资源采取何种必要措施，或者了解服务器的性能。该请求方法的响应不能缓存。浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
-</blockquote>
-<p>如果这个OPTIONS请求包含一个正文（有Content-Length或Transfer-Encoding存在），则必须有Content-Type来指定媒体类型。虽然规范里没有定义这种正文的用法，但是HTTP将来的扩展可能会用它来查询服务器上更详细的信息。不支持该扩展的服务器可以忽略该请求正文。</p>
-<p>如果该URI是一个星号（“<em>”），OPTIONS请求将试图应用于服务器，而不是某个指定资源。由于服务器的通信选项通常依赖于资源，所以此“</em>”请求只能作为“ping”或者“no-op”方法；或者用来测试服务器的性能。例如，用来测试HTTP/1.1代理。</p>
-<p>如果该URI不是星号，则只能用来获取该资源通信中可用的选项。</p>
-<p>得到的200响应应该包含一个头域，指明服务器实现的和适用于该资源的可选特征（如：Allow），可能还包括该规范尚未定义的扩展。如果有响应正文，则应包含关于通信选项的信息。本规范没有定义该正文格式，但可能在HTTO将来的扩展中定义。可以利用内容协商来选择合适的响应格式。如果没有响应正文，响应必须包含Content-Length，并且值为“0”。</p>
-<p>请求头的Max-Forwards用来请求特定代理。当代理收到一个允许URI转发的OPTIONS请求，则检查Max-Forwards。如果Max-Forwards值为0，则不能转发该消息；相反，代理会将自己的通信选项去响应。如果Max-Forwards是正整数，代理转发请求的时候会将该值减1。如果请求中没有Max-Forwards，转发的请求也不会有。</p>
-<h2 id="简而言之"><a href="#简而言之" class="headerlink" title="简而言之"></a>简而言之</h2><p>OPTIONS请求方法的主要用途有两个：</p>
-<p>1、获取服务器支持的HTTP请求方法；也是黑客经常使用的方法。</p>
-<p>2、用来检查服务器的性能。例如：AJAX进行跨域请求时的预检，需要向另外一个域名的资源发送一个HTTP OPTIONS请求头，用以判断实际发送的请求是否安全。<br><img src="https://pic3.zhimg.com/v2-8f8d34a757502c306d82fa44f4645068_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8f8d34a757502c306d82fa44f4645068_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-38b8f2ec0da0115511cee8a1b604c6a4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-38b8f2ec0da0115511cee8a1b604c6a4_hd.jpg" alt=""><br>如上两张图片，图2就是本地环境，本地环境请求接口的时候，每次请求接口之前都会多一次OPTIONS请求。</p>
-<p><img src="https://pic4.zhimg.com/v2-31c4436fae8e077e9d935ac58bd861d6_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-31c4436fae8e077e9d935ac58bd861d6_hd.jpg" alt=""></p>
-<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS"></a>CORS</h2><p>CORS是一个W3C标准，全称是”跨域资源共享”（Cross-origin resource sharing）。</p>
-<p>它允许浏览器向跨源服务器，发出<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2012/09/xmlhttprequest_level_2.html" target="_blank" rel="noopener">XMLHttpRequest</a>请求，从而克服了AJAX只能<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/same-origin-policy.html" target="_blank" rel="noopener">同源</a>使用的限制。</p>
-<blockquote>
-<p>CORS需要浏览器和服务器同时支持。目前，所有浏览器都支持该功能，IE浏览器不能低于IE10。<br>整个CORS通信过程，都是浏览器自动完成，不需要用户参与。对于开发者来说，CORS通信与同源的AJAX通信没有差别，代码完全一样。浏览器一旦发现AJAX请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。<br>因此，实现CORS通信的关键是服务器。只要服务器实现了CORS接口，就可以跨源通信。</p>
-</blockquote>
-<h2 id="两种请求"><a href="#两种请求" class="headerlink" title="两种请求"></a>两种请求</h2><p>浏览器将CORS请求分为两类：简单请求（simple request）和非简单请求（not-so-simple request）。</p>
-<p>同时满足以下条件，就是简单请求：</p>
-<blockquote>
-<p>（1) 请求方法是以下三种方法之一：</p>
-</blockquote>
-<ul>
-<li>HEAD</li>
-<li>GET</li>
-<li>POST</li>
-</ul>
-<p>（2）HTTP的头信息不超出以下几种字段：</p>
-<ul>
-<li>Accept</li>
-<li>Accept-Language</li>
-<li>Content-Language</li>
-<li>Last-Event-ID</li>
-<li>Content-Type：只限于三个值application/x-www-form-urlencoded、multipart/form-data、text/plain</li>
-</ul>
-<h2 id="简单请求"><a href="#简单请求" class="headerlink" title="简单请求"></a>简单请求</h2><p>对于简单请求，浏览器直接发出CORS请求。具体来说，就是在头信息之中，增加一个Origin字段。</p>
-<p>Origin字段用来说明，本次请求来自哪个源（协议 + 域名 + 端口）。服务器根据这个值，决定是否同意这次请求。</p>
-<p>如果Origin指定的源，不在许可范围内，服务器会返回一个正常的HTTP回应。浏览器发现，这个回应的头信息没有包含Access-Control-Allow-Origin字段（详见下文），就知道出错了，从而抛出一个错误，被XMLHttpRequest的onerror回调函数捕获。注意，这种错误无法通过状态码识别，因为HTTP回应的状态码有可能是200。</p>
-<p>如果Origin指定的域名在许可范围内，服务器返回的响应，会多出几个头信息字段。都以Access-Control- 开头：</p>
-<p>（1）Access-Control-Allow-Origin</p>
-<p>该字段是必须的。它的值要么是请求时Origin字段的值，要么是一个*，表示接受任意域名的请求。</p>
-<blockquote>
-<p>需要注意的是，如果要发送Cookie，Access-Control-Allow-Origin就不能设为星号，必须指定明确的、与请求网页一致的域名。同时，Cookie依然遵循同源政策，只有用服务器域名设置的Cookie才会上传，其他域名的Cookie并不会上传，且（跨源）原网页代码中的document.cookie也无法读取服务器域名下的Cookie。</p>
-</blockquote>
-<p>（2）Access-Control-Allow-Credentials</p>
-<p>该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。默认情况下，Cookie不包括在CORS请求之中。设为true，即表示服务器明确许可，Cookie可以包含在请求中，一起发给服务器。这个值也只能设为true，如果服务器不要浏览器发送Cookie，删除该字段即可。</p>
-<p>（3）Access-Control-Expose-Headers</p>
-<p>该字段可选。CORS请求时，XMLHttpRequest对象的getResponseHeader()方法只能拿到6个基本字段：Cache-Control、Content-Language、Content-Type、Expires、Last-Modified、Pragma。如果想拿到其他字段，就必须在Access-Control-Expose-Headers里面指定。</p>
-<h2 id="非简单请求"><a href="#非简单请求" class="headerlink" title="非简单请求"></a>非简单请求</h2><p>非简单请求是那种对服务器有特殊要求的请求，比如请求方法是PUT或DELETE，或者Content-Type字段的类型是application/json。</p>
-<p>我工作中写的所有页面拉的接口都是非简单请求。<br><img src="https://pic1.zhimg.com/v2-6749c6523db660ed4e194e16779c5fa3_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-6749c6523db660ed4e194e16779c5fa3_hd.jpg" alt=""><br>非简单请求的CORS请求，会在正式通信之前，增加一次HTTP查询请求，称为”预检”请求（preflight）。</p>
-<p>浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
-<p>在页面域名与接口域名不一致的情况下，就出现了每次请求前先发送一个options请求的问题。</p>
-<p>OPTIONS请求头信息中，除了Origin字段，还至少会多两个特殊字段：</p>
-<p>（1）Access-Control-Request-Method</p>
-<p>该字段是必须的，用来列出浏览器的CORS请求会用到哪些HTTP方法。</p>
-<p>（2）Access-Control-Request-Headers</p>
-<p>该字段是一个逗号分隔的字符串，指定浏览器CORS请求会额外发送的头信息字段。</p>
-<p><img src="https://pic3.zhimg.com/v2-da5ae04890068d4ffc9f4714e48719dd_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-da5ae04890068d4ffc9f4714e48719dd_hd.jpg" alt=""><br>至于其他乱七八糟的字段，现在的我还用不到也不懂，将会慢慢深入了解。</p>
-<p>服务器收到预检请求后，检查了Origin、Access-Control-Request-Method和Access-Control-Request-Headers字段以后，确认允许跨源请求，就可以做出回应。</p>
-<p>上面的HTTP回应中，关键的是Access-Control-Allow-Origin字段，表示<a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a>可以请求数据。该字段也可以设为星号，表示同意任意跨源请求。</p>
-<p>如果浏览器否定了”预检”请求，会返回一个正常的HTTP回应，但是没有任何CORS相关的头信息字段。这时，浏览器就会认定，服务器不同意预检请求，因此触发一个错误，被XMLHttpRequest对象的onerror回调函数捕获。控制台会打印出如下的报错信息。</p>
-<p>XMLHttpRequest cannot load <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a><br>Origin <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a> is not allowed by Access-Control-Allow-Origin.</p>
-<p>其他字段中Access-Control-Max-Age 用来指定本次预检请求的有效期，单位为秒。该字段可选。</p>
-<h2 id="与JSONP的对比"><a href="#与JSONP的对比" class="headerlink" title="与JSONP的对比"></a>与JSONP的对比</h2><p>CORS与JSONP的使用目的相同，但是比JSONP更强大。</p>
-<p>JSONP只支持GET请求，JSONP的优势在于支持老旧浏览器。</p>
 
           
         
@@ -3443,11 +2835,171 @@ $.ajax({
 
 
     
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/09/JavaScript进阶提高必读/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/09/JavaScript进阶提高必读/" itemprop="url">JavaScript进阶提高必读</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-09T22:40:40+08:00">
+                2018-09-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="冴羽写博客的地方"><a href="#冴羽写博客的地方" class="headerlink" title="冴羽写博客的地方"></a><a href="https://github.com/mqyqingfeng/Blog" target="_blank" rel="noopener">冴羽写博客的地方</a></h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/17" target="_blank" rel="noopener">JavaScript深入系列15篇正式完结！</a></p>
+<h2 id="深入系列目录"><a href="#深入系列目录" class="headerlink" title="深入系列目录"></a>深入系列目录</h2><ol>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/2" target="_blank" rel="noopener">JavaScirpt深入之从原型到原型链</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/3" target="_blank" rel="noopener">JavaScript深入之词法作用域和动态作用域</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/4" target="_blank" rel="noopener">JavaScript深入之执行上下文栈</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/5" target="_blank" rel="noopener">JavaScript深入之变量对象</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/6" target="_blank" rel="noopener">JavaScript深入之作用域链</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/7" target="_blank" rel="noopener">JavaScript深入之从ECMAScript规范解读this</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/8" target="_blank" rel="noopener">JavaScript深入之执行上下文</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/9" target="_blank" rel="noopener">JavaScript深入之闭包</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/10" target="_blank" rel="noopener">JavaScript深入之参数按值传递</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/11" target="_blank" rel="noopener">JavaScript深入之call和apply的模拟实现</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/12" target="_blank" rel="noopener">JavaScript深入之bind的模拟实现</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/13" target="_blank" rel="noopener">JavaScript深入之new的模拟实现</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/14" target="_blank" rel="noopener">JavaScript深入之类数组对象与arguments</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/15" target="_blank" rel="noopener">JavaScript深入之创建对象的多种方式以及优缺点</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/16" target="_blank" rel="noopener">JavaScript深入之继承的多种方式以及优缺点</a></li>
+</ol>
+<h2 id="专题系列目录"><a href="#专题系列目录" class="headerlink" title="专题系列目录"></a>专题系列目录</h2><ol>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/22" target="_blank" rel="noopener">JavaScript专题之跟着underscore学防抖</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/26" target="_blank" rel="noopener">JavaScript专题之跟着underscore学节流</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/27" target="_blank" rel="noopener">JavaScript专题之数组去重</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/28" target="_blank" rel="noopener">JavaScript专题之类型判断(上)</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/30" target="_blank" rel="noopener">JavaScript专题之类型判断(下)</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/32" target="_blank" rel="noopener">JavaScript专题之深浅拷贝</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/33" target="_blank" rel="noopener">JavaScript专题之从零实现jQuery的extend</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/35" target="_blank" rel="noopener">JavaScript专题之如何求数组的最大值和最小值</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/36" target="_blank" rel="noopener">JavaScript专题之数组扁平化</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/37" target="_blank" rel="noopener">JavaScript专题之学underscore在数组中查找指定元素</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/40" target="_blank" rel="noopener">JavaScript专题之jQuery通用遍历方法each的实现</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/41" target="_blank" rel="noopener">JavaScript专题之如何判断两个对象相等</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/42" target="_blank" rel="noopener">JavaScript专题之函数柯里化</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/43" target="_blank" rel="noopener">JavaScript专题之偏函数</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/44" target="_blank" rel="noopener">JavaScript专题之惰性函数</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/45" target="_blank" rel="noopener">JavaScript专题之函数组合</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/46" target="_blank" rel="noopener">JavaScript专题之函数记忆</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/49" target="_blank" rel="noopener">JavaScript专题之递归</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/51" target="_blank" rel="noopener">JavaScript专题之乱序</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/52" target="_blank" rel="noopener">JavaScript专题之解读 v8 排序源码</a></li>
+</ol>
+<h2 id="注意"><a href="#注意" class="headerlink" title="注意"></a>注意</h2><p>深入系列文章部分是有先后顺序的，按照目录结构顺序阅读效果最好。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
   </section>
 
   
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3497,7 +3049,7 @@ $.ajax({
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">47</span>
+                  <span class="site-state-item-count">51</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3510,7 +3062,7 @@ $.ajax({
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">32</span>
+                  <span class="site-state-item-count">35</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
