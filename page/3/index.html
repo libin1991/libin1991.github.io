@@ -259,6 +259,570 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/13/交叉观察器-intersectionObserver-Vue实战/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/13/交叉观察器-intersectionObserver-Vue实战/" itemprop="url">交叉观察器(intersectionObserver) Vue实战</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-13T23:04:27+08:00">
+                2018-08-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="参考文章：IntersectionObserver-API-使用教程"><a href="#参考文章：IntersectionObserver-API-使用教程" class="headerlink" title="参考文章：IntersectionObserver API 使用教程"></a>参考文章：<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/11/intersectionobserver_api.html" target="_blank" rel="noopener">IntersectionObserver API 使用教程</a></h2><h2 id="Intersection-Observer"><a href="#Intersection-Observer" class="headerlink" title="Intersection Observer"></a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver" target="_blank" rel="noopener">Intersection Observer</a></h2><h2 id="【译】使用-Intersection-Observer-实现图片延迟加载"><a href="#【译】使用-Intersection-Observer-实现图片延迟加载" class="headerlink" title="【译】使用 Intersection Observer 实现图片延迟加载"></a><a href="https://link.zhihu.com/?target=https%3A//c7sky.com/lazy-loading-images-using-intersection-observer.html" target="_blank" rel="noopener">【译】使用 Intersection Observer 实现图片延迟加载</a></h2><p>intersectionObserver解决什么问题？</p>
+<p>intersectionObserver解决目标元素与视口产生一个交叉区，所以这个 API 叫做”交叉观察器”，</p>
+<p>比如在web网页开发中，常常需要了解某个元素是否进入了”视口”（viewport），即用户能不能看到它。</p>
+<p>传统的实现方法是，监听到scroll事件后，调用目标元素（绿色方块）的<a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en/docs/Web/API/Element/getBoundingClientRect" target="_blank" rel="noopener">getBoundingClientRect()</a>方法，得到它对应于视口左上角的坐标，再判断是否在视口之内。这种方法的缺点是，由于scroll事件密集发生，计算量很大，容易造成<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2015/09/web-page-performance-in-depth.html" target="_blank" rel="noopener">性能问题</a>。</p>
+<p>目前有一个新的 <a href="https://link.zhihu.com/?target=https%3A//wicg.github.io/IntersectionObserver/" target="_blank" rel="noopener">IntersectionObserver API</a>，可以自动”观察”元素是否可见，Chrome 51+ 已经支持。由于可见（visible）的本质是，目标元素与视口产生一个交叉区，所以这个 API 叫做”交叉观察器”。</p>
+<blockquote>
+<p>IntersectionObserver API 是异步的，不随着目标元素的滚动同步触发。规格写明，<code>IntersectionObserver</code>的实现，应该采用<code>requestIdleCallback()</code>，即只有线程空闲下来，才会执行观察器。这意味着，这个观察器的优先级非常低，只在其他任务执行完，浏览器有了空闲才会执行。</p>
+</blockquote>
+<p>IntersectionObserverEntry 对象</p>
+<p><code>IntersectionObserverEntry</code>对象提供目标元素的信息，一共有六个属性。</p>
+<pre><code>{
+  time: 3893.92,
+  rootBounds: ClientRect {
+    bottom: 920,
+    height: 1024,
+    left: 0,
+    right: 1024,
+    top: 0,
+    width: 920 },
+  boundingClientRect: ClientRect {  // ...
+ },
+  intersectionRect: ClientRect {  // ...
+ },
+  intersectionRatio: 0.54,
+  target: element
+} 
+</code></pre><p>每个属性的含义如下。</p>
+<ul>
+<li><code>time</code>：可见性发生变化的时间，是一个高精度时间戳，单位为毫秒</li>
+<li><code>target</code>：被观察的目标元素，是一个 DOM 节点对象</li>
+<li><code>rootBounds</code>：根元素的矩形区域的信息，<code>getBoundingClientRect()</code>方法的返回值，如果没有根元素（即直接相对于视口滚动），则返回<code>null</code></li>
+<li><code>boundingClientRect</code>：目标元素的矩形区域的信息</li>
+<li><code>intersectionRect</code>：目标元素与视口（或根元素）的交叉区域的信息</li>
+<li><code>intersectionRatio</code>：目标元素的可见比例，即<code>intersectionRect</code>占<code>boundingClientRect</code>的比例，完全可见时为<code>1</code>，完全不可见时小于等于<code>0</code></li>
+</ul>
+<p>现在我们已经创建了一个 Intersection Observer 并且正在观察页面上的图片，我们现在来了解 intersection 事件，它将在元素进入视区时触发。</p>
+<h2 id="浏览器支持"><a href="#浏览器支持" class="headerlink" title="浏览器支持"></a>浏览器支持</h2><p>此时此刻，你也许想知道关于这项特性的浏览器支持情况。Intersection Observer 现在已被 <a href="https://link.zhihu.com/?target=http%3A//caniuse.com/%23feat%3Dintersectionobserver" target="_blank" rel="noopener">Edge、Firefox、Chrome 和 Opera</a> 支持，这是一个好消息。</p>
+<p>然而，为了确保我们的代码不会在不支持它的浏览器中造成破坏，我们可以使用特性检测来确定我们应该如何来加载图片。让我们看看下面的代码。</p>
+<pre><code>// If we don&apos;t have support for intersection observer, load the images immediately
+if (!(&apos;IntersectionObserver&apos; in window)) {
+  Array.from(images).forEach(image =&gt; preloadImage(image));
+} else {
+  // It is supported, load the images
+  observer = new IntersectionObserver(onIntersection, config);
+  images.forEach(image =&gt; {
+
+   observer.observe(image);
+  });
+}
+view raw
+</code></pre><p>Vue:</p>
+<pre><code>&lt;template&gt;
+    &lt;img :src=&quot;lazysrc&quot; /&gt;
+&lt;/template&gt;
+&lt;script&gt;
+    import Bus from &apos;../bus&apos;;
+    import nonepng from &apos;../../assets/img/none.png&apos;;
+
+    export default {
+        name: &apos;lazyimg&apos;,
+        data: function() {
+            return {
+                isShow: false,
+                lazysrc: nonepng
+            }
+        },
+        mounted() {
+            if(!this.needlazy) {
+                this.lazysrc = this.src;
+            } else {
+                if(!(&apos;IntersectionObserver&apos; in window)) {
+                    //TODO
+                } else {
+                    var io = new IntersectionObserver(
+                        entries =&gt; {
+                            entries.forEach(i =&gt; {
+                                if(i.intersectionRatio &gt;= 0.25) { //可见元素占视窗的25%触发
+                                    i.target.setAttribute(&quot;src&quot;, this.src)
+                                }
+                            });
+                        }, {
+                            threshold: [0, 0.25, 0.5, 0.75, 1],
+                        }
+                    );
+                    io.observe(this.$el);
+                }
+            }
+        },
+        props: {
+            needlazy: {
+                type: Boolean,
+                default: false,
+            },
+            src: {
+                type: String,
+                default: &apos;&apos;,
+            },
+        }
+    };
+&lt;/script&gt;
+</code></pre><blockquote>
+<p>通常都是通过判断intersectionRatio来做某些事，比如当intersectionRatio大于多少的时候做什么事，加载图片等！</p>
+</blockquote>
+<p><img src="https://pic4.zhimg.com/v2-8e8d0a7aa6b83f2150c8916a0ec90b43_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-8e8d0a7aa6b83f2150c8916a0ec90b43_hd.jpg" alt=""><br>   灰色的水平方框代表视口，深红色的区域代表四个被观察的目标元素。它们各自的<code>intersectionRatio</code>图中都已经注明。</p>
+<p>DEMO：  <a href="https://zhuanlan.zhihu.com/p/25455672" target="_blank" rel="noopener">延迟加载(Lazyload)三种实现方式</a></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;utf-8&quot;&gt;
+        &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width&quot;&gt;
+        &lt;title&gt; &lt;/title&gt;
+        &lt;style type=&quot;text/css&quot;&gt;
+            * {
+                padding: 0px;
+                margin: 0px;
+                outline: none;
+            }
+
+            body {}
+
+            #main {
+                margin: 0 auto;
+                width: 600px;
+                height: 300px;
+                overflow: scroll;
+            }
+
+            #con {
+                width: 1200px;
+                height: 300px;
+            }
+
+            .cc {
+                width: 300px;
+                height: 300px;
+                float: left;
+                background-size: cover;
+            }
+
+            #a {
+                background-color: red;
+            }
+
+            #b {
+                background-color: black;
+            }
+
+            #c {
+                background-color: blue;
+            }
+
+            #d {
+                background-color: green;
+            }
+        &lt;/style&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+        &lt;div id=&quot;main&quot;&gt;
+            &lt;div id=&quot;con&quot;&gt;
+                &lt;div id=&quot;a&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;b&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;c&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;d&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/body&gt;
+    &lt;script type=&quot;text/javascript&quot;&gt;
+        var io = new IntersectionObserver(
+            entries =&gt; {
+                console.log(&apos;********************************&apos;);
+                console.log(entries);
+                console.log(&apos;********************************&apos;);
+                entries.forEach(i =&gt; {
+                    console.log(&apos;================================&apos;);
+                    console.log(&apos;Time: &apos; + i.time);
+                    console.log(&apos;Target: &apos; + i.target.nodeName);
+                    console.log(&apos;IntersectionRatio: &apos; + i.intersectionRatio);
+                    console.log(&apos;rootBounds: &apos; + i.rootBounds);
+                    console.log(i.boundingClientRect);
+                    console.log(i.intersectionRect);
+                    console.log(&apos;================================&apos;);
+
+                    if(i.intersectionRatio &gt;= 0.25) { //可见元素占视窗的25%触发
+                        console.log(&apos;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&apos;);
+                        i.target.style.backgroundImage = &quot;url(&quot; + &apos;http://pic35.photophoto.cn/20150528/0020032932102307_b.jpg&apos; + &quot;)&quot;
+                    }
+
+                });
+            }, {
+                /* Using default options. Details below */
+                threshold: [0, 0.25, 0.5, 0.75, 1],   //会执行5次
+            }
+        );
+        // Start observing an element
+        io.observe(document.querySelector(&apos;#d&apos;));
+        io.observe(document.querySelector(&apos;#c&apos;));
+    &lt;/script&gt;
+
+&lt;/html&gt;
+</code></pre><p><img src="https://pic1.zhimg.com/v2-83bcd2ce4df13a07da99e0c051e9fcaa_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-83bcd2ce4df13a07da99e0c051e9fcaa_hd.jpg" alt=""></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Lazyload 3&lt;/title&gt;
+    &lt;style&gt;
+        img {
+        display: block;
+        margin-bottom: 50px;
+        width: 800px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/1.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/2.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/3.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/4.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/5.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/6.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/7.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/8.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/9.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/10.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/11.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/12.png&quot;&gt;
+    &lt;script&gt;
+    function query(selector) {
+        return Array.from(document.querySelectorAll(selector));
+    }
+    var io = new IntersectionObserver(function(items) {
+        items.forEach(function(item) {
+        var target = item.target;
+        if(target.getAttribute(&apos;src&apos;) == &apos;images/loading.gif&apos;) {
+            target.src = target.getAttribute(&apos;data-src&apos;);
+        }
+        })
+    });
+    query(&apos;img&apos;).forEach(function(item) {
+        io.observe(item);
+    });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre><ol>
+<li>IntersectionObserver 传入一个回调函数，当其观察到元素集合出现时候，则会执行该函数。</li>
+<li>io.observe 即要观察的元素，要一个个添加才可以。</li>
+<li>io 管理的是一个数组，当元素出现或消失的时候，数组添加或删除该元素，并且执行该回调函数。</li>
+</ol>
+<h2 id="一、API"><a href="#一、API" class="headerlink" title="一、API"></a>一、API</h2><p>它的用法非常简单。</p>
+<pre><code>var io = new IntersectionObserver(callback, option); 
+</code></pre><p>上面代码中，<code>IntersectionObserver</code>是浏览器原生提供的构造函数，接受两个参数：<code>callback</code>是可见性变化时的回调函数，<code>option</code>是配置对象（该参数可选）。</p>
+<p>构造函数的返回值是一个观察器实例。实例的<code>observe</code>方法可以指定观察哪个 DOM 节点。</p>
+<pre><code>// 开始观察
+io.observe(document.getElementById(&apos;example&apos;)); 
+// 停止观察
+io.unobserve(element); 
+// 关闭观察器
+io.disconnect(); 
+</code></pre><p>上面代码中，<code>observe</code>的参数是一个 DOM 节点对象。如果要观察多个节点，就要多次调用这个方法。</p>
+<pre><code>io.observe(elementA);
+io.observe(elementB); 
+</code></pre><h2 id="二、callback-参数"><a href="#二、callback-参数" class="headerlink" title="二、callback 参数"></a>二、callback 参数</h2><p>目标元素的可见性变化时，就会调用观察器的回调函数<code>callback</code>。</p>
+<p><code>callback</code>一般会触发两次。一次是目标元素刚刚进入视口（开始可见），另一次是完全离开视口（开始不可见）。</p>
+<pre><code>var io = new IntersectionObserver(
+  entries =&gt; {
+    console.log(entries); } 
+); 
+</code></pre><p>上面代码中，回调函数采用的是<a href="https://link.zhihu.com/?target=http%3A//es6.ruanyifeng.com/%23docs/function%23%25E7%25AE%25AD%25E5%25A4%25B4%25E5%2587%25BD%25E6%2595%25B0" target="_blank" rel="noopener">箭头函数</a>的写法。<code>callback</code>函数的参数（<code>entries</code>）是一个数组，每个成员都是一个<code>[IntersectionObserverEntry](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/IntersectionObserverEntry)</code>对象。举例来说，如果同时有两个被观察的对象的可见性发生变化，<code>entries</code>数组就会有两个成员。</p>
+<h2 id="三、Option-对象"><a href="#三、Option-对象" class="headerlink" title="三、Option 对象"></a>三、Option 对象</h2><p>IntersectionObserver构造函数的第二个参数是一个配置对象。它可以设置以下属性。</p>
+<p><code>[IntersectionObserver.root](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/root)</code> 只读所监听对象的具体祖先元素(<code>[element](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/Element)</code>)。如果未传入任何值或值为null，则默认使用viewport。</p>
+<p><code>[IntersectionObserver.rootMargin](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/rootMargin)</code> 只读计算交叉时添加到根(root)边界盒<a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Glossary/bounding_box" target="_blank" rel="noopener">bounding box</a>的矩形偏移量， 可以有效的缩小或扩大根的判定范围从而满足计算需要。此属性返回的值可能与调用构造函数时指定的值不同，因此可能需要更改该值，以匹配内部要求。所有的偏移量均可用像素(pixel)(px)或百分比(percentage)(%)来表达, 默认值为”0px 0px 0px 0px”。</p>
+<p><code>[IntersectionObserver.thresholds](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/thresholds)</code> 只读一个包含阈值的list, 升序排列, list中的每个阈值都是监听对象的交叉区域与边界区域的比率。当监听对象的任何阈值被越过时，都会生成一个通知(Notification)。如果构造器未传入值, 则默认值为0.</p>
+<p>threshold 属性</p>
+<p><code>threshold</code>属性决定了什么时候触发回调函数。它是一个数组，每个成员都是一个门槛值，默认为<code>[0]</code>，即交叉比例（<code>intersectionRatio</code>）达到<code>0</code>时触发回调函数。</p>
+<pre><code>new IntersectionObserver(
+  entries =&gt; {/* ... */}, {
+    threshold: [0, 0.25, 0.5, 0.75, 1] } ); 
+</code></pre><p>用户可以自定义这个数组。比如，<code>[0, 0.25, 0.5, 0.75, 1]</code>就表示当目标元素 0%、25%、50%、75%、100% 可见时，会触发回调函数。</p>
+<p>root 属性，rootMargin 属性</p>
+<p>很多时候，目标元素不仅会随着窗口滚动，还会在容器里面滚动（比如在<code>iframe</code>窗口里滚动）。容器内滚动也会影响目标元素的可见性，参见本文开始时的那张示意图。</p>
+<p>IntersectionObserver API 支持容器内滚动。<code>root</code>属性指定目标元素所在的容器节点（即根元素）。注意，容器元素必须是目标元素的祖先节点。</p>
+<pre><code>var opts = { 
+  root: document.querySelector(&apos;.container&apos;),
+  rootMargin: &quot;500px 0px&quot; 
+}; 
+
+var observer = new IntersectionObserver(
+  callback,
+  opts
+); 
+</code></pre><p>上面代码中，除了<code>root</code>属性，还有<code>[rootMargin](https://link.zhihu.com/?target=https%3A//wicg.github.io/IntersectionObserver/%23dom-intersectionobserverinit-rootmargin)</code>属性。后者定义根元素的<code>margin</code>，用来扩展或缩小<code>rootBounds</code>这个矩形的大小，从而影响<code>intersectionRect</code>交叉区域的大小。它使用CSS的定义方法，比如<code>10px 20px 30px 40px</code>，表示 top、right、bottom 和 left 四个方向的值。</p>
+<pre><code>//离视窗还有top=500px 或者 bottom=500 触发加载
+rootMargin = `500px 0px`  
+//离视窗还有top=-500px 或者 bottom=-500 触发加载 （惰性加载）
+rootMargin = `-500px 0px` 
+</code></pre><p>这样设置以后，不管是窗口滚动或者容器内滚动，只要目标元素可见性变化，都会触发观察器。</p>
+<h2 id="四、方法"><a href="#四、方法" class="headerlink" title="四、方法"></a>四、方法</h2><p><code>[IntersectionObserver.disconnect](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/disconnect)</code>使IntersectionObserver对象停止监听工作。</p>
+<p><code>[IntersectionObserver.observe](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/observe)使IntersectionObserver开始监听一个目标元素。</code></p>
+<p><code>[IntersectionObserver.takeRecords](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/takeRecords)</code>为所有监听目标返回一个<code>[IntersectionObserverEntry](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserverEntry)</code>对象数组并且停止监听这些目标。</p>
+<p><code>[IntersectionObserver.unobserve](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/unobserve)使IntersectionObserver停止监听特定目标元素。</code></p>
+<h2 id="五、Vue（xunleif2e-vue-lazy-component）"><a href="#五、Vue（xunleif2e-vue-lazy-component）" class="headerlink" title="五、Vue（xunleif2e/vue-lazy-component）"></a>五、Vue（<a href="https://link.zhihu.com/?target=https%3A//github.com/xunleif2e/vue-lazy-component" target="_blank" rel="noopener">xunleif2e/vue-lazy-component</a>）</h2><p>核心 VueLazyComponent.vue</p>
+<pre><code>&lt;template&gt;
+  &lt;transition-group :tag=&quot;tagName&quot; name=&quot;lazy-component&quot; style=&quot;position: relative;&quot;
+    @before-enter=&quot;(el) =&gt; $emit(&apos;before-enter&apos;, el)&quot;
+    @before-leave=&quot;(el) =&gt; $emit(&apos;before-leave&apos;, el)&quot;
+    @after-enter=&quot;(el) =&gt; $emit(&apos;after-enter&apos;, el)&quot;
+    @after-leave=&quot;(el) =&gt; $emit(&apos;after-leave&apos;, el)&quot;
+  &gt;
+    &lt;div v-if=&quot;isInit&quot; key=&quot;component&quot;&gt;
+      &lt;slot :loading=&quot;loading&quot;&gt;&lt;/slot&gt;
+    &lt;/div&gt;
+    &lt;div v-else-if=&quot;$slots.skeleton&quot; key=&quot;skeleton&quot;&gt;
+      &lt;slot name=&quot;skeleton&quot;&gt;&lt;/slot&gt;
+    &lt;/div&gt;
+    &lt;div v-else key=&quot;loading&quot;&gt;
+    &lt;/div&gt;
+  &lt;/transition-group&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  export default {
+    name: &apos;VueLazyComponent&apos;,
+
+    props: {
+      timeout: {
+        type: Number
+      },
+      tagName: {
+        type: String,
+        default: &apos;div&apos;
+      },
+      viewport: {
+        type: typeof window !== &apos;undefined&apos; ? window.HTMLElement : Object,
+        default: () =&gt; null
+      },
+      threshold: {
+        type: String,
+        default: &apos;0px&apos;
+      },
+      direction: {
+        type: String,
+        default: &apos;vertical&apos;
+      },
+      maxWaitingTime: {
+        type: Number,
+        default: 50
+      }
+    },
+
+    data () {
+      return {
+        isInit: false,
+        timer: null,
+        io: null,
+        loading: false
+      }
+    },
+
+    created () {
+      // 如果指定timeout则无论可见与否都是在timeout之后初始化
+      if (this.timeout) {
+        this.timer = setTimeout(() =&gt; {
+          this.init()
+        }, this.timeout)
+      }
+    },
+
+    mounted () {
+      if (!this.timeout) {
+        // 根据滚动方向来构造视口外边距，用于提前加载
+        let rootMargin
+        switch (this.direction) {
+          case &apos;vertical&apos;:
+            rootMargin = `${this.threshold} 0px`
+            break
+          case &apos;horizontal&apos;:
+            rootMargin = `0px ${this.threshold}`
+            break
+        }
+
+        // 观察视口与组件容器的交叉情况
+        this.io = new window.IntersectionObserver(this.intersectionHandler, {
+          rootMargin,
+          root: this.viewport,
+          threshold: [ 0, Number.MIN_VALUE, 0.01]
+        })
+        this.io.observe(this.$el)
+      }
+    },
+
+    beforeDestroy () {
+      // 在组件销毁前取消观察
+      if (this.io) {
+        this.io.unobserve(this.$el)
+      }
+    },
+
+    methods: {
+      // 交叉情况变化处理函数
+      intersectionHandler (entries) {
+        if (
+          // 正在交叉
+          entries[0].isIntersecting ||
+          // 交叉率大于0
+          entries[0].intersectionRatio
+        ) {
+          this.init()
+          this.io.unobserve(this.$el)
+        }
+      },
+
+      // 处理组件和骨架组件的切换
+      init () {
+        // 此时说明骨架组件即将被切换
+        this.$emit(&apos;beforeInit&apos;)
+        this.$emit(&apos;before-init&apos;)
+
+        // 此时可以准备加载懒加载组件的资源
+        this.loading = true
+
+        // 由于函数会在主线程中执行，加载懒加载组件非常耗时，容易卡顿
+        // 所以在requestAnimationFrame回调中延后执行
+        this.requestAnimationFrame(() =&gt; {
+          this.isInit = true
+          this.$emit(&apos;init&apos;)
+        })
+      },
+
+      requestAnimationFrame (callback) {
+        // 防止等待太久没有执行回调
+        // 设置最大等待时间
+        setTimeout(() =&gt; {
+          if (this.isInit) return
+          callback()
+        }, this.maxWaitingTime)
+
+        // 兼容不支持requestAnimationFrame 的浏览器
+        return (window.requestAnimationFrame || ((callback) =&gt; setTimeout(callback, 1000 / 60)))(callback)
+      }
+    }
+  }
+&lt;/script&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/11/Raect-异步加载组件/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2673,488 +3237,6 @@ const mutations = {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/ES6-实现自己的-Promise/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/07/02/ES6-实现自己的-Promise/" itemprop="url">ES6实现自己的 Promise</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-02T22:15:53+08:00">
-                2018-07-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="一、JavaScript异步编程背景"><a href="#一、JavaScript异步编程背景" class="headerlink" title="一、JavaScript异步编程背景"></a>一、JavaScript异步编程背景</h2><p>从去年ES2015发布至今，已经过去了一年多，ES2015发布的新的语言特性中最为流行的也就莫过于Promise了，Promise使得如今JavaScript异步编程如此轻松惬意，甚至慢慢遗忘了曾经那不堪回首的痛楚。其实从JavaScript诞生，JavaScript中的异步编程就已经出现，例如点击鼠标、敲击键盘这些事件的处理函数都是异步的，时间到了2009年，Node.js横空出世，在整个Node.js的实现中，将回调模式的异步编程机制发挥的淋漓尽致，Node的流行也是的越来越多的JavaScripter开始了异步编程，但是回调模式的副作用也慢慢展现在人们眼前，错误处理不够优雅以及嵌套回调带来的“回调地狱”。这些副作用使得人们从回调模式的温柔乡中慢慢清醒过来，开始寻找更为优雅的异步编程模式，路漫漫其修远兮、吾将上下而求索。时间到了2015年，Promise拯救那些苦苦探索的先驱。行使它历史使命的时代似乎已经到来。</p>
-<p>每个事物的诞生有他的历史使命，更有其历史成因，促进其被那些探索的先驱们所发现。了解nodejs或者熟悉浏览器的人都知道，JavaScript引擎是基于事件循环或单线程这两个特性的。更为甚者在浏览器中，更新UI(也就是浏览器重绘、重拍页面布局)和执行JavaScript代码也在一个单线程中，可想而知，一个线程就相当于只有一条马路，如果一辆马车抛锚在路上了阻塞了马路，那么别的马车也就拥堵在了那儿，这个单线程容易被阻塞是一个道理，单线程也只能允许某一时间点只能够执行一段代码。同时，JavaScript没有想它的哥哥姐姐们那么财大气粗，像Java或者C++，一个线程不够，那么再加一个线程，这样就能够同时执行多段代码了，但是这样就会带来的隐患就是状态不容易维护，JavaScript选择了单线程非阻塞式的方式，也就是异步编程的方式，就像上面的马车抛锚在了路上，那么把马车推到路边的维修站，让其他马车先过去，等马车修好了再回到马路上继续行驶，这就是单线程非阻塞方式。正如Promise的工作方式一样，通过Promise去向服务器发起一个请求，毕竟请求有网络开销，不可能马上就返回请求结果的，这个时候Promise就处于pending状态，但是其并不会阻塞其他代码的执行，当请求返回时，修改Promise状态为fulfilled或者rejected（失败请求）。同时执行绑定到这两个状态上面的“处理函数”。这就是异步编程的模式，也就是Promise兢兢业业的工作方式，在下面一个部分将详细讨论Promise。</p>
-<h2 id="二、Promise基础"><a href="#二、Promise基础" class="headerlink" title="二、Promise基础"></a>二、Promise基础</h2><p>怎么一句话解释Promise呢？Promise可以代指那些尚未完成的一些操作，但是其在未来的某个时间会返回某一特定的结果。</p>
-<p>当创建一个Promise实例后，其代表一个未知的值，在将来的某个时间会返回一个成功的返回值，或者失败的返回值，我们可以为这些返回值添加处理函数，当值返回时，处理函数被调用。Promise总是处于下面三种状态之一：</p>
-<ul>
-<li>pending： Promise的初始状态，也就是未被fulfilled或者rejected的状态。</li>
-<li>fulfilled： 意味着promise代指的操作已经成功完成。</li>
-<li>rejected：意味着promise代指的操作由于某些原因失败。</li>
-</ul>
-<p>一个处于pending状态的promise可能由于某个成功返回值而发展为fulfilled状态，也有可能因为某些错误而进入rejected状态，无论是进入fulfilled状态或者rejected状态，绑定到这两种状态上面的处理函数就会被执行。并且进入fulfilled或者rejected状态也就不能再返回pending状态了。<br><img src="https://pic4.zhimg.com/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_hd.jpg" alt=""></p>
-<h2 id="三、边学边写"><a href="#三、边学边写" class="headerlink" title="三、边学边写"></a>三、边学边写</h2><p>上面说了那么多，其实都是铺垫。接下来我们就开始实现自己的Promise对象。go go go！！！</p>
-<h2 id="第一步：Promise构造函数"><a href="#第一步：Promise构造函数" class="headerlink" title="第一步：Promise构造函数"></a>第一步：Promise构造函数</h2><p>Promise有三种状态，pending、fulfilled、rejected。</p>
-<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
-const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
-const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
-</code></pre><p>有了三种状态后，那么我们怎么创建一个Promise实例呢？</p>
-<blockquote>
-<p>const promise = new Promise(executor) // 创建Promise的语法</p>
-</blockquote>
-<p>通过上面生成promise语法我们知道，Promise实例是调用Promise构造函数通过new操作符生成的。这个构造函数我们可以先这样写：</p>
-<pre><code>class Promise {
-    constructor(executor) {
-        this.status = PENDING // 创建一个promise时，首先进行状态初始化。pending
-        this.result = undefined // result属性用来缓存promise的返回结果，可以是成功的返回结果，或失败的返回结果
-    }
-}
-</code></pre><p>我们可以看到上面构造函数接受的参数executor。它是一个函数，并且接受其他两个函数（resolve和reject）作为参数，当resolve函数调用后，promise的状态转化为fulfilled，并且执行成功返回的处理函数（不用着急后面会说到怎么添加处理函数）。当reject函数调用后，promise状态转化为rejected，并且执行失败返回的处理函数。</p>
-<p>现在我们的代码大概是这样的：</p>
-<pre><code>class Promise {
-    constructor(executor) {
-        this.status = PENDING 
-        this.result = undefined
-        executor(data =&gt; resolveProvider(this, data), err =&gt; rejectProvider(this, err))
-    }
-}
-
-function resolveProvider(promise, data) {
-    if (promise.status !== PENDING) return false
-    promise.status = FULFILLED
-}
-function rejectProvider(promise, data) {
-    if (promise.status !== PENDING) return false
-    promise.status = FULFILLED
-}
-</code></pre><p>Dont Repeat Yourselt！！！我们可以看到上面代码后面两个函数基本相同，其实我们可以把它整合成一个函数，在结合高阶函数的使用。</p>
-<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
-    if (promise.status !== PENDING) return false
-    promise.status = status
-    promise.result = data
-}
-class Promise {
-    constructor(executor) {
-        this.status = PENDING 
-        this.result = undefined
-        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
-    }
-}
-</code></pre><p>现在我们的代码就看上去简洁多了。</p>
-<h2 id="第二步：为Promise添加处理函数"><a href="#第二步：为Promise添加处理函数" class="headerlink" title="第二步：为Promise添加处理函数"></a>第二步：为Promise添加处理函数</h2><p>其实通过 <code>new Promise(executor)</code>已经可以生成一个Promise实例了，甚至我们可以通过传递到executor中的resolve和reject方法来改变promise状态，但是！现在的promise依然没啥卵用！！！因为我们并没有给它添加成功和失败返回的处理函数。</p>
-<p>首先我们需要给我们的promise增加两个属性，successListener和failureListener用来分别缓存成功处理函数和失败处理函数。</p>
-<pre><code>class Promise {
-    constructor(executor) {
-        this.status = PENDING
-         this.successListener = []
-         this.failureListener = []
-        this.result = undefined
-        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
-    }
-}
-</code></pre><p>怎么添加处理函数呢？ECMASCRIPT标准中说到，我们可以通过promise原型上面的then方法为promise添加成功处理函数和失败处理函数，可以通过catch方法为promise添加失败处理函数。</p>
-<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
-    if (promise.status !== PENDING) return false
-    promise.status = status
-    promise.result = data
-    switch(status) {
-        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
-        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
-    }
-}
-class Promise {
-    constructor(executor) {
-        this.status = PENDING
-        this.successListener = []
-        this.failurelistener = []
-        this.result = undefined
-        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
-    }
-    /**
-     * Promise原型上面的方法
-     */
-    then(...args) {
-        switch (this.status) {
-            case PENDING: {
-                this.successListener.push(args[0])
-                this.failurelistener.push(args[1])
-                break
-            }
-            case FULFILLED: {
-                args[0](this.result)
-                break
-            }
-            case REJECTED: {
-                args[1](this.result)
-            }
-        }
-    }
-    catch(arg) {
-        return this.then(undefined, arg)
-    }
-}
-</code></pre><p>我们现在的Promise基本初具雏形了。甚至可以运用到一些简单的场景中了。举个例子。</p>
-<pre><code>/*创建一个延时resolve的pormise*/
-new Promise((resolve, reject) =&gt; {setTimeout(() =&gt; resolve(5), 2000)}).then(data =&gt; console.log(data)) // 5
-/*创建一个及时resolve的promise*/
-new Promise((resolve, reject) =&gt; resolve(5)).then(data =&gt; console.log(data)) // 5
-/*链式调用then方法还不能够使用！*/
-new Promise(resolve=&gt; resolve(5)).then(data =&gt; data).then(data =&gt; console.log(data))
-// Uncaught TypeError: Cannot read property &apos;then&apos; of undefined
-</code></pre><h2 id="第三步：Promise的链式调用"><a href="#第三步：Promise的链式调用" class="headerlink" title="第三步：Promise的链式调用"></a>第三步：Promise的链式调用</h2><p>Promise需要实现链式调用，我们需要再次回顾下then方法的定义：</p>
-<blockquote>
-<p>then方法为pormise添加成功和失败的处理函数，同时then方法返回一个新的promise对象，这个新的promise对象resolve处理函数的返回值，或者当没有提供处理函数时直接resolve原始的值。</p>
-</blockquote>
-<p>可以看出，promise能够链式调用归功于then方法返回一个全新的promise，并且resolve处理函数的返回值，当然，如果then方法的处理函数本身就返回一个promise，那么久不用我们自己手动生成一个promise了。了解了这些，就开始动手写代码了。</p>
-<pre><code>const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
-const noop = () =&gt; {}
-
-const statusProvider = (promise, status) =&gt; data =&gt; {
-    // 同上面代码
-}
-
-class Promise {
-    constructor(executor) {
-        // 同上面代码
-    }
-    then(...args) {
-        const child = new this.constructor(noop)
-
-        const handler = fn =&gt; data =&gt; {
-            if (typeof fn === &apos;function&apos;) {
-                const result = fn(data)
-                if (isPromise(result)) {
-                    Object.assign(child, result)
-                } else {
-                    statusProvider(child, FULFILLED)(result)
-                }   
-            } else if(!fn) {
-                statusProvider(child, this.status)(data)
-            }
-        }
-        switch (this.status) {
-            case PENDING: {
-                this.successListener.push(handler(args[0]))
-                this.failurelistener.push(handler(args[1]))
-                break
-            }
-            case FULFILLED: {
-                handler(args[0])(this.result)
-                break
-            }
-            case REJECTED: {
-                handler(args[1])(this.result)
-                break
-            }
-        }
-        return child
-    }
-    catch(arg) {
-        return this.then(undefined, arg)
-    }
-}
-</code></pre><p>首先我们写了一个isPromise方法，用于判断一个对象是否是promise。就是判断对象是否有一个<code>then</code>方法，免责声明为了实现上的简单，我们不区分thenable和promise的区别，但是我们应该是知道。所有的promise都是thenable的，而并不是所有的thenable对象都是promise。（thenable对象是指带有一个then方法的对象，该then方法其实就是一个executor。）isPromise的作用就是用于判断then方法返回值是否是一个promise，如果是promise，就直接返回该promise，如果不是，就新生成一个promise并返回该promise。</p>
-<p>由于需要链式调用，我们对successListener和failureListener中处理函数进行了重写，并不是直接push进去then方法接受的参数函数了，因为then方法需要返回一个promise，所以当then方法里面的处理函数被执行的同时，我们也需要对then方法返回的这个promise进行处理，要么resolve，要么reject掉。当然，大部分情况都是需要resolve掉的，只有当then方法没有添加第二个参数函数，同时调用then方法的promise就是rejected的时候，才需要把then方法返回的pormise进行reject处理，也就是调用<code>statusProvider(child, REJECTED)(data)</code>.</p>
-<p>toy Promise实现的完整代码：</p>
-<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
-const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
-const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
-
-const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
-const noop = () =&gt; {}
-
-const statusProvider = (promise, status) =&gt; data =&gt; {
-    if (promise.status !== PENDING) return false
-    promise.status = status
-    promise.result = data
-    switch(status) {
-        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
-        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
-    }
-}
-
-class Promise {
-    constructor(executor) {
-        this.status = PENDING
-        this.successListener = []
-        this.failurelistener = []
-        this.result = undefined 
-        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
-    }
-    /**
-     * Promise原型上面的方法
-     */
-    then(...args) {
-        const child = new this.constructor(noop)
-
-        const handler = fn =&gt; data =&gt; {
-            if (typeof fn === &apos;function&apos;) {
-                const result = fn(data)
-                if (isPromise(result)) {
-                    Object.assign(child, result)
-                } else {
-                    statusProvider(child, FULFILLED)(result)
-                }   
-            } else if(!fn) {
-                statusProvider(child, this.status)(data)
-            }
-        }
-        switch (this.status) {
-            case PENDING: {
-                this.successListener.push(handler(args[0]))
-                this.failurelistener.push(handler(args[1]))
-                break
-            }
-            case FULFILLED: {
-                handler(args[0])(this.result)
-                break
-            }
-            case REJECTED: {
-                handler(args[1])(this.result)
-                break
-            }
-        }
-        return child
-    }
-    catch(arg) {
-        return this.then(undefined, arg)
-    }
-}
-</code></pre><h2 id="四、怎么让我们的toy-Promise变强健"><a href="#四、怎么让我们的toy-Promise变强健" class="headerlink" title="四、怎么让我们的toy Promise变强健"></a>四、怎么让我们的toy Promise变强健</h2><ol>
-<li>在ECMAScript标准中，Promise构造函数上面还提供了一些静态方法，比如<code>Promise.resolve</code>、<code>Promise.reject</code>、<code>Promsie.all</code>、<code>Promise.race</code>。当我们有了上面的基础实现后，为我们的toy Promise添加上面这些新的功能一定能让其更加实用。</li>
-<li>在我们的基本实现中，我们并没有区分thenable对象，其实<code>Promise.resolve</code>和<code>then</code>方法都可以接受一个thenable对象，并把该thenable对象转化为一个promise对象，如果想让我们的toy Promise用于生产的话，这也是要考虑的。</li>
-<li>为了让我们的toy Promise变得更强壮，我们需要拥有强健的错误处理机制，比如验证executor必须是一个函数、then方法的参数只能是函数或者undefined或null，又比如executor和then方法中抛出的错误并不能够被window.onerror监测到，而只能够通过错误处理函数来处理，这也是需要考虑的因素。</li>
-<li>如果我们的Promise polyfill是考虑支持多平台，那么首要考虑的就是浏览器环境或Node.js环境，其实在这两个平台，原生Promise都是支持两个事件的。就拿浏览器端举例：</li>
-</ol>
-<ul>
-<li><code>unhandledrejection</code>: 在一个事件循环中，如果我们没有对promise返回的错误进行处理，那么就会在window对象上面触发该事件。</li>
-<li><code>rejectionhandled</code>:如果在一个事件循环后，我们才去对promise返回的错误进行处理，那么就会在window对象上面监听到此事件。</li>
-</ul>
-<p>关于这两个事件以及node.js平台上面类似的事件请参考Nicholas C. Zakas新书</p>
-<p>Promise能够很棒的处理异步编程，要想学好它我认为最好的方法就是亲自动手去实现一个自己的Promise。</p>
-<p>完整code：</p>
-<pre><code>/**
- * 2016.09.19
- */
-const PENDING = &apos;PENDING&apos; // Promise 的初始状态
-const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
-const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
-
-const isThenable = data =&gt; data &amp;&amp; data.then &amp;&amp; typeof data.then === &apos;function&apos;
-const isPromise = object =&gt; isThenable(object) &amp;&amp; (&apos;catch&apos; in object) &amp;&amp; typeof object.catch === &apos;function&apos;
-const noop = () =&gt; {}
-const range = n =&gt; n === 0 ? [] : [n, ...range(n - 1)]
-
-// resolve function
-const statusProvider = (promise, status) =&gt; data =&gt; {
-    if (promise.status !== PENDING) return false
-    promise.status = status
-    promise.result = data
-    promise.listeners[status].forEach(fn =&gt; fn(data))
-}
-
-class APromise {
-    constructor(executor) {
-        if (typeof executor !== &apos;function&apos;) {
-            throw new TypeError(`Promise resolver ${executor.toString()} is not a function`)
-        }
-        this.status = PENDING
-        this.listeners = {
-            FULFILLED: [],
-            REJECTED: []
-        }
-        this.result = undefined
-
-        try {
-            executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
-        } catch (e) {
-            statusProvider(this, REJECTED)(e)
-        }
-    }
-    // prototype method
-    then(...args) {
-        const child = new this.constructor(noop)
-
-        const handler = fn =&gt; data =&gt; {
-            if (typeof fn === &apos;function&apos;) {
-                try {
-                    const result = fn(data)
-                    if (isThenable(result)) {
-                        isPromise(result) ? Object.assign(child, result) : Object.assign(child, new this.constructor(result.then))
-                    } else {
-                        statusProvider(child, FULFILLED)(result)
-                    }
-                } catch (e) {
-                    statusProvider(child, REJECTED)(e)
-                }
-            } else if (!fn) {
-                statusProvider(child, this.status)(data)
-            }
-        }
-        switch (this.status) {
-            case PENDING: {
-                this.listeners[FULFILLED].push(handler(args[0]))
-                this.listeners[REJECTED].push(handler(args[1]))
-                break
-            }
-            case FULFILLED: {
-                handler(args[0])(this.result)
-                break
-            }
-            case REJECTED: {
-                handler(args[1])(this.result)
-                break
-            }
-        }
-        return child
-    }
-
-    catch(arg) {
-        return this.then(undefined, arg)
-    }
-}
-
-APromise.resolve = data =&gt; {
-    if (isPromise(data)) return data
-    return isThenable(data) ? new APromise(data.then) : new APromise((resolve, reject) =&gt; resolve(data))
-}
-
-APromise.reject = err =&gt; new APromise((resolve, reject) =&gt; reject(err))
-
-APromise.all = promises =&gt; {
-    const length = promises.length
-    const result = new APromise(noop)
-    let count = 0
-    const values = range(length)
-
-    promises.forEach((p, i) =&gt; {
-        p.then(data =&gt; {
-            values[i] = data
-            count++
-            if (count === length) statusProvider(result, FULFILLED)(values)
-        }, statusProvider(result, REJECTED))
-    })
-    return result
-}
-
-APromise.race = promises =&gt; {
-    const result = new APromise(noop)
-    promises.forEach((p, i) =&gt; {
-        p.then(statusProvider(result, FULFILLED), statusProvider(result, REJECTED))
-    })
-    return result
-}
-
-export default APromise
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3209,7 +3291,7 @@ export default APromise
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">58</span>
+                  <span class="site-state-item-count">59</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
