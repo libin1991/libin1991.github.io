@@ -259,6 +259,616 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/vue2-0模板渲染底层思想/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/02/vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
+                2018-04-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>初衷</p>
+<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
+<p>vue2.0和1.0模板渲染的区别</p>
+<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
+<p>知识普及</p>
+<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
+<p>AST 数据结构</p>
+<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
+<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
+<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
+declare type ASTElement = { // 有关元素的一些定义
+  type: 1;
+  tag: string;
+  attrsList: Array&lt;{ name: string; value: string }&gt;;
+  attrsMap: { [key: string]: string | null };
+  parent: ASTElement | void;
+  children: Array&lt;ASTNode&gt;;
+  //......
+}
+declare type ASTExpression = {
+  type: 2;
+  expression: string;
+  text: string;
+  static?: boolean;
+}
+declare type ASTText = {
+  type: 3;
+  text: string;
+  static?: boolean;
+}
+</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
+<p>VNode数据结构</p>
+<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
+<pre><code>constructor {
+  this.tag = tag   //元素标签
+  this.data = data  //属性
+  this.children = children  //子元素列表
+  this.text = text
+  this.elm = elm  //对应的真实 DOM 元素
+  this.ns = undefined
+  this.context = context 
+  this.functionalContext = undefined
+  this.key = data &amp;&amp; data.key
+  this.componentOptions = componentOptions
+  this.componentInstance = undefined
+  this.parent = undefined
+  this.raw = false
+  this.isStatic = false //是否被标记为静态节点
+  this.isRootInsert = true
+  this.isComment = false
+  this.isCloned = false
+  this.isOnce = false
+}
+</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
+<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
+<pre><code>let div = document.createElement(&apos;div&apos;);
+for(let k in div) {
+  console.log(k);
+}
+</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
+<p>render函数</p>
+<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
+<pre><code>&lt;div id=&quot;app&quot;&gt;
+  &lt;header&gt;
+    &lt;h1&gt;I am a template!&lt;/h1&gt;
+  &lt;/header&gt;
+  &lt;p v-if=&quot;message&quot;&gt;
+    {{ message }}
+  &lt;/p&gt;
+  &lt;p v-else&gt;
+    No message.
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
+<pre><code>(function() {
+  with(this){
+    return _c(&apos;div&apos;,{   //创建一个 div 元素
+      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
+      },[
+        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
+        _v(&quot; &quot;), //空的文本节点
+        (message) //三元表达式，判断 message 是否存在
+         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
+        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
+        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
+        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
+      ]
+    )
+  }
+})
+</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
+<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
+<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
+  with(this){
+    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
+  }
+})
+</code></pre><p>模板渲染过程（重要的函数介绍）</p>
+<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
+<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
+<pre><code>// 有缓存的话就直接在缓存里面拿
+const key = options &amp;&amp; options.delimiters
+            ? String(options.delimiters) + template
+            : template
+if (cache[key]) {
+    return cache[key]
+}
+const res = {}
+const compiled = compile(template, options) // compile 后面会详细讲
+res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
+const l = compiled.staticRenderFns.length
+res.staticRenderFns = new Array(l)
+for (let i = 0; i &lt; l; i++) {
+    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
+}
+......
+}
+return (cache[key] = res) // 记录至缓存中
+</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
+<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
+<pre><code>// 触发 beforeMount 生命周期钩子
+callHook(vm, &apos;beforeMount&apos;)
+// 重点：新建一个 Watcher 并赋值给 vm._watcher
+vm._watcher = new Watcher(vm, function updateComponent () {
+  vm._update(vm._render(), hydrating)
+}, noop)
+hydrating = false
+// manually mounted instance, call mounted on self
+// mounted is called for render-created child components in its inserted hook
+if (vm.$vnode == null) {
+  vm._isMounted = true
+  callHook(vm, &apos;mounted&apos;)
+}
+return vm
+</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
+<p>compile</p>
+<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
+<pre><code>export function compile (
+  template: string,
+  options: CompilerOptions
+): CompiledResult {
+  const AST = parse(template.trim(), options) //1. parse
+  optimize(AST, options)  //2.optimize
+  const code = generate(AST, options) //3.generate
+  return {
+    AST,
+    render: code.render,
+    staticRenderFns: code.staticRenderFns
+  }
+}
+</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
+<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
+staticRenderFns = prevStaticRenderFns
+onceCount = prevOnceCount
+return {
+    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
+    staticRenderFns: currentStaticRenderFns
+}
+</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
+<pre><code>function genElement (el: ASTElement): string {
+  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
+    return genStatic(el)
+  } else if (el.once &amp;&amp; !el.onceProcessed) {
+    return genOnce(el)
+  } else if (el.for &amp;&amp; !el.forProcessed) {
+    return genFor(el)
+  } else if (el.if &amp;&amp; !el.ifProcessed) {
+    return genIf(el)
+  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
+    return genChildren(el) || &apos;void 0&apos;
+  } else if (el.tag === &apos;slot&apos;) {
+  }
+    return code
+  }
+}
+</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
+<p>patch</p>
+<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
+<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
+<p>总结</p>
+<ul>
+<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
+<li>render函数 与数据通过 Watcher 产生关联；</li>
+<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/01/NPM学习笔记整理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/01/NPM学习笔记整理/" itemprop="url">NPM学习笔记整理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-01T18:35:10+08:00">
+                2018-04-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="10个-NPM-使用技巧"><a href="#10个-NPM-使用技巧" class="headerlink" title="10个 NPM 使用技巧"></a><a href="https://github.com/dwqs/blog/issues/40" target="_blank" rel="noopener">10个 NPM 使用技巧</a></h1><h1 id="NPM-学习笔记整理"><a href="#NPM-学习笔记整理" class="headerlink" title="NPM 学习笔记整理"></a><a href="https://blog.ihoey.com/posts/Node/2017-05-10-npm.html" target="_blank" rel="noopener">NPM 学习笔记整理</a></h1><hr>
+<h1 id="什么是-NPM什么是-NPM"><a href="#什么是-NPM什么是-NPM" class="headerlink" title="什么是-NPM什么是 NPM"></a><a href="#什么是-NPM">什么是-NPM</a>什么是 NPM</h1><p><code>npm</code> 之于 <code>Node</code> ，就像 <code>pip</code> 之于 <code>Python</code> , <code>gem</code> 之于 <code>Ruby</code> , <code>composer</code> 之于 <code>PHP</code> 。</p>
+<p><code>npm</code> 是 <code>Node</code> 官方提供的包管理工具，他已经成了 <code>Node</code> 包的标准发布平台，用于 <code>Node</code> 包的发布、传播、依赖控制。<br><code>npm</code> 提供了命令行工具，使你可以方便地下载、安装、升级、删除包，也可以让你作为开发者发布并维护包。</p>
+<h1 id="为什么要使用-NPM为什么要使用-NPM"><a href="#为什么要使用-NPM为什么要使用-NPM" class="headerlink" title="为什么要使用-NPM为什么要使用 NPM"></a><a href="#为什么要使用-NPM">为什么要使用-NPM</a>为什么要使用 NPM</h1><p><code>npm</code> 是随同 <code>Node</code> 一起安装的包管理工具，能解决 <code>Node</code> 代码部署上的很多问题，常见的场景有以下几种：</p>
+<ul>
+<li>允许用户从 <code>npm</code> 服务器下载别人编写的第三方包到本地使用。</li>
+<li>允许用户从 <code>npm</code> 服务器下载并安装别人编写的命令行程序到本地使用。</li>
+<li>允许用户将自己编写的包或命令行程序上传到 <code>npm</code> 服务器供别人使用。</li>
+</ul>
+<p><code>npm</code> 的背后，是基于 <code>CouchDB</code> 的一个数据库，详细记录了每个包的信息，包括作者、版本、依赖、授权信息等。它的一个很重要的作用就是：将开发者从繁琐的包管理工作（版本、依赖等）中解放出来，更加专注于功能的开发。</p>
+<h1 id="如何使用-NPM如何使用-NPM"><a href="#如何使用-NPM如何使用-NPM" class="headerlink" title="如何使用-NPM如何使用 NPM"></a><a href="#如何使用-NPM">如何使用-NPM</a>如何使用 NPM</h1><h2 id="安装安装"><a href="#安装安装" class="headerlink" title="安装安装"></a><a href="#安装">安装</a>安装</h2><p><code>npm</code> 不需要单独安装。在安装 <code>Node</code> 的时候，会连带一起安装 <code>npm</code> 。但是，<code>Node</code> 附带的 <code>npm</code> 可能不是最新版本，最后用下面的命令，更新到最新版本。</p>
+<pre><code>$ sudo npm install npm@latest -g
+</code></pre><p>如果是 Window 系统使用以下命令即可：</p>
+<pre><code>npm install npm -g
+</code></pre><p>也就是使用 <code>npm</code> 安装自己。之所以可以这样，是因为 <code>npm</code> 本身与 <code>Node</code> 的其他模块没有区别。</p>
+<p>然后，运行下面的命令，查看各种信息。</p>
+<pre><code># 查看 npm 命令列表
+$ npm help
+
+# 查看各个命令的简单用法
+$ npm -l
+
+# 查看 npm 的版本
+$ npm -v
+
+# 查看 npm 的配置
+$ npm config list -l
+</code></pre><h2 id="使用使用"><a href="#使用使用" class="headerlink" title="使用使用"></a><a href="#使用">使用</a>使用</h2><h3 id="npm-initnpm-init"><a href="#npm-initnpm-init" class="headerlink" title="npm-initnpm init"></a><a href="#npm-init">npm-init</a>npm init</h3><p><code>npm init</code> 用来初始化生成一个新的 <code>package.json</code> 文件。它会向用户提问一系列问题，如果你觉得不用修改默认配置，一路回车就可以了。<br>如果使用了 <code>-f</code>（代表<code>force</code>）、<code>-y</code>（代表<code>yes</code>），则跳过提问阶段，直接生成一个新的 <code>package.json</code> 文件。</p>
+<pre><code>$ npm init -y
+</code></pre><h3 id="npm-setnpm-set"><a href="#npm-setnpm-set" class="headerlink" title="npm-setnpm set"></a><a href="#npm-set">npm-set</a>npm set</h3><p><code>npm set</code> 用来设置环境变量</p>
+<pre><code>$ npm set init-author-name &apos;Your name&apos;
+$ npm set init-author-email &apos;Your email&apos;
+$ npm set init-author-url &apos;http://yourdomain.com&apos;
+$ npm set init-license &apos;MIT&apos;
+</code></pre><p>上面命令等于为 <code>npm init</code> 设置了默认值，以后执行 <code>npm init</code> 的时候，<code>package.json</code>的作者姓名、邮件、主页、许可证字段就会自动写入预设的值。这些信息会存放在用户主目录的 <code>~/.npmrc</code>文件，使得用户不用每个项目都输入。如果某个项目有不同的设置，可以针对该项目运行 <code>npm config</code>。</p>
+<h3 id="npm-infonpm-info"><a href="#npm-infonpm-info" class="headerlink" title="npm-infonpm info"></a><a href="#npm-info">npm-info</a>npm info</h3><p><code>npm info</code> 命令可以查看每个模块的具体信息。比如，查看 <code>underscore</code> 模块的信息。</p>
+<pre><code>$ npm info underscore
+</code></pre><p>上面命令返回一个 <code>JavaScript</code> 对象，包含了 <code>underscore</code> 模块的详细信息。这个对象的每个成员，都可以直接从 <code>info</code> 命令查询。</p>
+<pre><code>$ npm info underscore description
+
+$ npm info underscore homepage
+
+$ npm info underscore version
+</code></pre><h3 id="npm-searchnpm-search"><a href="#npm-searchnpm-search" class="headerlink" title="npm-searchnpm search"></a><a href="#npm-search">npm-search</a>npm search</h3><p><code>npm search</code> 命令用于搜索 <code>npm</code> 仓库，它后面可以跟字符串，也可以跟正则表达式。</p>
+<pre><code>$ npm search &lt;搜索词&gt;
+</code></pre><h3 id="npm-listnpm-list"><a href="#npm-listnpm-list" class="headerlink" title="npm-listnpm list"></a><a href="#npm-list">npm-list</a>npm list</h3><p><code>npm list</code> 命令以树形结构列出当前项目安装的所有模块，以及它们依赖的模块。</p>
+<pre><code>$ npm list
+
+# 加上 global 参数，会列出全局安装的模块
+$ npm list -global
+
+# npm list 命令也可以列出单个模块
+$ npm list underscore
+</code></pre><h3 id="npm-installnpm-install"><a href="#npm-installnpm-install" class="headerlink" title="npm-installnpm install"></a><a href="#npm-install">npm-install</a>npm install</h3><p>使用 <code>npm</code> 安装包的命令格式为：<code>npm [install/i] [package_name]</code></p>
+<h4 id="本地模式和全局模式本地模式和全局模式"><a href="#本地模式和全局模式本地模式和全局模式" class="headerlink" title="本地模式和全局模式本地模式和全局模式"></a><a href="#本地模式和全局模式">本地模式和全局模式</a>本地模式和全局模式</h4><p><code>npm</code> 在默认情况下会从 <a href="http://npmjs.org" target="_blank" rel="noopener">NPM</a> 搜索或下载包，将包安装到当前目录的 <code>node_modules</code> 子目录下。</p>
+<p>如果你熟悉 <code>Ruby</code> 的 <code>gem</code> 或者 <code>Python</code> 的 <code>pip</code> ，你会发现 <code>npm</code> 与它们的行为不同， <code>gem</code> 或 <code>pip</code> 总是以全局模式安装，使包可以供所有的程序使用，而 <code>npm</code> 默认会把包安装到当前目录下。这反映了 <code>npm</code> 不同的设计哲学。如果把包安装到全局，可以提供程序的重复利用程度，避免同样的内容的多分副本，但坏处是难以处理不同的版本依赖。如果把包安装到当前目录，或者说本地，则不会有不同程序依赖不同版本的包的冲突问题，同时还减轻了包作者的 <code>API</code> 兼容性压力，但缺陷则是同一个包可能会被安装许多次。</p>
+<p>我们在使用 <code>supervisor</code> 的时候使用了 <code>npm install -g supervisor</code> 命令，就是以全局模式安装 <code>supervisor</code> 。</p>
+<p>这里注意一点的就是， <code>supervisor</code> 必须安装到全局，如果你不安装到全局，错误命令会提示你安装到全局。如果不想安装到默认的全局，也可以自己修改全局路径到当前路径 <code>npm config set prefix &quot;路径&quot;</code> 安装完以后就可以用 <code>supervisor</code> 来启动服务了。<br><code>supervisor</code> 可以帮助你实现这个功能，它会监视你对代码的驱动，并自动重启 <code>Node</code> 。</p>
+<p>一般来说，全局安装只适用于工具模块，比如 <code>eslint</code> 和 <code>gulp</code> 。关于使用全局模式，多数时候并不是因为许多程序都有可能用到了它，为了减少多重副本而使用全局模式，而是因为 <strong>本地模式不会注册 <code>PATH</code> 环境变量</strong>。<br>“本地安装”指的是将一个模块下载到当前项目的 <code>node_modules</code> 子目录，然后只有在项目目录之中，才能调用这个模块。</p>
+<p>本地模式和全局模式的特点如下：<br>模式可通过 require 使用注册 PATH本地模式是否全局模式否是</p>
+<pre><code># 本地安装
+$ npm install &lt;package name&gt;
+
+# 全局安装
+$ sudo npm install -global &lt;package name&gt;
+$ sudo npm install -g &lt;package name&gt;
+</code></pre><p><code>npm install</code> 也支持直接输入 <code>Github</code> 代码库地址。</p>
+<pre><code>$ npm install git://github.com/package/path.git
+$ npm install git://github.com/package/path.git#0.1.0
+</code></pre><p>安装之前，<code>npm install</code> 会先检查，<code>node_modules</code> 目录之中是否已经存在指定模块。如果存在，就不再重新安装了，即使远程仓库已经有了一个新版本，也是如此。</p>
+<p>如果你希望，一个模块不管是否安装过， <code>npm</code> 都要强制重新安装，可以使用 <code>-f</code> 或 <code>--force</code> 参数。</p>
+<pre><code>$ npm install &lt;packageName&gt; --force
+</code></pre><h4 id="安装不同版本安装不同版本"><a href="#安装不同版本安装不同版本" class="headerlink" title="安装不同版本安装不同版本"></a><a href="#安装不同版本">安装不同版本</a>安装不同版本</h4><p><code>install</code> 命令总是安装模块的最新版本，如果要安装模块的特定版本，可以在模块名后面加上 <code>@</code> 和版本号。</p>
+<pre><code>$ npm install sax@latest
+$ npm install sax@0.1.1
+$ npm install sax@&quot;&gt;=0.1.0 &lt;0.2.0&quot;
+</code></pre><p><code>install</code> 命令可以使用不同参数，指定所安装的模块属于哪一种性质的依赖关系，即出现在 <code>packages.json</code> 文件的哪一项中。</p>
+<blockquote>
+<p>–save：模块名将被添加到 dependencies，可以简化为参数-S。<br>–save-dev：模块名将被添加到 devDependencies，可以简化为参数-D。</p>
+</blockquote>
+<pre><code>$ npm install sax --save
+$ npm install node-tap --save-dev
+# 或者
+$ npm install sax -S
+$ npm install node-tap -D
+</code></pre><h5 id="dependencies-依赖dependencies-依赖"><a href="#dependencies-依赖dependencies-依赖" class="headerlink" title="dependencies-依赖dependencies 依赖"></a><a href="#dependencies-依赖">dependencies-依赖</a>dependencies 依赖</h5><p>这个可以说是我们 <code>npm</code> 核心一项内容，依赖管理，这个对象里面的内容就是我们这个项目所依赖的 <code>js</code> 模块包。下面这段代码表示我们依赖了 <code>markdown-it</code> 这个包，版本是 <code>^8.1.0</code> ，代表最小依赖版本是 <code>8.1.0</code> ，如果这个包有更新，那么当我们使用 <code>npm install</code> 命令的时候， <code>npm</code> 会帮我们下载最新的包。当别人引用我们这个包的时候，包内的依赖包也会被下载下来。</p>
+<pre><code>&quot;dependencies&quot;: {
+&quot;markdown-it&quot;: &quot;^8.1.0&quot;
+}
+</code></pre><h5 id="devDependencies-开发依赖devDependencies-开发依赖"><a href="#devDependencies-开发依赖devDependencies-开发依赖" class="headerlink" title="devDependencies-开发依赖devDependencies 开发依赖"></a><a href="#devDependencies-开发依赖">devDependencies-开发依赖</a>devDependencies 开发依赖</h5><p>在我们开发的时候会用到的一些包，只是在开发环境中需要用到，但是在别人引用我们包的时候，不会用到这些内容，放在 <code>devDependencies</code> 的包，在别人引用的时候不会被 <code>npm</code> 下载。</p>
+<pre><code>&quot;devDependencies&quot;: {
+&quot;autoprefixer&quot;: &quot;^6.4.0&quot;,
+&quot;babel-preset-es2015&quot;: &quot;^6.0.0&quot;,
+&quot;babel-preset-stage-2&quot;: &quot;^6.0.0&quot;,
+&quot;babel-register&quot;: &quot;^6.0.0&quot;,
+&quot;webpack&quot;: &quot;^1.13.2&quot;,
+&quot;webpack-dev-middleware&quot;: &quot;^1.8.3&quot;,
+&quot;webpack-hot-middleware&quot;: &quot;^2.12.2&quot;,
+&quot;webpack-merge&quot;: &quot;^0.14.1&quot;,
+&quot;highlightjs&quot;: &quot;^9.8.0&quot;
+}
+</code></pre><p>当你有了一个完整的 <code>package.json</code>文件的时候，就可以让人一眼看出来，这个模块的基本信息，和这个模块所需要依赖的包。我们可以通过 <code>npm install</code> 就可以很方便的下载好这个模块所需要的包。</p>
+<p><code>npm install</code> 默认会安装 <code>dependencies</code> 字段和 <code>devDependencies</code> 字段中的所有模块，如果使用 <code>--production</code> 参数，可以只安装 <code>dependencies</code> 字段的模块。</p>
+<pre><code>$ npm install --production
+# 或者
+$ NODE_ENV=production npm install
+</code></pre><p>一旦安装了某个模块，就可以在代码中用 <code>require</code> 命令加载这个模块。</p>
+<pre><code>var backbone = require(&apos;backbone&apos;)
+console.log(backbone.VERSION)
+</code></pre><h3 id="npm-runnpm-run"><a href="#npm-runnpm-run" class="headerlink" title="npm-runnpm run"></a><a href="#npm-run">npm-run</a>npm run</h3><p><code>npm</code> 不仅可以用于模块管理，还可以用于执行脚本。<code>package.json</code> 文件有一个 <code>scripts</code> 字段，可以用于指定脚本命令，供 <code>npm</code> 直接调用。<br><code>package.json</code> 文件内容：</p>
+<pre><code>{
+&quot;name&quot;: &quot;myproject&quot;,
+&quot;devDependencies&quot;: {
+&quot;jshint&quot;: &quot;latest&quot;,
+&quot;browserify&quot;: &quot;latest&quot;,
+&quot;mocha&quot;: &quot;latest&quot;
+  },
+&quot;scripts&quot;: {
+&quot;lint&quot;: &quot;jshint **.js&quot;,
+&quot;test&quot;: &quot;mocha test/&quot;
+  }
+}
+</code></pre><h4 id="scripts-脚本scripts-脚本"><a href="#scripts-脚本scripts-脚本" class="headerlink" title="scripts-脚本scripts 脚本"></a><a href="#scripts-脚本">scripts-脚本</a>scripts 脚本</h4><p>顾名思义，就是一些脚本代码，可以通过 <code>npm run script-key</code> 来调用，例如在这个 <code>package.json</code> 的文件夹下使用 <code>npm run dev</code> 就相当于运行了 <code>node build/dev-server.js</code> 这一段代码。使用 <code>scripts</code> 的目的就是为了把一些要执行的代码合并到一起，使用 npm run 来快速的运行，方便省事。<br><code>npm run</code> 是 <code>npm run-script</code> 的缩写，一般都使用前者，但是后者可以更好的反应这个命令的本质。</p>
+<pre><code>// 脚本
+&quot;scripts&quot;: {
+&quot;dev&quot;: &quot;node build/dev-server.js&quot;,
+&quot;build&quot;: &quot;node build/build.js&quot;,
+&quot;docs&quot;: &quot;node build/docs.js&quot;,
+&quot;build-docs&quot;: &quot;npm run docs &amp; git checkout gh-pages &amp; xcopy /sy dist\\* . &amp; git add . &amp; git commit -m &apos;auto-pages&apos; &amp; git push &amp; git checkout master&quot;,
+&quot;build-publish&quot;: &quot;rmdir /S /Q lib &amp; npm run build &amp;git add . &amp; git commit -m auto-build &amp; npm version patch &amp; npm publish &amp; git push&quot;,
+&quot;lint&quot;: &quot;eslint --ext .js,.vue src&quot;
+}
+</code></pre><p><code>npm run</code> 如果不加任何参数，直接运行，会列出 <code>package.json</code> 里面所有可以执行的脚本命令。<br><code>npm</code> 内置了两个命令简写， <code>npm test</code> 等同于执行 <code>npm run test</code> ，<code>npm start</code> 等同于执行 <code>npm run start</code>。</p>
+<pre><code>&quot;build&quot;: &quot;npm run build-js &amp;&amp; npm run build-css&quot;
+</code></pre><p>上面的写法是先运行 <code>npm run build-js</code> ，然后再运行 <code>npm run build-css</code> ，两个命令中间用 <code>&amp;&amp;</code> 连接。如果希望两个命令同时平行执行，它们中间可以用 <code>&amp;</code> 连接。</p>
+<p>写在 <code>scripts</code> 属性中的命令，也可以在 <code>node_modules/.bin</code> 目录中直接写成 <code>bash</code> 脚本。下面是一个 <code>bash</code> 脚本。</p>
+<pre><code>#!/bin/bash
+
+cd site/main
+browserify browser/main.js | uglifyjs -mc &gt; static/bundle.js
+</code></pre><p>假定上面的脚本文件名为 <code>build.sh</code> ，并且权限为可执行，就可以在 <code>scripts</code> 属性中引用该文件。</p>
+<pre><code>&quot;build-js&quot;: &quot;bin/build.sh&quot;
+</code></pre><h3 id="pre-和-post-脚本pre-和-post-脚本"><a href="#pre-和-post-脚本pre-和-post-脚本" class="headerlink" title="pre-和-post-脚本pre- 和 post- 脚本"></a><a href="#pre-和-post-脚本">pre-和-post-脚本</a>pre- 和 post- 脚本</h3><p><code>npm run</code> 为每条命令提供了 <code>pre-</code> 和 <code>post-</code> 两个钩子（ <code>hook</code> ）。以 <code>npm run lint</code> 为例，执行这条命令之前， <code>npm</code> 会先查看有没有定义 <code>prelint</code> 和 <code>postlint</code> 两个钩子，如果有的话，就会先执行 <code>npm run prelint</code> ，然后执行 <code>npm run lint</code> ，最后执行 <code>npm run postlint</code> 。</p>
+<pre><code>{
+&quot;name&quot;: &quot;myproject&quot;,
+&quot;devDependencies&quot;: {
+&quot;eslint&quot;: &quot;latest&quot;
+&quot;karma&quot;: &quot;latest&quot;
+  },
+&quot;scripts&quot;: {
+&quot;lint&quot;: &quot;eslint --cache --ext .js --ext .jsx src&quot;,
+&quot;test&quot;: &quot;karma start --log-leve=error karma.config.js --single-run=true&quot;,
+&quot;pretest&quot;: &quot;npm run lint&quot;,
+&quot;posttest&quot;: &quot;echo &apos;Finished running tests&apos;&quot;
+  }
+}
+</code></pre><p>上面代码是一个 <code>package.json</code> 文件的例子。如果执行 <code>npm test</code>，会按下面的顺序执行相应的命令。</p>
+<ol>
+<li><code>pretest</code></li>
+<li><code>test</code></li>
+<li><code>posttest</code></li>
+</ol>
+<p>如果执行过程出错，就不会执行排在后面的脚本，即如果 <code>prelint</code> 脚本执行出错，就不会接着执行 <code>lint</code> 和 <code>postlint</code> 脚本。</p>
+<h3 id="npm-binnpm-bin"><a href="#npm-binnpm-bin" class="headerlink" title="npm-binnpm bin"></a><a href="#npm-bin">npm-bin</a>npm bin</h3><p><code>npm bin</code> 命令显示相对于当前目录的，<code>Node</code> 模块的可执行脚本所在的目录（即 <code>.bin</code> 目录）。</p>
+<pre><code># 项目根目录下执行
+$ npm bin
+./node_modules/.bin
+</code></pre><h1 id="创建全局链接创建全局链接"><a href="#创建全局链接创建全局链接" class="headerlink" title="创建全局链接创建全局链接"></a><a href="#创建全局链接">创建全局链接</a>创建全局链接</h1><p><code>npm</code> 提供了一个有趣的命令 <code>npm link</code>，它的功能是在本地包和全局包之间创建符号链接。我们说过使用全局模式安装的包不能直接通过 <code>require</code> 使用。但通过 <code>npm link</code> 命令可以打破这一限制。举个例子，我们已经通过 <code>npm install -g express</code> 安装了 <code>express</code> ，这时在工程的目录下运行命令：<code>npm link express ./node_modules/express -&gt; /user/local/lib/node_modules/express</code><br>我们可以在 <code>node_modules</code> 子目录中发现一个指向安装到全局的包的符号链接。通过这种方法，我们就可以把全局包当做本地包来使用了。<br>除了将全局的包链接到本地以外，使用 <code>npm link</code> 命令还可以将本地的包链接到全局。使用方法是在包目录（<code>package.json</code> 所在目录）中运行 <code>npm link</code> 命令。如果我们要开发一个包，利用这种方法可以非常方便地在不同的工程间进行测试。</p>
+<h1 id="创建包创建包"><a href="#创建包创建包" class="headerlink" title="创建包创建包"></a><a href="#创建包">创建包</a>创建包</h1><p>包是在模块基础上更深一步的抽象，<code>Node</code> 的包类似于 <code>C/C++</code> 的函数库或者 <code>Java</code> 、<code>.Net</code> 的类库。它将某个独立的功能封装起来，用于发布、更新、依赖管理和版本控制。<code>Node</code> 根据 <code>CommonJS</code> 规范实现了包机制，开发了 <code>npm</code> 来解决包的发布和获取需求。<br><code>Node</code> 的包是一个目录，其中包含了一个 <code>JSON</code> 格式的包说明文件 <code>package.json</code>。严格符合 <code>CommonJS</code> 规范的包应该具备以下特征：</p>
+<ul>
+<li><code>package.json</code> 必须在包的顶层目录下；</li>
+<li>二进制文件应该在 <code>bin</code> 目录下；</li>
+<li><code>JavaScript</code> 代码应该在 <code>lib</code> 目录下；</li>
+<li>文档应该在 <code>doc</code> 目录下；</li>
+<li>单元测试应该在 <code>test</code> 目录下。</li>
+</ul>
+<p><code>Node</code> 对包的要求并没有这么严格，只要顶层目录下有 <code>package.json</code>，并符合一些规范即可。当然为了提高兼容性，我们还是建议你在制作包的时候，严格遵守 <code>CommonJS</code> 规范。</p>
+<p>我们也可以把文件夹封装为一个模块，即所谓的包。包通常是一些模块的集合，在模块的基础上提供了更高层的抽象，相当于提供了一些固定接口的函数库。通过定制 <code>package.json</code>，我们可以创建更复杂，更完善，更符合规范的包用于发布。</p>
+<p><code>Node</code> 在调用某个包时，会首先检查包中 <code>packgage.json</code> 文件的 <code>main</code> 字段，将其作为包的接口模块，如果 <code>package.json</code> 或 <code>main</code> 字段不存在，会尝试寻找 index.js 或 index.node 作为包的接口。</p>
+<p><code>package.json</code> 是 <code>CommonJS</code> 规定的用来描述包的文件，完全符合规范的 <code>package.json</code> 文件应该含有以下字段：<br>name: 包的名字，必须是唯一的，由小写英文字母、数字和下划线组成，不能包含空格。<br>description: 包的简要说明。<br>version: 符合语义化版本识别规范的版本字符串。<br>keywords: 关键字数组，通常用于搜索。<br>maintainers: 维护者数组，每个元素要包含 <code>name</code> 、 <code>email</code>(可选)、 <code>web</code>(可选)字段。<br>contributors: 贡献者数组，格式与 <code>maintainers</code> 相同。包的作者应该是贡献者数组的第一个元素。<br>bugs: 提交 <code>bug</code> 的地址，可以是网址或者电子邮件地址。<br>licenses: 许可证数组，每个元素要包含 <code>type</code> （许可证的名称）和 url（链接到许可证文本的地址）字段。<br>repositories: 仓库托管地址数组，每个元素要包含 <code>type</code> （仓库的类型，如 git）、URL（仓库的地址）和 path（相对于仓库的路径，可选）字段。<br>dependencies: 包的依赖，一个关联数组，由包名称和版本号组成。</p>
+<h1 id="包的发布包的发布"><a href="#包的发布包的发布" class="headerlink" title="包的发布包的发布"></a><a href="#包的发布">包的发布</a>包的发布</h1><p>通过使用 <code>npm init</code> 可以根据交互式回答产生一个符合标准的 <code>package.json</code>。创建一个 <code>index.js</code> 作为包的接口,一个简单的包就制作完成了。<br>在发布前,我们还需要获得一个账号用于今后维护自己的包,使用 <code>npm adduser</code> 根据提示完成账号的创建<br>完成后可以使用 <code>npm whoami</code> 检测是否已经取得了账号。<br>接下来,在 <code>package.json</code> 所在目录下运行 <code>npm publish</code>，稍等片刻就可以完成发布了，打开浏览器，访问 <a href="http://search.npmjs.org/" target="_blank" rel="noopener">NPM搜索</a> 就可以找到自己刚刚发布的包了。现在我们可以在世界的任意一台计算机上使用 <code>npm install neveryumodule</code> 命令来安装它。<br>如果你的包将来有更新,只需要在 <code>package.json</code> 文件中修改 <code>version</code> 字段,然后重新使用 <code>npm publish</code>命令就行了。<br>如果你对已发布的包不满意，可以使用 <code>npm unpublish</code> 命令来取消发布。</p>
+<p><em>需要说明的是： <code>json</code> 文件不能有注释</em></p>
+<h3 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">package.json 好处</span><br><span class="line"> 1.以json文件格式定义项目所依赖的包；</span><br><span class="line"> 2.确定每个包的使用版本；</span><br><span class="line"> 3.项目构建可重复，多人协助公用一套基础代码；</span><br><span class="line"> 4.npm init 初始化 【必须含有的两个：name 和 version】</span><br><span class="line">   &#123;</span><br><span class="line">     &quot;name&quot;: &quot;react-redux-webpack&quot;,</span><br><span class="line">     &quot;version&quot;: &quot;1.1.0&quot;,</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">devDependencies    ：开发环境和测试环境所依赖的包列表</span><br><span class="line">dependencies       ：在生产环境使用的依赖包列表</span><br><span class="line"></span><br><span class="line">    dependencies下记录的是项目在运行时必须依赖的插件，常见的例如react jquery等，即及时项目打包好了、上线了，</span><br><span class="line">   这些也是需要用的，否则程序无法正常执行。</span><br><span class="line">    devDependencies下记录的是项目在开发过程中使用的插件，例如这里我们开发过程中需要使用webpack打包，</span><br><span class="line">    而我在工作中使用fis3打包，但是一旦项目打包发布、上线了之后，webpack和fis3就都没有用了，可卸磨杀驴。</span><br><span class="line"></span><br><span class="line">本地安装 npm install --save|--save-dev 分别写入  dependencies|devDependencies 中；</span><br><span class="line">简写：     npm i -S pkg      |  npm i -D pkg</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">包（package)和模块（module）</span><br><span class="line">包：package.json 文件所描述的文件夹或者文件，符合CommonJS规范</span><br><span class="line">模块：任何被node.js中的require所载入的文件</span><br><span class="line"></span><br><span class="line">~ 会匹配最近的小版本依赖包，比如~1.2.3会匹配所有1.2.x版本，但是不包括1.3.0</span><br><span class="line">^ 会匹配最新的大版本依赖包，比如^1.2.3会匹配所有1.x.x的包，包括1.3.0，但是不包括2.0.0</span><br><span class="line">* 这意味着安装最新版本的依赖包</span><br><span class="line"></span><br><span class="line">常用命令:</span><br><span class="line">    npm init -y    //强制生成</span><br><span class="line">	npm init //在项目中引导创建一个package.json文件</span><br><span class="line">	npm search mkdir   //寻找包使用npm search命令</span><br><span class="line">	npm help //查看某条命令的详细帮助 </span><br><span class="line">	npm root //查看包的安装路径</span><br><span class="line">	npm config //管理npm的配置路径</span><br><span class="line">	npm prefix -g   //查看全局安装的包位置  -g全局</span><br><span class="line">	npm cache  //管理模块的缓存 ,可以使用下面命令，偶尔清楚一下缓存：      eg: npm cache clean</span><br><span class="line">	npm info webpack   //查看webpack 版本信息</span><br><span class="line">	npm install pkg //安装模块 简写：npm i pkg   ,带版本:  npm install underscore@1.8.2</span><br><span class="line">	npm uninstall //卸载模块   eg: npm uninstall webpack</span><br><span class="line">	npm update   // 更新模块   npm update underscore</span><br><span class="line">	npm outdated  //检查模块是否已经过时</span><br><span class="line">	npm ls   //查看安装的模块 </span><br><span class="line">	npm list  //可以查看全局路径下的所有包    eg:   npm list --global</span><br><span class="line">	          //也可以使用--depth=0来缩短返回的结果   eg:     npm list -g --depth=0</span><br><span class="line">	npm stop  //停止模块</span><br><span class="line">	npm restart  //重新启动模块</span><br><span class="line">	npm test //测试模块 </span><br><span class="line">	npm version //查看模块版本</span><br><span class="line">	npm publish //发布模块</span><br><span class="line"></span><br><span class="line">简写:</span><br><span class="line">	npm i – 安装包</span><br><span class="line">	npm i -g – 安装包到全局下</span><br><span class="line">	npm un – 删除本地下包</span><br><span class="line">	npm up – 更新包</span><br><span class="line">	npm t – 运行测试</span><br><span class="line">	npm ls – 罗列已经安装包</span><br><span class="line">	npm ll or npm la – 罗列包时显示额外信息</span><br><span class="line"></span><br><span class="line">    npm i express momemt lodash mongoose  webpack   //也可以一次安装多个包</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    yarn cache clean   //删除电脑上所有 yarn 安装的缓存</span><br><span class="line">    yarn   //命令安装项目相关依赖</span><br><span class="line">    yarn cache dir //获取缓存文件夹地址</span><br></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/vue文件的一个小细节/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1552,6 +2162,372 @@ console.log(stu instanceof Person); // true
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/20/promise的模拟实现/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/12/20/promise的模拟实现/" itemprop="url">promise的模拟实现</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-12-20T13:11:36+08:00">
+                2017-12-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1.概述"></a>1.概述</h1><h2 id="1-1-什么是promise"><a href="#1-1-什么是promise" class="headerlink" title="1.1 什么是promise"></a>1.1 什么是promise</h2><p><code>Promise</code> 对象是 <code>JavaScript</code> 的异步操作解决方案，为异步操作提供统一接口。它起到代理作用（proxy），充当异步操作与回调函数之间的中介，使得异步操作具备同步操作的接口。</p>
+<h2 id="1-2-promise解决的问题"><a href="#1-2-promise解决的问题" class="headerlink" title="1.2 promise解决的问题"></a>1.2 promise解决的问题</h2><h3 id="1-2-1-回调地狱"><a href="#1-2-1-回调地狱" class="headerlink" title="1.2.1 回调地狱"></a>1.2.1 回调地狱</h3><p><code>Promise</code> 可以让异步操作写起来，就像在写同步操作的流程，而不必一层层地嵌套回调函数。</p>
+<h3 id="1-2-2-并行结果"><a href="#1-2-2-并行结果" class="headerlink" title="1.2.2 并行结果"></a>1.2.2 并行结果</h3><p>如果几个异步操作之间并没有前后顺序之分,但需要等多个异步操作都完成后才能执行后续的任务，无法实现并行节约时间。</p>
+<h2 id="1-3-promise简介"><a href="#1-3-promise简介" class="headerlink" title="1.3 promise简介"></a>1.3 promise简介</h2><p>在 <code>ES6 Promises</code> 标准中定义的API还不是很多，目前大致有下面三种类型。</p>
+<h3 id="1-3-1-consturctor"><a href="#1-3-1-consturctor" class="headerlink" title="1.3.1 consturctor"></a>1.3.1 <strong>consturctor</strong></h3><p>首先，<code>Promise</code> 是一个对象，也是一个构造函数。</p>
+<pre><code>functionf1(resolve, reject) {
+  // 异步代码...
+}
+
+var promise = newPromise(f1);
+</code></pre><h3 id="1-3-2-Instance-Method"><a href="#1-3-2-Instance-Method" class="headerlink" title="1.3.2 Instance Method"></a>1.3.2 Instance Method</h3><p><code>Promise</code>对象通过自身的状态，来控制异步操作。Promise实例具有三种状态。</p>
+<ul>
+<li>异步操作未完成（pending）</li>
+<li>异步操作成功（fulfilled）</li>
+<li>异步操作失败（rejected）</li>
+</ul>
+<p>这三种的状态的变化途径只有两种。</p>
+<ul>
+<li>从“未完成”到“成功”</li>
+<li>从“未完成”到“失败”</li>
+</ul>
+<p>所以<code>Promise</code>的最终结果只有两个,</p>
+<ul>
+<li>异步操作成功，Promise实例传回一个值（value）,状态变为<code>fulfilled</code>。</li>
+<li><p>异步操作失败，Promise 实例抛出一个错误（error）,状态变为<code>rejected</code>。</p>
+<p>  promise.then(onFulfilled, onRejected)<br>  // resolve(成功)时,onFulfilled 会被调用// reject(失败)时,onRejected 会被调用</p>
+</li>
+</ul>
+<p><img src="https://user-gold-cdn.xitu.io/2018/3/5/161f55d1eecd52cb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
+<h3 id="1-3-3-Static-Method"><a href="#1-3-3-Static-Method" class="headerlink" title="1.3.3 Static Method"></a>1.3.3 Static Method</h3><p>像 <code>Promise</code>这样的全局对象还拥有一些静态方法。包括 <code>Promise.all()</code>还有<code>Promise.resolve()</code> 等在内，主要都是一些对<code>Promise</code>进行操作的辅助方法。</p>
+<h1 id="2-Promise的实现"><a href="#2-Promise的实现" class="headerlink" title="2.Promise的实现"></a>2.<code>Promise</code>的实现</h1><h2 id="2-1-resolve和reject"><a href="#2-1-resolve和reject" class="headerlink" title="2.1 resolve和reject"></a>2.1 resolve和reject</h2><p><code>resolve</code>和<code>reject</code>都是函数</p>
+<pre><code>//构造函数中functionPromise(executor) {
+    let self = this;
+
+    /*初始化status*/
+    self.status = &apos;pending&apos;;
+    /*初始化value*/
+    self.value = undefined;
+    /*订阅事件的数组*/
+    self.onResolvedCallBacks = [];
+    self.onRejectedCallBacks = [];
+
+    /*此函数将Promise实例的状态由pending 转化为 fulfilled*/functionresolve(value) {
+        if (value instanceofPromise) {
+            return value.then(resolve, reject);
+        }
+        setTimeout(function () {
+            if (self.status === &apos;pending&apos;) {
+                self.status = &apos;fulfilled&apos;;
+                self.value = value;
+                /*发布已经订阅过的事件*/
+                self.onResolvedCallBacks.forEach(item =&gt; item(self.value))
+            }
+        }, 0)
+    }
+    /*此函数将Promise实例的状态由pending 转化为 rejected*/functionreject(reason) {
+        setTimeout(function () {
+            if (self.status === &apos;pending&apos;) {
+                self.status = &apos;rejected&apos;;
+                self.value = reason;
+                /*发布已经订阅过的事件*/
+                self.onRejectedCallBacks.forEach(item =&gt; item(self.value))
+            }
+        }, 0)
+    }
+
+    // new Promise 的时候，执行器（executor）的代码会立即执行try {
+        executor(resolve, reject);
+    } catch (e) {
+        reject(e);
+    }
+
+}
+</code></pre><h2 id="2-2-then方法"><a href="#2-2-then方法" class="headerlink" title="2.2 then方法"></a>2.2 then方法</h2><p><code>promise</code>成功后，<code>onFullfilled</code>会被调用。并且把<code>promise</code>的值当做它的第一个参数。<code>promise</code>在成功之前，不会调用它，并且只能被调用一次。<code>reject</code>也一样。</p>
+<pre><code>// 先封装一个方法
+function resolvePromise(promise2,x,resolve,reject){
+//
+  if(promise2 === x){
+    return reject(new TypeError(&apos;循环引用&apos;));
+  }
+  // 为了防止resolve和reject同时调用
+  let called = false;//promise2是否已经resolve 或reject了
+  if(x instanceof Promise){
+    if(x.status == PENDING){
+      x.then(function(y){
+        resolvePromise(promise2,y,resolve,reject);
+      },reject);
+    }else{
+      x.then(resolve,reject);
+    }
+    //x是一个thenable对象或函数，只要有then方法的对象，
+  }elseif(x!= null &amp;&amp;((typeof x==&apos;object&apos;)||(typeof x == &apos;function&apos;))){
+    //当我们的promise和别的promise进行交互，编写这段代码的时候尽量的考虑兼容性，
+    //允许别人瞎写，x可以是对象，也可以是函数
+    try{
+      letthen = x.then;
+      if(typeof then == &apos;function&apos;){
+        //有些promise会同时执行成功和失败的回调
+        then.call(x,function(y){
+          //如果promise2已经成功或失败了，则不会再处理了
+          if(called)return;
+          called = true;
+          resolvePromise(promise2,y,resolve,reject)
+        },function(err){
+          if(called)return;
+          called = true;
+          reject(err);
+        });
+      }else{
+        //到此的话x不是一个thenable对象，那直接把它当成值resolve promise2就可以了
+        // 当返回一个对象 {name:&apos;a&apos;,then:{age:8}},对象里的then不是thenable对象
+        resolve(x);
+      }
+    }catch(e){
+      if(called)return;
+      called = true;
+      reject(e);
+    }
+
+  }else{
+    //如果X是一个普通 的值，则用x的值去resolve promise2
+    resolve(x);
+  }
+}
+
+Promise.prototype.then = function(onFulfilled,onRejected){
+  //如果成功和失败的回调没有传，则表示这个then没有任何逻辑，只会把值往后抛,叫做值的穿透
+  // 例如：promise.then().then().then(function(data){},function(err){})
+
+  onFulfilled = typeof onFulfilled == &apos;function&apos;?onFulfilled:function(value){return  value};
+  onRejected = typeof onRejected == &apos;function&apos;?onRejected:reason=&gt;{throw reason};
+  //如果当前promise状态已经是成功态了，onFulfilled直接取值
+  let self = this;
+  let promise2;
+  if(self.status == FULFILLED){
+    return promise2 = new Promise(function(resolve,reject){
+      setTimeout(function(){
+        try{
+          let x =onFulfilled(self.value);
+          //如果获取到了返回值x,会走解析promise的过程
+          resolvePromise(promise2,x,resolve,reject);
+        }catch(e){
+          //如果执行成功的回调过程中出错了，用错误原因把promise2 reject
+          reject(e);
+        }
+      })
+
+    });
+  }
+  if(self.status == REJECTED){
+    return promise2 = new Promise(function(resolve,reject){
+      setTimeout(function(){
+        try{
+          let x =onRejected(self.value);
+          resolvePromise(promise2,x,resolve,reject);
+        }catch(e){
+          reject(e);
+        }
+      })
+    });
+  }
+  if(self.status == PENDING){
+    return promise2 = new Promise(function(resolve,reject){
+      self.onResolvedCallbacks.push(function(){
+        try{
+          let x =onFulfilled(self.value);
+          //如果获取到了返回值x,会走解析promise的过程
+          resolvePromise(promise2,x,resolve,reject);
+        }catch(e){
+          reject(e);
+        }
+
+      });
+      self.onRejectedCallbacks.push(function(){
+        try{
+          let x =onRejected(self.value);
+          resolvePromise(promise2,x,resolve,reject);
+        }catch(e){
+          reject(e);
+        }
+      });
+    });
+  }
+
+}
+</code></pre><h2 id="2-2-catch方法"><a href="#2-2-catch方法" class="headerlink" title="2.2 catch方法"></a>2.2 catch方法</h2><pre><code>Promise.prototype.catch=function (callback) {
+  returnthis.then(null,callback);
+}
+---------使用-------
+let promise = newPromise(function (resolve, reject) {
+  reject(&apos;错误&apos;);
+})
+promise.then(function(data){console.log(data)}).catch(e=&gt;{console.log(e)});
+</code></pre><h2 id="2-3-all-方法"><a href="#2-3-all-方法" class="headerlink" title="2.3 all 方法"></a>2.3 all 方法</h2><pre><code>Promise.all = function (promises) {
+  returnnewPromise(function (resolve,reject) {
+    let arr =[];//arr是最终返回值的结果的集合。let j =0;
+    functionprocessData(i,data){// 每调用一次此函数，j就会+1；
+      arr[i] = data;// 每次成功的结果都放入数组中if(++j===promises.length){
+        resolve(arr); //只有promises中的最后一个成功，才能调用resolve方法。
+      }
+    }
+    for(let i=0;i&lt;promises.length;i++){
+      promises[i].then(function (data) {
+          processData(i,data);
+      },reject)// 如果有一个失败，整体就会失败
+    }
+  })
+}
+</code></pre><p>使用方法：</p>
+<pre><code>functionread(file) {
+  returnnew Promise1(function (resolve, reject) {
+    require(&apos;fs&apos;).readFile(file,&apos;utf8&apos;,function (err, data) {
+      resolve(data);
+    })
+  })
+}
+
+Promise1.all([read(&apos;./1.txt&apos;),read(&apos;./2.txt&apos;)]).then(function (data) {
+  console.log(data)
+})
+// [&apos;file1&apos;,&apos;file2&apos;]
+</code></pre><h2 id="2-4-race-方法"><a href="#2-4-race-方法" class="headerlink" title="2.4 race 方法"></a>2.4 race 方法</h2><p>只要有一个promise成功，就会执行成功的回调，参数是由promise组成的数组</p>
+<pre><code>Promise.race=function (promises) {
+  return new Promise(function (resolve, reject) {
+    for(let i=0;i&lt;promises.length;i++){
+      promises[i].then(resolve,reject);
+    }
+  })
+}
+</code></pre><h2 id="2-5-resolve方法"><a href="#2-5-resolve方法" class="headerlink" title="2.5 resolve方法"></a>2.5 resolve方法</h2><pre><code>Promise.resolve = function (value) {
+  return new Promise(function (resolve, reject) {
+    resolve(value)
+  })
+}
+</code></pre><h2 id="2-6-reject-方法"><a href="#2-6-reject-方法" class="headerlink" title="2.6 reject 方法"></a>2.6 reject 方法</h2><pre><code>Promise.reject = function (reason) {
+  return new Promise(function (resolve, reject) {
+    reject(reason);
+  })
+}
+</code></pre><h1 id="3-Promise对象的缺点："><a href="#3-Promise对象的缺点：" class="headerlink" title="3.Promise对象的缺点："></a>3.<code>Promise</code>对象的缺点：</h1><ul>
+<li><p>1、无法取消<code>Promise</code>，一旦新建它就会立即执行，无法中途取消。</p>
+</li>
+<li><p>2、如果不设置回调函数，<code>Promise</code>内部抛出的错误，不会反应到外部。</p>
+</li>
+<li><p>3、当处于<code>Pending</code>状态时，无法得知目前进展到哪一个阶段（刚刚开始还是即将完成）。</p>
+</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/11/call和apply的第一个参数是null-undefined时函数内的的this指向window或global/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2506,1389 +3482,6 @@ text-justify:inter-ideograph;
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/11/Git-必知必会/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/09/11/Git-必知必会/" itemprop="url">Git 必知必会</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-11T22:32:36+08:00">
-                2017-09-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Git是目前世界上最先进的分布式版本控制系统。</p>
-<p>参考文章：</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a54386af265da3e3b7a6317" target="_blank" rel="noopener">如何优雅地使用 Git - 掘金</a></p>
-<h2 id="GIT-常见命令学习整理"><a href="#GIT-常见命令学习整理" class="headerlink" title="GIT 常见命令学习整理"></a><a href="https://link.zhihu.com/?target=https%3A//blog.ihoey.com/posts/Git/2017-04-23-git.html" target="_blank" rel="noopener">GIT 常见命令学习整理</a></h2><h2 id="GIT常用命令备忘"><a href="#GIT常用命令备忘" class="headerlink" title="GIT常用命令备忘"></a><a href="https://link.zhihu.com/?target=http%3A//stormzhang.com/git/2014/01/27/git-common-command/" target="_blank" rel="noopener">GIT常用命令备忘</a></h2><h2 id="Git远程操作详解"><a href="#Git远程操作详解" class="headerlink" title="Git远程操作详解"></a><a href="https://link.zhihu.com/?target=https%3A//microzz.com/2017/05/06/git/" target="_blank" rel="noopener">Git远程操作详解</a></h2><h2 id="一篇文章，教你学会Git"><a href="#一篇文章，教你学会Git" class="headerlink" title="一篇文章，教你学会Git"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/599e14875188251240632702" target="_blank" rel="noopener">一篇文章，教你学会Git</a></h2><h2 id="如何在-Git-中使用撤消操作"><a href="#如何在-Git-中使用撤消操作" class="headerlink" title="如何在 Git 中使用撤消操作"></a><a href="https://link.zhihu.com/?target=https%3A//egoist.moe/2015/10/04/how-to-undo-with-git/" target="_blank" rel="noopener">如何在 Git 中使用撤消操作</a></h2><h2 id="git使用中碰到的问题，持续更新"><a href="#git使用中碰到的问题，持续更新" class="headerlink" title="git使用中碰到的问题，持续更新"></a><a href="https://link.zhihu.com/?target=http%3A//blog.csdn.net/a420344/article/details/51792303" target="_blank" rel="noopener">git使用中碰到的问题，持续更新</a></h2><h2 id="Git-的-4-个阶段的撤销更改"><a href="#Git-的-4-个阶段的撤销更改" class="headerlink" title="Git 的 4 个阶段的撤销更改"></a><a href="https://link.zhihu.com/?target=http%3A//mp.weixin.qq.com/s/akvB2DO_1dpUrf-ol77MwQ" target="_blank" rel="noopener">Git 的 4 个阶段的撤销更改</a></h2><p><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a30c1786fb9a045211eb218" target="_blank" rel="noopener">Git提交历史的修改删除合并 - 掘金</a></p>
-<h2 id="IDEA中分支切换error-The-following-untracked-working-tree-files-would-be-overwritten-by-checkout"><a href="#IDEA中分支切换error-The-following-untracked-working-tree-files-would-be-overwritten-by-checkout" class="headerlink" title="IDEA中分支切换error: The following untracked working tree files would be overwritten by checkout"></a><a href="https://link.zhihu.com/?target=http%3A//blog.csdn.net/tongxinxiao/article/details/43988773" target="_blank" rel="noopener">IDEA中分支切换error: The following untracked working tree files would be overwritten by checkout</a></h2><pre><code>直接执行git clean -d -fx即可。
-
-可能很多人都不明白-d，-fx到底是啥意思，
-其实git clean -d -fx表示：删除 一些 没有 git add 的 文件；
-    git clean 参数 
-
-    -n 显示将要删除的文件和目录；
-
-    -x -----删除忽略文件已经对git来说不识别的文件
-
-    -d -----删除未被添加到git的路径中的文件
-
-    -f -----强制运行
-
-    git clean -n
-
-    git clean -df
-
-    git clean -f
-</code></pre><p><img src="https://pic3.zhimg.com/v2-81f3b33c3cb53387c97135459b92ab3f_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-81f3b33c3cb53387c97135459b92ab3f_hd.jpg" alt=""></p>
-<pre><code>git reflog        //该指令输出详细的操作历史，包括提交，操作，修改等
-修改注释
-git commit --amend 或 git commit --amend -m &quot;Fixes bug #42&quot;
-
-gitk 字符集编码：
-git config --global gui.encoding utf-8    //在git GUI中使用UTF-8编码 
-
-配置
-git config --global user.name &quot;ihoey&quot;           # 设置git用户名
-git config --global user.email &quot;mail@ihoey.com&quot; # 设置git邮箱
-git config --global color.ui true               # 为true是终端着色
-
-git config --global alias.co checkout           # 配置checkout的别名
-git config --global alias.ci commit             # 配置commit的别名
-git config --global alias.cm commit             # 配置commit的别名
-git config --global alias.st status             # 配置status的别名
-git config --global alias.br branch             # 配置branch的别名
-git config --global alias.cp cherry-pick        # 配置cherry-pick的别名
- git config --global alias.rb rebase            # 配置rebase的别名
-
-git config --global core.editor &quot;mate -w&quot;       # 设置Editor使用textmate
-git config -l                                   # 列举所有配置
-#用户的git配置文件~/.gitconfig
-
-SSH 秘钥
-ssh-keygen -t rsa -C &quot;mail@ihoey.com&quot;
-# 连续3个回车。如果不需要密码的话。
-# 最后得到了两个文件：id_rsa和id_rsa.pub，在~/.ssh/文件夹下面
-# id_rsa为你的私钥，不可以告诉别人
-# id_rsa.pub为你的公钥，一般会放在你的服务器做ssh登录，或者放在github上面
-
-基本命令
-创建git仓库 git init
-添加文件到暂存区 git add fileName / git add .
-提交文件到仓库 git commit -m &quot;版本提交信息&quot;
-查看文件提交状态 git status
-查看文件修改的信息 git diff readme.txt
-
-git help &lt;command&gt;          # 显示command的help
-git show                    # 显示某次提交的内容
-git show $id
-git checkout  -- &lt;file&gt;     # 抛弃工作区修改
-git checkout  .             # 抛弃工作区修改
-git add &lt;file&gt;              # 将工作文件修改提交到本地暂存区
-git add .                   # 将所有修改过的工作文件提交暂存区
-git rm &lt;file&gt;               # 从版本库中删除文件
-git rm &lt;file&gt; --cached      # 从版本库中删除文件，但不删除文件
-git reset &lt;file&gt;            # 从暂存区恢复到工作文件
-git reset -- .              # 从暂存区恢复到工作文件
-git reset --hard            # 恢复最近一次提交过的状态，即放弃上次提交后的所有本次修改
-git reset SHA1 ID           # 恢复指定提交
-git commit -m &quot;some comments&quot;
-git revert &lt;$id&gt;            # 恢复某次提交的状态，恢复动作本身也创建了一次提交对象
-git revert HEAD             # 恢复最后一次提交的状态
-
-查看文件
-git diff &lt;file&gt;                 # 比较当前文件和暂存区文件差异
-git diff
-git diff &lt;$id1&gt; &lt;$id2&gt;          # 比较两次提交之间的差异
-git diff &lt;branch1&gt;..&lt;branch2&gt;   # 在两个分支之间比较
-git diff --staged               # 比较暂存区和版本库差异
-git diff --cached               # 比较暂存区和版本库差异
-git diff --stat                 # 仅仅比较统计信息
-
-查看提交记录
-git log
-git log &lt;file&gt;      # 查看该文件每次提交记录
-git log -p &lt;file&gt;   # 查看每次详细修改内容的diff
-git log -p -2       # 查看最近两次详细修改内容的diff
-git log --stat      # 查看提交统计信息
-
-分支管理
-git branch -l                           # 查看本地分支
-git branch -r                           # 查看远程分支
-git branch &lt;new_branch&gt;                 # 创建新的分支
-git branch -v                           # 查看各个分支最后提交信息
-git branch --merged                     # 查看已经被合并到当前分支的分支
-git branch --no-merged                  # 查看尚未被合并到当前分支的分支
-git checkout &lt;branch&gt;                   # 切换到某个分支
-git checkout -b &lt;new_branch&gt;            # 创建新的分支，并且切换过去
-git checkout -b &lt;new_branch&gt; &lt;branch&gt;   # 基于branch创建新的new_branch
-git checkout $id       # 把某次历史提交记录checkout出来，但无分支信息，切换到其他分支会自动删除
-git checkout $id -b &lt;new_branch&gt;        # 把某次历史提交记录checkout出来，创建成一个分支
-git branch -d &lt;branch&gt;                  # 删除某个分支
-git branch -D &lt;branch&gt;    # 强制删除某个分支 (未被合并的分支被删除的时候需要强制)
-
-强行切换分支
-git checkout -f branch_name
-
-强制checkout分支覆盖本地文件
-git checkout -f branchname
-
-分支合并和rebase
-git merge &lt;branch&gt;               # 将branch分支合并到当前分支
-git merge --no-ff &lt;branch&gt;       # 不要Fast-Foward合并，这样可以生成merge提交
-git rebase master &lt;branch&gt;       # 将master rebase到branch，相当于：
-git checkout &lt;branch&gt; &amp;&amp; git rebase master &amp;&amp; git checkout master &amp;&amp; git merge &lt;branch&gt;
-</code></pre><ul>
-<li>在我们操作过程中。merge操作遇到冲突的时候，当前merge不能继续进行下去。手动修改冲突内容后，add 修改，commit 就可以了。</li>
-<li><p>而rebase 操作的话，会中断rebase,同时会提示去解决冲突。解决冲突后,将修改add后执行git rebase –continue继续操作，或者git rebase –skip忽略冲突。</p>
-<p>  Git暂存管理<br>  git stash                        # 暂存<br>  git stash pop                    # 恢复暂存<br>  git stash list                   # 列所有stash<br>  git stash apply                  # 恢复暂存的内容<br>  git stash drop                   # 删除暂存区</p>
-<p>  git stash(gsta)：将所有暂存区的文件移动到“储藏区”，类似于另一种类型的工作区<br>  git stash list：查看储藏队列(Stash lists)<br>  git stash apply：将最近一次储藏恢复到暂存区(可以用类似 git stash apply stash@{num}(num从0开始计数) 的命令来使用在队列中的任意一个储藏(stashes))<br>  git stash clear：清空储藏队列<br>  git stash save “name of the stash”：为储藏设置命名<br>  git stash pop(gstp)：将最近一次储藏恢复到暂存区并从储藏队列删除此储藏<br>  git stash drop(gstd)：从储藏队列删除最近一次储藏(stash@{0})(git stash drop stash@{num} 从储藏队列删除指定储藏)</p>
-<p>  远程分支管理<br>  git pull                         # 抓取远程仓库所有分支更新并合并到本地<br>  git pull –no-ff                 # 抓取远程仓库所有分支更新并合并到本地，不要快进合并<br>  git fetch origin                 # 抓取远程仓库更新<br>  git merge origin/master          # 将远程主分支合并到本地当前分支<br>  git checkout –track origin/branch     # 跟踪某个远程分支创建相应的本地分支<br>  git checkout -b &lt;local_branch&gt; origin/&lt;remote_branch&gt;  # 基于远程分支创建本地分支，功能同上<br>  git push                         # push所有分支<br>  git push origin master           # 将本地主分支推到远程主分支<br>  git push -u origin master        # 将本地主分支推到远程(如无远程主分支则创建，用于初始化远程仓库)<br>  git push origin &lt;local_branch&gt;   # 创建远程分支， origin是远程仓库名<br>  git push origin &lt;local_branch&gt;:&lt;remote_branch&gt;  # 创建远程分支<br>  git push origin :&lt;remote_branch&gt; #先删除本地分支(git br -d <branch>)，然后再push删除远程分支</branch></p>
-<p>  git删除远程分支<br>  git push origin ：branch-name //origin前面必须有空格，表示push一个空分支到远程分支，即可删除远程分支。注意：这个操作需要拥有force push的权限</p>
-<p>  清空git暂存区<br>  git reset HEAD  //可以清空之前git add 的内容</p>
-<p>  Git远程仓库管理<br>  git remote -v                    # 查看远程服务器地址和仓库名称<br>  git remote show origin           # 查看远程服务器仓库状态<br>  git remote add origin <a href="mailto:git@github.com" target="_blank" rel="noopener">git@github.com</a>:ihoey/blog.git     # 添加远程仓库地址<br>  git remote set-url origin <a href="mailto:git@github.com" target="_blank" rel="noopener">git@github.com</a>:ihoey/blog.git # 设置远程仓库地址(用于修改远程仓库地址)<br>  git remote rm <repository>       # 删除远程仓库</repository></p>
-<p>  创建远程仓库<br>  git clone –bare ihoey.com blog.git     # 用带版本的项目创建纯版本仓库<br>  scp -r my_blog.git <a href="mailto:git@ihoey.com" target="_blank" rel="noopener">git@ihoey.com</a>:~      # 将纯仓库上传到服务器上<br>  mkdir blog.git &amp;&amp; cd blog.git &amp;&amp; git –bare init # 在服务器创建纯仓库<br>  git push -u origin master         # 客户端首次提交<br>  git push -u origin develop        # 首次将本地develop分支提交到远程develop分支，并且track<br>  git remote set-head origin master # 设置远程仓库的HEAD指向master分支</p>
-<p>  设置跟踪远程库和本地库<br>  git branch –set-upstream master origin/master      #master<br>  git branch –set-upstream develop origin/develop    #develop</p>
-<p>  其他命令<br>  mkdir XX    #(创建一个空目录 XX指目录名)<br>  pwd         #显示当前目录的路径。<br>  cat XX      #查看XX文件内容<br>  rm  XX      #删除文件</p>
-</li>
-</ul>
-<p>命令别名设置:</p>
-<pre><code>gitk --all &amp;   //打开git 图形化界面
-git fetch --all  //刷新工作区    
-git remote -v  //查看远端地址
-git checkout -b dbg_master  -t origin/master   //基于远端master分支创建dbg_master分支
-git merge --squash &lt;branch&gt;：将多次提交合并成一个，然后git add .;git commit -m &quot;XXXXX&quot;;git push origin XXXX...
-
-git push                         # push所有分支
-git push origin master           # 将本地主分支推到远程主分支
-git push -u origin master        # 将本地主分支推到远程(如无远程主分支则创建，用于初始化远程仓库)
-git push origin &lt;local_branch&gt;   # 创建远程分支， origin是远程仓库名
-git push origin local-branch     #将当前local-branch 分支推送一个远程local-branch分支，本地分支和远程分支同名
-git push origin &lt;local_branch&gt;:&lt;remote_branch&gt;  # 创建远程分支，将local_branch代码推送到remote_branch分支
-git push origin :&lt;remote_branch&gt;  #先删除本地分支(git br -d &lt;branch&gt;)，然后再push删除远程分支
-
- 对最近一次commit的进行修改：git commit -a –amend
-
- Git pull 强制覆盖本地文件
-  git fetch --all  
-  git reset --hard origin/master 
-  git pull
-
-git remote add origin https://git.oschina.net/duandaoke/os.git要求服务已经建立同名仓库
-git remote # 显示远程仓库
-git remote -v # 显示远程仓库详情
-git remote show origin # 显示 origin 远程库的详情
-
-
-
-rebase的冲突解决
-
-   解决完一个补丁应用的冲突后，执行下面命令标记冲突已解决（也就是把修改内容加入缓存） 
-      git add -u   //注：-u 表示把所有已track的文件的新的修改加入缓存，但不加入新的文件。
-   然后执行下面命令继续rebase：
-      git rebase --continue     //有冲突继续解决，重复这这些步骤，直到rebase完成。
-   如果中间遇到某个补丁不需要应用，可以用下面命令忽略：
-      git rebase --skip 
-   如果想回到rebase执行之前的状态，可以执行：
-      git rebase --abort    //放弃rebase  
-   注：rebase之后，不需要执行commit，也不存在新的修改需要提交，都是git自动完成。
-
-
-
-cherry-pick的冲突解决
-
-   解决完一个补丁应用的冲突后，执行下面命令标记冲突已解决（也就是把修改内容加入缓存） 
-      git add -u   //注：-u 表示把所有已track的文件的新的修改加入缓存，但不加入新的文件。
-   然后执行下面命令继续rebase：
-      git cherry-pick --continue     //有冲突继续解决，重复这这些步骤，直到cherry-pick完成。
-   如果中间遇到某个补丁不需要应用，可以用下面命令忽略：
-      git cherry-pick --skip 
-   如果想回到rebase执行之前的状态，可以执行：
-      git cherry-pick  --abort    //放弃cherry-pick
-   注：cherry-pick之后，不需要执行commit，也不存在新的修改需要提交，都是git自动完成。
-
-
-       手动编辑冲突的文件，使其内容和master_mlc分支上的内容一致， 
-       然后git add此文件，最后执行git cherry-pick –continue即可。 
-
-
-1、git删除远程分支
-git push origin ：branch-name //origin前面必须有空格，表示push一个空分支到远程分支，即可删除远程分支。注意：这个操作需要拥有force push的权限
-2、清空git暂存区
-git reset HEAD  //可以清空之前git add 的内容
-
-
-git clean命令用来从你的工作目录中删除所有没有tracked过的文件.
-    git clean经常和git reset --hard一起结合使用. 记住reset只影响被track过的文件, 所以需要clean来删除没有track过的文件. 结合使用这两个命令能让你的工作目录完全回到一个指定的&lt;commit&gt;的状态.
-用法
-
-
-删除当前目录下没有被track过的文件和文件夹.
-    git clean -xf
-
-
-下面的例子要删除所有工作目录下面的修改, 包括新添加的文件. 假设你已经提交了一些快照了, 而且做了一些新的开发.
-git reset --hard
-git clean -df
-运行后, 工作目录和缓存区回到最近一次commit时候一摸一样的状态, git status会告诉你这是一个干净的工作目录, 又是一个新的开始了.
-
-
-git config --global gui.encoding utf-8    //在git GUI中使用UTF-8编码     
-//git 回滚到之前某一commit
-git reset –hard 8ff24a6803173208f3e606e32dfcf82db9ac84d8
-
-
-在使用Git的时候,经过几次提交后,发现需要回退到早些时候的状态.例如: 
-7edb8524a xxxxxxxxxxxxxxxxxx 
-83dae5691 xxxxxxxxxxxxxxxxxx 
-45eadd642 xxxxxxxxxxxxxxxxxx 
-657834ade xxxxxxxxxxxxxxxxxx
-假设现在处于7edb8524a 状态,现在我想回退到657834ade时的状态,此时可以 
-git reset –hard 7edb8524a 
-然后 
-git reset –soft 657834ade 
-会将之间的修改全部进行revert,然后在进行add commit操作就行了.
-另外权限足够的话,可以从657834ade 拉一个分支出来,然后将远程分支 
-删除,再将拉出来的分支push到远程仓库上,成为原来的分支,也可以实现回退到 
-657834ade 的目的.此方法不会保留中间的各种修改信息和状态.
-
-
-根据–soft –mixed –hard，会对working tree和index和HEAD进行重置:
-    git reset –mixed：此为默认方式，不带任何参数的git reset，即时这种方式，它回退到某个版本，只保留源码，回退commit和index信息
-    git reset –soft：回退到某个版本，只回退了commit的信息，不会恢复到index file一级。如果还要提交，直接commit即可
-    git reset –hard：彻底回退到某个版本，本地的源码也会变为上一个版本的内容
-
-已经push
-对于已经把代码push到线上仓库,你回退本地代码其实也想同时回退线上代码,回滚到某个指定的版本,线上,线下代码保持一致.你要用到下面的命令
-
-revert
-git revert用于反转提交,执行evert命令时要求工作树必须是干净的.
-git revert用一个新提交来消除一个历史提交所做的任何修改.
-revert 之后你的本地代码会回滚到指定的历史版本,这时你再 git push 既可以把线上的代码更新.(这里不会像reset造成冲突的问题)
-
-revert 使用,需要先找到你想回滚版本唯一的commit标识代码,可以用 git log 或者在adgit搭建的web环境历史提交记录里查看.
-git revert c011eb3c20ba6fb38cc94fe5a8dda366a3990c61
-通常,前几位即可
-git revert c011eb3
-
-git revert是用一次新的commit来回滚之前的commit，git reset是直接删除指定的commit
-看似达到的效果是一样的,其实完全不同.
-</code></pre><p>合理的命令别名设置可以大大减少输入，有助于提高工作效率，建议遵守下述别名设置：</p>
-<pre><code>git config --global alias.ci commit
-git config --global alias.co checkout
-git config --global alias.st status
-git config --global alias.rb rebase
-git config --global alias.ll “log --oneline --decorate --color”
-git config --global alias.lc “log --graph --color”          
-</code></pre><p>正确的回车换行设置，避免 Unix 和 Windows 下开发的回车换行的转换问题。</p>
-<pre><code>(Windows  下)
-git config --global core.autocrlf true
-git config --global core. safecrlf warn
-
-(Linux  下)
-git config --global core.autocrlf input
-git config --global core. safecrlf warn
-</code></pre><p>基本命令</p>
-<pre><code>git config --global user.name &quot;Your Name&quot;
-git config --global user.email &quot;youremail@example.com&quot;
-git config --global core.editor &lt;your favorite editor here&gt;
-Ex: git config --global core.editor vim
-
-git init：初始化一个repo，初始化本地git仓库（创建新仓库）
-</code></pre><p>Commit 结构</p>
-<pre><code>git status(gst)：查看 repo 状态
-工作区：
-.git 目录
-暂存区
-工作目录
-</code></pre><p><img src="https://pic4.zhimg.com/v2-44aed332eb50ca594deeca86186012a8_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-44aed332eb50ca594deeca86186012a8_hd.jpg" alt=""></p>
-<pre><code>git add &lt;filename&gt;(ga)：添加一个文件到暂存区
-git add .(gaa)：添加所有文件到暂存区
-git add *.js：添加所有后缀为js的文件到暂存区
-git rm --cached &lt;file&gt;：从暂存区删除一个新文件
-git commit -m &quot;My first commit&quot;(gcmsg)：创建一次带 message 的提交
-git commit -v -a(gca)：
--v是 verbose 的缩写，会在底部显示差异信息和更多有意义的信息
--a 类似于 git add .，会添加所有被修改和删除的文件，但会忽略新创建的文件
-
-git help &lt;command&gt;：查看对应命令的帮助手册
-git log(glg,glgg,glo, glog)：查看项目的提交历史
-</code></pre><p>暂存区管理</p>
-<pre><code>git reset HEAD &lt;filename&gt;(grh)：从暂存区删除一个被修改的文件
-git reset HEAD(grh)：从暂存区删除所有被修改的文件
-git checkout &lt;filename&gt;(gco)：从暂存区删除一个被修改的文件，并撤销文件的更改     //  git checkout .
-git commit -m &quot;My first commit&quot; --amend：添加文件/更改在暂存区的最后一次提交
-git commit -v -a --amend(gca!)：添加文件/更改在暂存区的最后一次提交
-.gitignore：告诉git，哪些文件不被加入版本跟踪
-可以使用 git add &lt;filename&gt; -f 命令添加一个不被版本跟踪的文件
-
-
-git diff &lt;filename&gt;(gd)：查看基于当前文件的最后一次提交的更改差异
-git diff (gd)：查看基于所有文件的最后一次提交的更改差异
-git reset HEAD~2 --soft：从项目提交历史中删除最近两次提交，但不丢弃文件的更改
-git reset HEAD~2 --hard：从项目提交历史中删除最近两次提交，但会丢弃文件的更改和在(最后两次)提交中创建的新文件
-git reset &lt;commit&gt; --soft --hard：
---soft：将所有被更改的文件回溯到“待提交”状态
---hard：commit 之后，对被git追踪的文件的任何更改都被丢弃
-
-
-git reflog：显示包括&quot;被撤销&quot;在内的所有提交
-git merge &lt;commit hash&gt;：重新提交(restore the commit)
-git clean -f：删除工作目录中不被git进行版本追踪的文件
-</code></pre><p>Stashed &amp; BranchesStash</p>
-<pre><code>git stash(gsta)：将所有暂存区的文件移动到“储藏区”，类似于另一种类型的工作区
-git stash list：查看储藏队列(Stash lists)
-git stash apply：将最近一次储藏恢复到暂存区(可以用类似 git stash apply stash@{num}(num从0开始计数) 的命令来使用在队列中的任意一个储藏(stashes))
-git stash clear：清空储藏队列
-git stash save &quot;name of the stash&quot;：为储藏设置命名
-git stash pop(gstp)：将最近一次储藏恢复到暂存区并从储藏队列删除此储藏
-git stash drop(gstd)：从储藏队列删除最近一次储藏(stash@{0})(git stash drop stash@{num} 从储藏队列删除指定储藏)
-</code></pre><p>Branch</p>
-<pre><code>git checkout -b dev(gco)：创建 dev 分支并从当前分支切换到 dev 分支      //  git checkout -b dbg_master  -t origin/master   //基于master分支创建dbg_master分支
-git branch(gb)：查看所有分支
-git checkout master(gcm)：切换到主分支
-git merge &lt;branch&gt;(gm)：合并分支
-git rebase master：先将 master 上的更改合并到当前分支，再添加当前分支的更改。如果有冲突，解决冲突后加 --continue 参数继续合并
-git branch -d &lt;branch&gt;： 删除分支，-D 则强制删除分支
-git merge &lt;branch&gt; --squash：将多次提交合并成一个，其流程如下：
-
-
-
-# Go to the `master` branch
-git checkout master
-# Create a temp branch
-git checkout -b temp
-# Merge the feature/x branch into the temp using --squash
-git merge feature/x --squash
-# See the new modifications/files in the Staging Area
-git status
-# Create the unified commit
-git commit -m &quot;Add feature/x&quot;
-# Delete the feature/x branch
-git branch -D feature/x
-</code></pre><ul>
-<li><p>rebase 和 merge 的区别：</p>
-<p>  rebase:<br>  提交历史(的展示)是线性的<br>  缺点：会删除最近一个 commit，然后创建一次新的 commit<br>  如果已提交到远程，不要使用 rebase</p>
-<p>  merge:<br>  提交历史(的展示)是分叉的<br>  对于两个分支的合并，会创建一个次新的 commit</p>
-</li>
-</ul>
-<p>远程仓库管理</p>
-<pre><code>git remote add &lt;name&gt; &lt;url&gt;：添加一个将被追踪的远程仓库
-git remote rm &lt;name&gt;：移除一个远程仓库
-git push &lt;remote&gt; &lt;remote-branch&gt;(gp,ggp)：将当前分支的本地 commit 推送到远程仓库
-git fetch &lt;remote&gt; &lt;remote-branch&gt;：拉取远程仓库的最新 commit 到当前(本地)分支(&lt;remote&gt;/&lt;branch&gt;)，不会合并
-git pull &lt;remote&gt; &lt;remote-branch&gt;(gl,ggl)：拉取远程仓库的最新 commit 到当前(本地)分支，并自动 merge
-git pull --rebase(gup)：以 rebase 的方式进行合并，而不是 merge
-</code></pre><p>其它有用的命令</p>
-<pre><code>git tag &lt;name&gt;：创建一个 tag(如：v1.3)
-git push --tags：将本地 tags 推送到远程仓库
-git push &lt;tag&gt;：推送指定的本地 tag 到远程
-
-
-展示帮助信息
-git help -g
-
-回到远程仓库的状态
-抛弃本地所有的修改，回到远程仓库的状态。
-git fetch --all &amp;&amp; git reset --hard origin/master
-
-重设第一个commit
-也就是把所有的改动都重新放回工作区，并清空所有的commit，这样就可以重新提交第一个commit了
-git update-ref -d HEAD
-
-展示工作区和暂存区的不同
-输出工作区和暂存区的different(不同)。
-git diff
-
-还可以展示本地仓库中任意两个commit之间的文件变动：
-git diff &lt;commit-id&gt; &lt;commit-id&gt;
-
-展示暂存区和最近版本的不同
-输出暂存区和本地最近的版本(commit)的different(不同)。
-git diff --cached
-
-展示暂存区、工作区和最近版本的不同
-输出工作区、暂存区 和本地最近的版本(commit)的different(不同)。
-git diff HEAD
-
-快速切换分支
-git checkout -
-
-删除已经合并到master的分支
-git branch --merged master | grep -v &apos;^\*\|  master&apos; | xargs -n 1 git branch -d
-
-展示本地分支关联远程仓库的情况
-git branch -vv
-
-关联远程分支
-关联之后，git branch -vv就可以展示关联的远程分支名了，同时推送到远程仓库直接：git push，不需要指定远程仓库了。
-git branch -u origin/mybranch
-
-或者在push时加上-u参数
-git push origin/mybranch -u
-
-列出所有本地分支
--l参数相当于：local
-git branch -l
-
-列出所有远程分支
--r参数相当于：remote
-git branch -r
-
-列出本地和远程分支
--a参数相当于：all
-git branch -a
-
-创建并切换到本地分支
-git checkout -b &lt;branch-name&gt;
-
-创建并切换到远程分支
-git checkout -b &lt;branch-name&gt; -t origin/&lt;branch-name&gt;
-
-删除本地分支
-git branch -d &lt;local-branchname&gt;
-
-删除远程分支
-git push origin --delete &lt;remote-branchname&gt;
-或者
-git push origin :&lt;remote-branchname&gt;
-
-重命名本地分支
-git branch -m &lt;new-branch-name&gt;
-git branch -m &lt;oldbranchname&gt; &lt;newbranchname&gt;：尝试修改
-git branch -M &lt;oldbranchname&gt; &lt;newbranchname&gt;：强制修改
-
-查看标签
-git tag
-
-展示当前分支的最近的tag
-git describe --tags --abbrev=0
-
-本地创建标签
-git tag &lt;version-number&gt;
-
-默认tag是打在最近的一次commit上，如果需要指定commit打tag：
-$ git tag -a &lt;version-number&gt; -m &quot;v1.0 发布(描述)&quot; &lt;commit-id&gt;
-
-推送标签到远程仓库
-首先要保证本地创建好了标签才可以推送标签到远程仓库：
-git push origin &lt;local-version-number&gt;
-
-一次性推送所有标签，同步到远程仓库：
-git push origin --tags
-
-删除本地标签
-git tag -d &lt;tag-name&gt;
-
-删除远程标签
-删除远程标签需要先删除本地标签，再执行下面的命令：
-git push origin :refs/tags/&lt;tag-name&gt;
-
-切回到某个标签
-一般上线之前都会打tag，就是为了防止上线后出现问题，方便快速回退到上一版本。下面的命令是回到某一标签下的状态：
-git checkout -b branch_name tag_name
-
-放弃工作区的修改
-git checkout &lt;file-name&gt;
-
-放弃所有修改：
-git checkout .
-
-恢复删除的文件
-git rev-list -n 1 HEAD -- &lt;file_path&gt; #得到 deleting_commit
-git checkout &lt;deleting_commit&gt;^ -- &lt;file_path&gt; #回到删除文件 deleting_commit 之前的状态
-
-回到某一个commit的状态，并重新增添一个commit  //回退，有记录
-git revert &lt;commit-id&gt;
-
-回到某个commit的状态，并删除后面的commit
-和revert的区别：reset命令会抹去某个commit id之后的所有commit
-git reset &lt;commit-id&gt;
-
-修改上一个commit的描述
-git commit --amend
-
-查看commit历史
-git log
-
-查看某段代码是谁写的
-blame的意思为‘责怪’，你懂的。
-git blame &lt;file-name&gt;
-
-显示本地执行过git命令
-就像shell的history一样
-git reflog
-
-修改作者名
-git commit --amend --author=&apos;Author Name &lt;email@address.com&gt;&apos;
-
-修改远程仓库的url
-git remote set-url origin &lt;URL&gt;
-
-增加远程仓库
-git remote add origin &lt;remote-url&gt;
-
-列出所有远程仓库
-git remote    //  git remote -v
-
-查看两个星期内的改动
-git whatchanged --since=&apos;2 weeks ago&apos;
-
-把A分支的某一个commit，放到B分支上
-这个过程需要cherry-pick命令，参考
-git checkout &lt;branch-name&gt; &amp;&amp; git cherry-pick &lt;commit-id&gt;
-
-给git命令起别名
-简化命令
-git config --global alias.&lt;handle&gt; &lt;command&gt;
-比如：git status 改成 git st，这样可以简化命令
-git config --global alias.st status
-
-存储当前的修改，但不用提交commit
-详解可以参考廖雪峰老师的git教程
-
-git stash
-保存当前状态，包括untracked的文件
-
-untracked文件：新建的文件
-git stash -u
-
-展示所有stashes
-git stash list
-
-回到某个stash的状态
-git stash apply &lt;stash@{n}&gt;
-
-回到最后一个stash的状态，并删除这个stash
-git stash pop
-
-删除所有的stash
-git stash clear
-
-从stash中拿出某个文件的修改
-git checkout &lt;stash@{n}&gt; -- &lt;file-path&gt;
-
-展示所有tracked的文件
-git ls-files -t
-
-展示所有untracked的文件
-git ls-files --others
-
-展示所有忽略的文件
-git ls-files --others -i --exclude-standard
-
-强制删除untracked的文件
-可以用来删除新建的文件。如果不指定文件文件名，则清空所有工作的untracked文件。clean命令，注意两点：
-clean后，删除的文件无法找回
-不会影响tracked的文件的改动，只会删除untracked的文件git clean &lt;file-name&gt; -f
-强制删除untracked的目录
-可以用来删除新建的目录，注意:这个命令也可以用来删除untracked的文件。详情见上一条
-git clean &lt;directory-name&gt; -df
-
-展示简化的commit历史
-git log --pretty=oneline --graph --decorate --all
-把某一个分支到导出成一个文件
-git bundle create &lt;file&gt; &lt;branch-name&gt;
-从包中导入分支
-新建一个分支，分支内容就是上面git bundle create命令导出的内容
-git clone repo.bundle &lt;repo-dir&gt; -b &lt;branch-name&gt;
-执行rebase之前自动stash
-git rebase --autostash
-从远程仓库根据ID，拉下某一状态，到本地分支
-git fetch origin pull/&lt;id&gt;/head:&lt;branch-name&gt;
-详细展示一行中的修改
-git diff --word-diff
-清除gitignore文件中记录的文件
-git clean -X -f
-展示所有alias和configs
-注意： config分为：当前目录（local）和全局（golbal）的config，默认为当前目录的config
-git config --local --list (当前目录)
-git config --global --list (全局)
-展示忽略的文件
-git status --ignored
-commit历史中显示Branch1有的，但是Branch2没有commit
-git log Branch1 ^Branch2
-在commit log中显示GPG签名
-git log --show-signature
-删除全局设置
-git config --global --unset &lt;entry-name&gt;
-新建并切换到新分支上，同时这个分支没有任何commit
-相当于保存修改，但是重写commit历史
-git checkout --orphan &lt;branch-name&gt;
-展示任意分支某一文件的内容
-git show &lt;branch-name&gt;:&lt;file-name&gt;
-clone下来指定的单一分支
-git clone -b &lt;branch-name&gt; --single-branch https://github.com/user/repo.git
-忽略某个文件的改动
-关闭 track 指定文件的改动，也就是 Git 将不会在记录这个文件的改动
-git update-index --assume-unchanged path/to/file
-
-恢复 track 指定文件的改动
-git update-index --no-assume-unchanged path/to/file
-
-忽略文件的权限变化
-不再将文件的权限变化视作改动
-git config core.fileMode false
-展示本地所有的分支的commit
-最新的放在最上面
-git for-each-ref --sort=-committerdate --format=&apos;%(refname:short)&apos; refs/heads/
-在commit log中查找相关内容
-通过grep查找，given-text：所需要查找的字段
-git log --all --grep=&apos;&lt;given-text&gt;&apos;
-把暂存区的指定file放到工作区中
-git reset &lt;file-name&gt;
-
-强制推送
-git push -f &lt;remote-name&gt; &lt;branch-name&gt;列出所有远程分支
--r参数相当于：remote
-git branch -r
-
-更新到本地
-# 源 + 分支名
-git pull origin master
-</code></pre><p>初始化本地git仓库（创建新仓库）</p>
-<pre><code>git init                                               
-# 初始化 git 项目
-git init
-安装好 Git 之后，配置你的资料:
-# 配置用户名
-git config --global user.name &quot;Your Real Name&quot;
-# 配置邮箱地址
-git config --global user.email you@email.address
-</code></pre><p>配置用户名</p>
-<pre><code>git config --global user.name &quot;xxx&quot;                       
-</code></pre><p>配置邮件</p>
-<pre><code>git config --global user.email &quot;xxx@xxx.com&quot;              
-</code></pre><p>git status等命令自动着色</p>
-<pre><code>git config --global color.ui true                         
-git config --global color.status auto
-git config --global color.diff auto
-git config --global color.branch auto
-git config --global color.interactive auto
-</code></pre><p>clone远程仓库</p>
-<pre><code>git clone git+ssh://git@192.168.53.168/VT.git             
-</code></pre><p>查看当前版本状态（是否修改）</p>
-<pre><code>git status                                                
-</code></pre><p>添加xyz文件至index</p>
-<pre><code>git add xyz                                               
-</code></pre><p>增加当前子目录下所有更改过的文件至index</p>
-<pre><code>git add .                                                 
-</code></pre><p>提交</p>
-<pre><code>git commit -m &apos;xxx&apos;                                       
-</code></pre><p>合并上一次提交（用于反复修改）</p>
-<pre><code>git commit --amend -m &apos;xxx&apos;                               
-</code></pre><p>将add和commit合为一步</p>
-<pre><code>git commit -am &apos;xxx&apos;                                      
-</code></pre><p>删除index中的文件</p>
-<pre><code>git rm xxx                                                
-</code></pre><p>递归删除</p>
-<pre><code>git rm -r *                                               
-</code></pre><p>显示提交日志</p>
-<pre><code>git log                                                   
-</code></pre><p>显示1行日志 -n为n行</p>
-<pre><code>git log -1                                                
-</code></pre><p>git log -5</p>
-<p>显示提交日志及相关变动文件</p>
-<pre><code>git log --stat                                            
-</code></pre><p>git log -p -m</p>
-<p>显示某个提交的详细内容</p>
-<pre><code>git show dfb02e6e4f2f7b573337763e5c0013802e392818         
-</code></pre><p>可只用commitid的前几位</p>
-<pre><code>git show dfb02                                            
-</code></pre><p>显示HEAD提交日志</p>
-<pre><code>git show HEAD                                             
-</code></pre><p>显示HEAD的父（上一个版本）的提交日志 ^^为上两个版本 ^5为上5个版本</p>
-<pre><code>git show HEAD^                                            
-</code></pre><p>显示已存在的tag</p>
-<pre><code>git tag                                                   
-</code></pre><p>增加v2.0的tag</p>
-<pre><code>git tag -a v2.0 -m &apos;xxx&apos;                                  
-</code></pre><p>显示v2.0的日志及详细内容</p>
-<pre><code>git show v2.0                                             
-</code></pre><p>显示v2.0的日志</p>
-<pre><code>git log v2.0                                              
-</code></pre><p>显示所有未添加至index的变更</p>
-<pre><code>git diff                                                  
-</code></pre><p>显示所有已添加index但还未commit的变更</p>
-<pre><code>git diff --cached                                         
-</code></pre><p>比较与上一个版本的差异</p>
-<pre><code>git diff HEAD^                                            
-</code></pre><p>比较与HEAD版本lib目录的差异</p>
-<pre><code>git diff HEAD -- ./lib                                    
-</code></pre><p>比较远程分支master上有本地分支master上没有的</p>
-<pre><code>git diff origin/master..master                            
-</code></pre><p>只显示差异的文件，不显示具体内容</p>
-<pre><code>git diff origin/master..master --stat                     
-</code></pre><p>增加远程定义（用于push/pull/fetch）</p>
-<pre><code>git remote add origin git+ssh://git@192.168.53.168/VT.git 
-</code></pre><p>显示本地分支</p>
-<pre><code>git branch                                                
-</code></pre><p>显示包含提交50089的分支</p>
-<pre><code>git branch --contains 50089                               
-</code></pre><p>显示所有分支</p>
-<pre><code>git branch -a                                             
-</code></pre><p>显示所有原创分支</p>
-<pre><code>git branch -r                                             
-</code></pre><p>显示所有已合并到当前分支的分支</p>
-<pre><code>git branch --merged                                       
-</code></pre><p>显示所有未合并到当前分支的分支</p>
-<pre><code>git branch --no-merged                                    
-</code></pre><p>本地分支改名</p>
-<pre><code>git branch -m master master_copy                          
-</code></pre><p>从当前分支创建新分支master_copy并检出</p>
-<pre><code>git checkout -b master_copy                               
-</code></pre><p>上面的完整版</p>
-<pre><code>git checkout -b master master_copy                        
-</code></pre><p>检出已存在的features/performance分支</p>
-<pre><code>git checkout features/performance                         
-</code></pre><p>检出远程分支hotfixes/BJVEP933并创建本地跟踪分支</p>
-<pre><code>git checkout --track hotfixes/BJVEP933                    
-</code></pre><p>检出版本v2.0</p>
-<pre><code>git checkout v2.0                                         
-</code></pre><p>从远程分支develop创建新本地分支devel并检出</p>
-<pre><code>git checkout -b devel origin/develop                      
-</code></pre><p>检出head版本的README文件（可用于修改错误回退）</p>
-<pre><code>git checkout -- README                                    
-</code></pre><p>合并远程master分支至当前分支</p>
-<pre><code>git merge origin/master                                   
-</code></pre><p>合并提交ff44785404a8e的修改</p>
-<pre><code>git cherry-pick ff44785404a8e                             
-</code></pre><p>将当前分支push到远程master分支</p>
-<pre><code>git push origin master                                    
-</code></pre><p>删除远程仓库的hotfixes/BJVEP933分支</p>
-<pre><code>git push origin :hotfixes/BJVEP933                        
-</code></pre><p>把所有tag推送到远程仓库</p>
-<pre><code>git push --tags                                           
-</code></pre><p>获取所有远程分支（不更新本地分支，另需merge）</p>
-<pre><code>git fetch                                                 
-</code></pre><p>获取所有原创分支并清除服务器上已删掉的分支</p>
-<pre><code>git fetch --prune                                         
-</code></pre><p>获取远程分支master并merge到当前分支</p>
-<pre><code>git pull origin master                                    
-</code></pre><p>重命名文件README为README2</p>
-<pre><code>git mv README README2                                     
-</code></pre><p>将当前版本重置为HEAD（通常用于merge失败回退）</p>
-<pre><code>git reset --hard HEAD                                     
-</code></pre><p>git rebase</p>
-<p>删除分支hotfixes/BJVEP933（本分支修改已合并到其他分支）</p>
-<pre><code>git branch -d hotfixes/BJVEP933                           
-</code></pre><p>强制删除分支hotfixes/BJVEP933</p>
-<pre><code>git branch -D hotfixes/BJVEP933                           
-</code></pre><p>列出git index包含的文件</p>
-<pre><code>git ls-files                                              
-</code></pre><p>图示当前分支历史</p>
-<pre><code>git show-branch                                           
-</code></pre><p>图示所有分支历史</p>
-<pre><code>git show-branch --all                                     
-</code></pre><p>显示提交历史对应的文件修改</p>
-<pre><code>git whatchanged                                           
-</code></pre><p>撤销提交dfb02e6e4f2f7b573337763e5c0013802e392818</p>
-<pre><code>git revert dfb02e6e4f2f7b573337763e5c0013802e392818       
-</code></pre><p>内部命令：显示某个git对象</p>
-<pre><code>git ls-tree HEAD                                          
-</code></pre><p>内部命令：显示某个ref对于的SHA1 HASH</p>
-<pre><code>git rev-parse v2.0                                        
-</code></pre><p>显示所有提交，包括孤立节点</p>
-<pre><code>git reflog                                                
-</code></pre><p>git show HEAD@{5}</p>
-<p>显示master分支昨天的状态</p>
-<pre><code>git show master@{yesterday}                               
-</code></pre><p>图示提交日志</p>
-<pre><code>git log --pretty=format:&apos;%h %s&apos; --graph                   
-git show HEAD~3
-git show -s --pretty=raw 2be7fcb476
-</code></pre><p>暂存当前修改，将所有至为HEAD状态</p>
-<pre><code>git stash                                                 
-</code></pre><p>查看所有暂存</p>
-<pre><code>git stash list                                            
-</code></pre><p>参考第一次暂存</p>
-<pre><code>git stash show -p stash@{0}                               
-</code></pre><p>应用第一次暂存</p>
-<pre><code>git stash apply stash@{0}                                 
-</code></pre><p>文件中搜索文本“delete from”</p>
-<pre><code>git grep &quot;delete from&quot;                                    
-git grep -e &apos;#define&apos; --and -e SORT_DIRENT
-
-git gc
-git fsck
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/08/15/用css让一个容器水平垂直居中/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/08/15/用css让一个容器水平垂直居中/" itemprop="url">用css让一个容器水平垂直居中</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-08-15T23:19:26+08:00">
-                2017-08-15
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>阅读目录</p>
-<ul>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label0" target="_blank" rel="noopener">方法一：position加margin</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label1" target="_blank" rel="noopener">方法二： diaplay:table-cell</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label2" target="_blank" rel="noopener">方法三：position加 transform</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label3" target="_blank" rel="noopener">方法四：flex;align-items: center;justify-content: center</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label4" target="_blank" rel="noopener">方法五：display:flex;margin:auto</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label5" target="_blank" rel="noopener">方法六：纯position</a></li>
-</ul>
-<p>这种css布局平时用的比较多，也是面试题常出的一个题，网上一搜一大丢，不过还是想自己总结一下。</p>
-<p>这种方法比较多，本文只总结其中的几种，以便加深印象。</p>
-<p>效果图都为这个：</p>
-<p><img src="https://pic1.zhimg.com/v2-cf428b1f71583bc3feeeedcdc87d9e6c_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-cf428b1f71583bc3feeeedcdc87d9e6c_hd.jpg" alt=""></p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法一：position加margin"><a href="#方法一：position加margin" class="headerlink" title="方法一：position加margin"></a>方法一：position加margin</h2><pre><code>/**html**/
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/**css**/
-.wrap {
-    width: 200px;
-    height: 200px;
-    background: yellow;
-    position: relative;
-}
-.wrap .center {
-    width: 100px;
-    height: 100px;
-    background: green;
-    margin: auto;
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-}
-</code></pre><p>兼容性：主流浏览器均支持，IE6不支持</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法二：-diaplay-table-cell"><a href="#方法二：-diaplay-table-cell" class="headerlink" title="方法二： diaplay:table-cell"></a>方法二： diaplay:table-cell</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-     &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/*css*/
-.wrap{
-    width: 200px;
-    height: 200px;
-    background: yellow;
-    display: table-cell;
-    vertical-align: middle;
-    text-align: center;
-}
-.center{
-    display: inline-block;
-    vertical-align: middle;
-    width: 100px;
-    height: 100px;
-    background: green;
-}
-</code></pre><p>兼容性：由于display:table-cell的原因，IE6\7不兼容</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法三：position加-transform"><a href="#方法三：position加-transform" class="headerlink" title="方法三：position加 transform"></a>方法三：position加 transform</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    position: relative;
-    background: yellow;
-    width: 200px;
-    height: 200px;}
-
-.center {
-    position: absolute;
-    background: green;
-    top:50%;
-    left:50%;
-    -webkit-transform:translate(-50%,-50%);
-    transform:translate(-50%,-50%);
-    width: 100px;
-    height: 100px;
-}
-</code></pre><p>兼容性：ie9以下不支持 transform，手机端表现的比较好。</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法四：flex-align-items-center-justify-content-center"><a href="#方法四：flex-align-items-center-justify-content-center" class="headerlink" title="方法四：flex;align-items: center;justify-content: center"></a>方法四：flex;align-items: center;justify-content: center</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    background: yellow;
-    width: 200px;
-    height: 200px;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-}
-
-.center {
-    background: green;
-    width: 100px;
-    height: 100px;
-}
-</code></pre><p>移动端首选</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法五：display-flex-margin-auto"><a href="#方法五：display-flex-margin-auto" class="headerlink" title="方法五：display:flex;margin:auto"></a>方法五：display:flex;margin:auto</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    background: yellow;
-    width: 200px;
-    height: 200px;
-    display: flex; 
-}
-
-.center {
-    background: green;
-    width: 100px;
-    height: 100px;
-    margin: auto;
-}
-</code></pre><p>移动端首选</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法六：纯position"><a href="#方法六：纯position" class="headerlink" title="方法六：纯position"></a>方法六：纯position</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    background: yellow;
-    width: 200px;
-    height: 200px;
-    position: relative;
-}
-/**方法一**/
-.center {
-    background: green;
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    left: 50px;
-    top: 50px; 
-　　
-}
-/**方法二**/
-.center {
-    background: green;
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    left: 50%;
-    top: 50%;
-　　margin-left:-50px;
-　　margin-top:-50px;
-}　 
-</code></pre><p>兼容性：适用于所有浏览器</p>
-<p>  方法六中的方法一计算公式如下：</p>
-<p>　　子元素（conter）的left值计算公式：left=(父元素的宽 - 子元素的宽 ) / 2=(200-100) / 2=50px;</p>
-<p>　　子元素（conter）的top值计算公式：top=(父元素的高 - 子元素的高 ) / 2=(200-100) / 2=50px;</p>
-<p>　　方法二计算公式：</p>
-<p>　　left值固定为50%;</p>
-<p>　　子元素的margin-left= -（子元素的宽/2）=-100/2= -50px;</p>
-<p>　　top值也一样，固定为50%</p>
-<pre><code>子元素的margin-top= -（子元素的高/2）=-100/2= -50px;
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/06/22/算法的时间复杂度和空间复杂度/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/22/算法的时间复杂度和空间复杂度/" itemprop="url">算法的时间复杂度和空间复杂度</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-22T23:26:28+08:00">
-                2017-06-22
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>1 - 算法</p>
-<p>算法的定义是这样的：解题方案的准确而完善的描述，是一系列解决问题的清晰指令。巴拉巴拉的，虽然是一小句但还是不想看（题外话：有时候吧专业名词记下来面试的时候还是挺有用的），其实就是解决一个问题的完整性描述。只不过这个描述就可能是用不同的方式或者说是“语言”了。</p>
-<p>2 - 算法的效率</p>
-<p>既然算法是解决问题的描述，那么就像一千个人眼中有一千个阿姆雷特他大姨夫一样，解决同一个问题的办法也是多种多样的，只是在这过程中我们所使用/消耗的时间或者时间以外的代价（计算机消耗的则为内存了）不一样。为了更快、更好、更强的发扬奥利奥..哦不，提高算法的效率。所以很多时候一个优秀的算法就在于它与其他实现同一个问题的算法相比，在时间或空间（内存）或者时间和空间（内存）上都得到明显的降低。</p>
-<p>所以呢，算法的效率主要由以下两个复杂度来评估：</p>
-<blockquote>
-<p>时间复杂度：评估执行程序所需的时间。可以估算出程序对处理器的使用程度。<br>空间复杂度：评估执行程序所需的存储空间。可以估算出程序对计算机内存的使用程度。</p>
-</blockquote>
-<p>设计算法时，时间复杂度要比空间复杂度更容易出问题，所以一般情况一下我们只对时间复杂度进行研究。一般面试或者工作的时候没有特别说明的话，复杂度就是指时间复杂度。</p>
-<p>2.0 - 时间复杂度</p>
-<p>接下来我们还需要知道另一个概念：时间频度。这个时候你可能会说：“不是说好一起学算法吗，这些东东是什么？赠品吗？”。非也非也，这是非卖品。</p>
-<p>因为一个算法执行所消耗的时间理论上是不能算出来的，没错正是理论上，so我们任然可以在程序中测试获得。但是我们不可能又没必要对每个算法进行测试，只需要知道大概的哪个算法执行所花费的时间多，哪个花费的时间少就行了。如果一个算法所花费的时间与算法中代码语句执行次数成正比，那么那个算法执行语句越多，它的花费时间也就越多。我们把一个算法中的语句执行次数称为时间频度。通常（ps:很想知道通常是谁）用<code>T(n)</code>表示。</p>
-<p>在时间频度<code>T(n)</code>中，n又代表着问题的规模，当n不断变化时，<code>T(n)</code>也会不断地随之变化。为了了解这个变化的规律，时间复杂度这一概念就被引入了。一般情况下算法基础本操作的重复执行次数为问题规模n的某个函数，用也就是时间频度<code>T(n)</code>。如果有某个辅助函数<code>f(n)</code>，当趋于无穷大的时候，<code>T(n)/f(n)</code>的极限值是不为零的某个常数，那么<code>f(n)</code>是<code>T(n)</code>的同数量级函数，记作<code>T(n)=O(f(n))</code>，被称为算法的渐进时间复杂度，又简称为时间复杂度。</p>
-<p>2.1 - 大O表示法</p>
-<p>用O(n)来体现算法时间复杂度的记法被称作大O表示法</p>
-<p>一般我们我们评估一个算法都是直接评估它的最坏的复杂度。</p>
-<p>大O表示法<code>O(f(n))</code>中的<code>f(n)</code>的值可以为1、n、logn、n^2 等，所以我们将O(1)、O(n)、O(logn)、O( n^2 )分别称为常数阶、线性阶、对数阶和平方阶。下面我们来看看推导大O阶的方法：</p>
-<p>推导大O阶</p>
-<p>推导大O阶有一下三种规则：</p>
-<ol>
-<li>用常数1取代运行时间中的所有加法常数</li>
-<li>只保留最高阶项</li>
-<li>去除最高阶的常数</li>
-</ol>
-<p>举好多栗子</p>
-<ul>
-<li><p>常数阶</p>
-<p>  let sum = 0, n = 10; // 语句执行一次<br>  let sum = (1+n)*n/2; // 语句执行一次<br>  console.log(<code>The sum is : ${sum}</code>) //语句执行一次 </p>
-</li>
-</ul>
-<p>这样的一段代码它的执行次数为 3 ，然后我们套用规则1，则这个算法的时间复杂度为O(1)，也就是常数阶。</p>
-<ul>
-<li><p>线性阶</p>
-<p>  let i =0; // 语句执行一次<br>  while (i &lt; n) { // 语句执行n次 </p>
-<pre><code>console.log(`Current i is ${i}`); //语句执行n次
-i++; // 语句执行n次
-</code></pre><p>  }</p>
-</li>
-</ul>
-<p>这个算法中代码总共执行了 3n + 1次，根据规则 2-&gt;3，因此该算法的时间复杂度是O(n)。</p>
-<ul>
-<li><p>对数阶</p>
-<p>  let number = 1; // 语句执行一次<br>  while (number &lt; n) { // 语句执行logn次</p>
-<pre><code>number *= 2; // 语句执行logn次
-</code></pre><p>  }</p>
-</li>
-</ul>
-<p>上面的算法中，number每次都放大两倍，我们假设这个循环体执行了m次，那么<code>2^m = n</code>即<code>m = logn</code>，所以整段代码执行次数为1 + 2*logn，则<code>f(n) = logn</code>，时间复杂度为O(logn)。</p>
-<ul>
-<li><p>平方阶</p>
-<p>  for (let i = 0; i &lt; n; i++) { // 语句执行n次 </p>
-<pre><code>for (let j = 0; j &lt; n; j++) { // 语句执行n^2次 
-   console.log(&apos;I am here!&apos;); // 语句执行n^2
-}
-</code></pre><p>  }</p>
-</li>
-</ul>
-<p>上面的嵌套循环中，代码共执行 2*n^2 + n，则<code>f(n) = n^2</code>。所以该算法的时间复杂度为O(n^2 )</p>
-<p>常见时间复杂度的比较</p>
-<p>常见的时间复杂度函数相信大家在大学中都已经见过了，这里也不多做解释了：</p>
-<p>O(1)&lt;O(logn)&lt;O(n)&lt;O(nlogn)&lt;O(n²)&lt;O(n³)&lt;O(2ⁿ)&lt;O(n!)</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3943,7 +3536,7 @@ i++; // 语句执行n次
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">62</span>
+                  <span class="site-state-item-count">65</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3956,7 +3549,7 @@ i++; // 语句执行n次
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">40</span>
+                  <span class="site-state-item-count">41</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
