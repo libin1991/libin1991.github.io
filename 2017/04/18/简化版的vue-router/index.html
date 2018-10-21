@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="vue,vue-router," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="本文旨在介绍vue-router的实现思路，并动手实现一个简化版的vue-router。我们先来看一下一般项目中对vue-router最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根vue实例中注入该router对象就可以使用了. import VueRouter from&amp;apos;vue-router&amp;apos;; import Home from&amp;apos;@/compone">
+<meta name="keywords" content="vue,vue-router">
+<meta property="og:type" content="article">
+<meta property="og:title" content="简化版的vue-router">
+<meta property="og:url" content="http://yoursite.com/2017/04/18/简化版的vue-router/index.html">
+<meta property="og:site_name" content="LuckDay">
+<meta property="og:description" content="本文旨在介绍vue-router的实现思路，并动手实现一个简化版的vue-router。我们先来看一下一般项目中对vue-router最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根vue实例中注入该router对象就可以使用了. import VueRouter from&amp;apos;vue-router&amp;apos;; import Home from&amp;apos;@/compone">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-10-21T07:15:41.085Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="简化版的vue-router">
+<meta name="twitter:description" content="本文旨在介绍vue-router的实现思路，并动手实现一个简化版的vue-router。我们先来看一下一般项目中对vue-router最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根vue实例中注入该router对象就可以使用了. import VueRouter from&amp;apos;vue-router&amp;apos;; import Home from&amp;apos;@/compone">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/04/18/简化版的vue-router/"/>
+
+
+
+
+
+  <title>简化版的vue-router | LuckDay</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+    	<div class="sky">
+	<div class="clouds_one"></div>
+	<div class="clouds_two"></div>
+	<div class="clouds_three"></div>
+</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">LuckDay</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">想要飞得高，那就把地平线忘掉</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/18/简化版的vue-router/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">简化版的vue-router</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-18T15:12:24+08:00">
+                2017-04-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>本文旨在介绍<code>vue-router</code>的实现思路，并动手实现一个简化版的<code>vue-router</code>。<br>我们先来看一下一般项目中对<code>vue-router</code>最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根<code>vue</code>实例中注入该<code>router</code>对象就可以使用了.</p>
+<pre><code>import VueRouter from&apos;vue-router&apos;;
+import Home from&apos;@/components/Home&apos;;
+import A from&apos;@/components/A&apos;;
+import B from&apos;@/components/B&apos;import C from&apos;@/components/C&apos;
+
+Vue.use(VueRouter)
+
+export default new VueRouter.Router({
+  // mode: &apos;history&apos;,
+  routes: [
+    {
+      path: &apos;/&apos;,
+      component: Home
+    },
+    {
+      path: &apos;/a&apos;,
+      component: A
+    },
+    {
+      path: &apos;/b&apos;,
+      component: B
+    },
+    {
+      path: &apos;/c&apos;,
+      component: C
+    }
+  ]
+})
+</code></pre><p><code>vue-router</code>提供两个全局组件，<code>router-view</code>和<code>router-link</code>，前者是用于路由组件的占位，后者用于点击时跳转到指定路由。此外组件内部可以通过<code>this.$router.push</code>,<code>this.$rouer.replace</code>等api实现路由跳转。本文将实现上述两个全局组件以及<code>push</code>和<code>replace</code>两个api，调用的时候支持<code>params</code>传参，并且支持<code>hash</code>和<code>history</code>两种模式，忽略其余api、嵌套路由、异步路由、<code>abstract</code>路由以及导航守卫等高级功能的实现，这样有助于理解<code>vue-router</code>的核心原理。本文的最终代码不建议在生产环境使用，只做一个学习用途，下面我们就来一步步实现它。</p>
+<h3 id="install实现"><a href="#install实现" class="headerlink" title="install实现"></a>install实现</h3><p>任何一个<code>vue</code>插件都要实现一个<code>install</code>方法，通过<code>Vue.use</code>调用插件的时候就是在调用插件的<code>install</code>方法，那么路由的<code>install</code>要做哪些事情呢？首先我们知道 我们会用<code>new</code>关键字生成一个<code>router</code>实例，就像前面的代码实例一样，然后将其挂载到根<code>vue</code>实例上，那么作为一个全局路由，我们当然需要在各个组件中都可以拿到这个<code>router</code>实例。另外我们使用了全局组件<code>router-view</code>和<code>router-link</code>，由于<code>install</code>会接收到<code>Vue</code>构造函数作为实参，方便我们调用<code>Vue.component</code>来注册全局组件。因此，在<code>install</code>中主要就做两件事，给各个组件都挂载<code>router</code>实例，以及实现<code>router-view</code>和<code>router-link</code>两个全局组件。下面是代码：</p>
+<pre><code>const install = (Vue) =&gt; {
+
+  if (this._Vue) {
+    return;
+  };
+  Vue.mixin({
+    beforeCreate() {
+      if (this.$options &amp;&amp; this.$options.router) {
+        this._routerRoot = this;
+        this._router = this.$options.router;
+        Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
+      } else {
+        this._routerRoot = (this.$parent &amp;&amp; this.$parent._routerRoot) || this
+      }
+
+      Object.defineProperty(this, &apos;$router&apos;, {
+        get() {
+          returnthis._routerRoot._router;
+        }
+      })
+
+      Object.defineProperty(this, &apos;$route&apos;, {
+        get() {
+          return {
+            current: this._routerRoot._routeHistory.current,
+            ...this._routerRoot._router.route
+          };
+        }
+      })
+    }
+  });
+
+  Vue.component(&apos;router-view&apos;, {
+    render(h) { ... }
+  })
+
+  Vue.component(&apos;router-link&apos;, {    
+    props: {
+      to: String,
+      tag: String,
+    },
+    render(h) { ... }
+  })
+  this._Vue = Vue;
+}
+</code></pre><p>这里的<code>this</code>代表的就是<code>vue-router</code>对象，它有两个属性暴露出来供外界调用，一个是<code>install</code>，一个是<code>Router</code>构造函数，这样可以保证插件的正确安装以及路由实例化。我们先忽略<code>Router</code>构造函数，来看<code>install</code>，上面代码中的<code>this._Vue</code>是个开始没有定义的属性，他的目的是防止多次安装。我们使用<code>Vue.mixin</code>对每个组件的<code>beforeCreate</code>钩子做全局混入，目的是让每个组件实例共享<code>router</code>实例，即通过<code>this.$router</code>拿到路由实例，通过<code>this.$route</code>拿到路由状态。需要重点关注的是这行代码：</p>
+<pre><code>Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
+</code></pre><p>这行代码利用<code>vue</code>的响应式原理，对根<code>vue</code>实例注册了一个<code>_routeHistory</code>属性，指向路由实例的<code>history</code>对象，这样<code>history</code>也变成了响应式的。因此一旦路由的<code>history</code>发生变化，用到这个值的组件就会触发<code>render</code>函数重新渲染，这里的组件就是<code>router-view</code>。从这里可以窥察到<code>vue-router</code>实现的一个基本思路。上述的代码中对于两个全局组件的<code>render</code>函数的实现，因为会依赖于<code>router</code>对象，我们先放一放，稍后再来实现它们，下面我们分析一下<code>Router</code>构造函数。</p>
+<h3 id="Router构造函数"><a href="#Router构造函数" class="headerlink" title="Router构造函数"></a>Router构造函数</h3><p>经过刚才的分析，我们知道<code>router</code>实例需要有一个<code>history</code>对象，需要一个保存当前路由状态的对象<code>route</code>，另外很显然还需要接受路由配置表<code>routes</code>，根据<code>routes</code>需要一个路由映射表<code>routerMap</code>来实现组件搜索，还需要一个变量<code>mode</code>判断是什么模式下的路由，需要实现<code>push</code>和<code>replace</code>两个api，代码如下：</p>
+<pre><code>const Router = function (options) {
+  this.routes = options.routes; // 存放路由配置this.mode = options.mode || &apos;hash&apos;;
+  this.route = Object.create(null), // 生成路由状态this.routerMap = createMap(this.routes) // 生成路由表this.history = new RouterHistory(); // 实例化路由历史对象this.init(); // 初始化
+}
+
+Router.prototype.push = (options) =&gt; { ... }
+
+Router.prototype.replace = (options) =&gt; { ... }
+
+Router.prototype.init = () =&gt; { ... }
+</code></pre><p>我们看一下路由表<code>routerMap</code>的实现，由于不考虑嵌套等其他情况，实现很简单，如下：</p>
+<pre><code>const createMap = (routes) =&gt; {
+  let resMap = Object.create(null);
+  routes.forEach(route =&gt; {
+    resMap[route[&apos;path&apos;]] = route[&apos;component&apos;];
+  })
+  return resMap;
+}
+</code></pre><p><code>RouterHistory</code>的实现也很简单，根据前面分析，我们只需要一个<code>current</code>属性就可以，如下：</p>
+<pre><code>const RouterHistory = function (mode) {
+  this.current = null; 
+}
+</code></pre><p>有了路由表和<code>history</code>，<code>router-view</code>的实现就很容易了，如下：</p>
+<pre><code>Vue.component(&apos;router-view&apos;, {
+    render(h) {
+      let routerMap = this._self.$router.routerMap;
+      return h(routerMap[this._self.$route.current])
+    }
+  })
+</code></pre><p>这里的<code>this</code>是一个<code>renderProxy</code>实例，他有一个属性<code>_self</code>可以拿到当前的组件实例，进而访问到<code>routerMap</code>，可以看到路由实例<code>history</code>的<code>current</code>本质上就是我们配置的路由表中的<code>path</code>。</p>
+<p>接下来我们看一下<code>Router</code>要做哪些初始化工作。对于<code>hash</code>路由而言，url上<code>hash</code>值的改变不会引起页面刷新，但是可以触发一个<code>hashchange</code>事件。由于路由<code>history.current</code>初始为<code>null</code>，因此匹配不到任何一个路由，所以会导致页面刷新加载不出任何路由组件。基于这两点，在<code>init</code>方法中，我们需要实现对页面加载完成的监听，以及<code>hash</code>变化的监听。对于<code>history</code>路由，为了实现浏览器前进后退时准确渲染对应组件，还要监听一个<code>popstate</code>事件。代码如下:</p>
+<pre><code>Router.prototype.init = function () {
+
+  if (this.mode === &apos;hash&apos;) {
+    fixHash()
+    window.addEventListener(&apos;hashchange&apos;, () =&gt; {
+      this.history.current = getHash();
+    })
+    window.addEventListener(&apos;load&apos;, () =&gt; {
+      this.history.current = getHash();
+    })
+  }
+
+  if (this.mode === &apos;history&apos;) {
+    removeHash(this);
+    window.addEventListener(&apos;load&apos;, () =&gt; {
+      this.history.current = location.pathname;
+    })
+    window.addEventListener(&apos;popstate&apos;, (e) =&gt; {
+      if (e.state) {
+        this.history.current = e.state.path;
+      }
+    })
+  }
+
+}
+</code></pre><p>当启用<code>hash</code>模式的时候，我们要检测url上是否存在<code>hash</code>值，没有的话强制赋值一个默认<code>path</code>，<code>hash</code>路由时会根据<code>hash</code>值作为<code>key</code>来查找路由表。<code>fixHash</code>和<code>getHash</code>实现如下：</p>
+<pre><code>const fixHash = () =&gt; {
+  if (!location.hash) {
+    location.hash = &apos;/&apos;;
+  }
+}
+const getHash = () =&gt; {
+  return location.hash.slice(1) || &apos;/&apos;;
+}
+</code></pre><p>这样在刷新页面和<code>hash</code>改变的时候，<code>current</code>可以得到赋值和更新，页面能根据<code>hash</code>值准确渲染路由。<code>history</code>模式也是一样的道理，只是它通过<code>location.pathname</code>作为<code>key</code>搜索路由组件，另外<code>history</code>模式需要去除url上可能存在的<code>hash</code>,<code>removeHash</code>实现如下：</p>
+<pre><code>const removeHash = (route) =&gt; {
+  let url = location.href.split(&apos;#&apos;)[1]
+  if (url) {
+    route.current = url;
+    history.replaceState({}, null, url)
+  }
+}
+</code></pre><p>我们可以看到当浏览器后退的时候，<code>history</code>模式会触发<code>popstate</code>事件，这个时候是通过<code>state</code>状态去获取<code>path</code>的，那么<code>state</code>状态从哪里来呢，答案是从<code>window.history</code>对象的<code>pushState</code>和<code>replaceState</code>而来，这两个方法正好可以用来实现<code>router</code>的<code>push</code>方法和<code>replace</code>方法，我们看一下这里它们的实现：</p>
+<pre><code>Router.prototype.push = (options) =&gt; {
+  this.history.current = options.path;
+  if (this.mode === &apos;history&apos;) {
+    history.pushState({
+      path: options.path
+    }, null, options.path);
+  } elseif (this.mode === &apos;hash&apos;) {
+    location.hash = options.path;
+  }
+  this.route.params = {
+    ...options.params
+  }
+}
+
+Router.prototype.replace = (options) =&gt; {
+  this.history.current = options.path;
+  if (this.mode === &apos;history&apos;) {
+    history.replaceState({
+      path: options.path
+    }, null, options.path);
+  } elseif (this.mode === &apos;hash&apos;) {
+    location.replace(`#${options.path}`)
+  }
+  this.route.params = {
+    ...options.params
+  }
+}
+</code></pre><p><code>pushState</code>和<code>replaceState</code>能够实现改变url的值但不引起页面刷新，从而不会导致新请求发生，<code>pushState</code>会生成一条历史记录而<code>replaceState</code>不会，后者只是替换当前url。在这两个方法执行的时候将<code>path</code>存入<code>state</code>，这就使得<code>popstate</code>触发的时候可以拿到路径从而触发组件渲染了。我们在组件内按照如下方式调用，会将<code>params</code>写入<code>router</code>实例的<code>route</code>属性中，从而在跳转后的组件<code>B</code>内通过<code>this.$route.params</code>可以访问到传参。</p>
+<pre><code>this.$router.push({
+    path: &apos;/b&apos;,
+    params: {
+      id: 55
+    }
+ });
+</code></pre><h3 id="router-link实现"><a href="#router-link实现" class="headerlink" title="router-link实现"></a>router-link实现</h3><p><code>router-view</code>的实现很简单，前面已经说过。最后，我们来看一下<code>router-link</code>的实现,先放上代码：</p>
+<pre><code>Vue.component(&apos;router-link&apos;, {    
+    props: {
+      to: String,
+      tag: String,
+    },
+
+    render(h) {
+      let mode = this._self.$router.mode;
+      let tag = this.tag || &apos;a&apos;;
+      let routerHistory = this._self.$router.history;
+      return h(tag, {
+        attrs: tag === &apos;a&apos; ? {
+          href: mode === &apos;hash&apos; ? &apos;#&apos; + this.to : this.to,
+
+        } : {},
+        on: {
+          click: (e) =&gt; {
+            if (this.to === routerHistory.current) {
+              e.preventDefault();
+              return;
+            }
+            routerHistory.current = this.to;
+            switch (mode) {
+              case&apos;hash&apos;:
+                if (tag === &apos;a&apos;) return;
+                location.hash = this.to;
+                break;
+              case&apos;history&apos;:
+                history.pushState({
+                  path: this.to
+                }, null, this.to);
+                break;
+              default:
+            }
+            e.preventDefault();
+          }
+        },
+        style: {
+          cursor: &apos;pointer&apos;
+        }
+      }, this.$slots.default)
+    }
+  })
+</code></pre><p><code>router-link</code>可以接受两个属性，<code>to</code>表示要跳转的路由路径，<code>tag</code>表示<code>router-link</code>要渲染的标签名，默认<code>a</code>为标签。如果是<code>a</code>标签，我们为其添加一个<code>href</code>属性。我们给标签绑定<code>click</code>事件，如果检测到本次跳转为当前路由的话什么都不做直接返回，并且阻止默认行为，否则根据<code>to</code>更换路由。<code>hash</code>模式下并且是<code>a</code>标签时候可以直接利用浏览器的默认行为完成url上<code>hash</code>的替换，否者重新为<code>location.hash</code>赋值。<code>history</code>模式下则利用<code>pushState</code>去更新url。</p>
+<p>以上实现就是一个简单的vue-router.</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/vue/" rel="tag"># vue</a>
+          
+            <a href="/tags/vue-router/" rel="tag"># vue-router</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/03/01/原生-JS-汇总/" rel="next" title="原生 JS 汇总">
+                <i class="fa fa-chevron-left"></i> 原生 JS 汇总
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/22/算法的时间复杂度和空间复杂度/" rel="prev" title="算法的时间复杂度和空间复杂度">
+                算法的时间复杂度和空间复杂度 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/images/tx.jpg"
+                alt="李斌" />
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">70</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">43</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="3120217729@qq.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#install实现"><span class="nav-number">1.</span> <span class="nav-text">install实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Router构造函数"><span class="nav-number">2.</span> <span class="nav-text">Router构造函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#router-link实现"><span class="nav-number">3.</span> <span class="nav-text">router-link实现</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
+<script type="text/javascript" src="/js/src/clicklove.js"></script>
+

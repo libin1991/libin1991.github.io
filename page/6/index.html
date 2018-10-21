@@ -259,6 +259,672 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/10/Vue你可能不知道的7个技巧/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/10/Vue你可能不知道的7个技巧/" itemprop="url">Vue你可能不知道的7个技巧</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-10T15:02:13+08:00">
+                2018-04-10
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、善用watch的immediate属性"><a href="#一、善用watch的immediate属性" class="headerlink" title="一、善用watch的immediate属性"></a>一、善用watch的immediate属性</h2><p>这一点我在项目中也是这么写的。例如有请求需要再也没初始化的时候就执行一次，然后监听他的变化，很多人这么写：</p>
+<pre><code>created(){
+    this.fetchPostList()
+},
+watch: {
+    searchInputValue(){
+        this.fetchPostList()
+    }
+}
+</code></pre><p>上面的这种写法我们可以完全如下写：</p>
+<pre><code> watch: {
+    searchInputValue:{
+        handler: &apos;fetchPostList&apos;,
+        immediate: true
+    }
+}
+</code></pre><h2 id="二、组件注册，值得借鉴"><a href="#二、组件注册，值得借鉴" class="headerlink" title="二、组件注册，值得借鉴"></a>二、组件注册，值得借鉴</h2><p>一般情况下，我们组件如下写：</p>
+<pre><code>import BaseButton from &apos;./baseButton&apos;
+import BaseIcon from &apos;./baseIcon&apos;
+import BaseInput from &apos;./baseInput&apos;export default {
+  components: {
+    BaseButton,
+    BaseIcon,
+    BaseInput
+  }
+}
+&lt;BaseInput  v-model=&quot;searchText&quot; @keydown.enter=&quot;search&quot; /&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;  &lt;BaseIcon name=&quot;search&quot;/&gt;&lt;/BaseButton&gt;
+</code></pre><p>步骤一般有三部，</p>
+<blockquote>
+<p>第一步，引入、</p>
+</blockquote>
+<blockquote>
+<p>第二步注册、</p>
+</blockquote>
+<blockquote>
+<p>第三步才是正式的使用，</p>
+</blockquote>
+<p>这也是最常见和通用的写法。但是这种写法经典归经典，好多组件，要引入多次，注册多次，感觉很烦。</p>
+<p>我们可以借助一下webpack，使用 require.context() 方法来创建自己的（模块）上下文，从而实现自动动态require组件。</p>
+<p>思路是：在src文件夹下面main.js中，借助webpack动态将需要的基础组件统统打包进来。</p>
+<p>代码如下：</p>
+<pre><code>import Vue from &apos;vue&apos;
+import upperFirst from &apos;lodash/upperFirst&apos;
+import camelCase from &apos;lodash/camelCase&apos;
+
+// Require in a base component context
+const requireComponent = require.context(&apos;./components&apos;, false, /base-[\w-]+\.vue$/)
+
+requireComponent.keys().forEach(fileName =&gt; {
+  // Get component config
+  const componentConfig = requireComponent(fileName)
+
+  // Get PascalCase name of component
+  const componentName = upperFirst(
+    camelCase(fileName.replace(/^\.\//, &apos;&apos;).replace(/\.\w+$/, &apos;&apos;))
+  )
+
+  // Register component globally
+  Vue.component(componentName, componentConfig.default || componentConfig)
+})
+</code></pre><p>这样我们引入组件只需要第三步就可以了：</p>
+<pre><code>&lt;BaseInput
+   v-model=&quot;searchText&quot;
+   @keydown.enter=&quot;search&quot;
+/&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;
+   &lt;BaseIcon name=&quot;search&quot;/&gt;
+&lt;/BaseButton&gt;
+</code></pre><h2 id="三、精简vuex的modules引入"><a href="#三、精简vuex的modules引入" class="headerlink" title="三、精简vuex的modules引入"></a>三、精简vuex的modules引入</h2><p>对于vuex，我们输出store如下写：</p>
+<pre><code>import auth from &apos;./modules/auth&apos;
+import posts from &apos;./modules/posts&apos;
+import comments from &apos;./modules/comments&apos;
+
+
+export default new Vuex.Store({
+  modules: {
+    auth,
+    posts,
+    comments
+  }
+})
+</code></pre><p>要引入好多modules，然后再注册到Vuex.Store中~~</p>
+<p>精简的做法和上面类似，也是运用 require.context()读取文件，代码如下：</p>
+<pre><code>import camelCase from &apos;lodash/camelCase&apos;
+const requireModule = require.context(&apos;.&apos;, false, /\.js$/)
+const modules = {}
+
+requireModule.keys().forEach(fileName =&gt; {
+// Don&apos;t register this file as a Vuex module
+if (fileName === &apos;./index.js&apos;) return
+
+const moduleName = camelCase(
+  fileName.replace(/(\.\/|\.js)/g, &apos;&apos;)
+)
+modules[moduleName] = {
+              namespaced: true,
+             ...requireModule(fileName),
+            }
+
+})
+
+export default modules
+</code></pre><p>这样我们只需如下代码就可以了：</p>
+<pre><code>import modules from &apos;./modules&apos;
+export default new Vuex.Store({
+   modules
+})
+</code></pre><h2 id="四、路由的延迟加载"><a href="#四、路由的延迟加载" class="headerlink" title="四、路由的延迟加载"></a>四、路由的延迟加载</h2><p>这一点，关于vue的引入，我之前在中也提及过，可以通过require方式或者import()方式动态加载组件。</p>
+<pre><code>{
+ path: &apos;/admin&apos;,
+ name: &apos;admin-dashboard&apos;,
+ component:require(&apos;@views/admin&apos;).default
+}
+</code></pre><p>或者</p>
+<pre><code>{
+  path: &apos;/admin&apos;,
+  name: &apos;admin-dashboard&apos;,
+  component:() =&gt; import(&apos;@views/admin&apos;)
+}
+</code></pre><p>加载路由。</p>
+<h2 id="五、router-key组件刷新"><a href="#五、router-key组件刷新" class="headerlink" title="五、router key组件刷新"></a>五、router key组件刷新</h2><p>下面这个场景真的是伤透了很多程序员的心…<br> 先默认大家用的是Vue-router来实现路由的控制。 假设我们在写一个博客网站，需求是从/post-haorooms/a，跳转到/post-haorooms/b。然后我们惊人的发现，页面跳转后数据竟然没更新？！原因是vue-router”智能地”发现这是同一个组件，然后它就决定要复用这个组件，所以你在created函数里写的方法压根就没执行。通常的解决方案是监听$route的变化来初始化数据，如下：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+}, 
+watch: {
+  &apos;$route&apos;: {
+    handler: &apos;resetData&apos;,
+    immediate: true
+  }
+},
+methods: {
+  resetData() {
+    this.loading = false
+    this.error = null
+    this.post = null
+    this.getPost(this.$route.params.id)
+  },
+  getPost(id){
+
+  }
+}
+</code></pre><p>bug是解决了，可每次这么写也太不优雅了吧？秉持着能偷懒则偷懒的原则，我们希望代码这样写：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+},
+created () {
+  this.getPost(this.$route.params.id)
+},
+methods () {
+  getPost(postId) {
+    // ...
+  }
+}
+</code></pre><p>解决方案：给router-view添加一个唯一的key，这样即使是公用组件，只要url变化了，就一定会重新创建这个组件。</p>
+<pre><code>&lt;router-view :key=&quot;$route.fullpath&quot;&gt;&lt;/router-view&gt;
+</code></pre><p>注：我个人的经验，这个一般应用在子路由里面，这样才可以不避免大量重绘，假设app.vue根目录添加这个属性，那么每次点击改变地址都会重绘，还是得不偿失的！</p>
+<h2 id="六、唯一组件根元素"><a href="#六、唯一组件根元素" class="headerlink" title="六、唯一组件根元素"></a>六、唯一组件根元素</h2><p>场景如下：</p>
+<pre><code>(Emitted value instead of an instance of Error)
+ Error compiling template:
+
+ &lt;div&gt;&lt;/div&gt;
+ &lt;div&gt;&lt;/div&gt;
+
+ - Component template should contain exactly one root element. 
+   If you are using v-if on multiple elements, use v-else-if 
+   to chain them instead.
+</code></pre><p>模板中div只能有一个，不能如上面那么平行2个div。</p>
+<p>例如如下代码：</p>
+<pre><code>&lt;template&gt;
+  &lt;li
+    v-for=&quot;route in routes&quot;
+    :key=&quot;route.name&quot;
+  &gt;
+    &lt;router-link :to=&quot;route&quot;&gt;
+      {{ route.title }}
+    &lt;/router-link&gt;
+  &lt;/li&gt;
+&lt;/template&gt;
+</code></pre><p>会报错！</p>
+<p>我们可以用render函数来渲染</p>
+<pre><code>functional: true,
+render(h, { props }) {
+ return props.routes.map(route =&gt;
+   &lt;li key={route.name}&gt;
+     &lt;router-link to={route}&gt;
+       {route.title}
+     &lt;/router-link&gt;
+   &lt;/li&gt;
+ )
+}
+</code></pre><h2 id="七、组件包装、事件属性穿透问题"><a href="#七、组件包装、事件属性穿透问题" class="headerlink" title="七、组件包装、事件属性穿透问题"></a>七、组件包装、事件属性穿透问题</h2><p>当我们写组件的时候，通常我们都需要从父组件传递一系列的props到子组件，同时父组件监听子组件emit过来的一系列事件。举例子：</p>
+<pre><code>//父组件
+&lt;BaseInput 
+    :value=&quot;value&quot;
+    label=&quot;密码&quot; 
+    placeholder=&quot;请填写密码&quot;
+    @input=&quot;handleInput&quot;
+    @focus=&quot;handleFocus&gt;
+&lt;/BaseInput&gt;
+
+//子组件
+&lt;template&gt;
+  &lt;label&gt;
+    {{ label }}
+    &lt;input
+      :value=&quot;value&quot;
+      :placeholder=&quot;placeholder&quot;
+      @focus=$emit(&apos;focus&apos;, $event)&quot;
+      @input=&quot;$emit(&apos;input&apos;, $event.target.value)&quot;
+    &gt;
+  &lt;/label&gt;
+&lt;/template&gt;
+</code></pre><p>这样写很不精简，很多属性和事件都是手动定义的，我们可以如下写：</p>
+<pre><code>&lt;input
+    :value=&quot;value&quot;
+    v-bind=&quot;$attrs&quot;
+    v-on=&quot;listeners&quot;
+&gt;
+
+computed: {
+  listeners() {
+    return {
+      ...this.$listeners,
+      input: event =&gt; 
+        this.$emit(&apos;input&apos;, event.target.value)
+    }
+  }
+}
+</code></pre><p>$attrs包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (class 和 style 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定，并且可以通过 v-bind=”$attrs” 传入内部组件。</p>
+<p>$listeners包含了父作用域中的 (不含 .native 修饰器的) v-on 事件监听器。它可以通过 v-on=”$listeners” 传入内部组件。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/vue2-0模板渲染底层思想/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/02/vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
+                2018-04-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>初衷</p>
+<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
+<p>vue2.0和1.0模板渲染的区别</p>
+<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
+<p>知识普及</p>
+<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
+<p>AST 数据结构</p>
+<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
+<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
+<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
+declare type ASTElement = { // 有关元素的一些定义
+  type: 1;
+  tag: string;
+  attrsList: Array&lt;{ name: string; value: string }&gt;;
+  attrsMap: { [key: string]: string | null };
+  parent: ASTElement | void;
+  children: Array&lt;ASTNode&gt;;
+  //......
+}
+declare type ASTExpression = {
+  type: 2;
+  expression: string;
+  text: string;
+  static?: boolean;
+}
+declare type ASTText = {
+  type: 3;
+  text: string;
+  static?: boolean;
+}
+</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
+<p>VNode数据结构</p>
+<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
+<pre><code>constructor {
+  this.tag = tag   //元素标签
+  this.data = data  //属性
+  this.children = children  //子元素列表
+  this.text = text
+  this.elm = elm  //对应的真实 DOM 元素
+  this.ns = undefined
+  this.context = context 
+  this.functionalContext = undefined
+  this.key = data &amp;&amp; data.key
+  this.componentOptions = componentOptions
+  this.componentInstance = undefined
+  this.parent = undefined
+  this.raw = false
+  this.isStatic = false //是否被标记为静态节点
+  this.isRootInsert = true
+  this.isComment = false
+  this.isCloned = false
+  this.isOnce = false
+}
+</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
+<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
+<pre><code>let div = document.createElement(&apos;div&apos;);
+for(let k in div) {
+  console.log(k);
+}
+</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
+<p>render函数</p>
+<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
+<pre><code>&lt;div id=&quot;app&quot;&gt;
+  &lt;header&gt;
+    &lt;h1&gt;I am a template!&lt;/h1&gt;
+  &lt;/header&gt;
+  &lt;p v-if=&quot;message&quot;&gt;
+    {{ message }}
+  &lt;/p&gt;
+  &lt;p v-else&gt;
+    No message.
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
+<pre><code>(function() {
+  with(this){
+    return _c(&apos;div&apos;,{   //创建一个 div 元素
+      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
+      },[
+        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
+        _v(&quot; &quot;), //空的文本节点
+        (message) //三元表达式，判断 message 是否存在
+         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
+        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
+        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
+        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
+      ]
+    )
+  }
+})
+</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
+<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
+<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
+  with(this){
+    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
+  }
+})
+</code></pre><p>模板渲染过程（重要的函数介绍）</p>
+<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
+<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
+<pre><code>// 有缓存的话就直接在缓存里面拿
+const key = options &amp;&amp; options.delimiters
+            ? String(options.delimiters) + template
+            : template
+if (cache[key]) {
+    return cache[key]
+}
+const res = {}
+const compiled = compile(template, options) // compile 后面会详细讲
+res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
+const l = compiled.staticRenderFns.length
+res.staticRenderFns = new Array(l)
+for (let i = 0; i &lt; l; i++) {
+    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
+}
+......
+}
+return (cache[key] = res) // 记录至缓存中
+</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
+<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
+<pre><code>// 触发 beforeMount 生命周期钩子
+callHook(vm, &apos;beforeMount&apos;)
+// 重点：新建一个 Watcher 并赋值给 vm._watcher
+vm._watcher = new Watcher(vm, function updateComponent () {
+  vm._update(vm._render(), hydrating)
+}, noop)
+hydrating = false
+// manually mounted instance, call mounted on self
+// mounted is called for render-created child components in its inserted hook
+if (vm.$vnode == null) {
+  vm._isMounted = true
+  callHook(vm, &apos;mounted&apos;)
+}
+return vm
+</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
+<p>compile</p>
+<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
+<pre><code>export function compile (
+  template: string,
+  options: CompilerOptions
+): CompiledResult {
+  const AST = parse(template.trim(), options) //1. parse
+  optimize(AST, options)  //2.optimize
+  const code = generate(AST, options) //3.generate
+  return {
+    AST,
+    render: code.render,
+    staticRenderFns: code.staticRenderFns
+  }
+}
+</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
+<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
+staticRenderFns = prevStaticRenderFns
+onceCount = prevOnceCount
+return {
+    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
+    staticRenderFns: currentStaticRenderFns
+}
+</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
+<pre><code>function genElement (el: ASTElement): string {
+  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
+    return genStatic(el)
+  } else if (el.once &amp;&amp; !el.onceProcessed) {
+    return genOnce(el)
+  } else if (el.for &amp;&amp; !el.forProcessed) {
+    return genFor(el)
+  } else if (el.if &amp;&amp; !el.ifProcessed) {
+    return genIf(el)
+  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
+    return genChildren(el) || &apos;void 0&apos;
+  } else if (el.tag === &apos;slot&apos;) {
+  }
+    return code
+  }
+}
+</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
+<p>patch</p>
+<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
+<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
+<p>总结</p>
+<ul>
+<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
+<li>render函数 与数据通过 Watcher 产生关联；</li>
+<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/01/NPM学习笔记整理/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3137,582 +3803,6 @@ export default {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/11/19-个-JavaScript-有用的简写技术/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/11/19-个-JavaScript-有用的简写技术/" itemprop="url">19 个 JavaScript 有用的简写技术</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-11T23:11:44+08:00">
-                2017-10-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="1-三元操作符"><a href="#1-三元操作符" class="headerlink" title="1.三元操作符"></a>1.三元操作符</h2><p>当想写if…else语句时，使用三元操作符来代替。</p>
-<pre><code>const x = 20;
-let answer;
-if (x &gt; 10) {
-    answer = &apos;is greater&apos;;
-} else {
-    answer = &apos;is lesser&apos;;
-}
-</code></pre><p>简写：<br><code>const answer = x &gt; 10 ? &#39;is greater&#39; : &#39;is lesser&#39;;</code></p>
-<p>也可以嵌套if语句：<br><code>const big = x &gt; 10 ? &quot; greater 10&quot; : x</code></p>
-<h2 id="2-短路求值简写方式"><a href="#2-短路求值简写方式" class="headerlink" title="2.短路求值简写方式"></a>2.短路求值简写方式</h2><p>当给一个变量分配另一个值时，想确定源始值不是null，undefined或空值。可以写撰写一个多重条件的if语句。</p>
-<pre><code>if (variable1 !== null || variable1 !== undefined || variable1 !== &apos;&apos;) {
-     let variable2 = variable1;
-}
-</code></pre><p>或者可以使用短路求值方法：<br><code>const variable2 = variable1 || &#39;new&#39;;</code></p>
-<h2 id="3-声明变量简写方法"><a href="#3-声明变量简写方法" class="headerlink" title="3.声明变量简写方法"></a>3.声明变量简写方法</h2><pre><code>let x;
-let y;
-let z = 3;
-</code></pre><p>简写方法：<br><code>let x, y, z=3;</code></p>
-<h2 id="4-if存在条件简写方法"><a href="#4-if存在条件简写方法" class="headerlink" title="4.if存在条件简写方法"></a>4.if存在条件简写方法</h2><p><code>if (likeJavaScript === true)</code></p>
-<p>简写：<br><code>if (likeJavaScript)</code></p>
-<p>只有likeJavaScript是真值时，二者语句才相等</p>
-<p>如果判断值不是真值，则可以这样：</p>
-<pre><code>let a;
-if ( a !== true ) {
-// do something...
-}
-</code></pre><p>简写：</p>
-<pre><code>let a;
-if ( !a ) {
-// do something...
-}
-</code></pre><h2 id="5-JavaScript循环简写方法"><a href="#5-JavaScript循环简写方法" class="headerlink" title="5.JavaScript循环简写方法"></a>5.JavaScript循环简写方法</h2><p><code>for (let i = 0; i &lt; allImgs.length; i++)</code></p>
-<p>简写：<br><code>for (let index in allImgs)</code><br>也可以使用Array.forEach：</p>
-<pre><code>function logArrayElements(element, index, array) {
-  console.log(&quot;a[&quot; + index + &quot;] = &quot; + element);
-}
-[2, 5, 9].forEach(logArrayElements);
-// logs:
-// a[0] = 2
-// a[1] = 5
-// a[2] = 9
-</code></pre><h2 id="6-短路评价"><a href="#6-短路评价" class="headerlink" title="6.短路评价"></a>6.短路评价</h2><p>给一个变量分配的值是通过判断其值是否为null或undefined，则可以：</p>
-<pre><code>let dbHost;
-if (process.env.DB_HOST) {
-  dbHost = process.env.DB_HOST;
-} else {
-  dbHost = &apos;localhost&apos;;
-}
-</code></pre><p>简写：<br><code>const dbHost = process.env.DB_HOST || &#39;localhost&#39;;</code></p>
-<h2 id="7-十进制指数"><a href="#7-十进制指数" class="headerlink" title="7.十进制指数"></a>7.十进制指数</h2><p>当需要写数字带有很多零时（如10000000），可以采用指数（1e7）来代替这个数字：<br><code>for (let i = 0; i &lt; 10000; i++) {}</code><br>简写：</p>
-<pre><code>for (let i = 0; i &lt; 1e7; i++) {}
-
-// 下面都是返回true
-1e0 === 1;
-1e1 === 10;
-1e2 === 100;
-1e3 === 1000;
-1e4 === 10000;
-1e5 === 100000;
-</code></pre><h2 id="8-对象属性简写"><a href="#8-对象属性简写" class="headerlink" title="8.对象属性简写"></a>8.对象属性简写</h2><p>如果属性名与key名相同，则可以采用ES6的方法：<br><code>const obj = { x:x, y:y };</code></p>
-<p>简写：<br><code>const obj = { x, y };</code></p>
-<h2 id="9-箭头函数简写"><a href="#9-箭头函数简写" class="headerlink" title="9.箭头函数简写"></a>9.箭头函数简写</h2><p>传统函数编写方法很容易让人理解和编写，但是当嵌套在另一个函数中，则这些优势就荡然无存。</p>
-<pre><code>function sayHello(name) {
-  console.log(&apos;Hello&apos;, name);
-}
-
-setTimeout(function() {
-  console.log(&apos;Loaded&apos;)
-}, 2000);
-
-list.forEach(function(item) {
-  console.log(item);
-});
-</code></pre><p>简写：</p>
-<pre><code>sayHello = name =&gt; console.log(&apos;Hello&apos;, name);
-
-setTimeout(() =&gt; console.log(&apos;Loaded&apos;), 2000);
-
-list.forEach(item =&gt; console.log(item));
-</code></pre><h2 id="10-隐式返回值简写"><a href="#10-隐式返回值简写" class="headerlink" title="10.隐式返回值简写"></a>10.隐式返回值简写</h2><p>经常使用return语句来返回函数最终结果，一个单独语句的箭头函数能隐式返回其值（函数必须省略{}为了省略return关键字）</p>
-<p>为返回多行语句（例如对象字面表达式），则需要使用()包围函数体。</p>
-<pre><code>function calcCircumference(diameter) {
-  return Math.PI * diameter
-}
-
-var func = function func() {
-  return { foo: 1 };
-};
-</code></pre><p>简写：</p>
-<pre><code>calcCircumference = diameter =&gt; (
-  Math.PI * diameter;
-)
-
-var func = () =&gt; ({ foo: 1 });
-</code></pre><h2 id="11-默认参数值"><a href="#11-默认参数值" class="headerlink" title="11.默认参数值"></a>11.默认参数值</h2><p>为了给函数中参数传递默认值，通常使用if语句来编写，但是使用ES6定义默认值，则会很简洁：</p>
-<pre><code>function volume(l, w, h) {
-  if (w === undefined)
-    w = 3;
-  if (h === undefined)
-    h = 4;
-  return l * w * h;
-}
-</code></pre><p>简写：</p>
-<pre><code>volume = (l, w = 3, h = 4 ) =&gt; (l * w * h);
-
-volume(2) //output: 24
-</code></pre><h2 id="12-模板字符串"><a href="#12-模板字符串" class="headerlink" title="12.模板字符串"></a>12.模板字符串</h2><p>传统的JavaScript语言，输出模板通常是这样写的。</p>
-<pre><code>const welcome = &apos;You have logged in as &apos; + first + &apos; &apos; + last + &apos;.&apos;
-
-const db = &apos;http://&apos; + host + &apos;:&apos; + port + &apos;/&apos; + database;
-</code></pre><p>ES6可以使用反引号和${}简写：</p>
-<pre><code>const welcome = `You have logged in as ${first} ${last}`;
-
-const db = `http://${host}:${port}/${database}`;
-</code></pre><h2 id="13-解构赋值简写方法"><a href="#13-解构赋值简写方法" class="headerlink" title="13.解构赋值简写方法"></a>13.解构赋值简写方法</h2><p>在web框架中，经常需要从组件和API之间来回传递数组或对象字面形式的数据，然后需要解构它</p>
-<pre><code>const observable = require(&apos;mobx/observable&apos;);
-const action = require(&apos;mobx/action&apos;);
-const runInAction = require(&apos;mobx/runInAction&apos;);
-
-const store = this.props.store;
-const form = this.props.form;
-const loading = this.props.loading;
-const errors = this.props.errors;
-const entity = this.props.entity;
-</code></pre><p>简写：</p>
-<pre><code>import { observable, action, runInAction } from &apos;mobx&apos;;
-
-const { store, form, loading, errors, entity } = this.props;
-</code></pre><p>也可以分配变量名：</p>
-<pre><code>const { store, form, loading, errors, entity:contact } = this.props;
-//最后一个变量名为contact
-</code></pre><h2 id="14-多行字符串简写"><a href="#14-多行字符串简写" class="headerlink" title="14.多行字符串简写"></a>14.多行字符串简写</h2><p>需要输出多行字符串，需要使用+来拼接：</p>
-<pre><code>const lorem = &apos;Lorem ipsum dolor sit amet, consectetur\n\t&apos;
-    + &apos;adipisicing elit, sed do eiusmod tempor incididunt\n\t&apos;
-    + &apos;ut labore et dolore magna aliqua. Ut enim ad minim\n\t&apos;
-    + &apos;veniam, quis nostrud exercitation ullamco laboris\n\t&apos;
-    + &apos;nisi ut aliquip ex ea commodo consequat. Duis aute\n\t&apos;
-    + &apos;irure dolor in reprehenderit in voluptate velit esse.\n\t&apos;
-</code></pre><p>使用反引号，则可以达到简写作用：</p>
-<pre><code>const lorem = `Lorem ipsum dolor sit amet, consectetur
-    adipisicing elit, sed do eiusmod tempor incididunt
-    ut labore et dolore magna aliqua. Ut enim ad minim
-    veniam, quis nostrud exercitation ullamco laboris
-    nisi ut aliquip ex ea commodo consequat. Duis aute
-    irure dolor in reprehenderit in voluptate velit esse.`
-</code></pre><h2 id="15-扩展运算符简写"><a href="#15-扩展运算符简写" class="headerlink" title="15.扩展运算符简写"></a>15.扩展运算符简写</h2><p>扩展运算符有几种用例让JavaScript代码更加有效使用，可以用来代替某个数组函数。</p>
-<pre><code>// joining arrays
-const odd = [1, 3, 5];
-const nums = [2 ,4 , 6].concat(odd);
-
-// cloning arrays
-const arr = [1, 2, 3, 4];
-const arr2 = arr.slice()
-</code></pre><p>简写：</p>
-<pre><code>// joining arrays
-const odd = [1, 3, 5 ];
-const nums = [2 ,4 , 6, ...odd];
-console.log(nums); // [ 2, 4, 6, 1, 3, 5 ]
-
-// cloning arrays
-const arr = [1, 2, 3, 4];
-const arr2 = [...arr];
-</code></pre><p>不像concat()函数，可以使用扩展运算符来在一个数组中任意处插入另一个数组。</p>
-<pre><code>const odd = [1, 3, 5 ];
-const nums = [2, ...odd, 4 , 6];
-</code></pre><p>也可以使用扩展运算符解构：</p>
-<pre><code>const { a, b, ...z } = { a: 1, b: 2, c: 3, d: 4 };
-console.log(a) // 1
-console.log(b) // 2
-console.log(z) // { c: 3, d: 4 }
-</code></pre><h2 id="16-强制参数简写"><a href="#16-强制参数简写" class="headerlink" title="16.强制参数简写"></a>16.强制参数简写</h2><p>JavaScript中如果没有向函数参数传递值，则参数为undefined。为了增强参数赋值，可以使用if语句来抛出异常，或使用强制参数简写方法。</p>
-<pre><code>function foo(bar) {
-  if(bar === undefined) {
-    throw new Error(&apos;Missing parameter!&apos;);
-  }
-  return bar;
-}
-</code></pre><p>简写：</p>
-<pre><code>mandatory = () =&gt; {
-  throw new Error(&apos;Missing parameter!&apos;);
-}
-
-foo = (bar = mandatory()) =&gt; {
-  return bar;
-}
-</code></pre><h2 id="17-Array-find简写"><a href="#17-Array-find简写" class="headerlink" title="17.Array.find简写"></a>17.Array.find简写</h2><p>想从数组中查找某个值，则需要循环。在ES6中，find()函数能实现同样效果。</p>
-<pre><code>const pets = [
-  { type: &apos;Dog&apos;, name: &apos;Max&apos;},
-  { type: &apos;Cat&apos;, name: &apos;Karl&apos;},
-  { type: &apos;Dog&apos;, name: &apos;Tommy&apos;},
-]
-
-function findDog(name) {
-  for(let i = 0; i&lt;pets.length; ++i) {
-    if(pets[i].type === &apos;Dog&apos; &amp;&amp; pets[i].name === name) {
-      return pets[i];
-    }
-  }
-}
-</code></pre><p>简写：</p>
-<pre><code>pet = pets.find(pet =&gt; pet.type ===&apos;Dog&apos; &amp;&amp; pet.name === &apos;Tommy&apos;);
-console.log(pet); // { type: &apos;Dog&apos;, name: &apos;Tommy&apos; }
-</code></pre><h2 id="18-Object-key-简写"><a href="#18-Object-key-简写" class="headerlink" title="18.Object[key]简写"></a>18.Object[key]简写</h2><p>考虑一个验证函数</p>
-<pre><code>function validate(values) {
-  if(!values.first)
-    return false;
-  if(!values.last)
-    return false;
-  return true;
-}
-
-console.log(validate({first:&apos;Bruce&apos;,last:&apos;Wayne&apos;})); // true
-</code></pre><p>假设当需要不同域和规则来验证，能否编写一个通用函数在运行时确认？</p>
-<pre><code>// 对象验证规则
-const schema = {
-  first: {
-    required:true
-  },
-  last: {
-    required:true
-  }
-}
-
-// 通用验证函数
-const validate = (schema, values) =&gt; {
-  for(field in schema) {
-    if(schema[field].required) {
-      if(!values[field]) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-
-console.log(validate(schema, {first:&apos;Bruce&apos;})); // false
-console.log(validate(schema, {first:&apos;Bruce&apos;,last:&apos;Wayne&apos;})); // true
-</code></pre><p>现在可以有适用于各种情况的验证函数，不需要为了每个而编写自定义验证函数了</p>
-<h2 id="19-双重非位运算简写"><a href="#19-双重非位运算简写" class="headerlink" title="19.双重非位运算简写"></a>19.双重非位运算简写</h2><p>有一个有效用例用于双重非运算操作符。可以用来代替Math.floor()，其优势在于运行更快，可以阅读此文章了解更多位运算。<br><code>Math.floor(4.9) === 4 //true</code></p>
-<p>简写：<br><code>~~4.9 === 4 //true</code></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/02/CSS如何实现文字两端对齐/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/02/CSS如何实现文字两端对齐/" itemprop="url">CSS如何实现文字两端对齐</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-02T23:22:03+08:00">
-                2017-10-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>最近在工作项目中接触到Web界面设计的问题，要实现文字两端对齐的效果。在网上搜索了一下，差不多都是互相转帖，用的都是类似的技巧：</p>
-<pre><code>text-align:justify;
-text-justify:inter-ideograph;
-</code></pre><p>但问题是，我怎么就看不到效果呢？无论是英文还是中文，在IE和chrome下都不起作用。后来，终于在StackOverflow上找到解决方法了。</p>
-<pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-
-    &lt;head&gt;
-        &lt;meta charset=&quot;UTF-8&quot;&gt;
-        &lt;title&gt;&lt;/title&gt;
-        &lt;style type=&quot;text/css&quot;&gt;
-            .arter li {
-                font-size: 14px;
-                line-height: 24px;
-                color: #4a4a4a;
-            }
-
-            .arter span {
-                height: 24px;
-                line-height: 24px;
-                width: 65px;
-                text-align: justify;
-                display: inline-block;
-                overflow: hidden;
-                vertical-align: top;
-            }
-
-            .arter i {
-                display: inline-block;
-                width: 100%;
-                height: 0;
-            }
-
-
-
-
-            .arter1 li {
-                font-size: 14px;
-                line-height: 24px;
-                color: #4a4a4a;
-            }
-
-
-
-            .arter1 span {
-                height: 24px;
-                line-height: 24px;
-                width: 65px;
-                text-align: justify;
-                display: inline-block;
-                overflow: hidden;
-                vertical-align: top;
-            }
-            .arter1 span:after {
-                content: &quot; &quot;;
-                display: inline-block;
-                width: 100%;
-                height: 0px;
-            }
-        &lt;/style&gt;
-    &lt;/head&gt;
-
-    &lt;body&gt;
-        &lt;ul class=&quot;arter&quot;&gt;
-            &lt;li&gt;&lt;span&gt;作品名称&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 宝贝儿&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;作品类型&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;艺术家&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 张玉瀛&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;风格&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 超现实&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;材质&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 布面油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;题材&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 人物&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;创作时间&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 2011&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;所在位置&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 华东&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;尺寸&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 78x78cm&lt;/li&gt;
-        &lt;/ul&gt;
-        &lt;br /&gt;&lt;br /&gt;
-        &lt;ul class=&quot;arter1&quot;&gt;
-            &lt;li&gt;&lt;span&gt;作品名称&lt;/span&gt;： 宝贝儿&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;作品类型&lt;/span&gt;： 油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;艺术家&lt;/span&gt;： 张玉瀛&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;风格&lt;/span&gt;： 超现实&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;材质&lt;/span&gt;： 布面油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;题材&lt;/span&gt;： 人物&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;创作时间&lt;/span&gt;： 2011&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;所在位置&lt;/span&gt;： 华东&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;尺寸&lt;/span&gt;： 78x78cm&lt;/li&gt;
-        &lt;/ul&gt;
-    &lt;/body&gt;
-
-&lt;/html&gt;
-</code></pre><p>样式：<br><img src="https://pic1.zhimg.com/v2-b92871dee74e80785026c069073206ab_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-b92871dee74e80785026c069073206ab_hd.jpg" alt=""><br>从效果图可以看到，除了要在块级元素加text-align:justify样式外，还需要在里面加一个空的span元素，并应用样式。另外，对于中文还必须用空格隔开汉字，否则也没有两端对齐的效果。英文每个单词都有空格隔开，所以没问题。</p>
-<p>但是加入HTML元素又违反了结构表现分离的原则，我们可以改用after、before伪元素：</p>
-<pre><code>li:after {
-    content: &quot; &quot;;
-    display: inline-block;
-    width: 100%;
-}
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3767,7 +3857,7 @@ text-justify:inter-ideograph;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">66</span>
+                  <span class="site-state-item-count">70</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3780,7 +3870,7 @@ text-justify:inter-ideograph;
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">41</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
