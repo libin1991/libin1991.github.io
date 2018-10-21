@@ -259,444 +259,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/21/跨域，你需要知道的全在这里/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/21/跨域，你需要知道的全在这里/" itemprop="url">跨域，你需要知道的全在这里</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-21T11:05:10+08:00">
-                2018-05-21
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>最近在面试的时候常被问到如何解决跨域的问题，看了网上的一些文章后，许多文章并没有介绍清楚，经常使读者(我)感到困惑，所以今天我整理一下常用的跨域技巧，写这篇关于跨域的文章目的在于：</p>
-<ol>
-<li>介绍常见的跨域的解决方案以及其优缺点</li>
-<li>模拟实际的跨域场景，在每种方案后给出一个简单的实例，能够让读者和我一起敲代码，直观地理解这些跨域技巧</li>
-</ol>
-<p>如果觉得本文有帮助，可以点 star 鼓励下，本文所有代码都可以从 github 仓库下载，读者可以按照下述打开:</p>
-<pre><code>git clone https://github.com/happylindz/blog.git
-cd blog/code/crossOrigin/
-yarn
-</code></pre><p>建议你 clone 下来，方便你阅读代码，跟我一起测试。</p>
-<h2 id="同源策略"><a href="#同源策略" class="headerlink" title="同源策略"></a>同源策略</h2><p>使用过 Ajax 的同学都知道其便利性，可以在不向服务端提交完整页面的情况下，实现局部刷新，在当今 SPA 应用普遍使用，但是浏览器处于对安全方面的考虑，不允许跨域调用其它页面的对象，这对于我们在注入 iframe 或是 ajax 应用上带来不少麻烦。</p>
-<p>简单来说，只有当协议，域名，端口号相同的时候才算是同一个域名，否则，均认为需要做跨域处理。</p>
-<p><img src="https://pic4.zhimg.com/v2-5fa29773fc875bf58e4513fdba402bf0_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-5fa29773fc875bf58e4513fdba402bf0_hd.jpg" alt=""></p>
-<h2 id="跨域方法"><a href="#跨域方法" class="headerlink" title="跨域方法"></a>跨域方法</h2><p>今天一共介绍七种常用的跨域技巧，关于跨域技巧大致可以分为 iframe 跨域和 API 跨域请求。</p>
-<p>下面就先介绍三种 API 跨域的方法:</p>
-<h2 id="1-JSONP："><a href="#1-JSONP：" class="headerlink" title="1. JSONP："></a>1. JSONP：</h2><p>只要说到跨域，就必须聊到 JSONP，JSONP 全称为：JSON with padding，可用于解决老版本浏览器的跨域数据访问问题。</p>
-<p>由于 web 页面上调用 js 文件不受浏览器同源策略的影响，所以通过 script 标签可以进行跨域请求：</p>
-<ol>
-<li>首先前端需要先设置好回调函数，并将其作为 url 的参数。</li>
-<li>服务端接收到请求后，通过该参数获取到回调函数名，并将数据放在参数中将其返回</li>
-<li>收到结果后因为是 script 标签，所以浏览器会当做是脚本进行运行，从而达到跨域获取数据的目的</li>
-</ol>
-<p>jsonp 之所以能够跨域的关键在于页面调用 JS 脚本是不受同源策略的影响，相当于向后端发起一条 http 请求，跟后端约定好函数名，后端拿到函数名，动态计算出返回结果并返回给前端执行 JS 脚本，相当于是一种 “动态 JS 脚本”</p>
-<p>接下来我们通过一个实例来尝试：</p>
-<p>后端逻辑：</p>
-<pre><code>// jsonp/server.js
-const url = require(&apos;url&apos;);
-
-require(&apos;http&apos;).createServer((req, res) =&gt; {
-    const data = {
-        x: 10
-    };
-    // 拿到回调函数名
-    const callback = url.parse(req.url, true).query.callback;
-    console.log(callback);
-    res.writeHead(200);
-    res.end(`${callback}(${JSON.stringify(data)})`);
-
-}).listen(3000, &apos;127.0.0.1&apos;);
-
-console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
-</code></pre><p>前端逻辑：</p>
-<pre><code>// jsonp/index.html
-&lt;script&gt;
-    function jsonpCallback(data) {
-        alert(&apos;获得 X 数据:&apos; + data.x);
-    }
-&lt;/script&gt;
-&lt;script src=&quot;http://127.0.0.1:3000?callback=jsonpCallback&quot;&gt;&lt;/script&gt;
-</code></pre><p>然后在终端开启服务：</p>
-<p>之所以能用脚本指令，是因为我在 package.json 里面设置好了脚本命令：</p>
-<pre><code>{
-  // 输入 yarn jsonp 等于 &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;
-  &quot;scripts&quot;: {
-    &quot;jsonp&quot;: &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;,
-    &quot;cors&quot;: &quot;node ./cors/server.js &amp; http-server ./cors&quot;,
-    &quot;proxy&quot;: &quot;node ./serverProxy/server.js&quot;,
-    &quot;hash&quot;: &quot;http-server ./hash/client/ -p 8080 &amp; http-server ./hash/server/ -p 8081&quot;,
-    &quot;name&quot;: &quot;http-server ./name/client/ -p 8080 &amp; http-server ./name/server/ -p 8081&quot;,
-    &quot;postMessage&quot;: &quot;http-server ./postMessage/client/ -p 8080 &amp; http-server ./postMessage/server/ -p 8081&quot;,
-    &quot;domain&quot;: &quot;http-server ./domain/client/ -p 8080 &amp; http-server ./domain/server/ -p 8081&quot;
-  },
-  // ...
-}
-
-yarn jsonp
-// 因为端口 3000 和 8080 分别属于不同域名下
-// 在 localhost:3000 查看效果，即可收到后台返回的数据 10
-</code></pre><p>打开浏览器访问 <code>localhost:8080</code> 即可看到获取到的数据。</p>
-<p><img src="https://pic2.zhimg.com/v2-1bd48c160110899a8ad7e08e56d36560_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-1bd48c160110899a8ad7e08e56d36560_hd.jpg" alt=""></p>
-<p>至此，通过 JSONP 跨域获取数据已经成功了，但是通过这种方式也存在着一定的优缺点：</p>
-<p>优点：</p>
-<ol>
-<li>它不像XMLHttpRequest 对象实现 Ajax 请求那样受到同源策略的限制</li>
-<li>兼容性很好，在古老的浏览器也能很好的运行</li>
-<li>不需要 XMLHttpRequest 或 ActiveX 的支持；并且在请求完毕后可以通过调用 callback 的方式回传结果。</li>
-</ol>
-<p>缺点：</p>
-<ol>
-<li>它支持 GET 请求而不支持 POST 等其它类行的 HTTP 请求。</li>
-<li>它只支持跨域 HTTP 请求这种情况，不能解决不同域的两个页面或 iframe 之间进行数据通信的问题</li>
-<li>无法捕获 Jsonp 请求时的连接异常，只能通过超时进行处理</li>
-</ol>
-<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS:"></a>CORS:</h2><p>CORS 是一个 W3C 标准，全称是”跨域资源共享”（Cross-origin resource sharing）它允许浏览器向跨源服务器，发出 XMLHttpRequest 请求，从而克服了 ajax 只能同源使用的限制。</p>
-<p>CORS 需要浏览器和服务器同时支持才可以生效，对于开发者来说，CORS 通信与同源的 ajax 通信没有差别，代码完全一样。浏览器一旦发现 ajax 请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。</p>
-<p>因此，实现 CORS 通信的关键是服务器。只要服务器实现了 CORS 接口，就可以跨域通信。</p>
-<p>前端逻辑很简单，只要正常发起 ajax 请求即可:</p>
-<pre><code>// cors/index.html
-&lt;script&gt;
-    const xhr = new XMLHttpRequest();
-    xhr.open(&apos;GET&apos;, &apos;http://127.0.0.1:3000&apos;, true);
-    xhr.onreadystatechange = function() {
-        if(xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
-            alert(xhr.responseText);
-        }
-    }
-    xhr.send(null);
-&lt;/script&gt;
-</code></pre><p>这似乎跟一次正常的异步 ajax 请求没有什么区别，关键是在服务端收到请求后的处理：</p>
-<pre><code>// cors/server.js
-require(&apos;http&apos;).createServer((req, res) =&gt; {
-
-    res.writeHead(200, {
-        &apos;Access-Control-Allow-Origin&apos;: &apos;http://localhost:8080&apos;,
-        &apos;Content-Type&apos;: &apos;text/html;charset=utf-8&apos;,
-    });
-    res.end(&apos;这是你要的数据：1111&apos;);
-
-}).listen(3000, &apos;127.0.0.1&apos;);
-
-console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
-</code></pre><p>关键是在于设置相应头中的 Access-Control-Allow-Origin，该值要与请求头中 Origin 一致才能生效，否则将跨域失败。</p>
-<p>然后我们执行命令：<code>yarn cors</code> 打开浏览器访问 <code>localhost:3000</code> 即可看到效果：</p>
-<p><img src="https://pic2.zhimg.com/v2-13ee0a40a998948019749da80e1d259a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-13ee0a40a998948019749da80e1d259a_hd.jpg" alt=""></p>
-<p>成功的关键在于 Access-Control-Allow-Origin 是否包含请求页面的域名，如果不包含的话，浏览器将认为这是一次失败的异步请求，将会调用 xhr.onerror 中的函数。</p>
-<p>CORS 的优缺点：</p>
-<ol>
-<li>使用简单方便，更为安全</li>
-<li>支持 POST 请求方式</li>
-<li>CORS 是一种新型的跨域问题的解决方案，存在兼容问题，仅支持 IE 10 以上</li>
-</ol>
-<p>这里只是对 CORS 做一个简单的介绍，如果想更详细地了解其原理的话，可以看看下面这篇文章：</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/cors.html" target="_blank" rel="noopener">跨域资源共享 CORS 详解 - 阮一峰的网络日志</a></p>
-<h2 id="3-服务端代理："><a href="#3-服务端代理：" class="headerlink" title="3. 服务端代理："></a>3. 服务端代理：</h2><p>服务器代理，顾名思义，当你需要有跨域的请求操作时发送请求给后端，让后端帮你代为请求，然后最后将获取的结果发送给你。</p>
-<p>假设有这样的一个场景，你的页面需要获取 <a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/api" target="_blank" rel="noopener">CNode：Node.js专业中文社区</a> 论坛上一些数据，如通过 <code>https://cnodejs.org/api/v1/topics</code>，当时因为不同域，所以你可以将请求后端，让其对该请求代为转发。</p>
-<p>代码如下：</p>
-<pre><code>// serverProxy/server.js
-const url = require(&apos;url&apos;);
-const http = require(&apos;http&apos;);
-const https = require(&apos;https&apos;);
-
-const server = http.createServer((req, res) =&gt; {
-    const path = url.parse(req.url).path.slice(1);
-    if(path === &apos;topics&apos;) {
-        https.get(&apos;https://cnodejs.org/api/v1/topics&apos;, (resp) =&gt; {
-            let data = &quot;&quot;;
-            resp.on(&apos;data&apos;, chunk =&gt; {
-                data += chunk;
-            });
-            resp.on(&apos;end&apos;, () =&gt; {
-                res.writeHead(200, {
-                    &apos;Content-Type&apos;: &apos;application/json; charset=utf-8&apos;
-                });
-                res.end(data);
-            });
-        })        
-    }
-}).listen(3000, &apos;127.0.0.1&apos;);
-console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
-</code></pre><p>通过代码你可以看出，当你访问 <code>http://127.0.0.1:3000/topics</code> 的时候，服务器收到请求，会代你发送请求 <code>https://cnodejs.org/api/v1/topics</code> 最后将获取到的数据发送给浏览器。</p>
-<p>启动服务 <code>yarn proxy</code> 并访问 <code>http://localhost:3000/topics</code> 即可看到效果：<br><img src="https://pic1.zhimg.com/v2-a14f2dd5cfd124187cabff0fdfabe5a9_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-a14f2dd5cfd124187cabff0fdfabe5a9_hd.jpg" alt=""></p>
-<p>跨域请求成功。纯粹的获取跨域获取后端数据的请求的方式已经介绍完了，另外介绍四种通过 iframe 跨域与其它页面通信的方式。</p>
-<h2 id="location-hash："><a href="#location-hash：" class="headerlink" title="location.hash："></a>location.hash：</h2><p>在 url 中，<code>http://www.baidu.com#helloworld</code> 的 “#helloworld” 就是 location.hash，改变 hash 值不会导致页面刷新，所以可以利用 hash 值来进行数据的传递，当然数据量是有限的。</p>
-<p>假设 <code>localhost:8080</code> 下有文件 index.html 要和 <code>localhost:8081</code> 下的 data.html 传递消息，index.html 首先创建一个隐藏的 iframe，iframe 的 src 指向 <code>localhost:8081/data.html</code>，这时的 hash 值就可以做参数传递。</p>
-<pre><code>// hash/client/index.html 对应 localhost:8080/index.html
-&lt;script&gt;
-    let ifr = document.createElement(&apos;iframe&apos;);
-    ifr.style.display = &apos;none&apos;;
-    ifr.src = &quot;http://localhost:8081/data.html#data&quot;;
-    document.body.appendChild(ifr);
-
-    function checkHash() {
-        try {
-            let data = location.hash ? location.hash.substring(1) : &apos;&apos;;
-            console.log(&apos;获得到的数据是：&apos;, data);
-        }catch(e) {
-
-        }
-    }
-    window.addEventListener(&apos;hashchange&apos;, function(e) {
-        console.log(&apos;获得的数据是：&apos;, location.hash.substring(1));
-    });
-&lt;/script&gt;
-</code></pre><p>data.html 收到消息后通过 parent.location.hash 值来修改 index.html 的 hash 值，从而达到数据传递。</p>
-<pre><code>// hash/server/data.html 对应 localhost:8081/data.html
-&lt;script&gt;
-    switch(location.hash) {
-        case &quot;#data&quot;:
-            callback();
-            break;
-    }
-    function callback() {
-        const data = &quot;data.html 的数据&quot;
-        try {
-            parent.location.hash = data;
-        }catch(e) {
-            // ie, chrome 下的安全机制无法修改 parent.location.hash
-            // 所以要利用一个中间的代理 iframe 
-            var ifrproxy = document.createElement(&apos;iframe&apos;);
-            ifrproxy.style.display = &apos;none&apos;;
-            ifrproxy.src = &apos;http://localhost:8080/proxy.html#&apos; + data;     // 该文件在 client 域名的域下
-            document.body.appendChild(ifrproxy);
-        }
-    }
-&lt;/script&gt;
-</code></pre><p>由于两个页面不在同一个域下 IE、Chrome 不允许修改 parent.location.hash 的值，所以要借助于 <code>localhost:8080</code> 域名下的一个代理 iframe 的 proxy.html 页面</p>
-<pre><code>// hash/client/proxy.html 对应 localhost:8080/proxy.html
-&lt;script&gt;
-    parent.parent.location.hash = self.location.hash.substring(1);
-&lt;/script&gt;
-</code></pre><p>之后启动服务 <code>yarn hash</code>，即可在 <code>localhost:8080</code> 下观察到：</p>
-<p><img src="https://pic2.zhimg.com/v2-278b33c730dc9aaf499f172424adde00_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-278b33c730dc9aaf499f172424adde00_hd.jpg" alt=""></p>
-<p>当然这种方法存在着诸多的缺点：</p>
-<ol>
-<li>数据直接暴露在了 url 中</li>
-<li>数据容量和类型都有限等等</li>
-</ol>
-<h2 id="window-name"><a href="#window-name" class="headerlink" title="window.name:"></a>window.name:</h2><p>window.name（一般在 js 代码里出现）的值不是一个普通的全局变量，而是当前窗口的名字，这里要注意的是每个 iframe 都有包裹它的 window，而这个 window 是 top window 的子窗口，而它自然也有 window.name 的属性，window.name 属性的神奇之处在于 name 值在不同的页面（甚至不同域名）加载后依旧存在（如果没修改则值不会变化），并且可以支持非常长的 name 值（2MB）。</p>
-<p>举个简单的例子：</p>
-<p>你在某个页面的控制台输入：</p>
-<pre><code>window.name = &quot;Hello World&quot;
-window.location = &quot;http://www.baidu.com&quot;
-</code></pre><p>页面跳转到了百度首页，但是 window.name 却被保存了下来，还是 Hello World，跨域解决方案似乎可以呼之欲出了：</p>
-<p>前端逻辑：</p>
-<pre><code>// name/client/index.html 对应 localhost:8080/index.html 
-&lt;script&gt;
-    let data = &apos;&apos;;
-    const ifr = document.createElement(&apos;iframe&apos;);
-    ifr.src = &quot;http://localhost:8081/data.html&quot;;
-    ifr.style.display = &apos;none&apos;;
-    document.body.appendChild(ifr);
-    ifr.onload = function() {
-        ifr.onload = function() {
-            data = ifr.contentWindow.name;
-            console.log(&apos;收到数据:&apos;, data);
-        }
-        ifr.src = &quot;http://localhost:8080/proxy.html&quot;;
-    }
-&lt;/script&gt;
-</code></pre><p>数据页面：</p>
-<pre><code>// name/server/data.html 对应 localhost:8081/data.html
-&lt;script&gt;
-    window.name = &quot;data.html 的数据!&quot;;
-&lt;/script&gt;
-</code></pre><p><code>localhost:8080index.html</code> 在请求数据端 <code>localhost:8081/data.html</code> 时，我们可以在该页面新建一个 iframe，该 iframe 的 src 指向数据端地址(利用 iframe 标签的跨域能力)，数据端文件设置好 window.name 的值。</p>
-<p>但是由于 index.html 页面与该页面 iframe 的 src 如果不同源的话，则无法操作 iframe 里的任何东西，所以就取不到 iframe 的 name 值，所以我们需要在 data.html 加载完后重新换个 src 去指向一个同源的 html 文件，或者设置成 ‘about:blank;’ 都行，这时候我只要在 index.html 相同目录下新建一个 proxy.html 的空页面即可。如果不重新指向 src 的话直接获取的 window.name 的话会报错：</p>
-<p><img src="https://pic2.zhimg.com/v2-7bd77f4df4565cd258bbeeed28515152_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7bd77f4df4565cd258bbeeed28515152_hd.jpg" alt=""></p>
-<p>之后运行 <code>yarn name</code> 即可看到效果：</p>
-<p><img src="https://pic4.zhimg.com/v2-4dcf4a5d25982ce71bdbe6f14af4620c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-4dcf4a5d25982ce71bdbe6f14af4620c_hd.jpg" alt=""></p>
-<h2 id="6-postMessage"><a href="#6-postMessage" class="headerlink" title="6.postMessage"></a>6.postMessage</h2><p>postMessage 是 HTML5 新增加的一项功能，跨文档消息传输(Cross Document Messaging)，目前：Chrome 2.0+、Internet Explorer 8.0+, Firefox 3.0+, Opera 9.6+, 和 Safari 4.0+ 都支持这项功能，使用起来也特别简单。</p>
-<p>前端逻辑：</p>
-<pre><code>// postMessage/client/index.html 对应 localhost:8080/index.html
-&lt;iframe src=&quot;http://localhost:8081/data.html&quot; style=&apos;display: none;&apos;&gt;&lt;/iframe&gt;
-&lt;script&gt;
-    window.onload = function() {
-        let targetOrigin = &apos;http://localhost:8081&apos;;
-        window.frames[0].postMessage(&apos;index.html 的 data!&apos;, targetOrigin);
-    }
-    window.addEventListener(&apos;message&apos;, function(e) {
-        console.log(&apos;index.html 接收到的消息:&apos;, e.data);
-    });
-&lt;/script&gt;
-</code></pre><p>创建一个 iframe，使用 iframe 的一个方法 postMessage 可以想 <code>http://localhost:8081/data.html</code> 发送消息，然后监听 message，可以获得其文档发来的消息。</p>
-<p>数据端逻辑：</p>
-<pre><code>// postMessage/server/data.html 对应 localhost:8081/data.html
-&lt;script&gt;
-    window.addEventListener(&apos;message&apos;, function(e) {
-        if(e.source != window.parent) {
-            return;
-        }
-        let data = e.data;
-        console.log(&apos;data.html 接收到的消息:&apos;, data);
-        parent.postMessage(&apos;data.html 的 data!&apos;, e.origin);
-    });
-&lt;/script&gt;
-</code></pre><p>启动服务：<code>yarn postMessage</code> 并打开浏览器访问：</p>
-<p><img src="https://pic1.zhimg.com/v2-62c2ff153980a18ddd08110cd41cfde4_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-62c2ff153980a18ddd08110cd41cfde4_hd.jpg" alt=""></p>
-<p>对 postMessage 感兴趣的详细内容可以看看教程：</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//baike.baidu.com/item/PostMessage/6373972%3Ffr%3Daladdin" target="_blank" rel="noopener">PostMessage_百度百科</a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/Window/postMessage" target="_blank" rel="noopener">Window.postMessage()</a></p>
-<h2 id="7-document-domain"><a href="#7-document-domain" class="headerlink" title="7.document.domain"></a>7.document.domain</h2><p>对于主域相同而子域不同的情况下，可以通过设置 document.domain 的办法来解决，具体做法是可以在 <code>http://www.example.com/index.html</code> 和 <code>http://sub.example.com/data.html</code> 两个文件分别加上 <code>document.domain = &quot;example.com&quot;</code> 然后通过 index.html 文件创建一个 iframe，去控制 iframe 的 window，从而进行交互，当然这种方法只能解决主域相同而二级域名不同的情况，如果你异想天开的把 script.example.com 的 domain 设为 qq.com 显然是没用的，那么如何测试呢？</p>
-<p>测试的方式稍微复杂点，需要安装 nginx 做域名映射，如果你电脑没有安装 nginx，请先去安装一下: <a href="https://link.zhihu.com/?target=http%3A//nginx.org/" target="_blank" rel="noopener">nginx</a></p>
-<p>前端逻辑：</p>
-<pre><code>// domain/client/index.html 对应 sub1.example.com/index.html
-&lt;script&gt;
-    document.domain = &apos;example.com&apos;;
-    let ifr = document.createElement(&apos;iframe&apos;);
-    ifr.src = &apos;http://sub2.example.com/data.html&apos;;
-    ifr.style.display = &apos;none&apos;;
-    document.body.append(ifr);
-    ifr.onload = function() {
-        let win = ifr.contentWindow;
-        alert(win.data);
-    }
-&lt;/script&gt;
-</code></pre><p>数据端逻辑：</p>
-<pre><code>// domain/server/data 对应 sub2.example.com/data.html
-&lt;script&gt;
-    document.domain = &apos;example.com&apos;;
-    window.data = &apos;data.html 的数据！&apos;;
-&lt;/script&gt;
-</code></pre><p>打开操作系统下的 hosts 文件：mac 是位于 /etc/hosts 文件，并添加：</p>
-<pre><code>127.0.0.1 sub1.example.com
-127.0.0.1 sub2.example.com
-</code></pre><p>之后打开 nginx 的配置文件：/usr/local/etc/nginx/nginx.conf，并在 http 模块里添加，记得输入 nginx 启动 nginx 服务：</p>
-<pre><code>/usr/local/etc/nginx/nginx.conf
-http {
-    // ...
-    server {
-        listen 80;
-        server_name sub1.example.com;
-        location / {
-            proxy_pass http://127.0.0.1:8080/;
-        }
-    }
-    server {
-        listen 80;
-        server_name sub2.example.com;
-        location / {
-            proxy_pass http://127.0.0.1:8081/;
-        }
-    }
-    // ...
-}
-</code></pre><p>相当于是讲 <code>sub1.example.com</code> 和 <code>sub2.example.com</code> 这些域名地址指向本地 <code>127.0.0.1:80</code>，然后用 nginx 做反向代理分别映射到 8080 和 8081 端口。</p>
-<p>这样访问 <code>sub1(2).example.com</code> 等于访问 <code>127.0.0.1:8080(1)</code></p>
-<p>启动服务 <code>yarn domain</code> 访问浏览器即可看到效果：</p>
-<p><img src="https://pic2.zhimg.com/v2-19277c077856648ca1d593f44afadf6e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-19277c077856648ca1d593f44afadf6e_hd.jpg" alt=""></p>
-<h2 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h2><p>前面七种跨域方式我已经全部讲完，其实讲道理，常用的也就是前三种方式，后面四种更多时候是一些小技巧，虽然在工作中不一定会用到，但是如果你在面试过程中能够提到这些跨域的技巧，无疑在面试官的心中是一个加分项。</p>
-<p>上面阐述方法的时候可能有些讲的不明白，希望在阅读的过程中建议你跟着我敲代码，当你打开浏览器看到结果的时候，你也就能掌握到这种方法。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/19/for-in-、Object-keys-和Object-getOwnPropertyNames-for-of/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3545,6 +3107,314 @@ server.listen(3000)
 <li><p>修改时间：通过文件的最后修改时间判断该不该读取缓存，服务端设置响应头Last-Modified,客户端把上次服务端响应头中的Last-modified值通过if-modified-since 传递给服务端 ， 服务端通过比较当前文件的修改时间和上次修改时间(上次传给客户端的值),如果相等那么说明文件修改时间没变也就是没变化</p>
 </li>
 <li>文件内容：通过文件的内容来判断该不该读取缓存，服务端通过把文件内容读取出来，通过md5进行base64加密得出hash值，把这个值设置响应头Etag，客户端下一次请求通过if-none-match带过来，服务端再比对当前文件内容加密得出的hash值和上次是否一样，如果一样说明文件内容没有发生改变，这种方式是最准确的方式，但是也是最耗性能</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/vue2-0模板渲染底层思想/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/02/vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
+                2018-04-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>初衷</p>
+<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
+<p>vue2.0和1.0模板渲染的区别</p>
+<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
+<p>知识普及</p>
+<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
+<p>AST 数据结构</p>
+<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
+<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
+<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
+declare type ASTElement = { // 有关元素的一些定义
+  type: 1;
+  tag: string;
+  attrsList: Array&lt;{ name: string; value: string }&gt;;
+  attrsMap: { [key: string]: string | null };
+  parent: ASTElement | void;
+  children: Array&lt;ASTNode&gt;;
+  //......
+}
+declare type ASTExpression = {
+  type: 2;
+  expression: string;
+  text: string;
+  static?: boolean;
+}
+declare type ASTText = {
+  type: 3;
+  text: string;
+  static?: boolean;
+}
+</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
+<p>VNode数据结构</p>
+<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
+<pre><code>constructor {
+  this.tag = tag   //元素标签
+  this.data = data  //属性
+  this.children = children  //子元素列表
+  this.text = text
+  this.elm = elm  //对应的真实 DOM 元素
+  this.ns = undefined
+  this.context = context 
+  this.functionalContext = undefined
+  this.key = data &amp;&amp; data.key
+  this.componentOptions = componentOptions
+  this.componentInstance = undefined
+  this.parent = undefined
+  this.raw = false
+  this.isStatic = false //是否被标记为静态节点
+  this.isRootInsert = true
+  this.isComment = false
+  this.isCloned = false
+  this.isOnce = false
+}
+</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
+<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
+<pre><code>let div = document.createElement(&apos;div&apos;);
+for(let k in div) {
+  console.log(k);
+}
+</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
+<p>render函数</p>
+<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
+<pre><code>&lt;div id=&quot;app&quot;&gt;
+  &lt;header&gt;
+    &lt;h1&gt;I am a template!&lt;/h1&gt;
+  &lt;/header&gt;
+  &lt;p v-if=&quot;message&quot;&gt;
+    {{ message }}
+  &lt;/p&gt;
+  &lt;p v-else&gt;
+    No message.
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
+<pre><code>(function() {
+  with(this){
+    return _c(&apos;div&apos;,{   //创建一个 div 元素
+      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
+      },[
+        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
+        _v(&quot; &quot;), //空的文本节点
+        (message) //三元表达式，判断 message 是否存在
+         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
+        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
+        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
+        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
+      ]
+    )
+  }
+})
+</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
+<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
+<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
+  with(this){
+    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
+  }
+})
+</code></pre><p>模板渲染过程（重要的函数介绍）</p>
+<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
+<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
+<pre><code>// 有缓存的话就直接在缓存里面拿
+const key = options &amp;&amp; options.delimiters
+            ? String(options.delimiters) + template
+            : template
+if (cache[key]) {
+    return cache[key]
+}
+const res = {}
+const compiled = compile(template, options) // compile 后面会详细讲
+res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
+const l = compiled.staticRenderFns.length
+res.staticRenderFns = new Array(l)
+for (let i = 0; i &lt; l; i++) {
+    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
+}
+......
+}
+return (cache[key] = res) // 记录至缓存中
+</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
+<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
+<pre><code>// 触发 beforeMount 生命周期钩子
+callHook(vm, &apos;beforeMount&apos;)
+// 重点：新建一个 Watcher 并赋值给 vm._watcher
+vm._watcher = new Watcher(vm, function updateComponent () {
+  vm._update(vm._render(), hydrating)
+}, noop)
+hydrating = false
+// manually mounted instance, call mounted on self
+// mounted is called for render-created child components in its inserted hook
+if (vm.$vnode == null) {
+  vm._isMounted = true
+  callHook(vm, &apos;mounted&apos;)
+}
+return vm
+</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
+<p>compile</p>
+<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
+<pre><code>export function compile (
+  template: string,
+  options: CompilerOptions
+): CompiledResult {
+  const AST = parse(template.trim(), options) //1. parse
+  optimize(AST, options)  //2.optimize
+  const code = generate(AST, options) //3.generate
+  return {
+    AST,
+    render: code.render,
+    staticRenderFns: code.staticRenderFns
+  }
+}
+</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
+<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
+staticRenderFns = prevStaticRenderFns
+onceCount = prevOnceCount
+return {
+    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
+    staticRenderFns: currentStaticRenderFns
+}
+</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
+<pre><code>function genElement (el: ASTElement): string {
+  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
+    return genStatic(el)
+  } else if (el.once &amp;&amp; !el.onceProcessed) {
+    return genOnce(el)
+  } else if (el.for &amp;&amp; !el.forProcessed) {
+    return genFor(el)
+  } else if (el.if &amp;&amp; !el.ifProcessed) {
+    return genIf(el)
+  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
+    return genChildren(el) || &apos;void 0&apos;
+  } else if (el.tag === &apos;slot&apos;) {
+  }
+    return code
+  }
+}
+</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
+<p>patch</p>
+<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
+<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
+<p>总结</p>
+<ul>
+<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
+<li>render函数 与数据通过 Watcher 产生关联；</li>
+<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
 </ul>
 
           
