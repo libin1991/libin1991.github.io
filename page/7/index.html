@@ -4569,7 +4569,7 @@ console.log(getType( undefined));
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/02/11/防抖和节流原理分析/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/12/22/JavaScript-模块化解析/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -4588,7 +4588,7 @@ console.log(getType( undefined));
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2016/02/11/防抖和节流原理分析/" itemprop="url">防抖和节流原理分析</a></h1>
+                <a class="post-title-link" href="/2016/12/22/JavaScript-模块化解析/" itemprop="url">JavaScript 模块化解析</a></h1>
         
 
         <div class="post-meta">
@@ -4600,8 +4600,8 @@ console.log(getType( undefined));
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-02-11T14:51:19+08:00">
-                2016-02-11
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-12-22T19:47:32+08:00">
+                2016-12-22
               </time>
             
 
@@ -4640,189 +4640,266 @@ console.log(getType( undefined));
       
         
           
-            <p>窗口的resize、scroll、输入框内容校验等操作时，如果这些<strong>操作处理函数</strong>是较为复杂或页面频繁重渲染等操作时，在这种情况下如果事件触发的频率无限制，会加重浏览器的负担，导致用户体验非常糟糕。此时我们可以采用debounce（防抖）和throttle（节流）的方式来<strong>减少触发的频率</strong>，同时又不影响实际效果。</p>
-<h2 id="防抖"><a href="#防抖" class="headerlink" title="防抖"></a>防抖</h2><p>debounce（防抖），简单来说就是防止抖动。</p>
-<p>当持续触发事件时，debounce 会<strong>合并事件且不会去触发事件</strong>，<strong>当一定时间内没有触发再这个事件时，才真正去触发事件</strong>。</p>
-<h3 id="非立即执行版"><a href="#非立即执行版" class="headerlink" title="非立即执行版"></a>非立即执行版</h3><p>非立即执行版的意思是触发事件后函数不会立即执行，而是在 n 秒后执行，如果在 n 秒内又触发了事件，则会重新计算函数执行时间。</p>
-<pre><code>const debounce = (func, wait, ...args) =&gt; {
-  let timeout;
-  return function(){
-    const context = this;
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() =&gt; {
-      func.apply(context, args)
-    },wait);
-  }
-}
-</code></pre><p>如此调用：</p>
-<pre><code>content.onmousemove = debounce(count,1000);
-</code></pre><h3 id="立即执行版"><a href="#立即执行版" class="headerlink" title="立即执行版"></a>立即执行版</h3><p>立即执行版的意思是触发事件后函数会立即执行，然后 n 秒内不触发事件才能继续执行函数的效果。</p>
-<pre><code>const debounce = (func, wait, ...args) =&gt; {
-  let timeout;
-  return function(){
-    const context = this;
-    if (timeout) cleatTimeout(timeout);
-    let callNow = !timeout;
-    timeout = setTimeout(() =&gt; {
-      timeout = null;
-    },wait)
-
-    if(callNow) func.apply(context,args)
-   }
-}
-</code></pre><h3 id="结合版"><a href="#结合版" class="headerlink" title="结合版"></a>结合版</h3><pre><code>/**
- * @desc 函数防抖
- * @param func 函数
- * @param wait 延迟执行毫秒数
- * @param immediate true 表立即执行，false 表非立即执行
- */functiondebounce(func,wait,immediate) {
-    var timeout;
-
-    returnfunction () {
-        var context = this;
-        var args = arguments;
-
-        if (timeout) clearTimeout(timeout);
-        if (immediate) {
-            var callNow = !timeout;
-            timeout = setTimeout(function(){
-                timeout = null;
-            }, wait)
-            if (callNow) func.apply(context, args)
-        }
-        else {
-            timeout = setTimeout(function(){
-                func.apply(context, args)
-            }, wait);
-        }
-    }
-}
-</code></pre><h2 id="节流"><a href="#节流" class="headerlink" title="节流"></a>节流</h2><p>throttle（节流），当持续触发事件时，<strong>保证隔间时间触发一次事件</strong>。</p>
-<p>持续触发事件时，throttle 会合并一定时间内的事件，并在该时间结束时真正去触发一次事件。</p>
-<h3 id="时间戳版"><a href="#时间戳版" class="headerlink" title="时间戳版"></a>时间戳版</h3><p><img src="data:image/svg+xml;utf8,&lt;?xml version=&quot;1.0&quot;?&gt;&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; version=&quot;1.1&quot; width=&quot;717&quot; height=&quot;323&quot;&gt;&lt;/svg&gt;" alt=""><br>在持续触发事件的过程中，函数会立即执行，并且每 1s 执行一次。</p>
-<pre><code>const throttle = (func, wait, ...args) =&gt; {
-  let pre = 0;
-  returnfunction(){
-    const context = this;
-    let now = Date.now();
-    if (now - pre &gt;= wait){
-       func.apply(context, args);
-       pre = Date.now();
-    }
-  }
-}
-</code></pre><h3 id="定时器版"><a href="#定时器版" class="headerlink" title="定时器版"></a>定时器版</h3><p>在持续触发事件的过程中，函数不会立即执行，并且每 1s 执行一次，在停止触发事件后，函数还会再执行一次。</p>
-<pre><code>const throttle = (func, wait, ...args) =&gt; {
-  let timeout;
-  return function(){
-    const context = this;
-    if(!timeout){
-      timeout = setTimeout(() =&gt; {
-        timeout = null;
-        func.apply(context,args);
-      },wait)
-    }
-  }
-}
-</code></pre><h3 id="结合版-1"><a href="#结合版-1" class="headerlink" title="结合版"></a>结合版</h3><p>其实时间戳版和定时器版的节流函数的区别就是，时间戳版的函数触发是在时间段内开始的时候，而定时器版的函数触发是在时间段内结束的时候。</p>
-<pre><code>/**
- * @desc 函数节流
- * @param func 函数
- * @param wait 延迟执行毫秒数
- * @param type 1 表时间戳版，2 表定时器版
- */functionthrottle(func, wait ,type) {
-    if(type===1){
-        var previous = 0;
-    }elseif(type===2){
-        var timeout;
-    }
-
-    returnfunction() {
-        var context = this;
-        var args = arguments;
-        if(type===1){
-            var now = Date.now();
-
-            if (now - previous &gt; wait) {
-                func.apply(context, args);
-                previous = now;
-            }
-        }elseif(type===2){
-            if (!timeout) {
-                timeout = setTimeout(function() {
-                    timeout = null;
-                    func.apply(context, args)
-                }, wait)
-            }
-        }
-
-    }
-}
-</code></pre><h2 id="underscore-源码"><a href="#underscore-源码" class="headerlink" title="underscore 源码"></a>underscore 源码</h2><pre><code>/**
- * underscore 防抖函数，返回函数连续调用时，空闲时间必须大于或等于 wait，func 才会执行
- *
- * @param  {function} func        回调函数
- * @param  {number}   wait        表示时间窗口的间隔
- * @param  {boolean}  immediate   设置为ture时，是否立即调用函数
- * @return {function}             返回客户调用函数
- */
-_.debounce = function(func, wait, immediate) {
-    var timeout, args, context, timestamp, result;
-
-    var later = function() {
-      // 现在和上一次时间戳比较var last = _.now() - timestamp;
-      // 如果当前间隔时间少于设定时间且大于0就重新设置定时器if (last &lt; wait &amp;&amp; last &gt;= 0) {
-        timeout = setTimeout(later, wait - last);
-      } else {
-        // 否则的话就是时间到了执行回调函数
-        timeout = null;
-        if (!immediate) {
-          result = func.apply(context, args);
-          if (!timeout) context = args = null;
-        }
-      }
-    };
-
-    returnfunction() {
-      context = this;
-      args = arguments;
-      // 获得时间戳
-      timestamp = _.now();
-      // 如果定时器不存在且立即执行函数var callNow = immediate &amp;&amp; !timeout;
-      // 如果定时器不存在就创建一个if (!timeout) timeout = setTimeout(later, wait);
-      if (callNow) {
-        // 如果需要立即执行函数的话 通过 apply 执行
-        result = func.apply(context, args);
-        context = args = null;
-      }
-
-      return result;
-    };
-  };
-</code></pre><ul>
-<li>对于按钮防点击来说的实现：一旦我开始一个定时器，只要我定时器还在，不管你怎么点击都不会执行回调函数。一旦定时器结束并设置为 null，就可以再次点击了。</li>
-<li><p>对于延时执行函数来说的实现：每次调用防抖动函数都会判断本次调用和之前的时间间隔，如果小于需要的时间间隔，就会重新创建一个定时器，并且定时器的延时为设定时间减去之前的时间间隔。一旦时间到了，就会执行相应的回调函数。</p>
-<p>  /**</p>
+            <p>随着 JavasScript 语言逐渐发展，JavaScript 应用从简单的表单验证，到复杂的网站交互，再到服务端，移动端，PC 客户端的语言支持。JavaScript 应用领域变的越来越广泛，工程代码变得越来越庞大，代码的管理变得越来越困难，于是乎 JavaScript 模块化方案在社区中应声而起，其中一些优秀的模块化方案，逐渐成为 JavaScript 的语言规范，下面我们就 JavaScript 模块化这个话题展开讨论，本文的主要包含以几部分内容。</p>
 <ul>
-<li>underscore 节流函数，返回函数连续调用时，func 执行频率限定为 次 / wait<br>*</li>
-<li>@param  {function}   func      回调函数</li>
-<li>@param  {number}     wait      表示时间窗口的间隔</li>
-<li>@param  {object}     options   如果想忽略开始函数的的调用，传入{leading: false}。</li>
-<li>如果想忽略结尾函数的调用，传入{trailing: false}</li>
-<li>两者不能共存，否则函数不能执行</li>
-<li>@return {function}             返回客户调用函数<br>*/<br>_.throttle = function(func, wait, options) {<br> var context, args, result;<br> var timeout = null;<br> // 之前的时间戳var previous = 0;<br> // 如果 options 没传则设为空对象if (!options) options = {};<br> // 定时器回调函数var later = function() {<br>   // 如果设置了 leading，就将 previous 设为 0// 用于下面函数的第一个 if 判断<br>   previous = options.leading === false ? 0 : _.now();<br>   // 置空一是为了防止内存泄漏，二是为了下面的定时器判断<br>   timeout = null;<br>   result = func.apply(context, args);<br>   if (!timeout) context = args = null;<br> };<br> returnfunction() {<br>   // 获得当前时间戳var now = _.now();<br>   // 首次进入前者肯定为 true// 如果需要第一次不执行函数// 就将上次时间戳设为当前的// 这样在接下来计算 remaining 的值时会大于0if (!previous &amp;&amp; options.leading === false) previous = now;<br>   // 计算剩余时间var remaining = wait - (now - previous);<br>   context = this;<br>   args = arguments;<br>   // 如果当前调用已经大于上次调用时间 + wait// 或者用户手动调了时间// 如果设置了 trailing，只会进入这个条件// 如果没有设置 leading，那么第一次会进入这个条件// 还有一点，你可能会觉得开启了定时器那么应该不会进入这个 if 条件了// 其实还是会进入的，因为定时器的延时// 并不是准确的时间，很可能你设置了2秒// 但是他需要2.2秒才触发，这时候就会进入这个条件if (remaining &lt;= 0 || remaining &gt; wait) {<pre><code>// 如果存在定时器就清理掉否则会调用二次回调if (timeout) {
-  clearTimeout(timeout);
-  timeout = null;
+<li>什么是模块</li>
+<li>为什么需要模块化</li>
+<li>JavaScript 模块化之 CommonJS</li>
+<li>JavaScript 模块化之 AMD</li>
+<li>JavaScript 模块化之 CMD</li>
+<li>JavaScript 模块化之 ES Module</li>
+<li>总结</li>
+</ul>
+<h2 id="什么是模块"><a href="#什么是模块" class="headerlink" title="什么是模块"></a>什么是模块</h2><p>模块，又称构件，是能够单独命名并独立地完成一定功能的程序语句的集合 (即程序代码和数据结构的集合体)。它具有两个基本的特征：外部特征和内部特征。外部特征是指模块跟外部环境联系的接口 (即其他模块或程序调用该模块的方式，包括有输入输出参数、引用的全局变量) 和模块的功能，内部特征是指模块的内部环境具有的特点 (即该模块的局部数据和程序代码)。简而言之，模块就是一个具有独立作用域，对外暴露特定功能接口的代码集合。</p>
+<h2 id="为什么需要模块化"><a href="#为什么需要模块化" class="headerlink" title="为什么需要模块化"></a>为什么需要模块化</h2><p>首先让我们回到过去，看看原始 JavaScript 模块文件的写法。</p>
+<pre><code>// add.jsfunctionadd(a, b) {
+  return a + b;
 }
-previous = now;
-result = func.apply(context, args);
-if (!timeout) context = args = null;
-</code></pre>   } elseif (!timeout &amp;&amp; options.trailing !== false) {<pre><code>// 判断是否设置了定时器和 trailing// 没有的话就开启一个定时器// 并且不能不能同时设置 leading 和 trailing
-timeout = setTimeout(later, remaining);
-</code></pre>   }<br>   return result;<br> };<br>};</li>
-</ul>
+// decrease.jsfunctiondecrease(a, b) {
+  return a - b;
+}
+
+// formula.jsfunctionsquare_difference(a, b) {
+  return add(a, b) * decrease(a, b);
+}
+</code></pre><p>上面我们在三个 JavaScript 文件里面，实现了几个功能函数。其中，第三个功能函数需要依赖第一个和第二个 JavaScript 文件的功能函数，所以我们在使用的时候，一般会这样写：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br></pre></td><td class="code"><pre><span class="line">    &lt;html lang=&quot;en&quot;&gt;</span><br><span class="line">		&lt;head&gt;</span><br><span class="line">		  &lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;</span><br><span class="line">		  &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;</span><br><span class="line">		  &lt;title&gt;Document&lt;/title&gt;</span><br><span class="line">		&lt;/head&gt;</span><br><span class="line">		&lt;body&gt;</span><br><span class="line">		    &lt;script src=&quot;add.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">		    &lt;script src=&quot;decrease.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">		    &lt;script src=&quot;formula.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">		    &lt;!--使用--&gt;</span><br><span class="line">		    &lt;script&gt;</span><br><span class="line">		       var result = square_difference(3, 4);</span><br><span class="line">		    &lt;/script&gt;</span><br><span class="line">		&lt;/body&gt;</span><br><span class="line">	&lt;/html&gt;</span><br><span class="line"></span><br><span class="line">``` </span><br><span class="line"></span><br><span class="line">这样的管理方式会造成以下几个问题：</span><br><span class="line"></span><br><span class="line">- 模块的引入顺序可能会出错</span><br><span class="line">- 会污染全局变量</span><br><span class="line">- 模块之间的依赖关系不明显</span><br><span class="line"></span><br><span class="line">基于上述的原因，就有了对上述问题的解决方案，即是 JavaScript 模块化规范，目前主流的有 CommonJS，AMD，CMD，ES6 Module 这四种规范。</span><br><span class="line"></span><br><span class="line">## Javascript 模块化之 CommonJS</span><br><span class="line"></span><br><span class="line">CommonJS 规范的主要内容有，一个单独的文件就是一个模块。每一个模块都是一个单独的作用域，模块必须通过 module.exports 导出对外的变量或接口，通过 require() 来导入其他模块的输出到当前模块作用域中，下面讲述一下 NodeJs 中 CommonJS 的模块化机制。</span><br><span class="line"></span><br><span class="line">### 使用方式</span><br><span class="line"></span><br><span class="line">    // 模块定义 add.jsmodule.eports.add = function(a, b) &#123;</span><br><span class="line">      return a + b;</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    // 模块定义 decrease.jsmodule.exports.decrease = function(a, b) &#123;</span><br><span class="line">      return a - b;</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    // formula.js,模块使用，利用 require() 方法加载模块,require 导出的即是 module.exports 的内容const add = require(&quot;./add.js&quot;).add;</span><br><span class="line">    const decrease = require(&quot;./decrease.js&quot;).decrease;</span><br><span class="line">    module.exports.square_difference = function(a, b) &#123;</span><br><span class="line">      return add(a, b) * decrease(a, b);</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">### exports 和 module.exports</span><br><span class="line"></span><br><span class="line">exports 和 module.exports 是指向同一个东西的变量，即是 module.exports = exports = &#123;&#125;，所以你也可以这样导出模块</span><br><span class="line"></span><br><span class="line">    //add.js</span><br><span class="line">    exports.add = function(a, b) &#123;</span><br><span class="line">      return a + b;</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">但是如果直接修改 exports 的指向是无效的，例如:</span><br><span class="line"></span><br><span class="line">    // add.js</span><br><span class="line">    exports = function(a, b) &#123;</span><br><span class="line">      return a + b;</span><br><span class="line">    &#125;;</span><br><span class="line">    // main.jsvar add = require(&quot;./add.js&quot;);</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">此时得到的 add 是一个空对象，因为 require 导入的是，对应模块的 module.exports 的内容，在上面的代码中，虽然一开始 exports = module.exports，但是当执行如下代码的时候，其实就将 exports 指向了 function,而 module.exports 的内容并没有改变，所以这个模块的导出为空对象。</span><br><span class="line"></span><br><span class="line">    exports = function(a, b) &#123;</span><br><span class="line">      return a + b;</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">### CommonJS 在 NodeJs 中的模块加载机制</span><br><span class="line"></span><br><span class="line">以下根据 [NodeJs 中 CommonJS 模块加载源码](https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2Fnodejs%2Fnode%2Fblob%2Fmaster%2Flib%2Finternal%2Fmodules%2Fcjs%2Floader.js) 来分析 NodeJS 中模块的加载机制。</span><br><span class="line"></span><br><span class="line">在 NodeJs 中引入模块 (require)，需要经历如下 3 个步骤：</span><br><span class="line"></span><br><span class="line">1. 路径分析</span><br><span class="line">2. 文件定位</span><br><span class="line">3. 编译执行</span><br><span class="line"></span><br><span class="line">与前端浏览器会缓存静态脚本文件以提高性能一样，NodeJs 对引入过的模块都会进行缓存，以减少二次引入时的开销。不同的是，浏览器仅缓存文件，而在 NodeJs 中缓存的是编译和执行后的对象。</span><br><span class="line"></span><br><span class="line">#### 路径分析 + 文件定位</span><br><span class="line"></span><br><span class="line">其流程如下图所示：</span><br><span class="line">#### 模块编译</span><br><span class="line"></span><br><span class="line">在定位到文件后，首先会检查该文件是否有缓存，有的话直接读取缓存，否则，会新创建一个 Module 对象，其定义如下：</span><br><span class="line"></span><br><span class="line">    functionModule(id, parent) &#123;</span><br><span class="line">      this.id = id; // 模块的识别符，通常是带有绝对路径的模块文件名。this.exports = &#123;&#125;; // 表示模块对外输出的值this.parent = parent; // 返回一个对象，表示调用该模块的模块。if (parent &amp;&amp; parent.children) &#123;</span><br><span class="line">        this.parent.children.push(this);</span><br><span class="line">      &#125;</span><br><span class="line">      this.filename = null;</span><br><span class="line">      this.loaded = false; // 返回一个布尔值，表示模块是否已经完成加载。this.childrent = []; // 返回一个数组，表示该模块要用到的其他模块。</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">require 操作代码如下所示：</span><br><span class="line"></span><br><span class="line">    Module.prototype.require = function(id) &#123;</span><br><span class="line">      // 检查模块标识符if (typeof id !== &quot;string&quot;) &#123;</span><br><span class="line">        thrownew ERR_INVALID_ARG_TYPE(&quot;id&quot;, &quot;string&quot;, id);</span><br><span class="line">      &#125;</span><br><span class="line">      if (id === &quot;&quot;) &#123;</span><br><span class="line">        thrownew ERR_INVALID_ARG_VALUE(&quot;id&quot;, id, &quot;must be a non-empty string&quot;);</span><br><span class="line">      &#125;</span><br><span class="line">      // 调用模块加载方法return Module._load(id, this, /* isMain */false);</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">接下来是解析模块路径，判断是否有缓存，然后生成 Module 对象：</span><br><span class="line"></span><br><span class="line">    Module._load = function(request, parent, isMain) &#123;</span><br><span class="line">      if (parent) &#123;</span><br><span class="line">        debug(&quot;Module._load REQUEST %s parent: %s&quot;, request, parent.id);</span><br><span class="line">      &#125;</span><br><span class="line">    </span><br><span class="line">      // 解析文件名var filename = Module._resolveFilename(request, parent, isMain);</span><br><span class="line">    </span><br><span class="line">      var cachedModule = Module._cache[filename];</span><br><span class="line">    </span><br><span class="line">      // 判断是否有缓存，有的话返回缓存对象的 exportsif (cachedModule) &#123;</span><br><span class="line">        updateChildren(parent, cachedModule, true);</span><br><span class="line">        return cachedModule.exports;</span><br><span class="line">      &#125;</span><br><span class="line">    </span><br><span class="line">      // 判断是否为原生核心模块，是的话从内存加载if (NativeModule.nonInternalExists(filename)) &#123;</span><br><span class="line">        debug(&quot;load native module %s&quot;, request);</span><br><span class="line">        return NativeModule.require(filename);</span><br><span class="line">      &#125;</span><br><span class="line">    </span><br><span class="line">      // 生成模块对象varmodule = new Module(filename, parent);</span><br><span class="line">    </span><br><span class="line">      if (isMain) &#123;</span><br><span class="line">        process.mainModule = module;</span><br><span class="line">        module.id = &quot;.&quot;;</span><br><span class="line">      &#125;</span><br><span class="line">    </span><br><span class="line">      // 缓存模块对象</span><br><span class="line">      Module._cache[filename] = module;</span><br><span class="line">    </span><br><span class="line">      // 加载模块</span><br><span class="line">      tryModuleLoad(module, filename);</span><br><span class="line">    </span><br><span class="line">      returnmodule.exports;</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">tryModuleLoad 的代码如下所示：</span><br></pre></td></tr></table></figure></p>
+<pre><code>functiontryModuleLoad(module, filename) {
+  var threw = true;
+  try {
+    // 调用模块实例load方法module.load(filename);
+    threw = false;
+  } finally {
+    if (threw) {
+      // 如果加载出错，则删除缓存delete Module._cache[filename];
+    }
+  }
+}
+</code></pre><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">模块对象执行载入操作 module.load 代码如下所示：</span><br></pre></td></tr></table></figure>
+<pre><code>Module.prototype.load = function(filename) {
+  debug(&quot;load %j for module %j&quot;, filename, this.id);
+
+  assert(!this.loaded);
+  this.filename = filename;
+
+  // 解析路径this.paths = Module._nodeModulePaths(path.dirname(filename));
+
+  // 判断扩展名，并且默认为 .js 扩展var extension = path.extname(filename) || &quot;.js&quot;;
+
+  // 判断是否有对应格式文件的处理函数， 没有的话，扩展名改为 .jsif (!Module._extensions[extension]) extension = &quot;.js&quot;;
+
+  // 调用相应的文件处理方法，并传入模块对象
+  Module._extensions[extension](this, filename);
+  this.loaded = true;
+
+  // 处理 ES Moduleif (experimentalModules) {
+    if (asyncESM === undefined) lazyLoadESM();
+    const ESMLoader = asyncESM.ESMLoader;
+    const url = pathToFileURL(filename);
+    const urlString = `${url}`;
+    const exports = this.exports;
+    if (ESMLoader.moduleMap.has(urlString) !== true) {
+      ESMLoader.moduleMap.set(
+        urlString,
+        new ModuleJob(ESMLoader, url, async () =&gt; {
+          const ctx = createDynamicModule([&quot;default&quot;], url);
+          ctx.reflect.exports.default.set(exports);
+          return ctx;
+        })
+      );
+    } else {
+      const job = ESMLoader.moduleMap.get(urlString);
+      if (job.reflect) job.reflect.exports.default.set(exports);
+    }
+  }
+};
+</code></pre><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">在这里同步读取模块，再执行编译操作：</span><br></pre></td></tr></table></figure>
+<pre><code>Module._extensions[&quot;.js&quot;] = function(module, filename) {
+  // 同步读取文件var content = fs.readFileSync(filename, &quot;utf8&quot;);
+
+  // 编译代码module._compile(stripBOM(content), filename);
+};
+</code></pre><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">编译过程主要做了以下的操作：</span><br><span class="line"></span><br><span class="line">1. 将 JavaScript 代码用函数体包装，隔离作用域，例如：</span><br></pre></td></tr></table></figure>
+<pre><code>exports.add = (function(a, b) {
+  return a + b;
+}
+</code></pre><p><code>`</code><br>会被转换为</p>
+<pre><code>(
+  function(exports, require, modules, __filename, __dirname) {
+    exports.add = function(a, b) {
+      return a + b;
+    };
+  }
+);
+</code></pre><ol>
+<li><p>执行函数，注入模块对象的 exports 属性，require 全局方法，以及对象实例，<strong>filename, </strong>dirname，然后执行模块的源码。</p>
 </li>
-</ul>
+<li><p>返回模块对象 exports 属性。</p>
+</li>
+</ol>
+<h2 id="JavaScript-模块化之-AMD"><a href="#JavaScript-模块化之-AMD" class="headerlink" title="JavaScript 模块化之 AMD"></a>JavaScript 模块化之 AMD</h2><p>AMD, Asynchronous Module Definition，即异步模块加载机制，它采用异步方式加载模块，模块的加载不影响它后面语句的运行。所有依赖这个模块的语句都定义在一个回调函数中，等到依赖加载完成之后，这个回调函数才会运行。</p>
+<p>AMD 的诞生，就是为了解决这两个问题：</p>
+<ol>
+<li>实现 JavaScript 文件的异步加载，避免网页失去响应</li>
+<li><p>管理模块之间的依赖性，便于代码的编写和维护</p>
+<p> // 模块定义<br>  define(id?: String, dependencies?: String[], factory: Function|Object);</p>
+</li>
+</ol>
+<p>id 是模块的名字，它是可选的参数。</p>
+<p>dependencies 指定了所要依赖的模块列表，它是一个数组，也是可选的参数。每个依赖的模块的输出都将作为参数一次传入 factory 中。如果没有指定 dependencies，那么它的默认值是 [“require”, “exports”, “module”]。</p>
+<p>factory 是最后一个参数，它包裹了模块的具体实现，它是一个函数或者对象。如果是函数，那么它的返回值就是模块的输出接口或值，如果是对象，此对象应该为模块的输出值。</p>
+<p>举个例子：</p>
+<pre><code>// 模块定义，add.js
+define(function() {
+  let add = function(a, b) {
+    return a + b;
+  };
+  return add;
+});
+
+// 模块定义，decrease.js
+define(function() {
+  let decrease = function(a, b) {
+    return a - b;
+  };
+  return decrease;
+});
+
+// 模块定义，square.js
+define([&quot;./add&quot;, &quot;./decrease&quot;], function(add, decrease) {
+  let square = function(a, b) {
+    return add(a, b) * decrease(a, b);
+  };
+  return square;
+});
+
+// 模块使用，主入口文件 main.jsrequire([&quot;square&quot;], function(math) {
+  console.log(square(6, 3));
+});
+</code></pre><p>这里用实现了 AMD 规范的 RequireJS 来分析，RequireJS 源码较为复杂，这里只对异步模块加载原理做一个分析。在加载模块的过程中， RequireJS 会调用如下函数：</p>
+<pre><code>/**
+ *
+ * @param {Object} context the require context to find state.
+ * @param {String} moduleName the name of the module.
+ * @param {Object} url the URL to the module.
+ */
+req.load = function(context, moduleName, url) {
+  var config = (context &amp;&amp; context.config) || {},
+    node;
+  // 判断是否为浏览器if (isBrowser) {
+    // 根据模块名称和 url 创建一个 Script 标签
+    node = req.createNode(config, moduleName, url);
+
+    node.setAttribute(&quot;data-requirecontext&quot;, context.contextName);
+    node.setAttribute(&quot;data-requiremodule&quot;, moduleName);
+
+    // 对不同的浏览器 Script 标签事件监听做兼容处理if (
+      node.attachEvent &amp;&amp;
+      !(
+        node.attachEvent.toString &amp;&amp;
+        node.attachEvent.toString().indexOf(&quot;[native code&quot;) &lt; 0
+      ) &amp;&amp;
+      !isOpera
+    ) {
+      useInteractive = true;
+
+      node.attachEvent(&quot;onreadystatechange&quot;, context.onScriptLoad);
+    } else {
+      node.addEventListener(&quot;load&quot;, context.onScriptLoad, false);
+      node.addEventListener(&quot;error&quot;, context.onScriptError, false);
+    }
+
+    // 设置 Script 标签的 src 属性为模块路径
+    node.src = url;
+
+    if (config.onNodeCreated) {
+      config.onNodeCreated(node, config, moduleName, url);
+    }
+
+    currentlyAddingScript = node;
+
+    // 将 Script 标签插入到页面中if (baseElement) {
+      head.insertBefore(node, baseElement);
+    } else {
+      head.appendChild(node);
+    }
+    currentlyAddingScript = null;
+
+    return node;
+  } elseif (isWebWorker) {
+    try {
+      //In a web worker, use importScripts. This is not a very//efficient use of importScripts, importScripts will block until//its script is downloaded and evaluated. However, if web workers//are in play, the expectation is that a build has been done so//that only one script needs to be loaded anyway. This may need//to be reevaluated if other use cases become common.// Post a task to the event loop to work around a bug in WebKit// where the worker gets garbage-collected after calling// importScripts(): https://webkit.org/b/153317
+      setTimeout(function() {}, 0);
+      importScripts(url);
+
+      //Account for anonymous modules
+      context.completeLoad(moduleName);
+    } catch (e) {
+      context.onError(
+        makeError(
+          &quot;importscripts&quot;,
+          &quot;importScripts failed for &quot; + moduleName + &quot; at &quot; + url,
+          e,
+          [moduleName]
+        )
+      );
+    }
+  }
+};
+
+// 创建异步 Script 标签
+req.createNode = function(config, moduleName, url) {
+  var node = config.xhtml
+    ? document.createElementNS(&quot;http://www.w3.org/1999/xhtml&quot;, &quot;html:script&quot;)
+    : document.createElement(&quot;script&quot;);
+  node.type = config.scriptType || &quot;text/javascript&quot;;
+  node.charset = &quot;utf-8&quot;;
+  node.async = true;
+  return node;
+};
+</code></pre><p>可以看出，这里主要是根据模块的 Url，创建了一个异步的 Script 标签，并将模块 id 名称添加到的标签的 data-requiremodule 上，再将这个 Script 标签添加到了 html 页面中。同时为 Script 标签的 load 事件添加了处理函数，当该模块文件被加载完毕的时候，就会触发 context.onScriptLoad。我们在 onScriptLoad 添加断点，可以看到页面结构如下图所示:<br> 由图可以看到，Html 中添加了一个 Script 标签，这也就是异步加载模块的原理。</p>
+<h2 id="JavaScript-模块化之-CMD"><a href="#JavaScript-模块化之-CMD" class="headerlink" title="JavaScript 模块化之 CMD"></a>JavaScript 模块化之 CMD</h2><p>CMD (Common Module Definition) 通用模块定义，CMD 在浏览器端的实现有 SeaJS， 和 RequireJS 一样，SeaJS 加载原理也是动态创建异步 Script 标签。二者的区别主要是依赖写法上不同，AMD 推崇一开始就加载所有的依赖，而 CMD 则推崇在需要用的地方才进行依赖加载。</p>
+<pre><code>// ADM 在执行以下代码的时候，RequireJS 会首先分析依赖数组，然后依次加载，直到所有加载完毕再执行回到函数
+define([&quot;add&quot;, &quot;decrease&quot;], function(add, decrease) {
+  let result1 = add(9, 7);
+  let result2 = decrease(9, 7);
+  console.log(result1 * result2);
+});
+
+// CMD 在执行以下代码的时候， SeaJS 会首先用正则匹配出代码里面所有的 require 语句，拿到依赖，然后依次加载，加载完成再执行回调函数
+define(function(require) {
+  let add = require(&quot;add&quot;);
+  let result1 = add(9, 7);
+  let add = require(&quot;decrease&quot;);
+  let result2 = decrease(9, 7);
+  console.log(result1 * result2);
+});
+</code></pre><h2 id="JavaScript-模块化之-ES-Module"><a href="#JavaScript-模块化之-ES-Module" class="headerlink" title="JavaScript 模块化之 ES Module"></a>JavaScript 模块化之 ES Module</h2><p>ES Module 是在 ECMAScript 6 中引入的模块化功能。模块功能主要由两个命令构成，分别是 export 和 import。export 命令用于规定模块的对外接口，import 命令用于输入其他模块提供的功能。</p>
+<p>其使用方式如下:</p>
+<pre><code>// 模块定义 add.jsexportfunctionadd(a, b) {
+  return a + b;
+}
+
+// 模块使用 main.jsimport { add } from&quot;./add.js&quot;;
+console.log(add(1, 2)); // 3
+</code></pre><p>下面讲述几个较为重要的点。</p>
+<h3 id="export-和-export-default"><a href="#export-和-export-default" class="headerlink" title="export 和 export default"></a>export 和 export default</h3><p>在一个文件或模块中，export 可以有多个，export default 仅有一个, export 类似于具名导出，而 default 类似于导出一个变量名为 default 的变量。同时在 import 的时候，对于 export 的变量，必须要用具名的对象去承接，而对于 default，则可以任意指定变量名，例如：</p>
+<pre><code>// a.jsexportvar a = 2;
+ exportvar b = 3 ;
+// main.js 在导出的时候必须要用具名变量 a, b 且以解构的方式得到导出变量import {a, b} from&apos;a.js&apos;// √ a= 2, b = 3import a from&apos;a.js&apos;// x// b.js export default 方式const a = 3exportdefault a // 注意不能 export default const a = 3 ,因为这里 default 就相当于一个变量名// 导出import b form &apos;b.js&apos;// √import c form &apos;b.js&apos;// √ 因为 b 模块导出的是 default，对于导出的default，可以用任意变量去承接
+</code></pre><h3 id="ES-Module-模块加载和导出过程"><a href="#ES-Module-模块加载和导出过程" class="headerlink" title="ES Module 模块加载和导出过程"></a>ES Module 模块加载和导出过程</h3><p>以如下代码为例子：</p>
+<pre><code>// counter.jsexportlet count = 5// display.jsexportfunctionrender() {
+   console.log(&apos;render&apos;)
+ }
+ // main.jsimport { counter } from&apos;./counter.js&apos;;
+ import { render } from&apos;./display.js&apos;
+ ......// more code
+</code></pre><p>在模块加载模块的过程中，主要经历以下几个步骤：</p>
+<h4 id="构建-Construction"><a href="#构建-Construction" class="headerlink" title="构建 (Construction)"></a>构建 (Construction)</h4><p>这个过程执行查找，下载，并将文件转化为模块记录 (Module record)。所谓的模块记录是指一个记录了对应模块的语法树，依赖信息，以及各种属性和方法 (这里不是很明白)。同样也是在这个过程对模块记录进行了缓存的操作，下图是一个模块记录表：</p>
+<p>下图是缓存记录表：</p>
+<h4 id="实例化-Instantiation"><a href="#实例化-Instantiation" class="headerlink" title="实例化 (Instantiation)"></a>实例化 (Instantiation)</h4><p>这个过程会在内存中开辟一个存储空间 (此时还没有填充值)，然后将该模块所有的 export 和 import 了该模块的变量指向这个内存，这个过程叫做链接。其写入 export 示意图如下所示：<br> 然后是链接 import，其示意图如下所示：</p>
+<h4 id="赋值-Evaluation"><a href="#赋值-Evaluation" class="headerlink" title="赋值(Evaluation)"></a>赋值(Evaluation)</h4><p>这个过程会执行模块代码，并用真实的值填充上一阶段开辟的内存空间，此过程后 import 链接到的值就是 export 导出的真实值。</p>
+<p>根据上面的过程我们可以知道。ES Module 模块 export 和 import 其实指向的是同一块内存，但有一个点需要注意的是，import 处不能对这块内存的值进行修改，而 export 可以，其示意图如下：</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要对目前主流的 JavaScript 模块化方案 CommonJs，AMD，CMD, ES Module 进行了学习和了解，并对其中最有代表性的模块化实现 (NodeJs，RequireJS，SeaJS，ES6) 做了一个简单的分析。对于服务端的模块而言，由于其模块都是存储在本地的，模块加载方便，所以通常是采用同步读取文件的方式进行模块加载。而对于浏览器而言，其模块一般是存储在远程网络上的，模块的下载是一个十分耗时的过程，所以通常是采用动态异步脚本加载的方式加载模块文件。另外，无论是客户端还是服务端的 JavaScript 模块化实现，都会对模块进行缓存，以此减少二次加载的开销。</p>
 
           
         
@@ -4862,7 +4939,7 @@ timeout = setTimeout(later, remaining);
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -4912,7 +4989,7 @@ timeout = setTimeout(later, remaining);
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">70</span>
+                  <span class="site-state-item-count">72</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4925,7 +5002,7 @@ timeout = setTimeout(later, remaining);
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">43</span>
+                  <span class="site-state-item-count">45</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
