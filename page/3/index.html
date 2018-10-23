@@ -259,6 +259,495 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/30/pm2-常用配置及命令/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/30/pm2-常用配置及命令/" itemprop="url">pm2 常用配置及命令</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-30T12:11:05+08:00">
+                2018-09-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><code>PM2</code> 是 <code>node</code> 进程管理工具，可以利用它来简化很多 <code>node</code> 应用管理的繁琐任务，如性能监控、自动重启、负载均衡等，而且使用非常简单。本文就 <code>PM2</code> 进行入门性的介绍，基本涵盖了 <code>PM2</code> 的常用的功能和配置。</p>
+<h2 id="安装安装"><a href="#安装安装" class="headerlink" title="#安装安装"></a><a href="#安装">#安装</a>安装</h2><pre><code>npm install -g pm2
+</code></pre><h2 id="常用命令常用命令"><a href="#常用命令常用命令" class="headerlink" title="#常用命令常用命令"></a><a href="#常用命令">#常用命令</a>常用命令</h2><pre><code>pm2 start [server.js]
+# 启动服务
+pm2 list
+# 查看当前所跑服务的详情
+pm2 show [name]
+# 查看更加详细的信息这个命令可查看pm2配置 包括日志文件存放的位置等
+pm2 stop [id/name]
+# 关闭某个服务
+pm2 delete [id/name]
+# 删除某个服务
+pm2 stop all
+# 关闭所有服务
+pm2 logs
+# 查看实时日志
+pm2 restart [name]
+# 重新启动服务
+</code></pre><h2 id="启动启动"><a href="#启动启动" class="headerlink" title="#启动启动"></a><a href="#启动">#启动</a>启动</h2><p>参数说明：</p>
+<ul>
+<li><code>--watch</code>：监听应用目录的变化，一旦发生变化，自动重启。如果要精确监听、不见听的目录，最好通过配置文件。</li>
+<li><code>-i --instances</code>：启用多少个实例，可用于负载均衡。如果 <code>-i 0</code> 或者 <code>-i max</code>，则根据当前机器核数确定实例数目。</li>
+<li><code>--ignore-watch</code>：排除监听的目录/文件，可以是特定的文件名，也可以是正则。比如 <code>--ignore-watch=&quot;test node_modules &quot;some scripts&quot;&quot;</code></li>
+<li><code>-n --name</code>：应用的名称。查看应用信息的时候可以用到。</li>
+<li><code>-o --output &lt;path&gt;</code>：标准输出日志文件的路径。</li>
+<li><code>-e --error &lt;path&gt;</code>：错误输出日志文件的路径。</li>
+</ul>
+<h2 id="监听监听"><a href="#监听监听" class="headerlink" title="#监听监听"></a><a href="#监听">#监听</a>监听</h2><pre><code>pm2 start ./bin/www --watch
+#注意，这里用了--watch参数，意味着当你的应用代码发生变化时，pm2会帮你自动重启服务
+</code></pre><h2 id="配置及部署配置及部署"><a href="#配置及部署配置及部署" class="headerlink" title="#配置及部署配置及部署"></a><a href="#配置及部署">#配置及部署</a>配置及部署</h2><p>部署的配置文件示例</p>
+<pre><code>{
+  // 数组中放的是需要发布的项目一些变量的定义
+  &quot;apps&quot;: [{
+    &quot;name&quot;: &quot;xxx&quot;, //项目名称
+    &quot;script&quot;: &quot;server.js&quot;, //用来启动的脚本
+    // &quot;instances&quot;:2,
+    // 启动项目所需要的环境变量
+    &quot;env&quot;: {
+      &quot;COMMON_VARIABLE&quot;: &quot;true&quot;, //设置为true 可以在启动的时传入外部的变量进去
+    },
+    &quot;env_production&quot;: {
+      &quot;NODE_ENV&quot;: &quot;production&quot;
+    }
+  }],
+  // 部署
+  &quot;deploy&quot;: {
+    &quot;production&quot;: {
+      &quot;user&quot;: &quot;root&quot;,
+      &quot;host&quot;: &quot;0.0.0.0&quot;, //可以是数组 部署到多台主机
+      &quot;ref&quot;: &quot;origin/master&quot;, //选择拿哪个个分支的代码
+      &quot;repo&quot;: &quot;git@github.com:ihoey/hitalk.git&quot;, //仓库地址
+      &quot;path&quot;: &quot;/root/www/hitalk/production&quot;, //要发布到服务器上哪个目录下面
+      &quot;ssh_options&quot;: &quot;StrictHostKeyChecking=no&quot;, //避免key验证导致代码更新到远程仓库失败
+      &quot;post-deploy&quot;: &quot;source ~/.nvm/nvm.sh &amp;&amp; pm2 startOrRestart ecosystem.json --env production&quot;, //发布之后执行的动作 执行开启或更新pm2运行的服务
+      &quot;pre-deploy-local&quot;: &quot;echo &apos;Deploy Done!&apos;&quot;, //本地发布之前的动作
+      &quot;env&quot;: { //指定部署到远程的仓库的环境 是production生产环境
+        &quot;NODE_ENV&quot;: &quot;production&quot;
+      }
+    }
+  }
+}
+</code></pre><h3 id="初始化配置初始化配置"><a href="#初始化配置初始化配置" class="headerlink" title="#初始化配置初始化配置"></a><a href="#初始化配置">#初始化配置</a>初始化配置</h3><p>第一次部署</p>
+<pre><code>pm2 deploy ecosystem.json production setup
+</code></pre><h3 id="部署部署"><a href="#部署部署" class="headerlink" title="#部署部署"></a><a href="#部署">#部署</a>部署</h3><pre><code>pm2 deploy ecosystem.json production
+</code></pre><p>好了，先记录这么多~</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/29/浅说-XSS-和-CSRF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/29/浅说-XSS-和-CSRF/" itemprop="url">浅说 XSS 和 CSRF</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-29T12:06:38+08:00">
+                2018-09-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>在 Web 安全领域中，XSS 和 CSRF 是最常见的攻击方式。本文将会简单介绍 XSS 和 CSRF 的攻防问题。</p>
+<blockquote>
+<p>声明：本文的示例仅用于演示相关的攻击原理</p>
+</blockquote>
+<h2 id="XSS"><a href="#XSS" class="headerlink" title="XSS"></a>XSS</h2><p>XSS，即 Cross Site Script，中译是跨站脚本攻击；其原本缩写是 CSS，但为了和层叠样式表(Cascading Style Sheet)有所区分，因而在安全领域叫做 XSS。</p>
+<p>XSS 攻击是指攻击者在网站上注入恶意的客户端代码，通过恶意脚本对客户端网页进行篡改，从而在用户浏览网页时，对用户浏览器进行控制或者获取用户隐私数据的一种攻击方式。</p>
+<p>攻击者对客户端网页注入的恶意脚本一般包括 JavaScript，有时也会包含 HTML 和 Flash。有很多种方式进行 XSS 攻击，但它们的共同点为：将一些隐私数据像 cookie、session 发送给攻击者，将受害者重定向到一个由攻击者控制的网站，在受害者的机器上进行一些恶意操作。</p>
+<p>XSS攻击可以分为3类：反射型（非持久型）、存储型（持久型）、基于DOM。</p>
+<h4 id="反射型"><a href="#反射型" class="headerlink" title="反射型"></a>反射型</h4><p>反射型 XSS 只是简单地把用户输入的数据 “反射” 给浏览器，这种攻击方式往往需要攻击者诱使用户点击一个恶意链接，或者提交一个表单，或者进入一个恶意网站时，注入脚本进入被攻击者的网站。</p>
+<p>看一个示例。我先准备一个如下的静态页：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" alt="反射型xss1"></a></p>
+<p>恶意链接的地址指向了 <code>localhost:8001/?q=111&amp;p=222</code>。然后，我再启一个简单的 Node 服务处理恶意链接的请求：</p>
+<pre><code>consthttp=require(&apos;http&apos;);
+functionhandleReequest(req, res) {
+    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
+    res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
+    res.write(&apos;&lt;script&gt;alert(&quot;反射型 XSS 攻击&quot;)&lt;/script&gt;&apos;);
+    res.end();
+}
+
+constserver=newhttp.Server();
+server.listen(8001, &apos;127.0.0.1&apos;);
+server.on(&apos;request&apos;, handleReequest);
+</code></pre><p>当用户点击恶意链接时，页面跳转到攻击者预先准备的页面，会发现在攻击者的页面执行了 js 脚本：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" alt="执行脚本"></a></p>
+<p>这样就产生了反射型 XSS 攻击。攻击者可以注入任意的恶意脚本进行攻击，可能注入恶作剧脚本，或者注入能获取用户隐私数据(如cookie)的脚本，这取决于攻击者的目的。</p>
+<h4 id="存储型"><a href="#存储型" class="headerlink" title="存储型"></a>存储型</h4><p>存储型 XSS 会把用户输入的数据 “存储” 在服务器端，当浏览器请求数据时，脚本从服务器上传回并执行。这种 XSS 攻击具有很强的稳定性。</p>
+<p>比较常见的一个场景是攻击者在社区或论坛上写下一篇包含恶意 JavaScript 代码的文章或评论，文章或评论发表后，所有访问该文章或评论的用户，都会在他们的浏览器中执行这段恶意的 JavaScript 代码。</p>
+<p>举一个示例。</p>
+<p>先准备一个输入页面：</p>
+<pre><code>&lt;input type=&quot;text&quot; id=&quot;input&quot;&gt;
+&lt;button id=&quot;btn&quot;&gt;Submit&lt;/button&gt;   
+
+&lt;script&gt;
+    const input = document.getElementById(&apos;input&apos;);
+    const btn = document.getElementById(&apos;btn&apos;);
+
+    let val;
+
+    input.addEventListener(&apos;change&apos;, (e) =&gt; {
+        val = e.target.value;
+    }, false);
+
+    btn.addEventListener(&apos;click&apos;, (e) =&gt; {
+        fetch(&apos;http://localhost:8001/save&apos;, {
+            method: &apos;POST&apos;,
+            body: val
+        });
+    }, false);
+&lt;/script&gt;     
+</code></pre><p>启动一个 Node 服务监听 <code>save</code> 请求。为了简化，用一个变量来保存用户的输入：</p>
+<pre><code>consthttp=require(&apos;http&apos;);
+
+let userInput =&apos;&apos;;
+
+functionhandleReequest(req, res) {
+    constmethod=req.method;
+    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
+    res.setHeader(&apos;Access-Control-Allow-Headers&apos;, &apos;Content-Type&apos;)
+
+    if (method ===&apos;POST&apos;&amp;&amp;req.url===&apos;/save&apos;) {
+        let body =&apos;&apos;;
+        req.on(&apos;data&apos;, chunk=&gt; {
+            body += chunk;
+        });
+
+        req.on(&apos;end&apos;, () =&gt; {
+            if (body) {
+                userInput = body;
+            }
+            res.end();
+        });
+    } else {
+        res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
+        res.write(userInput);
+        res.end();
+    }
+}
+
+constserver=newhttp.Server();
+server.listen(8001, &apos;127.0.0.1&apos;);
+
+server.on(&apos;request&apos;, handleReequest);
+</code></pre><p>当用户点击提交按钮将输入信息提交到服务端时，服务端通过 <code>userInput</code> 变量保存了输入内容。当用户通过 <code>http://localhost:8001/${id}</code> 访问时，服务端会返回与 <code>id</code> 对应的内容(本示例简化了处理)。如果用户输入了恶意脚本内容，则其他用户访问该内容时，恶意脚本就会在浏览器端执行：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" alt="存储型xss"></a></p>
+<h4 id="基于DOM"><a href="#基于DOM" class="headerlink" title="基于DOM"></a>基于DOM</h4><p>基于 DOM 的 XSS 攻击是指通过恶意脚本修改页面的 DOM 结构，是纯粹发生在客户端的攻击。</p>
+<p>看如下代码：</p>
+<pre><code>&lt;h2&gt;XSS: &lt;/h2&gt;
+&lt;inputtype=&quot;text&quot;id=&quot;input&quot;&gt;
+&lt;buttonid=&quot;btn&quot;&gt;Submit&lt;/button&gt;
+&lt;divid=&quot;div&quot;&gt;&lt;/div&gt;
+&lt;script&gt;constinput=document.getElementById(&apos;input&apos;);constbtn=document.getElementById(&apos;btn&apos;);constdiv=document.getElementById(&apos;div&apos;);let val;input.addEventListener(&apos;change&apos;, (e) =&gt; {        val =e.target.value;    }, false);btn.addEventListener(&apos;click&apos;, () =&gt; {div.innerHTML=`&lt;ahref=${val}&gt;testLink&lt;/a&gt;`    }, false);&lt;/script&gt;
+</code></pre><p>点击 <code>Submit</code> 按钮后，会在当前页面插入一个链接，其地址为用户的输入内容。如果用户在输入时构造了如下内容：</p>
+<pre><code>&apos;&apos; onclick=alert(/xss/)
+</code></pre><p>用户提交之后，页面代码就变成了：</p>
+<pre><code>&lt;ahrefonlick=&quot;alert(/xss/)&quot;&gt;testLink&lt;/a&gt;
+</code></pre><p>此时，用户点击生成的链接，就会执行对应的脚本：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" alt="dom-xss"></a></p>
+<h3 id="XSS-攻击的防范"><a href="#XSS-攻击的防范" class="headerlink" title="XSS 攻击的防范"></a>XSS 攻击的防范</h3><p>现在主流的浏览器内置了防范 XSS 的措施，例如 <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP" target="_blank" rel="noopener">CSP</a>。但对于开发者来说，也应该寻找可靠的解决方案来防止 XSS 攻击。</p>
+<h4 id="HttpOnly-防止劫取-Cookie"><a href="#HttpOnly-防止劫取-Cookie" class="headerlink" title="HttpOnly 防止劫取 Cookie"></a>HttpOnly 防止劫取 Cookie</h4><p>HttpOnly 最早由微软提出，至今已经成为一个标准。浏览器将禁止页面的Javascript 访问带有 HttpOnly 属性的Cookie。</p>
+<p>上文有说到，攻击者可以通过注入恶意脚本获取用户的 Cookie 信息。通常 Cookie 中都包含了用户的登录凭证信息，攻击者在获取到 Cookie 之后，则可以发起 Cookie 劫持攻击。所以，严格来说，HttpOnly 并非阻止 XSS 攻击，而是能阻止 XSS 攻击后的 Cookie 劫持攻击。</p>
+<h4 id="输入检查"><a href="#输入检查" class="headerlink" title="输入检查"></a>输入检查</h4><p><strong>不要相信用户的任何输入。</strong> 对于用户的任何输入要进行检查、过滤和转义。建立可信任的字符和 HTML 标签白名单，对于不在白名单之列的字符或者标签进行过滤或编码。</p>
+<p>在 XSS 防御中，输入检查一般是检查用户输入的数据中是否包含 <code>&lt;</code>，<code>&gt;</code> 等特殊字符，如果存在，则对特殊字符进行过滤或编码，这种方式也称为 XSS Filter。</p>
+<p>而在一些前端框架中，都会有一份 <code>decodingMap</code>， 用于对用户输入所包含的特殊字符或标签进行编码或过滤，如 <code>&lt;</code>，<code>&gt;</code>，<code>script</code>，防止 XSS 攻击：</p>
+<pre><code>// vuejs 中的 decodingMap
+// 在 vuejs 中，如果输入带 script 标签的内容，会直接过滤掉
+const decodingMap = {
+  &apos;&amp;lt;&apos;: &apos;&lt;&apos;,
+  &apos;&amp;gt;&apos;: &apos;&gt;&apos;,
+  &apos;&amp;quot;&apos;: &apos;&quot;&apos;,
+  &apos;&amp;amp;&apos;: &apos;&amp;&apos;,
+  &apos;&amp;#10;&apos;: &apos;\n&apos;
+}
+</code></pre><h4 id="输出检查"><a href="#输出检查" class="headerlink" title="输出检查"></a>输出检查</h4><p>用户的输入会存在问题，服务端的输出也会存在问题。一般来说，除富文本的输出外，在变量输出到 HTML 页面时，可以使用编码或转义的方式来防御 XSS 攻击。例如利用 <a href="https://github.com/punkave/sanitize-html" target="_blank" rel="noopener">sanitize-html</a> 对输出内容进行有规则的过滤之后再输出到页面中。</p>
+<h2 id="CSRF"><a href="#CSRF" class="headerlink" title="CSRF"></a>CSRF</h2><p>CSRF，即 Cross Site Request Forgery，中译是跨站请求伪造，是一种劫持受信任用户向服务器发送非预期请求的攻击方式。</p>
+<p>通常情况下，CSRF 攻击是攻击者借助受害者的 Cookie 骗取服务器的信任，可以在受害者毫不知情的情况下以受害者名义伪造请求发送给受攻击服务器，从而在并未授权的情况下执行在权限保护之下的操作。</p>
+<p>在举例子之前，先说说浏览器的 Cookie 策略。</p>
+<h3 id="浏览器的-Cookie-策略"><a href="#浏览器的-Cookie-策略" class="headerlink" title="浏览器的 Cookie 策略"></a>浏览器的 Cookie 策略</h3><p>Cookie 是服务器发送到用户浏览器并保存在本地的一小块数据，它会在浏览器下次向同一服务器再发起请求时被携带并发送到服务器上。Cookie 主要用于以下三个方面：</p>
+<ul>
+<li>会话状态管理（如用户登录状态、购物车、游戏分数或其它需要记录的信息）</li>
+<li>个性化设置（如用户自定义设置、主题等）</li>
+<li>个性化设置（如用户自定义设置、主题等）</li>
+</ul>
+<p>而浏览器所持有的 Cookie 分为两种：</p>
+<ul>
+<li>Session Cookie(会话期 Cookie)：会话期 Cookie 是最简单的Cookie，它不需要指定过期时间（Expires）或者有效期（Max-Age），它仅在会话期内有效，浏览器关闭之后它会被自动删除。</li>
+<li><p>Permanent Cookie(持久性 Cookie)：与会话期 Cookie 不同的是，持久性 Cookie 可以指定一个特定的过期时间（Expires）或有效期（Max-Age）。</p>
+<p>  res.setHeader(‘Set-Cookie’, [‘mycookie=222’, ‘test=3333; expires=Sat, 21 Jul 2018 00:00:00 GMT;’]);</p>
+</li>
+</ul>
+<p>上述代码创建了两个 Cookie：<code>mycookie</code> 和 <code>test</code>，前者属于会话期 Cookie，后者则属于持久性 Cookie。当我们去查看 Cookie 相关的属性时，不同的浏览器对会话期 Cookie 的 <code>Expires</code> 属性值会不一样：</p>
+<p>Firefox：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" alt="firefox cookie"></a></p>
+<p>Chrome:</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" alt="chrome cookie"></a></p>
+<p>此外，每个 Cookie 都会有与之关联的域，这个域的范围一般通过 <code>donmain</code> 属性指定。如果 Cookie 的域和页面的域相同，那么我们称这个 Cookie 为第一方 Cookie（first-party cookie），如果 Cookie 的域和页面的域不同，则称之为第三方 Cookie（third-party cookie）。一个页面包含图片或存放在其他域上的资源（如图片）时，第一方的 Cookie 也只会发送给设置它们的服务器。</p>
+<h3 id="通过-Cookie-进行-CSRF-攻击"><a href="#通过-Cookie-进行-CSRF-攻击" class="headerlink" title="通过 Cookie 进行 CSRF 攻击"></a>通过 Cookie 进行 CSRF 攻击</h3><p>假设有一个 bbs 站点：<code>http://www.c.com</code>，当登录后的用户发起如下 GET 请求时，会删除 ID 指定的帖子：</p>
+<pre><code>http://www.c.com:8002/content/delete/:id
+</code></pre><p>如发起 <code>http://www.c.com:8002/content/delete/87343</code> 请求时，会删除 id 为 87343 的帖子。当用户登录之后，会设置如下 cookie：</p>
+<pre><code>res.setHeader(&apos;Set-Cookie&apos;, [&apos;user=22333; expires=Sat, 21 Jul 2018 00:00:00 GMT;&apos;]);
+</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" alt="user"></a></p>
+<p><code>user</code> 对应的值是用户 ID。然后构造一个页面 A：</p>
+<pre><code>&lt;p&gt;CSRF 攻击者准备的网站：&lt;/p&gt;
+&lt;img src=&quot;http://www.c.com:8002/content/delete/87343&quot;&gt;
+</code></pre><p>页面 A 使用了一个 <code>img</code> 标签，其地址指向了删除用户帖子的链接：</p>
+<p><a href="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" alt="A"></a></p>
+<p>可以看到，当登录用户访问攻击者的网站时，会向 <code>www.c.com</code> 发起一个删除用户帖子的请求。此时若用户在切换到 <code>www.c.com</code> 的帖子页面刷新，会发现ID 为 87343 的帖子已经被删除。</p>
+<p>由于 Cookie 中包含了用户的认证信息，当用户访问攻击者准备的攻击环境时，攻击者就可以对服务器发起 CSRF 攻击。在这个攻击过程中，攻击者借助受害者的 Cookie 骗取服务器的信任，但并不能拿到 Cookie，也看不到 Cookie 的内容。而对于服务器返回的结果，由于浏览器同源策略的限制，攻击者也无法进行解析。因此，攻击者无法从返回的结果中得到任何东西，他所能做的就是给服务器发送请求，以执行请求中所描述的命令，在服务器端直接改变数据的值，而非窃取服务器中的数据。</p>
+<p>但若 CSRF 攻击的目标并不需要使用 Cookie，则也不必顾虑浏览器的 Cookie 策略了。</p>
+<h3 id="CSRF-攻击的防范"><a href="#CSRF-攻击的防范" class="headerlink" title="CSRF 攻击的防范"></a>CSRF 攻击的防范</h3><p>当前，对 CSRF 攻击的防范措施主要有如下几种方式。</p>
+<h4 id="验证码"><a href="#验证码" class="headerlink" title="验证码"></a>验证码</h4><p>验证码被认为是对抗 CSRF 攻击最简洁而有效的防御方法。</p>
+<p>从上述示例中可以看出，CSRF 攻击往往是在用户不知情的情况下构造了网络请求。而验证码会强制用户必须与应用进行交互，才能完成最终请求。因为通常情况下，验证码能够很好地遏制 CSRF 攻击。</p>
+<p>但验证码并不是万能的，因为出于用户考虑，不能给网站所有的操作都加上验证码。因此，验证码只能作为防御 CSRF 的一种辅助手段，而不能作为最主要的解决方案。</p>
+<h4 id="Referer-Check"><a href="#Referer-Check" class="headerlink" title="Referer Check"></a>Referer Check</h4><p>根据 HTTP 协议，在 HTTP 头中有一个字段叫 Referer，它记录了该 HTTP 请求的来源地址。通过 Referer Check，可以检查请求是否来自合法的”源”。</p>
+<p>比如，如果用户要删除自己的帖子，那么先要登录 <code>www.c.com</code>，然后找到对应的页面，发起删除帖子的请求。此时，Referer 的值是 <code>http://www.c.com</code>；当请求是从 <code>www.a.com</code> 发起时，Referer 的值是 <code>http://www.a.com</code> 了。因此，要防御 CSRF 攻击，只需要对于每一个删帖请求验证其 Referer 值，如果是以 <code>www.c.com</code> 开头的域名，则说明该请求是来自网站自己的请求，是合法的。如果 Referer 是其他网站的话，则有可能是 CSRF 攻击，可以拒绝该请求。</p>
+<p>针对上文的例子，可以在服务端增加如下代码：</p>
+<pre><code>if (req.headers.referer!==&apos;http://www.c.com:8002/&apos;) {
+    res.write(&apos;csrf 攻击&apos;);
+    return;
+}
+</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" alt="referer check"></a></p>
+<p>Referer Check 不仅能防范 CSRF 攻击，另一个应用场景是 “防止图片盗链”。</p>
+<h4 id="添加-token-验证"><a href="#添加-token-验证" class="headerlink" title="添加 token 验证"></a>添加 token 验证</h4><p>CSRF 攻击之所以能够成功，是因为攻击者可以完全伪造用户的请求，该请求中所有的用户验证信息都是存在于 Cookie 中，因此攻击者可以在不知道这些验证信息的情况下直接利用用户自己的 Cookie 来通过安全验证。要抵御 CSRF，关键在于在请求中放入攻击者所不能伪造的信息，并且该信息不存在于 Cookie 之中。可以在 HTTP 请求中以参数的形式加入一个随机产生的 token，并在服务器端建立一个拦截器来验证这个 token，如果请求中没有 token 或者 token 内容不正确，则认为可能是 CSRF 攻击而拒绝该请求。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了 XSS 和 CSRF 的攻击原理和防御措施。当然，在 Web 安全领域，除了这两种常见的攻击方式，也存在这 SQL 注入等其它攻击方式，这不在本文的讨论范围之内，如果你对其感兴趣，可以阅读<a href="https://zhuanlan.zhihu.com/p/23569276" target="_blank" rel="noopener">SQL注入技术专题</a>的专栏详细了解相关信息。最后，总结一下 XSS 攻击和 CSRF 攻击的常见防御措施：</p>
+<ol>
+<li>防御 XSS 攻击</li>
+</ol>
+<ul>
+<li>HttpOnly 防止劫取 Cookie</li>
+<li>用户的输入检查</li>
+<li>服务端的输出检查</li>
+</ul>
+<ol start="2">
+<li>防御 CSRF 攻击</li>
+</ol>
+<ul>
+<li>验证码</li>
+<li>Referer Check</li>
+<li>Token 验证</li>
+</ul>
+<p>&lt;完&gt;</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a href="https://developer.mozilla.org/zh-CN/docs/Glossary/Cross-site_scripting" target="_blank" rel="noopener">Cross-site scripting</a></li>
+<li><a href="https://www.ibm.com/developerworks/cn/web/1102_niugang_csrf/index.html" target="_blank" rel="noopener">CSRF 攻击的应对之道</a></li>
+<li>《白帽子讲 Web 安全》</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/21/ES6事件总线-EventBus/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3874,597 +4363,6 @@ export const asyncComponent = loadComponent =&gt; (
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/08/HTML5的Websocket/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/08/HTML5的Websocket/" itemprop="url">HTML5的Websocket</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-08T22:18:50+08:00">
-                2018-08-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <blockquote>
-<ul>
-<li>先请来TA的邻居：*<br>http：无状态、基于tcp请求/响应模式的应用层协议 （A:哎呀，上次你请我吃饭了么? B:我想想, 上次请你吃了么）tcp：面向连接、保证高可靠性(数据无丢失、数据无失序、数据无错误、数据无重复到达) 传输层协议。（看啊，大阅兵，如此规整有秩序）</li>
-</ul>
-</blockquote>
-<h2 id="为什么要引入Websocket："><a href="#为什么要引入Websocket：" class="headerlink" title="为什么要引入Websocket："></a>为什么要引入Websocket：</h2><blockquote>
-<p>RFC开篇介绍：本协议的目的是为了解决基于浏览器的程序需要拉取资源时必须发起多个HTTP请求和长时间的轮询的问题。</p>
-</blockquote>
-<p>long poll(长轮询): 客户端发送一个request后，服务器拿到这个连接，如果有消息，才返回response给客户端。没有消息，就一直不返回response。之后客户端再次发送request, 重复上次的动作。</p>
-<p><img src="https://pic3.zhimg.com/v2-b900392bfe564de524ec5460a2b5d235_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-b900392bfe564de524ec5460a2b5d235_hd.jpg" alt=""></p>
-<p>从上可以看出，http协议的特点是服务器不能主动联系客户端，只能由客户端发起。它的被动性预示了在完成双向通信时需要不停的连接或连接一直打开，这就需要服务器快速的处理速度或高并发的能力，是非常消耗资源的。</p>
-<p>这个时候，Websocket出现了。</p>
-<h2 id="Websocket是什么："><a href="#Websocket是什么：" class="headerlink" title="Websocket是什么："></a>Websocket是什么：</h2><blockquote>
-<p>RFC中写到：WebSocket协议使在控制环境下运行不受信任代码的客户端和能够选择与那些代码通信的远程主机之间能够双向通信。</p>
-</blockquote>
-<p>对，划重点：双向通信</p>
-<p>Websocket在连接之后，客户端可以主动发送消息给服务器，服务器也可以主动向客户端推送消息。比如：预订车票信息，除了我们发请求询问车票如何，当然更希望如果有新消息，可以直接通知我们。</p>
-<p>其特点：</p>
-<p>（1）握手阶段采用 HTTP 协议，默认端口是80和443</p>
-<p>（2）建立在TCP协议基础之上，和http协议同属于应用层</p>
-<p>（4）可以发送文本，也可以发送二进制数据</p>
-<p>（5）没有同源限制，客户端可以与任意服务器通信</p>
-<p>（6）协议标识符是ws（如果加密，为wss），如ws://localhost:8023</p>
-<p>简单来说，Websocket协议分为两部分：握手和数据传输。</p>
-<p><img src="https://pic2.zhimg.com/v2-5b1e92b99d352ba977f69cbe28604ecf_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-5b1e92b99d352ba977f69cbe28604ecf_hd.jpg" alt=""></p>
-<h2 id="Websocket-API："><a href="#Websocket-API：" class="headerlink" title="Websocket API："></a>Websocket API：</h2><blockquote>
-<p>这里是指客户端 API。</p>
-</blockquote>
-<h2 id="WebSocket-构造函数"><a href="#WebSocket-构造函数" class="headerlink" title="WebSocket 构造函数"></a>WebSocket 构造函数</h2><ol>
-<li><code>通过调用WebSocket构造函数来创建一个WebSocket实例对象，建立客户端与服务器的连接。</code></li>
-<li><code>const ws =`</code>new<code></code>WebSocket(‘ws://localhost:8023’);`</li>
-</ol>
-<h2 id="Websocket事件"><a href="#Websocket事件" class="headerlink" title="Websocket事件"></a>Websocket事件</h2><ol>
-<li><code>WebSocket`</code>是纯事件驱动，通过监听事件可以处理到来的数据和改变的连接状态。服务端发送数据后，消息和事件会异步到达。`</li>
-</ol>
-<p>open:</p>
-<p>服务端响应WebSocket连接请求，就会触发open事件。onopen是响应的回调函数。</p>
-<p><code>// 连接请求open事件处理：</code></p>
-<pre><code>ws.onopen=e=&gt;{
-   console.log(&apos;Connection success&apos;);
-   ws.send(`Hello ${e}`);
-};
-</code></pre><p>如果要指定多个回调函数，可以使用addEventListener方法。</p>
-<pre><code>ws.addEventListener(&apos;open&apos;, e =&gt; {
- ws.send(`Hello ${e}`);
-});
-</code></pre><p>当open事件触发时，意味着握手阶段已结束。服务端已经处理了连接的请求，可以准备收发数据。</p>
-<p>Message:</p>
-<p>收到服务器数据，会触发消息事件，onmessage是响应的回调函数。如下：</p>
-<pre><code>// 接受文本消息的事件处理：
-ws.onmessage = e =&gt; {
-const data = e.data;
-if (typeof data === &quot;string&quot;) {
-       console.log(&quot;Received string message &quot;,data);
-} else if (data instanceof Blob) {
-       console.log(&quot;Received blob message &quot;, data);
-}
-};
-</code></pre><p>服务器数据可能是文本，也可能是二进制数据，有Blob和ArrayBuffer两种类型，在读取到数据之前需要决定好数据的类型。</p>
-<p>Error</p>
-<p>发生错误会触发error事件, onerror是响应的回调函数, 会导致连接关闭。</p>
-<pre><code>//异常处理
-ws.onerror = e =&gt; {
-   console.log(&quot;WebSocket Error: &quot; , e);
-   handleErrors(e);
-};
-</code></pre><p>当连接关闭时触发close事件，对应onclose方法，连接关闭之后，服务端和客户端就不能再通信。</p>
-<p>WebSocket 规范中定义了ping 帧 和pong 帧，可以用来做心跳重连，网络状态查询等，但是目前 浏览器只会自动发送pong帧，而不会发ping 帧。（有兴趣可详查ping和pong帧）</p>
-<pre><code>//关闭连接处理
-ws.onclose = e =&gt; {
-const code = e.code;
-const reason = e.reason;
-   console.log(&quot;Connection close&quot;, code, reason);
-};
-</code></pre><h2 id="WebSocket-方法："><a href="#WebSocket-方法：" class="headerlink" title="WebSocket 方法："></a>WebSocket 方法：</h2><blockquote>
-<p>WebSocket 对象有两个方法：send 和 close</p>
-</blockquote>
-<p>send:</p>
-<p>客户端和服务器建立连接后，可以调用send方法去发送消息。</p>
-<pre><code>//发送一个文本消息
-ws.send(&quot;this is websocket&quot;);
-</code></pre><p>在open事件的回调中调用send()方法传送数据：</p>
-<pre><code>const ws = new WebSocket(&apos;ws://localhost:8023&apos;);
-ws.onopen = e =&gt; {
-   console.log(&apos;Connection success&apos;);
-   ws.send(`Hello ${e}`);
-};
-</code></pre><p>如果想通过响应其他事件发送消息，可通过判断当前的Websocket的readyState属性。接下来会说到readyState.</p>
-<p>close</p>
-<p>close方法用来关闭连接。调用close方法后，将不能发送数据。close方法可以传入两个可选的参数，code 和reason, 以告诉服务端为什么终止连接。</p>
-<pre><code>ws.close();
-
-//1000是状态码，代表正常结束。
-ws.close(1000, &quot;Closing normally&quot;);
-</code></pre><h2 id="WebSocket-属性"><a href="#WebSocket-属性" class="headerlink" title="WebSocket 属性"></a>WebSocket 属性</h2><ul>
-<li>readyState：</li>
-</ul>
-<p>readyState值表示连接状态，是只读属性。它有以下四个值：</p>
-<blockquote>
-<p>WebSocket.CONNECTING ：连接正在进行，但还没有建立 WebSocket.OPEN ：连接已经建立，可以发送消息 WebSocket.CLOSING ：连接正在进行关闭握手 WebSocket.CLOSED ：连接已经关闭或不能打开</p>
-</blockquote>
-<p>除了在open事件回调中调用send方法，可通过判断readyState值来发送消息。</p>
-<pre><code>function bindEventHandler(data) {
-if (ws.readyState === WebSocket.OPEN) {
-       ws.send(data);
-} else {
-//do something
-}
-} 
-</code></pre><p>bufferedAmount：</p>
-<p>当客户端传输大量数据时，浏览器会缓存将要流出的数据，bufferedAmount属性可判断有多少字节的二进制数据没有发送出去，发送是否结束。</p>
-<pre><code>ws.onopen = function () {
-   setInterval( function() {
-//缓存未满的时候发送
-if (ws.bufferedAmount &lt; 1024 * 5) {
-           ws.send(data);
-}
-}, 2000);
-};
-</code></pre><p>protocol：</p>
-<p>protocol代表客户端使用的WebSocket协议。当握手协议未成功，这个属性是空。</p>
-<ul>
-<li>接下来，我们说说握手阶段过程。*</li>
-</ul>
-<p>当我们创建Websocket实例对象与服务器建立连接时，</p>
-<pre><code>const ws = new WebSocket(&apos;ws://localhost:8023&apos;)；
-</code></pre><p>首先客户端向服务器发起一个握手请求，其请求报文的内容如下：</p>
-<pre><code>GET /game HTTP/1.1
-Host: 10.242.17.102:8023
-Cache-Control: no-cache
-Upgrade: websocket
-Connection: Upgrade
-Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
-Sec-WebSocket-Protocol: game
-Sec-WebSocket-Version: 10
-Origin: http://192.168.185.16
-Accept-Encoding: gzip, deflate, sdch
-Accept-Language: zh-CN,zh;q=0.8
-</code></pre><p>从请求头中可以看出，其实是一个基于http的握手请求。与通常的http请求不同的是，增加了一些头信息。</p>
-<ul>
-<li>Upgrade字段: 通知服务器，现在要使用一个升级版协议 - Websocket。</li>
-<li>Sec-WebSocket-Key: 是一个Base64编码的值，这个是浏览器随机生成,通知服务器，需要验证下是否可以进行Websocket通信</li>
-<li>Sec_WebSocket-Protocol: 是用户自定义的字符串，用来标识服务所需要的协议</li>
-<li>Sec-WebSocket-Version: 通知服务器所使用的协议版本</li>
-</ul>
-<p>服务器响应：</p>
-<pre><code>当服务器返回以下内容，就表示已经接受客户端请求啦，可以建立Websocket通信啦。 
-HTTP/1.1 101 Switching Protocols
-Upgrade: websocket
-Connection: Upgrade
-Sec-WebSocket-Accept: SIEylb7zRYJAEgiqJXaOW3V+ZWQ=
-</code></pre><ul>
-<li>101 状态码，表示要转换协议啦</li>
-<li>Upgrde: 通知客户端将要升级成Websocket协议</li>
-<li>Sec-WebSocket-Accept： 经过服务器确认，并且加密过后的 Sec-WebSocket-Key。用来证明客户端和服务器之间能进行通信了。</li>
-</ul>
-<p><img src="https://pic4.zhimg.com/v2-05e821d0db32cf8cb5ebf51625870cb1_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-05e821d0db32cf8cb5ebf51625870cb1_hd.jpg" alt=""></p>
-<p>至此，客户端和服务器握手成功建立了Websocket连接，通信不再使用http数据帧，而采用Websocket独立的数据帧。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/03/redux中间件/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/03/redux中间件/" itemprop="url">redux中间件</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-03T00:11:00+08:00">
-                2018-08-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到中间件，你可能会想到<code>Express</code>和<code>Koa</code>等服务端框架，没想到也没关系，这句话是我装逼用的。</p>
-<p>那么redux中的中间件到底干嘛用的？</p>
-<p>有这样一个问题？我们之前用的<code>Redux</code>都是在<code>Action</code>发出之后立即执行<code>Reducer</code>,计算出<code>state</code>,这是同步操作。如果想异步操作呢？即过一段时间再执行<code>Reducer</code>怎么办？这里就需要用到中间件<code>middleware</code>。</p>
-<p>先放一张图看看：<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dcb142c194bfb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
-<h2 id="一、中间件的概念"><a href="#一、中间件的概念" class="headerlink" title="一、中间件的概念"></a>一、中间件的概念</h2><p><code>redux</code>是有流程的，那么，我们该把这个异步操作放在哪个环节比较合适呢？</p>
-<ul>
-<li><code>Reducer</code>?纯函数只承担计算<code>State</code>功能，不适合其它功能。</li>
-<li><code>View</code>?与<code>State</code>一一对应，可以看做是<code>State</code>的视觉层，也不适合承担其它功能。</li>
-<li><code>Action</code>？它是一个对象，即存储动作的载体，只能被操作。</li>
-</ul>
-<p>其实，也只有<code>dispatch</code>能胜任此重任了。那么怎么在<code>dispatch</code>中添加其它操作呢？</p>
-<pre><code>let next = store.dispatch;
-store.dispatch = function(action){
-   console.log(&apos;老状态 &apos;,store.getState());
-   next(action);
-   console.log(&apos;新状态 &apos;,store.getState());
-}
-复制代码
-</code></pre><p>示例中可以看出，我们对<code>store.dispatch</code>重新进行了定义，在发送<code>action</code>的前后，做了打印。</p>
-<p>这是中间件的大致雏形，真实的中间件要比这么复杂多了</p>
-<h2 id="二、中间件的用法"><a href="#二、中间件的用法" class="headerlink" title="二、中间件的用法"></a>二、中间件的用法</h2><p>我们在这里先看看中间件是怎么使用，下面我们一步步剖析每个细节。</p>
-<pre><code>import {applyMiddleware,createStore} from &apos;redux&apos;;
-import reduxLogger form &apos;redux-logger&apos;;
-
-const store = createStore(reducer,inital_state,applyMiddleware(thunk, promise,reduxLogger));
-
-复制代码
-</code></pre><p>代码中有两点需要注意：</p>
-<ul>
-<li><p>1、<code>createStore</code>方法可以整个应用的初始状态作为参数<br>内部是这么处理的</p>
-<p>  let state = inital_state;<br>  复制代码</p>
-</li>
-<li><p>2、中间件的参数次序有讲究。下面我会把这个问题讲明白。</p>
-</li>
-</ul>
-<h2 id="三、applyMiddleware"><a href="#三、applyMiddleware" class="headerlink" title="三、applyMiddleware"></a>三、applyMiddleware</h2><p>Middleware可以让你包装<code>store</code>的<code>dispatch</code>方法来达到你想要的目的。同时，<code>middleWare</code>还拥有“可组合”这一关键特性。多个<code>middleWare</code>可以被组合到一起使用，形成<code>middleWare</code>链，依次执行。其中每个<code>middleware</code>不需要关心链前后的的<code>middleWare</code>的任何信息。</p>
-<pre><code>function applyMiddleware(...middlewares){
-    returnfunction(createStore){
-        returnfunction(reducer){
-            //引入store
-            let store = createStore(reducer);
-            let dispatch = store.dispatch;
-            let middlewareAPI = {
-                getState:store.getState,
-                // 对dispatch进行包装
-                dispatch:action=&gt;dispatch(action)
-            }
-            //每个中间件都是这种模型  ({ getState, dispatch }) =&gt; next =&gt; action
-            chain = middlewares.map(middleware=&gt;middleware(middleAPI));
-            dispatch = compose(...chain)(store.dispatch);
-            // dispatch被改装后，返回store
-            return{...store,dispatch};
-        }
-    }
-}
-复制代码
-</code></pre><p>上面代码中，所有中间件都被放进了一个数组<code>chain</code>,然后嵌套执行，最后执行<code>store.dispatch</code>。中间件内部<code>middlewaAPI</code>可以拿到<code>getState</code>和<code>dispatch</code>这两个方法。</p>
-<p><code>...middleware</code>：遵循<code>Redux middleware API</code>的函数。每个<code>middleware</code>接受<code>Store</code>的<code>dispatch</code>和<code>getState</code>函数作为命名参数，并返回一个函数。该函数会被传入成为<code>next</code>的下一个middleWare 的dispatch方法，并返回一个接收action的新函数，这个函数可以直接调用next(action)，或者在其他需要的时刻调用，甚至根本不去调用它。</p>
-<p>所以，接下来，我们就能看到middleware的函数签名是<code>({ getState, dispatch }) =&gt; next =&gt; action</code></p>
-<p>其实，它的本质就是包装sotre中的<code>dispatch</code>。</p>
-<p>上面代码中，还用到了<code>compose</code>方法，我们来看看compose是怎么是实现的？</p>
-<h3 id="compose"><a href="#compose" class="headerlink" title="compose"></a>compose</h3><p>先看下面一个栗子：</p>
-<pre><code>function add1(str){
-   return str+1;
-}
-function add2(str){
-    return str+2;
- }
- function add3(str){
-    return str+3;
- }
- let result = add3(add2(add1(&apos;好吃&apos;)));// 好吃123;
-
-复制代码
-</code></pre><p>这中写法调用起来，一层套一层，是不是看着很不爽，我们简化一下：</p>
-<pre><code>function compose(...fns){
-    if(fns.length==1)
-     return fns[0];
-   returnfunction(...args){
-    let last = fns.pop();
-    return fns.reduceRight((prev,next)=&gt;{
-         return  next(prev);  
-    },last(...args));
-   }
- }
- let add = compose(add3,add2,add1);//
- let result = add(&apos;好吃&apos;);// 好吃123
- // 上面的代码其实就是redux3.6.0版本中compose的实现方式
-复制代码
-</code></pre><p>看看这个代码是不是用起来，很干练一些。其实还可以简化</p>
-<pre><code>function compose(...fns){
-  if(fns.length==1)
-     return fns[0];
-   return fns.reduce((a,b)=&gt;(...args)=&gt;a(b(...args)));//add3(add2(add1(&apos;好吃&apos;)))
- }
- let add = compose(add3,add2,add1);//
- let result = add(&apos;好吃&apos;);// 好吃123
- // 这是redux3.6.0版本之后的compose实现方式，一直沿用至今。
-复制代码
-</code></pre><p>至于为什么<code>applyMiddleWare</code>的参数有顺序，这里给出了答案。</p>
-<h2 id="四、Applymiddleware的三个常用参数"><a href="#四、Applymiddleware的三个常用参数" class="headerlink" title="四、Applymiddleware的三个常用参数"></a>四、Applymiddleware的三个常用参数</h2><h3 id="4-1、日志记录"><a href="#4-1、日志记录" class="headerlink" title="4.1、日志记录"></a>4.1、日志记录</h3><p>使用 Redux 的一个益处就是它让 state 的变化过程变的可预知和透明。每当一个 action 发起完成后，新的 state 就会被计算并保存下来。State 不能被自身修改，只能由特定的 action 引起变化。</p>
-<p>试想一下，当我们的应用中每一个 action 被发起以及每次新的 state 被计算完成时都将它们记录下来，岂不是很好？当程序出现问题时，我们可以通过查阅日志找出是哪个 action 导致了 state 不正确。<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dd052d2e07b77?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>图片的效果是不是很期待啊！！！</p>
-<p>我们先来手动实现一版。</p>
-<pre><code>// 记录所有被发起的action和新的statelet next = store.dispatch;
-store.dispatch = function(action){
-   console.log(&apos;老状态 &apos;,store.getState());
-   next(action);
-   console.log(&apos;新状态 &apos;,store.getState());
-}
-复制代码
-</code></pre><p>还是上面的示例，我们来做个修改</p>
-<pre><code>let logger = function({ getState, dispatch }){
-   returnfunction(next){// 这里的next可以理解为store.dispath,本质上就是调用 middleware 链中下一个 middleware 的 dispatch。returnfunction(action){
-        console.log(&apos;老状态1 &apos;,getState());
-        next(action);//派发动作console.log(&apos;新状态1 &apos;,getState());
-    }
-    }
-}
-// 高逼格写法let logger = ({ getState, dispatch }) =&gt; next =&gt; action =&gt; {
-  console.log(&apos;老状态1 &apos;,getState());
-  next(action)
-  console.log(&apos;新状态1 &apos;,getState());
-}
-复制代码
-</code></pre><h3 id="4-2、redux-thunk-中间件"><a href="#4-2、redux-thunk-中间件" class="headerlink" title="4.2、redux-thunk 中间件"></a>4.2、redux-thunk 中间件</h3><p><code>redux-thunk</code> 是<code>redux</code>官方文档中用到的异步组件，实质就是一个<code>redux</code>中间件，一个封装表达式的函数，封装的目的就是延迟执行表达式。</p>
-<p><code>redux-thunk</code>是一个通用的解决方案，其核心思想是让<code>action</code>可以变成一个<code>thunk</code>，这样的话，同步情况：<code>dispatch(action)</code>,异步情况：<code>dispatch(thunk)</code>。</p>
-<p>下面是<code>redux-thunk</code>的实现：</p>
-<pre><code>let thunk = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
-    if(typeof action == &apos;function&apos;){
-        action(dispatch,getState);
-    }else{
-        next(action);//这里可以理解为dispatch(action),本质上就是调用 middleware 链中下一个 middleware 的 dispatch。
-    }
-}
-复制代码
-</code></pre><p>使用redux-thunk</p>
-<pre><code>const store = createStore(  
-  reducer,
-  applyMiddleware(thunk)
-);
-复制代码
-</code></pre><p>然后我们实现一个thunkActionCreator</p>
-<pre><code>    //过一秒加1
-    exportfunction thunkActionCreator(payload){
-        returnfunction(dispatch,getState){
-            setTimeout(function(){
-                dispatch({type:types.INCREMENT,payload:payload});
-            },1000);
-        }
-    },
-复制代码
-</code></pre><p>最后，在组件中dispatch thunk</p>
-<pre><code>this.dispatch(thunkActionCreator(payload));
-复制代码
-</code></pre><h3 id="4-3、redux-promise"><a href="#4-3、redux-promise" class="headerlink" title="4.3、redux-promise"></a>4.3、redux-promise</h3><p><code>redux-promise</code>也是延迟执行的表达式，它是解决异步的另外一种方案。</p>
-<p><code>redux-thunk</code>和核心思想是把<code>action</code>变成<code>thunk</code>，而<code>redux-promise</code>的核心思想是让<code>action</code>返回一个promise对象。</p>
-<p>这个中间件使得<code>store.dispatch</code>方法可以接收Promise对象作为参数。这时 ，action 有两种写法:</p>
-<p>写法一、返回值是一个Promise对象。</p>
-<pre><code>functionpromiseIncrement(payload){
- //  return {type:types.INCREMENT,payload:payload}  以前是这种写法returnnewPromise(function(resolve,reject){
-      setTimeout(function(){
-        resolve({type:types.INCREMENT,payload:payload});
-      },1000);
-    });
- },
-复制代码
-</code></pre><p>写法二，action 对象的payload属性是一个Promise对象，这需要从</p>
-<pre><code>functionpayloadIncrement(){
-    return {
-        type:types.INCREMENT,
-        payload: newPromise(function(resolve,reject){
-            setTimeout(function(){
-                if(Math.random()&gt;.5){
-                    resolve(100);
-                }else{
-                    reject(-100);
-                }
-            },1000)
-        })
-    }
-}
-复制代码
-</code></pre><p>下面我们来看看 <code>redux-promise</code>是怎么实现的，就会明白它内部是怎么操作的.</p>
-<pre><code>let promise = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
-    if(action.then &amp;&amp; typeof action.then == &apos;function&apos;){
-        action.then(dispatch);
-        // 这里的dispatch就是一个函数，dispatch(action){state:reducer(state,action)};
-    }elseif(action.payload&amp;&amp; action.payload.then&amp;&amp; typeof action.payload.then == &apos;function&apos;){
-        action.payload.then(payload=&gt;dispatch({...action,payload}),payload=&gt;dispatch({...action,payload}));
-    }else{
-        next(action);
-    }
-}
-复制代码
-</code></pre><p>上面的代码可以看出，如果Action本身就是一个Promise，它resolve以后的值应该是一个Action对象，会被dispatch方法送出action.then(dispatch)；如果<code>Action</code>对象的 <code>payload</code>属性是一个<code>Promise</code>对象，那么无论<code>resolve</code>和<code>reject</code>,dispatch 方法都会发出<code>Action</code>。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4519,7 +4417,7 @@ store.dispatch = function(action){
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">73</span>
+                  <span class="site-state-item-count">75</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
