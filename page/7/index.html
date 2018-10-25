@@ -259,6 +259,444 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/JS-继承/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/03/02/JS-继承/" itemprop="url">JS 继承</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-02T22:49:01+08:00">
+                2018-03-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
+<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+function Child(name) {
+    this.name = name;
+}
+
+Child.prototype = new Parent(&apos;father&apos;);
+Child.prototype.constructor = Child;
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+var child = new Child(&apos;son&apos;);
+child.sayName();    // child name: son
+</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
+<p>这种方法存在两个缺点：</p>
+<ol>
+<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
+<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
+</ol>
+<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+Parent.prototype.doSomthing = function() {
+    console.log(&apos;parent do something!&apos;);
+}
+function Child(name, parentName) {
+    Parent.call(this, parentName);
+    this.name = name;
+}
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+var child = new Child(&apos;son&apos;);
+child.sayName();      // child name: son
+child.doSomthing();   // TypeError: child.doSomthing is not a function
+</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
+<p>缺点：</p>
+<ol>
+<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
+</ol>
+<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
+    this.name = name;
+}
+
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+Parent.prototype.doSomething = function() {
+    console.log(&apos;parent do something!&apos;);
+}
+function Child(name, parentName) {
+    Parent.call(this, parentName);
+    this.name = name;
+}
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+Child.prototype = new Parent();      
+Child.prototype.construtor = Child;
+
+var child = new Child(&apos;son&apos;);
+child.sayName();       // child name: son
+child.doSomething();   // parent do something!
+</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
+<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
+<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
+<pre><code>function Parent(name) { 
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+Parent.prototype.doSomething = function() {
+    console.log(&apos;parent do something!&apos;);
+}
+function Child(name, parentName) {
+    Parent.call(this, parentName);      // 第二次调用
+    this.name = name;
+}
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+Child.prototype = new Parent();         // 第一次调用
+Child.prototype.construtor = Child;
+
+var child = new Child(&apos;son&apos;);
+child.sayName();      
+child.doSomething();   
+</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
+<pre><code>Child.prototype = Parent.prototype;
+</code></pre><p>这样写显然是不对的：</p>
+<ol>
+<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
+<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
+</ol>
+<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
+<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+
+function Child(name, parentName) {
+    Parent.call(this, parentName);  
+    this.name = name;    
+}
+
+function create(proto) {
+    function F(){}
+    F.prototype = proto;
+    F.prototype.construtor = F;
+    return new F();
+}
+
+Child.prototype = create(Parent.prototype);
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+Child.prototype.construtor = Child;
+
+var parent = new Parent(&apos;father&apos;);
+parent.sayName();    // parent name: father
+
+
+var child = new Child(&apos;son&apos;, &apos;father&apos;);
+child.sayName();     // child name: son
+</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
+<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
+<pre><code>function Parent(name) {
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+
+function Child(name, parentName) {
+    Parent.call(this, parentName);  
+    this.name = name;    
+}
+
+function inheritPrototype(Parent, Child) {
+    Child.prototype = Object.create(Parent.prototype);   //修改
+    Child.prototype.construtor = Child;
+}
+
+inheritPrototype(Parent, Child);
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+var parent = new Parent(&apos;father&apos;);
+parent.sayName();      // parent name: father
+
+var child = new Child(&apos;son&apos;, &apos;father&apos;);
+child.sayName();       // child name: son
+</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
+<pre><code>class Parent {
+    constructor(name) {
+    this.name = name;
+    }
+    doSomething() {
+    console.log(&apos;parent do something!&apos;);
+    }
+    sayName() {
+    console.log(&apos;parent name:&apos;, this.name);
+    }
+}
+
+class Child extends Parent {
+    constructor(name, parentName) {
+    super(parentName);
+    this.name = name;
+    }
+    sayName() {
+     console.log(&apos;child name:&apos;, this.name);
+    }
+}
+
+const child = new Child(&apos;son&apos;, &apos;father&apos;);
+child.sayName();            // child name: son
+child.doSomething();        // parent do something!
+
+const parent = new Parent(&apos;father&apos;);
+parent.sayName();           // parent name: father
+</code></pre><p>JavaScript前端开发</p>
+<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
+<pre><code>/**
+ * JavaScript(ES5)中实现继承的几种方法
+ */
+
+// 定义基类Person
+function Person(name, age) {
+  this.name = name;
+  this.age = age;
+}
+
+// 共享数据
+Person.prototype.LEGS_NUM = 2;
+
+// 共享方法
+Person.prototype.info = function () {
+  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
+};
+
+Person.prototype.walk = function () {
+  console.log(this.name + &apos; is walking...&apos;);
+};
+
+// Student子类
+function Student(name, age, className) {
+  // 调用父类
+  Person.call(this, name, age);
+  this.className = className;
+}
+
+// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
+// Student.prototype = Person.prototype;
+
+// 2⃣️ 方法二：Student.prototype为Person的实例
+// Student.prototype = new Person();
+
+// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
+Student.prototype = Object.create(Person.prototype);
+
+Student.prototype.constructor = Student;
+
+// 覆盖父类的info方法
+Student.prototype.info = function () {
+  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
+};
+
+// Student类的共享方法
+Student.prototype.learn = function (subject) {
+  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
+};
+
+// 测试,创建一个Student的实例
+var microzz = new Student(&apos;Microzz&apos;, 22, 5);
+microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
+console.log(microzz.LEGS_NUM); // 2
+microzz.walk(); // Microzz is walking...
+microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
+console.log(microzz.__proto__.__proto__ === Person.prototype); // true
+console.log(microzz.__proto__ === Student.prototype); // true
+console.log(microzz.__proto__.constructor === Student); // true
+</code></pre><p>三种方法比较</p>
+<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>1⃣️这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>2⃣️第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>3⃣️第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
+<pre><code>if (!Object.create) {
+  Object.prototype.create = function (proto) {
+    function F() {}
+    F.prototype = proto;
+    return new F;
+  }
+}
+</code></pre><p>这样在ES5中就完美实现了继承😄</p>
+<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
+<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
+<p>代码</p>
+<pre><code>// 基类 Person
+class Person {
+  // 父类的构造方法
+  constructor(name, age) {
+    this.name = name;
+    this.age = age;
+    // 共享变量
+    this.LEGS_NUM = 2;
+  }
+  // 父类的info方法
+  info() {
+    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
+  }
+
+  // 父类的walk方法
+  walk() {
+    console.log(this.name + &apos; is walking...&apos;);
+  }
+
+}
+
+// 子类 Student
+class Student extends Person {
+  constructor(name, age, className) {
+    // 调用基类的构造方法
+    super(name, age);
+    this.className = className;
+  }
+
+  // 覆盖父类的info方法
+  info() {
+    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
+  }
+}
+
+// 实例化一个Student的实例
+let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
+stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
+stu.walk(); // Zhaohui is walking...
+console.log(stu.LEGS_NUM); // 2
+console.log(stu instanceof Student); // true
+console.log(stu instanceof Person); // true
+</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了😄</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/02/Vue大数据渲染虚拟滚动列表/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3815,296 +4253,6 @@ git fsck
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/08/15/用css让一个容器水平垂直居中/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/08/15/用css让一个容器水平垂直居中/" itemprop="url">用css让一个容器水平垂直居中</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-08-15T23:19:26+08:00">
-                2017-08-15
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>阅读目录</p>
-<ul>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label0" target="_blank" rel="noopener">方法一：position加margin</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label1" target="_blank" rel="noopener">方法二： diaplay:table-cell</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label2" target="_blank" rel="noopener">方法三：position加 transform</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label3" target="_blank" rel="noopener">方法四：flex;align-items: center;justify-content: center</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label4" target="_blank" rel="noopener">方法五：display:flex;margin:auto</a></li>
-<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label5" target="_blank" rel="noopener">方法六：纯position</a></li>
-</ul>
-<p>这种css布局平时用的比较多，也是面试题常出的一个题，网上一搜一大丢，不过还是想自己总结一下。</p>
-<p>这种方法比较多，本文只总结其中的几种，以便加深印象。</p>
-<p>效果图都为这个：</p>
-<p><img src="https://pic1.zhimg.com/v2-cf428b1f71583bc3feeeedcdc87d9e6c_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-cf428b1f71583bc3feeeedcdc87d9e6c_hd.jpg" alt=""></p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法一：position加margin"><a href="#方法一：position加margin" class="headerlink" title="方法一：position加margin"></a>方法一：position加margin</h2><pre><code>/**html**/
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/**css**/
-.wrap {
-    width: 200px;
-    height: 200px;
-    background: yellow;
-    position: relative;
-}
-.wrap .center {
-    width: 100px;
-    height: 100px;
-    background: green;
-    margin: auto;
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-}
-</code></pre><p>兼容性：主流浏览器均支持，IE6不支持</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法二：-diaplay-table-cell"><a href="#方法二：-diaplay-table-cell" class="headerlink" title="方法二： diaplay:table-cell"></a>方法二： diaplay:table-cell</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-     &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/*css*/
-.wrap{
-    width: 200px;
-    height: 200px;
-    background: yellow;
-    display: table-cell;
-    vertical-align: middle;
-    text-align: center;
-}
-.center{
-    display: inline-block;
-    vertical-align: middle;
-    width: 100px;
-    height: 100px;
-    background: green;
-}
-</code></pre><p>兼容性：由于display:table-cell的原因，IE6\7不兼容</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法三：position加-transform"><a href="#方法三：position加-transform" class="headerlink" title="方法三：position加 transform"></a>方法三：position加 transform</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    position: relative;
-    background: yellow;
-    width: 200px;
-    height: 200px;}
-
-.center {
-    position: absolute;
-    background: green;
-    top:50%;
-    left:50%;
-    -webkit-transform:translate(-50%,-50%);
-    transform:translate(-50%,-50%);
-    width: 100px;
-    height: 100px;
-}
-</code></pre><p>兼容性：ie9以下不支持 transform，手机端表现的比较好。</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法四：flex-align-items-center-justify-content-center"><a href="#方法四：flex-align-items-center-justify-content-center" class="headerlink" title="方法四：flex;align-items: center;justify-content: center"></a>方法四：flex;align-items: center;justify-content: center</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    background: yellow;
-    width: 200px;
-    height: 200px;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-}
-
-.center {
-    background: green;
-    width: 100px;
-    height: 100px;
-}
-</code></pre><p>移动端首选</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法五：display-flex-margin-auto"><a href="#方法五：display-flex-margin-auto" class="headerlink" title="方法五：display:flex;margin:auto"></a>方法五：display:flex;margin:auto</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    background: yellow;
-    width: 200px;
-    height: 200px;
-    display: flex; 
-}
-
-.center {
-    background: green;
-    width: 100px;
-    height: 100px;
-    margin: auto;
-}
-</code></pre><p>移动端首选</p>
-<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
-<h2 id="方法六：纯position"><a href="#方法六：纯position" class="headerlink" title="方法六：纯position"></a>方法六：纯position</h2><pre><code>&lt;!-- html --&gt;
-&lt;div class=&quot;wrap&quot;&gt;
-    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
-&lt;/div&gt;
-
-/* css */
-.wrap {
-    background: yellow;
-    width: 200px;
-    height: 200px;
-    position: relative;
-}
-/**方法一**/
-.center {
-    background: green;
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    left: 50px;
-    top: 50px; 
-　　
-}
-/**方法二**/
-.center {
-    background: green;
-    position: absolute;
-    width: 100px;
-    height: 100px;
-    left: 50%;
-    top: 50%;
-　　margin-left:-50px;
-　　margin-top:-50px;
-}　 
-</code></pre><p>兼容性：适用于所有浏览器</p>
-<p>  方法六中的方法一计算公式如下：</p>
-<p>　　子元素（conter）的left值计算公式：left=(父元素的宽 - 子元素的宽 ) / 2=(200-100) / 2=50px;</p>
-<p>　　子元素（conter）的top值计算公式：top=(父元素的高 - 子元素的高 ) / 2=(200-100) / 2=50px;</p>
-<p>　　方法二计算公式：</p>
-<p>　　left值固定为50%;</p>
-<p>　　子元素的margin-left= -（子元素的宽/2）=-100/2= -50px;</p>
-<p>　　top值也一样，固定为50%</p>
-<pre><code>子元素的margin-top= -（子元素的高/2）=-100/2= -50px;
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4159,7 +4307,7 @@ git fsck
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">78</span>
+                  <span class="site-state-item-count">79</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
