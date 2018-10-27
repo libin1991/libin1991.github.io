@@ -259,6 +259,233 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/Event-Loop-必知必会（六道题）/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/03/Event-Loop-必知必会（六道题）/" itemprop="url">Event Loop 必知必会（六道题）</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T11:48:09+08:00">
+                2018-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>一直想写一篇关于 Event Loop 的文章，前不久发现 CNode 上有位同学写了一篇原理分析的<a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/5a9108d78d6e16e56bb80882%235a98d9a2ce1c90bc44c445af" target="_blank" rel="noopener">文章</a>很详细，这里我就不献丑了。本文就拿出六道题来补充一下，放出一张我认为非常直观的图。<br><img src="https://pic4.zhimg.com/v2-3a59c624e6ff95a7e8c5a23c979f5abe_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3a59c624e6ff95a7e8c5a23c979f5abe_hd.jpg" alt=""><br>绿色小块是 macrotask（宏任务），macrotask 中间的粉红箭头是 microtask（微任务）。</p>
+<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate
+setTimeout
+</code></pre><p>或者：</p>
+<pre><code>setTimeout
+setImmediate
+</code></pre><p>为什么结果不确定呢？</p>
+<p>解释：setTimeout/setInterval 的第二个参数取值范围是：[1, 2^31 - 1]，如果超过这个范围则会初始化为 1，即 setTimeout(fn, 0) === setTimeout(fn, 1)。我们知道 setTimeout 的回调函数在 timer 阶段执行，setImmediate 的回调函数在 check 阶段执行，event loop 的开始会先检查 timer 阶段，但是在开始之前到 timer 阶段会消耗一定时间，所以就会出现两种情况：</p>
+<ol>
+<li>timer 前的准备时间超过 1ms，满足  loop-&gt;time &gt;= 1，则执行 timer 阶段（setTimeout）的回调函数</li>
+<li>timer 前的准备时间小于 1ms，则先执行 check 阶段（setImmediate）的回调函数，下一次 event loop 执行 timer 阶段（setTimeout）的回调函数</li>
+</ol>
+<p>再看个例子：</p>
+<pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})conststart=Date.now()while(Date.now()-start&lt;10);
+</code></pre><p>运行结果一定是：</p>
+<pre><code>setTimeout
+setImmediate
+</code></pre><h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>constfs=require(&apos;fs&apos;)fs.readFile(__filename,()=&gt;{setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate
+setTimeout
+</code></pre><p>解释：fs.readFile 的回调函数执行完后：</p>
+<ol>
+<li>注册 setTimeout 的回调函数到 timer 阶段</li>
+<li>注册 setImmediate 的回调函数到 check 阶段</li>
+<li>event loop 从 pool 阶段出来继续往下一个阶段执行，恰好是 check 阶段，所以 setImmediate 的回调函数先执行</li>
+<li>本次 event loop 结束后，进入下一次 event loop，执行 setTimeout 的回调函数</li>
+</ol>
+<p>所以，在 I/O Callbacks 中注册的 setTimeout 和 setImmediate，永远都是 setImmediate 先执行。</p>
+<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)process.nextTick(functiontick(){process.nextTick(tick)})
+</code></pre><p>运行结果：setInterval 永远不会打印出来。</p>
+<p>解释：process.nextTick 会无限循环，将 event loop 阻塞在 microtask 阶段，导致 event loop 上其他 macrotask 阶段的回调函数没有机会执行。</p>
+<p>解决方法通常是用 setImmediate 替代 process.nextTick，如下：</p>
+<pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)setImmediate(functionimmediate(){setImmediate(immediate)})
+</code></pre><p>运行结果：每 100ms 打印一次 setInterval。</p>
+<p>解释：process.nextTick 内执行 process.nextTick 仍然将 tick 函数注册到当前 microtask 的尾部，所以导致 microtask 永远执行不完； setImmediate 内执行 setImmediate 会将 immediate 函数注册到下一次 event loop 的 check 阶段，而不是当前正在执行的 check 阶段，所以给了 event loop 上其他 macrotask 执行的机会。</p>
+<p>再看个例子：</p>
+<pre><code>setImmediate(()=&gt;{console.log(&apos;setImmediate1&apos;)setImmediate(()=&gt;{console.log(&apos;setImmediate2&apos;)})process.nextTick(()=&gt;{console.log(&apos;nextTick&apos;)})})setImmediate(()=&gt;{console.log(&apos;setImmediate3&apos;)})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate1
+setImmediate3
+nextTick
+setImmediate2
+</code></pre><p>注意：并不是说 setImmediate 可以完全替代 process.nextTick，process.nextTick 在特定场景下还是无法被替代的，比如我们就想将一些操作放到最近的 microtask 里执行。</p>
+<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>constpromise=Promise.resolve().then(()=&gt;{returnpromise})promise.catch(console.error)
+</code></pre><p>运行结果：</p>
+<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
+    at &lt;anonymous&gt;
+    at process._tickCallback (internal/process/next_tick.js:188:7)
+    at Function.Module.runMain (module.js:667:11)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+</code></pre><p>解释：promise.then 类似于 process.nextTick，都会将回调函数注册到 microtask 阶段。上面代码会导致死循环，类似前面提到的：</p>
+<pre><code>process.nextTick(functiontick(){process.nextTick(tick)})
+</code></pre><p>再看个例子：</p>
+<pre><code>constpromise=Promise.resolve()
+promise.then(()=&gt;{
+  console.log(&apos;promise&apos;)})
+  process.nextTick(()=&gt;{
+      console.log(&apos;nextTick&apos;)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>nextTick
+promise
+</code></pre><p>解释：promise.then 虽然和 process.nextTick 一样，都将回调函数注册到 microtask，但优先级不一样。process.nextTick 的 microtask queue 总是优先于 promise 的 microtask queue 执行。</p>
+<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>setTimeout(()=&gt;{
+    console.log(1)
+},0)
+newPromise((resolve,reject)=&gt;{
+   console.log(2)
+   for(leti=0;i&lt;10000;i++){
+     i===9999&amp;&amp;resolve()
+   }
+   console.log(3)
+}).then(()=&gt;{
+   console.log(4)
+})
+console.log(5)
+</code></pre><p>运行结果：</p>
+<p>解释：Promise 构造函数是同步执行的，所以先打印 2、3，然后打印 5，接下来 event loop 进入执行 microtask 阶段，执行 promise.then 的回调函数打印出 4，然后执行下一个 macrotask，恰好是 timer 阶段的 setTimeout 的回调函数，打印出 1。</p>
+<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>setImmediate(()=&gt;{
+    console.log(1)
+    setTimeout(()=&gt;{
+       console.log(2)
+    },100)
+    setImmediate(()=&gt;{
+       console.log(3)
+    })
+    process.nextTick(
+       ()=&gt;{console.log(4)})
+     })
+     process.nextTick(()=&gt;{
+       console.log(5)
+       setTimeout(()=&gt;{
+        console.log(6)},100)
+        setImmediate(()=&gt;{
+        console.log(7)})
+        process.nextTick(
+        ()=&gt;{console.log(8)})
+        })console.log(9)
+</code></pre><p>运行结果：</p>
+<p>process.nextTick、setTimeout 和 setImmediate 的组合，请读者自己推理吧。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a href="https://link.zhihu.com/?target=https%3A//medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c" target="_blank" rel="noopener">https://medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/57d68794cb6f605d360105bf" target="_blank" rel="noopener">https://cnodejs.org/topic/57d68794cb6f605d360105bf</a></li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/你不知道的-Promise-对象黑科技/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3958,466 +4185,6 @@ say.call(obj,&apos;call方法&apos;,&apos;hi&apos;); //call方法:hi afei
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/20/Vue批量异步更新与nextTick原理/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/20/Vue批量异步更新与nextTick原理/" itemprop="url">Vue批量异步更新与nextTick原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-20T13:13:34+08:00">
-                2018-08-20
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <ol>
-<li>异步更新</li>
-</ol>
-<p>我们在依赖收集原理的响应式化方法 defineReactive 中的 setter 访问器中有派发更新 dep.notify() 方法。</p>
-<p>这个方法会挨个通知在 dep 的 subs 中收集的订阅自己变动的watchers执行update。</p>
-<p>一起来看看 update 方法的实现：</p>
-<pre><code>// src/core/observer/watcher.js
-
-/* Subscriber接口，当依赖发生改变的时候进行回调 */
-update() {
-  if (this.computed) {
-    // 一个computed watcher有两种模式：activated lazy(默认)
-    // 只有当它被至少一个订阅者依赖时才置activated，这通常是另一个计算属性或组件的render function
-    if (this.dep.subs.length === 0) {       // 如果没人订阅这个计算属性的变化
-      // lazy时，我们希望它只在必要时执行计算，所以我们只是简单地将观察者标记为dirty
-      // 当计算属性被访问时，实际的计算在this.evaluate()中执行
-      this.dirty = true
-    } else {
-      // activated模式下，我们希望主动执行计算，但只有当值确实发生变化时才通知我们的订阅者
-      this.getAndInvoke(() =&gt; {
-        this.dep.notify()     // 通知渲染watcher重新渲染，通知依赖自己的所有watcher执行update
-      })
-    }
-  } else if (this.sync) {      // 同步
-    this.run()
-  } else {
-    queueWatcher(this)        // 异步推送到调度者观察者队列中，下一个tick时调用
-  }
-}
-</code></pre><p>如果不是 computed watcher 也非 sync 会把调用update的当前watcher推送到调度者队列中，下一个tick时调用，看看 queueWatcher ：</p>
-<pre><code>// src/core/observer/scheduler.js
-
-/* 将一个观察者对象push进观察者队列，在队列中已经存在相同的id则
- * 该watcher将被跳过，除非它是在队列正被flush时推送
- */
-export function queueWatcher (watcher: Watcher) {
-  const id = watcher.id
-  if (has[id] == null) {     // 检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验
-    has[id] = true
-    queue.push(watcher)      // 如果没有正在flush，直接push到队列中
-    if (!waiting) {          // 标记是否已传给nextTick
-      waiting = true
-      nextTick(flushSchedulerQueue)
-    }
-  }
-}
-
-/* 重置调度者状态 */
-function resetSchedulerState () {
-  queue.length = 0
-  has = {}
-  waiting = false
-}
-</code></pre><p>这里使用了一个 has 的哈希map用来检查是否当前watcher的id是否存在，若已存在则跳过。</p>
-<p>不存在则就push到 queue 队列中并标记哈希表has，用于下次检验，防止重复添加。</p>
-<p>这就是一个去重的过程，比每次查重都要去queue中找要文明，在渲染的时候就不会重复 patch 相同watcher的变化。</p>
-<p>这样就算同步修改了一百次视图中用到的data，异步 patch 的时候也只会更新最后一次修改。</p>
-<p>这里的 waiting 方法是用来标记 flushSchedulerQueue 是否已经传递给 nextTick 的标记位。</p>
-<p>如果已经传递则只push到队列中不传递 flushSchedulerQueue 给 nextTick。</p>
-<p>等到 resetSchedulerState 重置调度者状态的时候 waiting 会被置回 false 允许 flushSchedulerQueue 被传递给下一个tick的回调。</p>
-<p>总之保证了 flushSchedulerQueue 回调在一个tick内只允许被传入一次。</p>
-<p>来看看被传递给 nextTick 的回调 flushSchedulerQueue 做了什么：</p>
-<pre><code>// src/core/observer/scheduler.js
-
-/* nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers */
-function flushSchedulerQueue () {
-  flushing = true
-  let watcher, id
-
-  queue.sort((a, b) =&gt; a.id - b.id)                    // 排序
-
-  for (index = 0; index &lt; queue.length; index++) {     // 不要将length进行缓存
-    watcher = queue[index]
-    if (watcher.before) {         // 如果watcher有before则执行
-      watcher.before()
-    }
-    id = watcher.id
-    has[id] = null                // 将has的标记删除
-    watcher.run()                 // 执行watcher
-    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {  // 在dev环境下检查是否进入死循环
-      circular[id] = (circular[id] || 0) + 1     // 比如user watcher订阅自己的情况
-      if (circular[id] &gt; MAX_UPDATE_COUNT) {     // 持续执行了一百次watch代表可能存在死循环
-        warn()                                  // 进入死循环的警告
-        break
-      }
-    }
-  }
-  resetSchedulerState()           // 重置调度者状态
-  callActivatedHooks()            // 使子组件状态都置成active同时调用activated钩子
-  callUpdatedHooks()              // 调用updated钩子
-}
-</code></pre><p>在 nextTick 方法中执行 flushSchedulerQueue 方法，这个方法挨个执行 queue 中的watcher的 run 方法。</p>
-<p>我们看到在首先有个 queue.sort() 方法把队列中的watcher按id从小到大排了个序，这样做可以保证：</p>
-<ol>
-<li><p>组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。</p>
-</li>
-<li><p>一个组件的user watchers(侦听器watcher)比render watcher先运行，因为user watchers往往比render watcher更早创建</p>
-</li>
-<li><p>如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过</p>
-</li>
-</ol>
-<p>在挨个执行队列中的for循环中，index &lt; queue.length 这里没有将length进行缓存。</p>
-<p>因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue。</p>
-<p>那么数据的修改从model层反映到view的过程：数据更改 -&gt; setter -&gt; Dep -&gt; Watcher -&gt; nextTick -&gt; patch -&gt; 更新视图</p>
-<ol start="2">
-<li>nextTick原理</li>
-</ol>
-<p><strong>2.1 宏任务/微任务</strong></p>
-<p>这里就来看看包含着每个watcher执行的方法被作为回调传入 nextTick 之后，nextTick 对这个方法做了什么。</p>
-<p>不过首先要了解一下浏览器中的 EventLoop、macro task、micro task几个概念。</p>
-<p>不了解可以参考一下 JS与Node.js中的事件循环 这篇文章，这里就用一张图来表明一下后两者在主线程中的执行关系：</p>
-<p><img src="/2018/08/20/Vue批量异步更新与nextTick原理/data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==" alt=""></p>
-<p>解释一下，当主线程执行完同步任务后：</p>
-<ol>
-<li><p>引擎首先从macrotask queue中取出第一个任务，执行完毕后，将microtask queue中的所有任务取出，按顺序全部执行；</p>
-</li>
-<li><p>然后再从macrotask queue中取下一个，执行完毕后，再次将microtask queue中的全部取出；</p>
-</li>
-<li><p>循环往复，直到两个queue中的任务都取完。</p>
-</li>
-</ol>
-<p>浏览器环境中常见的异步任务种类，按照优先级：</p>
-<ul>
-<li>macro task ：</li>
-</ul>
-<p>同步代码、setImmediate、MessageChannel、setTimeout/setInterval</p>
-<ul>
-<li>micro task：</li>
-</ul>
-<p>Promise.then、MutationObserver</p>
-<p>有的文章把 micro task 叫微任务，macro task 叫宏任务，因为这两个单词拼写太像了 -。- ，所以后面的注释多用中文表示~</p>
-<p>先来看看源码中对micro task与macro task 的实现： macroTimerFunc、microTimerFunc</p>
-<pre><code>// src/core/util/next-tick.js
-
-const callbacks = []     // 存放异步执行的回调
-let pending = false      // 一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送
-
-/* 挨个同步执行callbacks中回调 */
-function flushCallbacks() {
-  pending = false
-  const copies = callbacks.slice(0)
-  callbacks.length = 0
-  for (let i = 0; i &lt; copies.length; i++) {
-    copies[i]()
-  }
-}
-
-let microTimerFunc        // 微任务执行方法
-let macroTimerFunc        // 宏任务执行方法
-let useMacroTask = false  // 是否强制为宏任务，默认使用微任务
-
-// 宏任务
-if (typeof setImmediate !== &apos;undefined&apos; &amp;&amp; isNative(setImmediate)) {
-  macroTimerFunc = () =&gt; {
-    setImmediate(flushCallbacks)
-  }
-} else if (typeof MessageChannel !== &apos;undefined&apos; &amp;&amp; (
-  isNative(MessageChannel) ||
-  MessageChannel.toString() === &apos;[object MessageChannelConstructor]&apos;  // PhantomJS
-)) {
-  const channel = new MessageChannel()
-  const port = channel.port2
-  channel.port1.onmessage = flushCallbacks
-  macroTimerFunc = () =&gt; {
-    port.postMessage(1)
-  }
-} else {
-  macroTimerFunc = () =&gt; {
-    setTimeout(flushCallbacks, 0)
-  }
-}
-
-// 微任务
-if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
-  const p = Promise.resolve()
-  microTimerFunc = () =&gt; {
-    p.then(flushCallbacks)
-  }
-} else {
-  microTimerFunc = macroTimerFunc      // fallback to macro
-}
-</code></pre><p>flushCallbacks 这个方法就是挨个同步的去执行callbacks中的回调函数们，callbacks中的回调函数是在调用 nextTick 的时候添加进去的；</p>
-<p>那么怎么去使用 micro task 与 macro task 去执行 flushCallbacks 呢。</p>
-<p>这里他们的实现 macroTimerFunc、microTimerFunc 使用浏览器中宏任务/微任务的API对flushCallbacks 方法进行了一层包装。</p>
-<p>比如宏任务方法 macroTimerFunc=()=&gt;{ setImmediate(flushCallbacks) }，这样在触发宏任务执行的时候 macroTimerFunc() 就可以在浏览器中的下一个宏任务loop的时候消费这些保存在callbacks数组中的回调了，微任务同理。</p>
-<p>同时也可以看出传给 nextTick 的异步回调函数是被压成了一个同步任务在一个tick执行完的，而不是开启多个异步任务。</p>
-<p>注意这里有个比较难理解的地方，第一次调用 nextTick 的时候 pending 为false。</p>
-<p>此时已经push到浏览器event loop中一个宏任务或微任务的task，如果在没有flush掉的情况下继续往callbacks里面添加。</p>
-<p>那么在执行这个占位queue的时候会执行之后添加的回调，所以 macroTimerFunc、microTimerFunc 相当于task queue的占位。</p>
-<p>以后 pending 为true则继续往占位queue里面添加，event loop轮到这个task queue的时候将一并执行。</p>
-<p>执行 flushCallbacks 时 pending 置false，允许下一轮执行 nextTick 时往event loop占位。</p>
-<p>可以看到上面 macroTimerFunc 与 microTimerFunc 进行了在不同浏览器兼容性下的平稳退化，或者说降级策略：</p>
-<p>1、macroTimerFunc ：</p>
-<p>setImmediate -&gt; MessageChannel -&gt; setTimeout。</p>
-<p>首先检测是否原生支持 setImmediate，这个方法只在 IE、Edge 浏览器中原生实现。</p>
-<p>然后检测是否支持 MessageChannel，如果对 MessageChannel 不了解可以参考一下这篇文章。还不支持的话最后使用setTimeout；</p>
-<p>为什么优先使用 setImmediate 与 MessageChannel 而不直接使用 setTimeout 呢。</p>
-<p>是因为HTML5规定setTimeout执行的最小延时为4ms，而嵌套的timeout表现为10ms。</p>
-<p>为了尽可能快的让回调执行，没有最小延时限制的前两者显然要优于 setTimeout。</p>
-<p>2、microTimerFunc：</p>
-<p>Promise.then -&gt; macroTimerFunc 。</p>
-<p>首先检查是否支持 Promise，如果支持的话通过 Promise.then 来调用 flushCallbacks 方法。</p>
-<p>否则退化为 macroTimerFunc ；</p>
-<p>vue2.5之后 nextTick 中因为兼容性原因删除了微任务平稳退化的 MutationObserver 的方式。</p>
-<p><strong>2.2 nextTick实现</strong></p>
-<p>最后来看看我们平常用到的 nextTick 方法到底是如何实现的：</p>
-<pre><code>// src/core/util/next-tick.js
-
-export function nextTick(cb?: Function, ctx?: Object) {
-  let _resolve
-  callbacks.push(() =&gt; {
-    if (cb) {
-      try {
-        cb.call(ctx)
-      } catch (e) {
-        handleError(e, ctx, &apos;nextTick&apos;)
-      }
-    } else if (_resolve) {
-      _resolve(ctx)
-    }
-  })
-  if (!pending) {
-    pending = true
-    if (useMacroTask) {
-      macroTimerFunc()
-    } else {
-      microTimerFunc()
-    }
-  }
-  if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
-    return new Promise(resolve =&gt; {
-      _resolve = resolve
-    })
-  }
-}
-
-/* 强制使用macrotask的方法 */
-export function withMacroTask(fn: Function): Function {
-  return fn._withTask || (fn._withTask = function() {
-    useMacroTask = true
-    const res = fn.apply(null, arguments)
-    useMacroTask = false
-    return res
-  })
-}
-</code></pre><p>nextTick 在这里分为三个部分，我们一起来看一下；</p>
-<p>1、首先 nextTick 把传入的 cb 回调函数用 try-catch 包裹后放在一个匿名函数中推入callbacks数组中。</p>
-<p>这么做是因为防止单个 cb 如果执行错误不至于让整个JS线程挂掉。</p>
-<p>每个 cb 都包裹是防止这些回调函数如果执行错误不会相互影响，比如前一个抛错了后一个仍然可以执行。</p>
-<p>2、然后检查 pending 状态，这个跟之前介绍的 queueWatcher 中的 waiting 是一个意思。</p>
-<p>它是一个标记位，一开始是 false 在进入</p>
-<p>macroTimerFunc、microTimerFunc方法前被置为 true。</p>
-<p>因此下次调用 nextTick 就不会进入</p>
-<p>macroTimerFunc、microTimerFunc方法。</p>
-<p>这两个方法中会在下一个 macro/micro tick 时候 flushCallbacks 异步的去执行callbacks队列中收集的任务，而 flushCallbacks 方法在执行一开始会把 pending 置 false。</p>
-<p>因此下一次调用 nextTick 时候又能开启新一轮的 macroTimerFunc、microTimerFunc，这样就形成了vue中的 event loop。</p>
-<p>3、最后检查是否传入了 cb。</p>
-<p>因为 nextTick 还支持Promise化的调用：nextTick().then(() =&gt; {})。</p>
-<p>所以如果没有传入 cb 就直接return了一个Promise实例，并且把resolve传递给_resolve。</p>
-<p>这样后者执行的时候就跳到我们调用的时候传递进 then 的方法中。</p>
-<p>Vue源码中 next-tick.js 文件还有一段重要的注释，这里就翻译一下：</p>
-<p>在vue2.5之前的版本中，nextTick基本上基于 micro task 来实现的。</p>
-<p>但是在某些情况下 micro task 具有太高的优先级，并且可能在连续顺序事件之间（例如＃4521，＃6690）或者甚至在同一事件的事件冒泡过程中之间触发（＃6566）。</p>
-<p>但是如果全部都改成 macro task，对一些有重绘和动画的场景也会有性能影响，如 issue #6813。</p>
-<p>vue2.5之后版本提供的解决办法是默认使用 micro task，但在需要时（例如在v-on附加的事件处理程序中）强制使用 macro task。</p>
-<p>为什么默认优先使用 micro task 呢。</p>
-<p>是利用其高优先级的特性，保证队列中的微任务在一次循环全部执行完毕。</p>
-<p>强制 macro task 的方法是在绑定 DOM 事件的时候。</p>
-<p>默认会给回调的 handler 函数调用 withMacroTask 方法做一层包装 handler = withMacroTask(handler)。</p>
-<p>它保证整个回调函数执行过程中，遇到数据状态的改变，这些改变都会被推到 macro task 中。</p>
-<p>以上实现在src/platforms/web/runtime/modules/events.js</p>
-<p>的 add 方法中，可以自己看一看具体代码。</p>
-<p>刚好在写这篇文章的时候思否上有人问了个问题 vue 2.4 和2.5 版本的@input事件不一样。</p>
-<p>这个问题的原因也是因为2.5之前版本的DOM事件采用 micro task ，而之后采用 macro task。</p>
-<p>解决的途径参考 &lt; Vue.js 升级踩坑小记&gt; 中介绍的几个办法。</p>
-<p>这里就提供一个在mounted钩子中用 addEventListener 添加原生事件的方法来实现。</p>
-<p>参见 CodePen</p>
-<p>（<a href="https://codepen.io/SHERlocked93/pen/WKGNKJ）。" target="_blank" rel="noopener">https://codepen.io/SHERlocked93/pen/WKGNKJ）。</a></p>
-<ol start="3">
-<li>一个例子</li>
-</ol>
-<p>说这么多，不如来个例子，执行参见 CodePen</p>
-<pre><code>&lt;div id=&quot;app&quot;&gt;
-  &lt;span id=&apos;name&apos; ref=&apos;name&apos;&gt;{{ name }}&lt;/span&gt;
-  &lt;button @click=&apos;change&apos;&gt;change name&lt;/button&gt;
-  &lt;div id=&apos;content&apos;&gt;&lt;/div&gt;
-&lt;/div&gt;
-&lt;script&gt;
-  new Vue({
-    el: &apos;#app&apos;,
-    data() {
-      return {
-        name: &apos;SHERlocked93&apos;
-      }
-    },
-    methods: {
-      change() {
-        const $name = this.$refs.name
-        this.$nextTick(() =&gt; console.log(&apos;setter前：&apos; + $name.innerHTML))
-        this.name = &apos; name改喽 &apos;
-        console.log(&apos;同步方式：&apos; + this.$refs.name.innerHTML)
-        setTimeout(() =&gt; this.console(&quot;setTimeout方式：&quot; + this.$refs.name.innerHTML))
-        this.$nextTick(() =&gt; console.log(&apos;setter后：&apos; + $name.innerHTML))
-        this.$nextTick().then(() =&gt; console.log(&apos;Promise方式：&apos; + $name.innerHTML))
-      }
-    }
-  })
-&lt;/script&gt;
-</code></pre><p>执行以下看看结果：</p>
-<pre><code>同步方式：SHERlocked93 
-setter前：SHERlocked93 
-setter后：name改喽 
-Promise方式：name改喽 
-setTimeout方式：name改喽
-</code></pre><p>为什么是这样的结果呢，解释一下：</p>
-<ol>
-<li><p>同步方式： 当把data中的name修改之后，此时会触发name的 setter 中的 dep.notify 通知依赖本data的render watcher去 update，update 会把 flushSchedulerQueue 函数传递给 nextTick，render watcher在 flushSchedulerQueue 函数运行时 watcher.run 再走 diff -&gt; patch 那一套重渲染 re-render 视图，这个过程中会重新依赖收集，这个过程是异步的；所以当我们直接修改了name之后打印，这时异步的改动还没有被 patch 到视图上，所以获取视图上的DOM元素还是原来的内容。</p>
-</li>
-<li><p>setter前： setter前为什么还打印原来的是原来内容呢，是因为 nextTick 在被调用的时候把回调挨个push进callbacks数组，之后执行的时候也是 for 循环出来挨个执行，所以是类似于队列这样一个概念，先入先出；在修改name之后，触发把render watcher填入 schedulerQueue 队列并把他的执行函数 flushSchedulerQueue 传递给 nextTick ，此时callbacks队列中已经有了 setter前函数 了，因为这个 cb 是在 setter前函数 之后被push进callbacks队列的，那么先入先出的执行callbacks中回调的时候先执行 setter前函数，这时并未执行render watcher的 watcher.run，所以打印DOM元素仍然是原来的内容。</p>
-</li>
-<li><p>setter后： setter后这时已经执行完 flushSchedulerQueue，这时render watcher已经把改动 patch 到视图上，所以此时获取DOM是改过之后的内容。</p>
-</li>
-<li><p>Promise方式： 相当于 Promise.then 的方式执行这个函数，此时DOM已经更改。</p>
-</li>
-<li><p>setTimeout方式： 最后执行macro task的任务，此时DOM已经更改。</p>
-</li>
-</ol>
-<p>注意，在执行 setter前函数 这个异步任务之前，同步的代码已经执行完毕。</p>
-<p>异步的任务都还未执行，所有的 $nextTick 函数也执行完毕。</p>
-<p>所有回调都被push进了callbacks队列中等待执行，所以在setter前函数执行的时候。</p>
-<p>此时callbacks队列是这样的：</p>
-<p>[setter前函数，</p>
-<p>flushSchedulerQueue，</p>
-<p>setter后函数，</p>
-<p>Promise方式函数]。</p>
-<p>它是一个micro task队列，执行完毕之后执行macro task setTimeout，所以打印出上面的结果。</p>
-<p>另外，如果浏览器的宏任务队列里面有setImmediate、MessageChannel、setTimeout/setInterval 各种类型的任务。</p>
-<p>那么会按照上面的顺序挨个按照添加进event loop中的顺序执行，所以如果浏览器支持MessageChannel。</p>
-<p>nextTick执行的是macroTimerFunc。</p>
-<p>那么如果 macrotask queue 中同时有 nextTick 添加的任务和用户自己添加的 setTimeout 类型的任务。</p>
-<p>会优先执行 nextTick 中的任务，因为MessageChannel 的优先级比 setTimeout的高，setImmediate 同理。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4472,7 +4239,7 @@ setTimeout方式：name改喽
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">82</span>
+                  <span class="site-state-item-count">83</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

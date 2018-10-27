@@ -259,6 +259,243 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/02/11/防抖和节流原理分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/02/11/防抖和节流原理分析/" itemprop="url">防抖和节流原理分析</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-02-11T14:51:19+08:00">
+                2016-02-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>窗口的resize、scroll、输入框内容校验等操作时，如果这些<strong>操作处理函数</strong>是较为复杂或页面频繁重渲染等操作时，在这种情况下如果事件触发的频率无限制，会加重浏览器的负担，导致用户体验非常糟糕。此时我们可以采用debounce（防抖）和throttle（节流）的方式来<strong>减少触发的频率</strong>，同时又不影响实际效果。</p>
+<h2 id="防抖"><a href="#防抖" class="headerlink" title="防抖"></a>防抖</h2><p>debounce（防抖），简单来说就是防止抖动。</p>
+<p>当持续触发事件时，debounce 会<strong>合并事件且不会去触发事件</strong>，<strong>当一定时间内没有触发再这个事件时，才真正去触发事件</strong>。</p>
+<h3 id="非立即执行版"><a href="#非立即执行版" class="headerlink" title="非立即执行版"></a>非立即执行版</h3><p>非立即执行版的意思是触发事件后函数不会立即执行，而是在 n 秒后执行，如果在 n 秒内又触发了事件，则会重新计算函数执行时间。</p>
+<pre><code>const debounce = (func, wait, ...args) =&gt; {
+  let timeout;
+  return function(){
+    const context = this;
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() =&gt; {
+      func.apply(context, args)
+    },wait);
+  }
+}
+</code></pre><p>如此调用：</p>
+<pre><code>content.onmousemove = debounce(count,1000);
+</code></pre><h3 id="立即执行版"><a href="#立即执行版" class="headerlink" title="立即执行版"></a>立即执行版</h3><p>立即执行版的意思是触发事件后函数会立即执行，然后 n 秒内不触发事件才能继续执行函数的效果。</p>
+<pre><code>const debounce = (func, wait, ...args) =&gt; {
+  let timeout;
+  return function(){
+    const context = this;
+    if (timeout) cleatTimeout(timeout);
+    let callNow = !timeout;
+    timeout = setTimeout(() =&gt; {
+      timeout = null;
+    },wait)
+
+    if(callNow) func.apply(context,args)
+   }
+}
+</code></pre><h3 id="结合版"><a href="#结合版" class="headerlink" title="结合版"></a>结合版</h3><pre><code>/**
+ * @desc 函数防抖
+ * @param func 函数
+ * @param wait 延迟执行毫秒数
+ * @param immediate true 表立即执行，false 表非立即执行
+ */functiondebounce(func,wait,immediate) {
+    var timeout;
+
+    returnfunction () {
+        var context = this;
+        var args = arguments;
+
+        if (timeout) clearTimeout(timeout);
+        if (immediate) {
+            var callNow = !timeout;
+            timeout = setTimeout(function(){
+                timeout = null;
+            }, wait)
+            if (callNow) func.apply(context, args)
+        }
+        else {
+            timeout = setTimeout(function(){
+                func.apply(context, args)
+            }, wait);
+        }
+    }
+}
+</code></pre><h2 id="节流"><a href="#节流" class="headerlink" title="节流"></a>节流</h2><p>throttle（节流），当持续触发事件时，<strong>保证隔间时间触发一次事件</strong>。</p>
+<p>持续触发事件时，throttle 会合并一定时间内的事件，并在该时间结束时真正去触发一次事件。</p>
+<h3 id="时间戳版"><a href="#时间戳版" class="headerlink" title="时间戳版"></a>时间戳版</h3><p>在持续触发事件的过程中，函数会立即执行，并且每 1s 执行一次。</p>
+<pre><code>const throttle = (func, wait, ...args) =&gt; {
+  let pre = 0;
+  returnfunction(){
+    const context = this;
+    let now = Date.now();
+    if (now - pre &gt;= wait){
+       func.apply(context, args);
+       pre = Date.now();
+    }
+  }
+}
+</code></pre><h3 id="定时器版"><a href="#定时器版" class="headerlink" title="定时器版"></a>定时器版</h3><p>在持续触发事件的过程中，函数不会立即执行，并且每 1s 执行一次，在停止触发事件后，函数还会再执行一次。</p>
+<pre><code>const throttle = (func, wait, ...args) =&gt; {
+  let timeout;
+  return function(){
+    const context = this;
+    if(!timeout){
+      timeout = setTimeout(() =&gt; {
+        timeout = null;
+        func.apply(context,args);
+      },wait)
+    }
+  }
+}
+</code></pre><h3 id="结合版-1"><a href="#结合版-1" class="headerlink" title="结合版"></a>结合版</h3><p>其实时间戳版和定时器版的节流函数的区别就是，时间戳版的函数触发是在时间段内开始的时候，而定时器版的函数触发是在时间段内结束的时候。</p>
+<pre><code>/**
+ * @desc 函数节流
+ * @param func 函数
+ * @param wait 延迟执行毫秒数
+ * @param type 1 表时间戳版，2 表定时器版
+ */functionthrottle(func, wait ,type) {
+    if(type===1){
+        var previous = 0;
+    }elseif(type===2){
+        var timeout;
+    }
+
+    returnfunction() {
+        var context = this;
+        var args = arguments;
+        if(type===1){
+            var now = Date.now();
+
+            if (now - previous &gt; wait) {
+                func.apply(context, args);
+                previous = now;
+            }
+        }elseif(type===2){
+            if (!timeout) {
+                timeout = setTimeout(function() {
+                    timeout = null;
+                    func.apply(context, args)
+                }, wait)
+            }
+        }
+
+    }
+}
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/01/25/defer和async的区别/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -563,7 +800,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">82</span>
+                  <span class="site-state-item-count">83</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
