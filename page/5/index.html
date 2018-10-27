@@ -259,6 +259,248 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/15/nodejs几种文件路径及path模块/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/15/nodejs几种文件路径及path模块/" itemprop="url">Node.js几种文件路径及path模块</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-15T22:24:49+08:00">
+                2018-07-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>最近在写一篇weex的webpack配置，刚刚踩坑了，weekpack中会用到path模块，而对于这个模块，我想抽离出来看一下，因为这个用到的还是比较多的,喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯，写的不对的地方，评论拍砖，谢谢。</p>
+<h2 id="node中的路径分类"><a href="#node中的路径分类" class="headerlink" title="node中的路径分类"></a>node中的路径分类</h2><p>node中的路径大致分5类，dirname,filename,process.cwd(),./,../,其中前三个都是绝对路径</p>
+<p>我们先来看一个简单点的例子</p>
+<p>假如，我有一个文件的目录结构如下：</p>
+<pre><code>editor/
+  - dist/
+  - src/
+      - task.js
+</code></pre><p>然后我们在task.js文件中写入一下代码</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(__dirname);
+console.log(__filename);
+console.log(process.cwd());
+console.log(path.resolve(&apos;./&apos;));
+</code></pre><p>在editor目录下运行node src/task.js，我们可以看到结果如下：</p>
+<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
+/Users/laihuamin/Documents/richEditor/editor/src/task.js
+/Users/laihuamin/Documents/richEditor/editor
+/Users/laihuamin/Documents/richEditor/editor
+</code></pre><p>然后我们有可以在src目录下运行这个文件，node task.js,运行结果如下：</p>
+<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
+/Users/laihuamin/Documents/richEditor/editor/src/task.js
+/Users/laihuamin/Documents/richEditor/editor/src
+/Users/laihuamin/Documents/richEditor/editor/src
+</code></pre><p>对比两个输出结果，我们可以归纳一下几点：</p>
+<p>1.<strong>dirname:返回的是这个文件所在文件夹的位置<br>2.</strong>filename:你运行命令代表的是文件所在的位置，不管你运行什么命令，都是指向文件<br>3.process.cwd():你运行node命令所在文件夹的位置，比如你在src目录下运行，那么就是输出到src为止，下面的同理。</p>
+<h2 id="path"><a href="#path" class="headerlink" title="path"></a>path</h2><p>讲完前面三个绝对路径，我倒是挺想来聊聊path这个模块的，这个node模块在很多地方都有应用，所以，对于我们来说，掌握他，对我们以后的发展更有利，不用每次看webpack的配置文件还要去查询一下这个api是干什么用的，很影响我们的效率</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fnodejs.org%252Fapi%252Fpath.html" target="_blank" rel="noopener">nodeJS/path</a></p>
+<p>上面那个网站有详细的api，但是我们这里不用都掌握吧，我就讲几个我遇到过的，我觉得webpack等工程配置中会用到的</p>
+<h2 id="path-normalize"><a href="#path-normalize" class="headerlink" title="path.normalize"></a>path.normalize</h2><p>这个方法就是把不规范的路径规范化，比如看下面的例子</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.normalize(&apos;/foo/bar//baz/asdf/quux/..&apos;));
+</code></pre><p>输出结果：</p>
+<pre><code>/foo/bar/baz/asdf
+</code></pre><h2 id="path-join"><a href="#path-join" class="headerlink" title="path.join"></a>path.join</h2><pre><code>const path = require(&apos;path&apos;);
+console.log(path.join(&apos;src&apos;, &apos;task.js&apos;));
+
+const path = require(&apos;path&apos;);
+console.log(path.join(&apos;dist&apos;, &apos;task.js&apos;));
+
+const path = require(&apos;path&apos;);
+console.log(path.join(&apos;&apos;));
+</code></pre><p>这么两个的输出结果是：</p>
+<pre><code>src/task.js
+dist/task.js
+.
+</code></pre><p>他的作用也就显而易见，他有一下几条规则：<br>1.传入的参数是字符串的路径片段，可以是一个，也可以是多个</p>
+<p>2.返回的是一个拼接好的路径，但是根据平台的不同，他会对路径进行不同的规范化，举个例子，Unix系统是”/“，Windows系统是”\“，那么你在两个系统下看到的返回结果就不一样。</p>
+<p>3.如果返回的路径字符串长度为零，那么他会返回一个’.’，代表当前的文件夹。</p>
+<p>4.如果传入的参数中有不是字符串的，那就直接会报错</p>
+<h2 id="path-parse"><a href="#path-parse" class="headerlink" title="path.parse"></a>path.parse</h2><p>我们先来看个例子，在src目录下的task.js写入</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor&apos;));
+</code></pre><p>然后运行node src/task.js之后,输出的结果如下：</p>
+<pre><code>{ 
+  root: &apos;/&apos;,
+  dir: &apos;/Users/laihuamin/Documents/richEditor&apos;,
+  base: &apos;editor&apos;,
+  ext: &apos;&apos;,
+  name: &apos;editor&apos; 
+}
+</code></pre><p>他返回的是一个对象，那么我们来把这么几个名词熟悉一下：</p>
+<p><img src="https://pic3.zhimg.com/v2-b7c5d496b89fde98f097a4a6e2ba7d03_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-b7c5d496b89fde98f097a4a6e2ba7d03_hd.jpg" alt=""></p>
+<p>这个表格应该展示的很形象，但是我们还是来解释一下这些名词：<br>1.root：代表根目录<br>2.dir：代表文件所在的文件夹<br>3.base：代表整一个文件<br>4.name：代表文件名<br>5.ext: 代表文件的后缀名</p>
+<p>那我们根据下面的规则，来看一下下面这个例子，最好自己脑子做一遍</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
+</code></pre><p>输出的结果：</p>
+<pre><code>{ 
+  root: &apos;/&apos;,
+  dir: &apos;/Users/laihuamin/Documents/richEditor/editor/src&apos;,
+  base: &apos;task.js&apos;,
+  ext: &apos;.js&apos;,
+  name: &apos;task&apos; 
+}
+</code></pre><p>你做对了么？0.0</p>
+<h2 id="path-basename"><a href="#path-basename" class="headerlink" title="path.basename"></a>path.basename</h2><p>那有了前面这个铺垫，想必这个接口猜也能猜的到了。。。。我们看下面这个例子</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
+</code></pre><p>输出的结果是：</p>
+<pre><code>task.js
+</code></pre><p>我们还是简单介绍一下，接收两个参数，一个是path,还有一个是ext（可选参数）.</p>
+<pre><code>const path = require(&apos;path&apos;)
+console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;, &apos;.js&apos;));
+</code></pre><p>输出结果:</p>
+<pre><code>task
+</code></pre><h2 id="path-dirname"><a href="#path-dirname" class="headerlink" title="path.dirname"></a>path.dirname</h2><p>这个接口比basename还要简单，我就不多说了，看例子，看结果</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
+</code></pre><p>输出的结果:</p>
+<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
+</code></pre><p>注意一下，接收的参数是字符串类型</p>
+<h2 id="path-extname"><a href="#path-extname" class="headerlink" title="path.extname"></a>path.extname</h2><p>这个就是展示文件的扩展名，我们得注意几种情况</p>
+<pre><code>const path = require(&apos;path&apos;);
+path.extname(&apos;index.html&apos;);
+path.extname(&apos;index.coffee.md&apos;);
+path.extname(&apos;index.&apos;);
+path.extname(&apos;index&apos;);
+path.extname(&apos;.index&apos;);
+</code></pre><p>输出的结果是：</p>
+<pre><code>.html
+.md
+.
+&apos;&apos;
+&apos;&apos;
+</code></pre><p>自己注意一下这几个情况</p>
+<h2 id="path-resolve"><a href="#path-resolve" class="headerlink" title="path.resolve"></a>path.resolve</h2><p>我们通过下面这几个例子先来熟悉一下：</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.resolve(&apos;/foo/bar&apos;, &apos;/bar/faa&apos;, &apos;..&apos;, &apos;a/../c&apos;));
+</code></pre><p>输出的结果是</p>
+<pre><code>/bar/c
+</code></pre><p>他就相当于一堆cd操作，我们一步一步看</p>
+<pre><code>cd /foo/bar/    //这是第一步, 现在的位置是/foo/bar/
+cd /bar/faa     //这是第二步，这里和第一步有区别，他是从/进入的，也就时候根目录，现在的位置是/bar/faa
+cd ..       //第三步，从faa退出来，现在的位置是 /bar
+cd a/../c   //第四步，进入a，然后在推出，在进入c，最后位置是/bar/c
+</code></pre><p>但是这个操作和cd还是有区别的，这个路径不一定要存在，而且最后的可以是文件</p>
+<h2 id="path-relative"><a href="#path-relative" class="headerlink" title="path.relative"></a>path.relative</h2><p>这个返回的是from到to的相对路径，什么意思呢，我们看下面的例子就知道了.</p>
+<pre><code>const path = require(&apos;path&apos;);
+console.log(path.relative(&apos;src/bar/baz&apos;, &apos;src/aaa/bbb&apos;));
+</code></pre><p>输出的结果是：</p>
+<pre><code>../../aaa/bbb
+</code></pre><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这些比较实用的方法，分享给大家，自己还是老老实实去看weektool的webpack的配置文件了，喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3184,188 +3426,6 @@ for(var a of Object.entries(obj)) console.log(a);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/19/CSS等比例缩放的盒子/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/19/CSS等比例缩放的盒子/" itemprop="url">CSS等比例缩放的盒子</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-19T22:43:07+08:00">
-                2018-05-19
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>你肯定已经知道，对于一个 img 元素而言，你可以单独地修改它的 width 或者 height 属性来设置它的大小，同时图片的比例还能够保持不变。</p>
-<p>如下图所示，最上面是原始大小的图片，下面两张则分别是设置了 width: 50% 和 height: 50% 属性后的样子。</p>
-<p><img src="https://pic4.zhimg.com/v2-7d10c44225e25e1929ef517567b2494e_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-7d10c44225e25e1929ef517567b2494e_hd.jpg" alt=""></p>
-<p>可以看到把宽度设置为了原来的一半的同时，图片的高度并不是保持原来的大小，而是相应的也变成了原来的一半，使得图片仍能够保持原有的比例。同理把高度设成原来的一半也如此。</p>
-<p>作为对照，我们看看单独修改其他元素的宽和高会产生什么样的效果：</p>
-<p><img src="https://pic2.zhimg.com/v2-cc30532f26d4295a7e0462953833552f_b.jpg" alt=""></p>
-<p>上图最左边的蓝色矩形是原始的 div 元素，之后两个分别是对其设置了 width: 50% 和 height: 50% 属性后的样子。可见与 img 元素不同，单独设置 div 元素的宽度（高度）时，对应的高度（宽度）并不会改变，从而导致元素的比例发生变化。这一结果相信每个稍微对前端有些了解的同学都能猜到。但是究竟是什么导致了同样的属性用于 img 和 div 后会产生不同的结果呢？</p>
-<p>img 在元素分类中属于 replaced （被替换的）元素。replaced 元素表示这个元素内容的显示不是由 CSS 控制的。换句话说，对于 img 元素而言，图片的内容并不是由 CSS 定义的，而是通过其 src 属性指向的资源决定的。很多 replaced 元素来都会有自己的固有尺寸（Intrinsic dimension），img 也不例外<a href="https://link.zhihu.com/?target=https%3A//w3ctech.com/topic/1483%23fn1" target="_blank" rel="noopener">1</a>。当 img 的高度改变后，浏览器会计算出其缩放比例，而当元素的宽度是 auto（即默认值）时，浏览器则以原始宽度 * 缩放比例来作为元素的新宽度。从而使得 img 元素的比例始终保持一致。</p>
-<p>然而这都并不是这篇文章讨论的重点。（那位同学请不要说脏话，不文明</p>
-<p>重点是什么？重点就是题目：实现等比例缩放的盒子。</p>
-<p>在响应式设计逐渐成为主流的今天，流式布局这个词即使放在一两年前也绝算不得是个新鲜词汇。下面是一个布局实例：</p>
-<p><img src="https://pic2.zhimg.com/v2-2779b8fa48f397ead12b687f02268f79_b.jpg" alt=""></p>
-<p>上图中每个蓝色的矩形分别对应一个 div 元素，每个元素的宽度占窗口宽度的四分之一（图示中为了演示方便给每个元素加了边距效果）。如果不做额外处理，当窗口宽度变小时上图的页面会变为如下所示：</p>
-<p><img src="https://pic1.zhimg.com/v2-2c13b3a8546f34fba43822499db2795b_b.jpg" alt=""></p>
-<p>可见每个元素的宽度进行了缩放，但高度并没有变化，看起来并不是很协调。所以有些场景下我们需要实现当窗口宽度缩放时，使得元素宽度自适应的同时，保证每个元素的宽高比例不变。</p>
-<p>很多同学在我话还没讲完时，就已经纷纷掏出 JavaScript 大锤着手实现了起来。然而这个系列文章的标题是《你不知道的 CSS》，自然不会介绍 CSS 实现不了这种打自己脸的需求，而且就此例而言，使用 JavaScript 实现效果并不好，绑定 onresize 事件后在拖拽时某些星座的朋友会察觉出来些许卡顿（你试试便知），而且在 JavaScript 加载完成前是看不出效果的。</p>
-<p>其实用 CSS 可以很容易地实现这样的效果，用的属性也是我们每个工作日和周末（如果加班的话）都会用到的：padding-bottom。padding-bottom 有一个让人很容易忽略的特性是当它的值是百分比形式时，百分比的基数是其所在元素的父元素的宽度而不是高度（同 padding-left 和 padding-right 一样）。这样解决方案也就非常明显了：</p>
-<ol>
-<li>将元素的 height 设成 0，使得元素的高度等于 padding-bottom；</li>
-<li>合理设置 padding-bottom 的值。比如每个元素的 width 是 25%，现在想让元素的高度始终保持为其宽度的两倍，则 padding-bottom 的值应该设置为 50%。</li>
-</ol>
-<p>结果如下图所示：</p>
-<p><img src="https://pic3.zhimg.com/v2-7b00baecc0fe2eac37eb4515b29314b4_b.jpg" alt=""></p>
-<p>相应的代码可以参见：<a href="https://link.zhihu.com/?target=http%3A//jsfiddle.net/luin/25BbH/7/" target="_blank" rel="noopener">http://jsfiddle.net/luin/25BbH/7/</a>。</p>
-<p>然而至此，这篇文章还没完。肯定会有很多同学疑惑既然 height 被设成了 0，那么如果元素的 overflow 为 hidden，里面的文字会不会因为超出了元素高度而被隐藏呢？</p>
-<p>答案是不会。根据 CSS 2.1 规范<a href="https://link.zhihu.com/?target=https%3A//w3ctech.com/topic/1483%23fn2" target="_blank" rel="noopener">2</a>，overflow 只会对处于 padding edge 外面的内容生效，即只有超出了 padding 区域的内容才会被 overflow 属性隐藏掉。</p>
-<ol>
-<li>其实有一点例外的情况是当 img 的图片是 svg 时，它是没有固有尺寸的。 <a href="https://link.zhihu.com/?target=https%3A//w3ctech.com/topic/1483%23ffn1" target="_blank" rel="noopener">↩</a></li>
-<li><p><a href="https://link.zhihu.com/?target=http%3A//www.w3.org/TR/CSS2/visufx.html" target="_blank" rel="noopener">http://www.w3.org/TR/CSS2/visufx.html</a><a href="https://link.zhihu.com/?target=https%3A//w3ctech.com/topic/1483%23ffn2" target="_blank" rel="noopener">↩</a></p>
-<pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-
-    &lt;head&gt;
-        &lt;meta charset=&quot;UTF-8&quot;&gt;
-        &lt;title&gt;&lt;/title&gt;
-        &lt;style type=&quot;text/css&quot;&gt;
-            .item {
-                float: left;
-                width: 21%;
-                margin: 10px 2%;
-                height: 0;
-                padding-bottom: 33.98%;
-                background-color: #dbe0e4;
-            }
-        &lt;/style&gt;
-    &lt;/head&gt;
-
-    &lt;body&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-        &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-    &lt;/body&gt;
-
-&lt;/html&gt;
-</code></pre></li>
-</ol>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3420,7 +3480,7 @@ for(var a of Object.entries(obj)) console.log(a);
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">84</span>
+                  <span class="site-state-item-count">85</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3433,7 +3493,7 @@ for(var a of Object.entries(obj)) console.log(a);
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">52</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
