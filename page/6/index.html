@@ -259,654 +259,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/18/探索webpack-机制/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/18/探索webpack-机制/" itemprop="url">探索webpack 机制</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-18T22:20:52+08:00">
-                2018-05-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>本文从简单的例子入手，从打包文件去分析以下三个问题：webpack打包文件是怎样的？如何做到兼容各大模块化方案的？webpack3带来的新特性又是什么？</p>
-<h2 id="一个简单的例子"><a href="#一个简单的例子" class="headerlink" title="一个简单的例子"></a>一个简单的例子</h2><p>webpack配置</p>
-<pre><code>// webpack.config.js
-module.exports = {
-  entry: &apos;./src/index.js&apos;,
-  output: {
-    filename: &apos;bundle.js&apos;,
-    path: path.resolve(__dirname, &apos;dist&apos;)
-  },
-};
-</code></pre><p>简单的js文件</p>
-<pre><code>// src/index.js
- console.log(&apos;hello world&apos;);
-</code></pre><p>webpack打包后的代码</p>
-<pre><code>// dist/bundle.js
- /******/ (function(modules) { // webpackBootstrap
-/******/     // The module cache
-/******/     var installedModules = {};
-/******/
-/******/     // The require function
-/******/     function __webpack_require__(moduleId) {
-/******/
-/******/         // Check if module is in cache
-/******/         if(installedModules[moduleId]) {
-/******/             return installedModules[moduleId].exports;
-/******/         }
-/******/         // Create a new module (and put it into the cache)
-/******/         var module = installedModules[moduleId] = {
-/******/             i: moduleId,
-/******/             l: false,
-/******/             exports: {}
-/******/         };
-/******/
-/******/         // Execute the module function
-/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
-/******/         // Flag the module as loaded
-/******/         module.l = true;
-/******/
-/******/         // Return the exports of the module
-/******/         return module.exports;
-/******/     }
-/******/
-/******/
-/******/     // expose the modules object (__webpack_modules__)
-/******/     __webpack_require__.m = modules;
-/******/
-/******/     // expose the module cache
-/******/     __webpack_require__.c = installedModules;
-/******/
-/******/     // define getter function for harmony exports
-/******/     __webpack_require__.d = function(exports, name, getter) {
-/******/         if(!__webpack_require__.o(exports, name)) {
-/******/             Object.defineProperty(exports, name, {
-/******/                 configurable: false,
-/******/                 enumerable: true,
-/******/                 get: getter
-/******/             });
-/******/         }
-/******/     };
-/******/
-/******/     // getDefaultExport function for compatibility with non-harmony modules
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-/******/
-/******/     // Object.prototype.hasOwnProperty.call
-/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
-/******/
-/******/     // __webpack_public_path__
-/******/     __webpack_require__.p = &quot;&quot;;
-/******/
-/******/     // Load entry module and return exports
-/******/     return __webpack_require__(__webpack_require__.s = 0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports) {
-
-console.log(&apos;hello world&apos;);
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>一看你就会想，我就一行代码，你给我打包那么多？？？（黑人问号）</p>
-<p>我们来分析一下这部分代码，先精简一下，其实整体就是一个自执行函数，然后传入一个模块数组</p>
-<pre><code>(function(modules) { 
-     //...
- })([function(module, exports) {
-     //..
- }])
-</code></pre><p>好了，传入模块数组做了什么(其实注释都很明显了，我只是大概翻译一下）</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-/******/     // The module cache  缓存已经load过的模块
-/******/     var installedModules = {};
-/******/
-/******/     // The require function  引用的函数
-/******/     function __webpack_require__(moduleId) {
-/******/
-/******/         // Check if module is in cache 假如在缓存里就直接返回
-/******/         if(installedModules[moduleId]) {
-/******/             return installedModules[moduleId].exports;
-/******/         }
-/******/         // Create a new module (and put it into the cache) 构造一个模块并放入缓存
-/******/         var module = installedModules[moduleId] = {
-/******/             i: moduleId, //模块id
-/******/             l: false, // 是否已经加载完毕
-/******/             exports: {} // 对外暴露的内容
-/******/         };
-/******/
-/******/         // Execute the module function 传入模块参数，并执行模块
-/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
-/******/         // Flag the module as loaded 标记模块已经加载完毕
-/******/         module.l = true;
-/******/
-/******/         // Return the exports of the module 返回模块暴露的内容
-/******/         return module.exports;
-/******/     }
-/******/
-/******/
-/******/     // expose the modules object (__webpack_modules__) 暴露模块数组
-/******/     __webpack_require__.m = modules;
-/******/
-/******/     // expose the module cache 暴露缓存数组
-/******/     __webpack_require__.c = installedModules;
-/******/
-/******/     // define getter function for harmony exports 为ES6 exports定义getter
-/******/     __webpack_require__.d = function(exports, name, getter) {
-/******/         if(!__webpack_require__.o(exports, name)) { // 假如exports本身不含有name这个属性
-/******/             Object.defineProperty(exports, name, {
-/******/                 configurable: false,
-/******/                 enumerable: true,
-/******/                 get: getter
-/******/             });
-/******/         }
-/******/     };
-/******/
-/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-/******/
-/******/     // Object.prototype.hasOwnProperty.call
-/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
-/******/
-/******/     // __webpack_public_path__ webpack配置下的公共路径
-/******/     __webpack_require__.p = &quot;&quot;;
-/******/
-/******/     // Load entry module and return exports 最后执行entry模块并且返回它的暴露内容
-/******/     return __webpack_require__(__webpack_require__.s = 0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports) {
-
-console.log(&apos;hello world&apos;);
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>整体流程是怎样的呢</p>
-<ul>
-<li>传入module数组</li>
-<li><p>调用<strong>webpack_require</strong>(<strong>webpack_require</strong>.s = 0)</p>
-</li>
-<li><p>构造module对象，放入缓存</p>
-</li>
-<li>调用module,传入相应参数modules[moduleId].call(module.exports, module, module.exports, <strong>webpack_require</strong>); （这里exports会被函数内部的东西修改）</li>
-<li>标记module对象已经加载完毕</li>
-<li><p>返回模块暴露的内容（注意到上面函数传入了module.exports,可以对引用进行修改）</p>
-</li>
-<li><p>模块函数中传入module, module.exports, webpack_require</p>
-</li>
-<li>执行过程中通过对上面三者的引用修改，完成变量暴露和引用</li>
-</ul>
-<h2 id="webpack模块机制是怎样的"><a href="#webpack模块机制是怎样的" class="headerlink" title="webpack模块机制是怎样的"></a>webpack模块机制是怎样的</h2><p>我们可以去官网看下webpack模块</p>
-<blockquote>
-<p><a href="https://link.zhihu.com/?target=https%3A//doc.webpack-china.org/concepts/modules%23-webpack-" target="_blank" rel="noopener">https://doc.webpack-china.org/concepts/modules#-webpack-</a><br>webpack 模块能够以各种方式表达它们的依赖关系，几个例子如下：</p>
-</blockquote>
-<ul>
-<li>ES2015 import 语句</li>
-<li>CommonJS require() 语句</li>
-<li>AMD define 和 require 语句</li>
-<li>css/sass/less 文件中的 @import 语句。</li>
-<li>样式(url(…))或 HTML 文件(<img src="/2018/05/18/探索webpack-机制/...">)中的图片链接(image url)</li>
-</ul>
-<p>强大的webpack模块可以兼容各种模块化方案，并且无侵入性(non-opinionated)</p>
-<p>我们可以再编写例子一探究竟</p>
-<h2 id="CommonJS"><a href="#CommonJS" class="headerlink" title="CommonJS"></a>CommonJS</h2><p>修改src/index.js</p>
-<pre><code>var cj = require(&apos;./cj.js&apos;);
-
-console.log(&apos;hello world&apos;);
-cj();
-</code></pre><p>新增src/cj.js，保持前面例子其他不变</p>
-<pre><code>// src/cj.js
-function a() {
-    console.log(&quot;CommonJS&quot;);
-}
-module.exports = a;
-</code></pre><p>再次运行webpack</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-  //... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-let cj = __webpack_require__(1);
-
-console.log(&apos;hello world&apos;);
-cj();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports) {
-
-function a() {
-    console.log(&quot;CommonJS&quot;);
-}
-module.exports = a;
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以看到模块数组多了个引入的文件，然后index.js模块函数多了个参数<strong>webpack_require</strong>，去引用文件（<strong>webpack_require</strong>在上一节有介绍），整体上就是依赖的模块修改了module.exports，然后主模块执行依赖模块，获取exports即可</p>
-<h2 id="ES2015-import"><a href="#ES2015-import" class="headerlink" title="ES2015 import"></a>ES2015 import</h2><p>新增src/es.js</p>
-<pre><code>// src/es.js
-export default function b() {
-    console.log(&apos;ES Modules&apos;);
-}
-</code></pre><p>修改src/index.js</p>
-<pre><code>// src/index.js
-import es from &apos;./es.js&apos;;
-
-console.log(&apos;hello world&apos;);
-es();
-</code></pre><p>webpack.config.js不变，执行webpack</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
-
-
-console.log(&apos;hello world&apos;);
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* default */])();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = b;
-function b() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以看到它们都变成了严格模式，webpack自动采用的</p>
-<p>表现其实跟CommonJS相似，也是传入export然后修改，在主模块再require进来，</p>
-<p>我们可以看到这个</p>
-<pre><code>Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-</code></pre><p>这个干嘛用的？其实就是标记当前的exports是es模块，还记得之前的<strong>webpack_require</strong>.n吗，我们再拿出来看看</p>
-<pre><code>/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-</code></pre><p>为了避免跟非ES Modules冲突？冲突在哪里呢？<br>其实这部分如果你看到babel转换ES Modules源码就知道了，为了兼容模块，会把ES Modules直接挂在exports.default上，然后加上__esModule属性，引入的时候判断一次是否是转换模块，是则引入module[‘default’]，不是则引入module</p>
-<p>我们再多引入几个ES Modules看看效果</p>
-<pre><code>// src/es.js
-export function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-export function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-export function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-export function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-</code></pre><p>我们多引入esTwo和esFour，但是不使用esFour</p>
-<pre><code>// src/index.js
-import { es, esTwo, esFour} from &apos;./es.js&apos;;
-
-console.log(&apos;hello world&apos;);
-es();
-esTwo();
-</code></pre><p>得出</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ...
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
-
-
-console.log(&apos;hello world&apos;);
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* es */])();
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;b&quot; /* esTwo */])();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = es;
-/* harmony export (immutable) */ __webpack_exports__[&quot;b&quot;] = esTwo;
-/* unused harmony export esThree */
-/* unused harmony export esFour */
-function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>嗯嗯其实跟前面是一样的，举出这个例子重点在哪里呢，有没有注意到注释中</p>
-<pre><code>/* unused harmony export esThree */
-/* unused harmony export esFour */
-</code></pre><p>esThree是我们没有引入的模块，esFour是我们引用但是没有使用的模块，webpack均对它们做了unused的标记，其实这个如果你使用了webpack插件uglify，通过标记，就会把esThree和esFour这两个未使用的代码消除（其实它就是tree-shaking)</p>
-<h2 id="AMD"><a href="#AMD" class="headerlink" title="AMD"></a>AMD</h2><p>我们再来看看webpack怎么支持AMD</p>
-<p>新增src/amd.js</p>
-<pre><code>// src/amd.js
-define([
-],function(){
-    return {
-        amd:function(){
-            console.log(&apos;AMD&apos;);
-        }
-    };
-});
-</code></pre><p>修改index.js</p>
-<pre><code>// src/index.js
-define([
-    &apos;./amd.js&apos;
-],function(amdModule){
-    amdModule.amd();
-});
-</code></pre><p>得到</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
-    __webpack_require__(1)
-], __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule){
-    amdModule.amd();
-}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
-], __WEBPACK_AMD_DEFINE_RESULT__ = function(){
-    return {
-        amd:function(){
-            console.log(&apos;AMD&apos;);
-        }
-    };
-}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>先看amd.js整理一下代码</p>
-<pre><code>function(module, exports, __webpack_require__) {
-    var __WEBPACK_AMD_DEFINE_ARRAY__,
-        __WEBPACK_AMD_DEFINE_RESULT__;
-
-    !(
-        __WEBPACK_AMD_DEFINE_ARRAY__ = [],
-
-        __WEBPACK_AMD_DEFINE_RESULT__ = function() {
-            return {
-                amd: function() {
-                    console.log(&apos;AMD&apos;);
-                }
-            };
-        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-
-        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp;
-        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
-
-    );
-})
-</code></pre><p>简单来讲收集define Array然后置入返回函数，根据参数获取依赖</p>
-<blockquote>
-<p>apply对数组拆解成一个一个参数</p>
-</blockquote>
-<p>再看index.js模块部分</p>
-<pre><code>function(module, exports, __webpack_require__) {
-
-    var __WEBPACK_AMD_DEFINE_ARRAY__,
-        __WEBPACK_AMD_DEFINE_RESULT__;
-    !(
-        __WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)],
-        __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule) {
-                amdModule.amd();
-        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-
-        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; 
-        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
-    );
-}
-</code></pre><p>其实就是引入了amd.js暴露的{amd:[Function: amd]}</p>
-<h2 id="css-image"><a href="#css-image" class="headerlink" title="css/image?"></a>css/image?</h2><p>css和image也可以成为webpack的模块，这是令人震惊的，这就不能通过普通的hack commonjs或者函数调用简单去调用了，这就是anything to JS，它就需要借助webpack loader去实现了</p>
-<blockquote>
-<p>像css就是转换成一段js代码，通过处理，调用时就是可以用js将这段css插入到style中，image也类似，这部分就不详细阐述了，有兴趣的读者可以深入去研究</p>
-</blockquote>
-<h2 id="webpack3新特性"><a href="#webpack3新特性" class="headerlink" title="webpack3新特性"></a>webpack3新特性</h2><p>我们可以再顺便看下webpack3新特性的表现<br>具体可以看这里<a href="https://link.zhihu.com/?target=https%3A//medium.com/webpack/webpack-3-official-release-15fd2dd8f07b" target="_blank" rel="noopener">https://medium.com/webpack/webpack-3-official-release-15fd2dd8f07b</a></p>
-<h2 id="Scope-Hoisting"><a href="#Scope-Hoisting" class="headerlink" title="Scope Hoisting"></a>Scope Hoisting</h2><p>我们可以发现模块数组是一个一个独立的函数然后闭包引用webpack主函数的相应内容，每个模块都是独立的，然后带来的结果是在浏览器中执行速度变慢，然后webpack3学习了Closure Compiler和RollupJS这两个工具，连接所有闭包到一个闭包里，放入一个函数，让执行速度更快,并且整体代码体积也会有所缩小</p>
-<p>我们可以实际看一下效果（要注意的是这个特性只支持ES Modules,是不支持CommonJs和AMD的）<br>使用上面的例子，配置webpack.config.js，增加new webpack.optimize.ModuleConcatenationPlugin()</p>
-<pre><code>const path = require(&apos;path&apos;);
-const webpack = require(&apos;webpack&apos;);
-
-module.exports = {
-  entry: &apos;./src/index.js&apos;,
-  output: {
-    filename: &apos;bundle.js&apos;,
-    path: path.resolve(__dirname, &apos;dist&apos;)
-  },
-  module: {
-  },
-  plugins: [
-    new webpack.optimize.ModuleConcatenationPlugin(),
-  ]
-};
-</code></pre><p>打包</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-
-// CONCATENATED MODULE: ./src/es.js
-function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-
-
-// CONCATENATED MODULE: ./src/index.js
-// src/index.js
-
-
-console.log(&apos;hello world&apos;);
-es();
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以惊喜的发现没有什么require了，它们拼接成了一个函数，good!?</p>
-<h2 id="Magic-Comments"><a href="#Magic-Comments" class="headerlink" title="Magic Comments"></a>Magic Comments</h2><p>code splitting是webpack一个重点特性之一，涉及到要动态引入的时候，webpack可以使用 require.ensure去实现，后来webpack2支持使用了符合 ECMAScript 提案 的 import() 语法，但是它有个不足之处，无法指定chunk的名称chunkName,为了解决这个问题，出现了Magic Comments，支持用注释的方式去指定，如下</p>
-<pre><code>import(/* webpackChunkName: &quot;my-chunk-name&quot; */ &apos;module&apos;);
-</code></pre><h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>webpack是一个强大的模块打包工具，在处理依赖、模块上都很优秀，本文从bundle.js文件分析出发去探索了不同模块方案的加载机制，初步去理解webpack，并且对webpack3特性进行阐述，当然，webpack还有很多地方需要去探索深究，敬请期待以后的文章吧～</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/Vue源码必知必会/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3706,6 +3058,197 @@ $ npm bin
 <h1 id="包的发布包的发布"><a href="#包的发布包的发布" class="headerlink" title="包的发布包的发布"></a><a href="#包的发布">包的发布</a>包的发布</h1><p>通过使用 <code>npm init</code> 可以根据交互式回答产生一个符合标准的 <code>package.json</code>。创建一个 <code>index.js</code> 作为包的接口,一个简单的包就制作完成了。<br>在发布前,我们还需要获得一个账号用于今后维护自己的包,使用 <code>npm adduser</code> 根据提示完成账号的创建<br>完成后可以使用 <code>npm whoami</code> 检测是否已经取得了账号。<br>接下来,在 <code>package.json</code> 所在目录下运行 <code>npm publish</code>，稍等片刻就可以完成发布了，打开浏览器，访问 <a href="http://search.npmjs.org/" target="_blank" rel="noopener">NPM搜索</a> 就可以找到自己刚刚发布的包了。现在我们可以在世界的任意一台计算机上使用 <code>npm install neveryumodule</code> 命令来安装它。<br>如果你的包将来有更新,只需要在 <code>package.json</code> 文件中修改 <code>version</code> 字段,然后重新使用 <code>npm publish</code>命令就行了。<br>如果你对已发布的包不满意，可以使用 <code>npm unpublish</code> 命令来取消发布。</p>
 <p><em>需要说明的是： <code>json</code> 文件不能有注释</em></p>
 <h3 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">package.json 好处</span><br><span class="line"> 1.以json文件格式定义项目所依赖的包；</span><br><span class="line"> 2.确定每个包的使用版本；</span><br><span class="line"> 3.项目构建可重复，多人协助公用一套基础代码；</span><br><span class="line"> 4.npm init 初始化 【必须含有的两个：name 和 version】</span><br><span class="line">   &#123;</span><br><span class="line">     &quot;name&quot;: &quot;react-redux-webpack&quot;,</span><br><span class="line">     &quot;version&quot;: &quot;1.1.0&quot;,</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">devDependencies    ：开发环境和测试环境所依赖的包列表</span><br><span class="line">dependencies       ：在生产环境使用的依赖包列表</span><br><span class="line"></span><br><span class="line">    dependencies下记录的是项目在运行时必须依赖的插件，常见的例如react jquery等，即及时项目打包好了、上线了，</span><br><span class="line">   这些也是需要用的，否则程序无法正常执行。</span><br><span class="line">    devDependencies下记录的是项目在开发过程中使用的插件，例如这里我们开发过程中需要使用webpack打包，</span><br><span class="line">    而我在工作中使用fis3打包，但是一旦项目打包发布、上线了之后，webpack和fis3就都没有用了，可卸磨杀驴。</span><br><span class="line"></span><br><span class="line">本地安装 npm install --save|--save-dev 分别写入  dependencies|devDependencies 中；</span><br><span class="line">简写：     npm i -S pkg      |  npm i -D pkg</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">包（package)和模块（module）</span><br><span class="line">包：package.json 文件所描述的文件夹或者文件，符合CommonJS规范</span><br><span class="line">模块：任何被node.js中的require所载入的文件</span><br><span class="line"></span><br><span class="line">~ 会匹配最近的小版本依赖包，比如~1.2.3会匹配所有1.2.x版本，但是不包括1.3.0</span><br><span class="line">^ 会匹配最新的大版本依赖包，比如^1.2.3会匹配所有1.x.x的包，包括1.3.0，但是不包括2.0.0</span><br><span class="line">* 这意味着安装最新版本的依赖包</span><br><span class="line"></span><br><span class="line">常用命令:</span><br><span class="line">    npm init -y    //强制生成</span><br><span class="line">	npm init //在项目中引导创建一个package.json文件</span><br><span class="line">	npm search mkdir   //寻找包使用npm search命令</span><br><span class="line">	npm help //查看某条命令的详细帮助 </span><br><span class="line">	npm root //查看包的安装路径</span><br><span class="line">	npm config //管理npm的配置路径</span><br><span class="line">	npm prefix -g   //查看全局安装的包位置  -g全局</span><br><span class="line">	npm cache  //管理模块的缓存 ,可以使用下面命令，偶尔清楚一下缓存：      eg: npm cache clean</span><br><span class="line">	npm info webpack   //查看webpack 版本信息</span><br><span class="line">	npm install pkg //安装模块 简写：npm i pkg   ,带版本:  npm install underscore@1.8.2</span><br><span class="line">	npm uninstall //卸载模块   eg: npm uninstall webpack</span><br><span class="line">	npm update   // 更新模块   npm update underscore</span><br><span class="line">	npm outdated  //检查模块是否已经过时</span><br><span class="line">	npm ls   //查看安装的模块 </span><br><span class="line">	npm list  //可以查看全局路径下的所有包    eg:   npm list --global</span><br><span class="line">	          //也可以使用--depth=0来缩短返回的结果   eg:     npm list -g --depth=0</span><br><span class="line">	npm stop  //停止模块</span><br><span class="line">	npm restart  //重新启动模块</span><br><span class="line">	npm test //测试模块 </span><br><span class="line">	npm version //查看模块版本</span><br><span class="line">	npm publish //发布模块</span><br><span class="line"></span><br><span class="line">简写:</span><br><span class="line">	npm i – 安装包</span><br><span class="line">	npm i -g – 安装包到全局下</span><br><span class="line">	npm un – 删除本地下包</span><br><span class="line">	npm up – 更新包</span><br><span class="line">	npm t – 运行测试</span><br><span class="line">	npm ls – 罗列已经安装包</span><br><span class="line">	npm ll or npm la – 罗列包时显示额外信息</span><br><span class="line"></span><br><span class="line">    npm i express momemt lodash mongoose  webpack   //也可以一次安装多个包</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    yarn cache clean   //删除电脑上所有 yarn 安装的缓存</span><br><span class="line">    yarn   //命令安装项目相关依赖</span><br><span class="line">    yarn cache dir //获取缓存文件夹地址</span><br></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/vue文件的一个小细节/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/03/02/vue文件的一个小细节/" itemprop="url">.vue文件的一个小细节</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-02T23:06:11+08:00">
+                2018-03-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>top.vue</p>
+<pre><code>&lt;template&gt;
+    &lt;div class=&quot;ds&quot;&gt;
+        &lt;div class=&quot;left&quot;&gt;
+            &lt;p&gt;SX&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;div class=&quot;right&quot;&gt;
+            &lt;p&gt;SB&lt;/p&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    console.log(&quot;-------------------------&quot;);     //只执行一次
+
+
+    export default {
+        props: [],
+        data() {
+            return {}
+        },
+        components: {
+
+        },
+        methods: {
+
+        },
+        created() {
+
+        },
+        mounted() {
+            console.log(&quot;$$$$$$$$$$$$$$$$$$$$$$$&quot;)；  //执行多次
+        }
+    };
+&lt;/script&gt;
+
+&lt;style lang=&quot;scss&quot; scoped=&quot;scoped&quot;&gt;
+    .guize {
+        box-sizing: border-box;
+        padding: 0 0.4rem;
+        margin-top: -0.3rem;
+        width: 100%;
+        height: 1.2rem;
+        font-size: 0.24rem;
+        color: white;
+        position: relative;
+        .left {
+            color: #abc4ed;
+            float: left;
+            transform:scale(0.85);
+            transform-origin:0 0; 
+            p {
+                font-size: 0.24rem;
+                line-height: 2;
+            }
+        }
+        .right {
+            float: left;
+            width: 1.6rem;
+            height: 0.44rem;
+            line-height: 0.44rem;
+            border: 1px solid white;
+            color: white;
+            border-radius: 0.24rem;
+            text-align: center;
+            position: absolute;
+            right: 0.4rem;
+            bottom: 0.04rem;
+        }
+    }
+&lt;/style&gt;
+</code></pre><p><img src="https://pic3.zhimg.com/v2-57add9333368254c8b108fdd00160585_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-57add9333368254c8b108fdd00160585_hd.jpg" alt=""><img src="https://pic4.zhimg.com/v2-2ac46bc7c3c82fdde73c1f53cf8e39d5_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-2ac46bc7c3c82fdde73c1f53cf8e39d5_hd.jpg" alt=""></p>
 
           
         
