@@ -259,6 +259,286 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/02/Vue安全权限控制axios拦截/" itemprop="url">Vue安全权限控制axios拦截</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-02T22:57:53+08:00">
+                2018-07-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>何为权限控制</p>
+<pre><code>//请求失败后的统一拦截，以及ajax的基本设置
+import axios from &apos;axios&apos;;
+import qs from &apos;qs&apos;;
+
+function cleanRequest(req) {
+  for (const i in req) {
+    /* eslint guard-for-in: 0 */
+    if (req[i] !== 0 &amp;&amp; !req[i]) {
+      delete req[i];
+    }
+  }
+}
+
+axios.defaults.withCredentials = true;
+axios.defaults.xsrfCookieName = null;
+axios.defaults.headers.common[&apos;X-Requested-With&apos;] = &apos;XMLHttpRequest&apos;;
+axios.defaults.headers.post[&apos;Content-Type&apos;] = &apos;application/x-www-form-urlencoded&apos;;
+//系统弹层
+import Toast from &apos;mint-ui/lib/toast&apos;;
+import &apos;mint-ui/lib/toast/style.css&apos;;
+
+module.exports.install = function (Vue) {
+  axios.defaults.baseURL=&quot;/&quot;;
+  Vue.prototype.$http = axios;
+  Vue.http = axios;
+
+  axios.interceptors.request.use(
+    function (request) {
+      const params = request.params;
+      if (params) {
+        cleanRequest(params);
+      }
+      if (request.data) {
+        cleanRequest(request.data);
+        request.data=qs.stringify(Object.assign(request.data,Bus.movieConfig))
+      }else{
+        request.data=qs.stringify(Bus.movieConfig)
+      }
+      return request;
+    },
+    function (error) {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add a response interceptor
+  axios.interceptors.response.use(
+    function (response) {
+      return response;
+    },
+    function (error) {
+      Toast(&apos;系统繁忙，请稍后重试!&apos;);
+      // Do something with response error
+      return Promise.reject(error);
+    }
+  );
+};
+</code></pre><p>权限控制大致分为两个维度:</p>
+<ul>
+<li>垂直维度: 控制用户可以访问哪些url的权限</li>
+<li>水平维度: 控制用户访问特定url，获取哪些数据的权限（e.g. 普通用户、管理员、超级管理员访问同一url，获取的数据是不同的）</li>
+</ul>
+<p>Web权限控制方案List</p>
+<ul>
+<li>前后端不分离：以Java为例，后端通过jsp、freemark、thmeleaf等模板来渲染相应权限的数据，渲染完呈现在浏览器端</li>
+<li>前后端分离：<br>▫SPA单页面应用，路由由前端控制，前端通过js控制hash路由的权限<br>▫SSR服务端渲染，Node中间层做代理路由，判断权限渲染特定的路由至浏览器端</li>
+</ul>
+<p>SPA前端权限控制方案</p>
+<p>SPA: 单页Web应用（single page web application）将所有web活动局限于一个html页面中，利用js通过hash或者浏览器history api来实现无刷新路由跳转，前后端通过ajax数据通信，避免了浏览器的刷新重新加载，为用户提供流程的操作体验。这意味着前端接管了路由层，需要通过调用前端自身的MVC模块，来渲染不同的页面。</p>
+<blockquote>
+<p>Base on：</p>
+</blockquote>
+<ul>
+<li>Vue 前端MVVM框架</li>
+<li>Vuex 状态管理机</li>
+<li>Vue-router 路由</li>
+<li>Axios HTTP请求库</li>
+</ul>
+<p>1.登陆事件Login</p>
+<pre><code>// 1.触发登陆事件
+dispatch(&apos;login&apos;)
+
+// actions
+commit(types.LOGIN_SUCCESS, res.data.data)
+...
+</code></pre><p>2.获取Token，经Base64编码后存至sessionStorage</p>
+<pre><code>// mutations
+const mutations = {
+    [types.LOGIN_SUCCESS] (state, data) {
+        state.authlock = false
+    // 2.登陆成功回调拿到token,经Base64 编码后存入本地sessionStorage
+        let token = Base64.encode(data + &apos;:HIKDATAE&apos;)
+        sessionStorage.setItem(&apos;userToken&apos;, token)
+    // 路由跳转至目标页面
+        router.push({name: &apos;xxx&apos;})
+    },
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+        router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>3.所有HTTP Header Authorization 加上编码后的token(前后端可约定规则)</p>
+<pre><code>// Axios 请求钩子（request）
+axios.interceptors.request.use(req =&gt; {
+    let token = sessionStorage.getItem(&apos;user&apos;)     
+    if (token) {         
+        // 3.token 存在,则在之后所有请求的http请求头 Authorization 带上base64编码后的token,后台拿到token后进行验证权限         
+        req.headers.Authorization = `Basic ${token}`     
+    }
+    req.data = qs.stringify(req.data)     
+    return req 
+}, error =&gt; {
+    return Promise.reject(error) 
+})
+</code></pre><p>浏览器http header<br><img src="https://pic4.zhimg.com/v2-48ee52913451d66397f33a47f6af3374_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-48ee52913451d66397f33a47f6af3374_hd.jpg" alt=""></p>
+<p>4.请求拦截：后台拿到token后对每个请求进行校验，若校验失败返回401，前端response钩子里统一catch error 跳转至登陆页面。</p>
+<pre><code>// Axios 请求钩子（response）
+axios.interceptors.response.use(res =&gt; {
+    return res
+}, error =&gt; {
+    if (error.response) {
+        switch (error.response.status) {
+        // 4.所有接口response校验钩子,若token检验失败,后台返回 401 error code, 清除token信息并跳转到登录页面
+            case 401:
+                store.commit(types.LOGOUT)
+                router.replace({
+                    path: &apos;/login&apos;
+        })
+    }
+    }
+    return Promise.reject(error)
+})
+</code></pre><p>5.路由跳转拦截：任意路由跳转时，在路由beforeEach钩子里校验本地是否存在token，若没有，则跳转至登陆页面</p>
+<pre><code>// 路由钩子(每个路由跳转前调起beforeEach钩子)
+router.beforeEach((to, from, next) =&gt; {
+  if (to.path === &apos;/login&apos;) {
+    sessionStorage.removeItem(&apos;userToken&apos;)
+  }
+  let user = sessionStorage.getItem(&apos;userToken&apos;)
+  if (!user &amp;&amp; to.path !== &apos;/login&apos;) {
+    // 若本地token不存在,则任意路由跳转的时候,重定向至login 登陆页面
+    next({ path: &apos;/login&apos; })
+  } else {
+    next()
+  }
+})
+</code></pre><p>6.登出Logout：清楚本地sessionStorage的token信息</p>
+<pre><code>// mutations
+const mutations = {
+    ...
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+    router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>流程示意图如下:<br><img src="https://pic2.zhimg.com/v2-064f7b05f15399ac9ff6aa03ee1cb710_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-064f7b05f15399ac9ff6aa03ee1cb710_hd.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/ES6-实现自己的-Promise/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3086,654 +3366,6 @@ for(var a of Object.entries(obj)) console.log(a);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/18/探索webpack-机制/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/18/探索webpack-机制/" itemprop="url">探索webpack 机制</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-18T22:20:52+08:00">
-                2018-05-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>本文从简单的例子入手，从打包文件去分析以下三个问题：webpack打包文件是怎样的？如何做到兼容各大模块化方案的？webpack3带来的新特性又是什么？</p>
-<h2 id="一个简单的例子"><a href="#一个简单的例子" class="headerlink" title="一个简单的例子"></a>一个简单的例子</h2><p>webpack配置</p>
-<pre><code>// webpack.config.js
-module.exports = {
-  entry: &apos;./src/index.js&apos;,
-  output: {
-    filename: &apos;bundle.js&apos;,
-    path: path.resolve(__dirname, &apos;dist&apos;)
-  },
-};
-</code></pre><p>简单的js文件</p>
-<pre><code>// src/index.js
- console.log(&apos;hello world&apos;);
-</code></pre><p>webpack打包后的代码</p>
-<pre><code>// dist/bundle.js
- /******/ (function(modules) { // webpackBootstrap
-/******/     // The module cache
-/******/     var installedModules = {};
-/******/
-/******/     // The require function
-/******/     function __webpack_require__(moduleId) {
-/******/
-/******/         // Check if module is in cache
-/******/         if(installedModules[moduleId]) {
-/******/             return installedModules[moduleId].exports;
-/******/         }
-/******/         // Create a new module (and put it into the cache)
-/******/         var module = installedModules[moduleId] = {
-/******/             i: moduleId,
-/******/             l: false,
-/******/             exports: {}
-/******/         };
-/******/
-/******/         // Execute the module function
-/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
-/******/         // Flag the module as loaded
-/******/         module.l = true;
-/******/
-/******/         // Return the exports of the module
-/******/         return module.exports;
-/******/     }
-/******/
-/******/
-/******/     // expose the modules object (__webpack_modules__)
-/******/     __webpack_require__.m = modules;
-/******/
-/******/     // expose the module cache
-/******/     __webpack_require__.c = installedModules;
-/******/
-/******/     // define getter function for harmony exports
-/******/     __webpack_require__.d = function(exports, name, getter) {
-/******/         if(!__webpack_require__.o(exports, name)) {
-/******/             Object.defineProperty(exports, name, {
-/******/                 configurable: false,
-/******/                 enumerable: true,
-/******/                 get: getter
-/******/             });
-/******/         }
-/******/     };
-/******/
-/******/     // getDefaultExport function for compatibility with non-harmony modules
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-/******/
-/******/     // Object.prototype.hasOwnProperty.call
-/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
-/******/
-/******/     // __webpack_public_path__
-/******/     __webpack_require__.p = &quot;&quot;;
-/******/
-/******/     // Load entry module and return exports
-/******/     return __webpack_require__(__webpack_require__.s = 0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports) {
-
-console.log(&apos;hello world&apos;);
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>一看你就会想，我就一行代码，你给我打包那么多？？？（黑人问号）</p>
-<p>我们来分析一下这部分代码，先精简一下，其实整体就是一个自执行函数，然后传入一个模块数组</p>
-<pre><code>(function(modules) { 
-     //...
- })([function(module, exports) {
-     //..
- }])
-</code></pre><p>好了，传入模块数组做了什么(其实注释都很明显了，我只是大概翻译一下）</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-/******/     // The module cache  缓存已经load过的模块
-/******/     var installedModules = {};
-/******/
-/******/     // The require function  引用的函数
-/******/     function __webpack_require__(moduleId) {
-/******/
-/******/         // Check if module is in cache 假如在缓存里就直接返回
-/******/         if(installedModules[moduleId]) {
-/******/             return installedModules[moduleId].exports;
-/******/         }
-/******/         // Create a new module (and put it into the cache) 构造一个模块并放入缓存
-/******/         var module = installedModules[moduleId] = {
-/******/             i: moduleId, //模块id
-/******/             l: false, // 是否已经加载完毕
-/******/             exports: {} // 对外暴露的内容
-/******/         };
-/******/
-/******/         // Execute the module function 传入模块参数，并执行模块
-/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
-/******/         // Flag the module as loaded 标记模块已经加载完毕
-/******/         module.l = true;
-/******/
-/******/         // Return the exports of the module 返回模块暴露的内容
-/******/         return module.exports;
-/******/     }
-/******/
-/******/
-/******/     // expose the modules object (__webpack_modules__) 暴露模块数组
-/******/     __webpack_require__.m = modules;
-/******/
-/******/     // expose the module cache 暴露缓存数组
-/******/     __webpack_require__.c = installedModules;
-/******/
-/******/     // define getter function for harmony exports 为ES6 exports定义getter
-/******/     __webpack_require__.d = function(exports, name, getter) {
-/******/         if(!__webpack_require__.o(exports, name)) { // 假如exports本身不含有name这个属性
-/******/             Object.defineProperty(exports, name, {
-/******/                 configurable: false,
-/******/                 enumerable: true,
-/******/                 get: getter
-/******/             });
-/******/         }
-/******/     };
-/******/
-/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-/******/
-/******/     // Object.prototype.hasOwnProperty.call
-/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
-/******/
-/******/     // __webpack_public_path__ webpack配置下的公共路径
-/******/     __webpack_require__.p = &quot;&quot;;
-/******/
-/******/     // Load entry module and return exports 最后执行entry模块并且返回它的暴露内容
-/******/     return __webpack_require__(__webpack_require__.s = 0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports) {
-
-console.log(&apos;hello world&apos;);
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>整体流程是怎样的呢</p>
-<ul>
-<li>传入module数组</li>
-<li><p>调用<strong>webpack_require</strong>(<strong>webpack_require</strong>.s = 0)</p>
-</li>
-<li><p>构造module对象，放入缓存</p>
-</li>
-<li>调用module,传入相应参数modules[moduleId].call(module.exports, module, module.exports, <strong>webpack_require</strong>); （这里exports会被函数内部的东西修改）</li>
-<li>标记module对象已经加载完毕</li>
-<li><p>返回模块暴露的内容（注意到上面函数传入了module.exports,可以对引用进行修改）</p>
-</li>
-<li><p>模块函数中传入module, module.exports, webpack_require</p>
-</li>
-<li>执行过程中通过对上面三者的引用修改，完成变量暴露和引用</li>
-</ul>
-<h2 id="webpack模块机制是怎样的"><a href="#webpack模块机制是怎样的" class="headerlink" title="webpack模块机制是怎样的"></a>webpack模块机制是怎样的</h2><p>我们可以去官网看下webpack模块</p>
-<blockquote>
-<p><a href="https://link.zhihu.com/?target=https%3A//doc.webpack-china.org/concepts/modules%23-webpack-" target="_blank" rel="noopener">https://doc.webpack-china.org/concepts/modules#-webpack-</a><br>webpack 模块能够以各种方式表达它们的依赖关系，几个例子如下：</p>
-</blockquote>
-<ul>
-<li>ES2015 import 语句</li>
-<li>CommonJS require() 语句</li>
-<li>AMD define 和 require 语句</li>
-<li>css/sass/less 文件中的 @import 语句。</li>
-<li>样式(url(…))或 HTML 文件(<img src="/2018/05/18/探索webpack-机制/...">)中的图片链接(image url)</li>
-</ul>
-<p>强大的webpack模块可以兼容各种模块化方案，并且无侵入性(non-opinionated)</p>
-<p>我们可以再编写例子一探究竟</p>
-<h2 id="CommonJS"><a href="#CommonJS" class="headerlink" title="CommonJS"></a>CommonJS</h2><p>修改src/index.js</p>
-<pre><code>var cj = require(&apos;./cj.js&apos;);
-
-console.log(&apos;hello world&apos;);
-cj();
-</code></pre><p>新增src/cj.js，保持前面例子其他不变</p>
-<pre><code>// src/cj.js
-function a() {
-    console.log(&quot;CommonJS&quot;);
-}
-module.exports = a;
-</code></pre><p>再次运行webpack</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-  //... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-let cj = __webpack_require__(1);
-
-console.log(&apos;hello world&apos;);
-cj();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports) {
-
-function a() {
-    console.log(&quot;CommonJS&quot;);
-}
-module.exports = a;
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以看到模块数组多了个引入的文件，然后index.js模块函数多了个参数<strong>webpack_require</strong>，去引用文件（<strong>webpack_require</strong>在上一节有介绍），整体上就是依赖的模块修改了module.exports，然后主模块执行依赖模块，获取exports即可</p>
-<h2 id="ES2015-import"><a href="#ES2015-import" class="headerlink" title="ES2015 import"></a>ES2015 import</h2><p>新增src/es.js</p>
-<pre><code>// src/es.js
-export default function b() {
-    console.log(&apos;ES Modules&apos;);
-}
-</code></pre><p>修改src/index.js</p>
-<pre><code>// src/index.js
-import es from &apos;./es.js&apos;;
-
-console.log(&apos;hello world&apos;);
-es();
-</code></pre><p>webpack.config.js不变，执行webpack</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
-
-
-console.log(&apos;hello world&apos;);
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* default */])();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = b;
-function b() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以看到它们都变成了严格模式，webpack自动采用的</p>
-<p>表现其实跟CommonJS相似，也是传入export然后修改，在主模块再require进来，</p>
-<p>我们可以看到这个</p>
-<pre><code>Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-</code></pre><p>这个干嘛用的？其实就是标记当前的exports是es模块，还记得之前的<strong>webpack_require</strong>.n吗，我们再拿出来看看</p>
-<pre><code>/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-</code></pre><p>为了避免跟非ES Modules冲突？冲突在哪里呢？<br>其实这部分如果你看到babel转换ES Modules源码就知道了，为了兼容模块，会把ES Modules直接挂在exports.default上，然后加上__esModule属性，引入的时候判断一次是否是转换模块，是则引入module[‘default’]，不是则引入module</p>
-<p>我们再多引入几个ES Modules看看效果</p>
-<pre><code>// src/es.js
-export function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-export function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-export function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-export function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-</code></pre><p>我们多引入esTwo和esFour，但是不使用esFour</p>
-<pre><code>// src/index.js
-import { es, esTwo, esFour} from &apos;./es.js&apos;;
-
-console.log(&apos;hello world&apos;);
-es();
-esTwo();
-</code></pre><p>得出</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ...
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
-
-
-console.log(&apos;hello world&apos;);
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* es */])();
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;b&quot; /* esTwo */])();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = es;
-/* harmony export (immutable) */ __webpack_exports__[&quot;b&quot;] = esTwo;
-/* unused harmony export esThree */
-/* unused harmony export esFour */
-function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>嗯嗯其实跟前面是一样的，举出这个例子重点在哪里呢，有没有注意到注释中</p>
-<pre><code>/* unused harmony export esThree */
-/* unused harmony export esFour */
-</code></pre><p>esThree是我们没有引入的模块，esFour是我们引用但是没有使用的模块，webpack均对它们做了unused的标记，其实这个如果你使用了webpack插件uglify，通过标记，就会把esThree和esFour这两个未使用的代码消除（其实它就是tree-shaking)</p>
-<h2 id="AMD"><a href="#AMD" class="headerlink" title="AMD"></a>AMD</h2><p>我们再来看看webpack怎么支持AMD</p>
-<p>新增src/amd.js</p>
-<pre><code>// src/amd.js
-define([
-],function(){
-    return {
-        amd:function(){
-            console.log(&apos;AMD&apos;);
-        }
-    };
-});
-</code></pre><p>修改index.js</p>
-<pre><code>// src/index.js
-define([
-    &apos;./amd.js&apos;
-],function(amdModule){
-    amdModule.amd();
-});
-</code></pre><p>得到</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
-    __webpack_require__(1)
-], __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule){
-    amdModule.amd();
-}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
-], __WEBPACK_AMD_DEFINE_RESULT__ = function(){
-    return {
-        amd:function(){
-            console.log(&apos;AMD&apos;);
-        }
-    };
-}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>先看amd.js整理一下代码</p>
-<pre><code>function(module, exports, __webpack_require__) {
-    var __WEBPACK_AMD_DEFINE_ARRAY__,
-        __WEBPACK_AMD_DEFINE_RESULT__;
-
-    !(
-        __WEBPACK_AMD_DEFINE_ARRAY__ = [],
-
-        __WEBPACK_AMD_DEFINE_RESULT__ = function() {
-            return {
-                amd: function() {
-                    console.log(&apos;AMD&apos;);
-                }
-            };
-        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-
-        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp;
-        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
-
-    );
-})
-</code></pre><p>简单来讲收集define Array然后置入返回函数，根据参数获取依赖</p>
-<blockquote>
-<p>apply对数组拆解成一个一个参数</p>
-</blockquote>
-<p>再看index.js模块部分</p>
-<pre><code>function(module, exports, __webpack_require__) {
-
-    var __WEBPACK_AMD_DEFINE_ARRAY__,
-        __WEBPACK_AMD_DEFINE_RESULT__;
-    !(
-        __WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)],
-        __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule) {
-                amdModule.amd();
-        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-
-        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; 
-        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
-    );
-}
-</code></pre><p>其实就是引入了amd.js暴露的{amd:[Function: amd]}</p>
-<h2 id="css-image"><a href="#css-image" class="headerlink" title="css/image?"></a>css/image?</h2><p>css和image也可以成为webpack的模块，这是令人震惊的，这就不能通过普通的hack commonjs或者函数调用简单去调用了，这就是anything to JS，它就需要借助webpack loader去实现了</p>
-<blockquote>
-<p>像css就是转换成一段js代码，通过处理，调用时就是可以用js将这段css插入到style中，image也类似，这部分就不详细阐述了，有兴趣的读者可以深入去研究</p>
-</blockquote>
-<h2 id="webpack3新特性"><a href="#webpack3新特性" class="headerlink" title="webpack3新特性"></a>webpack3新特性</h2><p>我们可以再顺便看下webpack3新特性的表现<br>具体可以看这里<a href="https://link.zhihu.com/?target=https%3A//medium.com/webpack/webpack-3-official-release-15fd2dd8f07b" target="_blank" rel="noopener">https://medium.com/webpack/webpack-3-official-release-15fd2dd8f07b</a></p>
-<h2 id="Scope-Hoisting"><a href="#Scope-Hoisting" class="headerlink" title="Scope Hoisting"></a>Scope Hoisting</h2><p>我们可以发现模块数组是一个一个独立的函数然后闭包引用webpack主函数的相应内容，每个模块都是独立的，然后带来的结果是在浏览器中执行速度变慢，然后webpack3学习了Closure Compiler和RollupJS这两个工具，连接所有闭包到一个闭包里，放入一个函数，让执行速度更快,并且整体代码体积也会有所缩小</p>
-<p>我们可以实际看一下效果（要注意的是这个特性只支持ES Modules,是不支持CommonJs和AMD的）<br>使用上面的例子，配置webpack.config.js，增加new webpack.optimize.ModuleConcatenationPlugin()</p>
-<pre><code>const path = require(&apos;path&apos;);
-const webpack = require(&apos;webpack&apos;);
-
-module.exports = {
-  entry: &apos;./src/index.js&apos;,
-  output: {
-    filename: &apos;bundle.js&apos;,
-    path: path.resolve(__dirname, &apos;dist&apos;)
-  },
-  module: {
-  },
-  plugins: [
-    new webpack.optimize.ModuleConcatenationPlugin(),
-  ]
-};
-</code></pre><p>打包</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-
-// CONCATENATED MODULE: ./src/es.js
-function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-
-
-// CONCATENATED MODULE: ./src/index.js
-// src/index.js
-
-
-console.log(&apos;hello world&apos;);
-es();
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以惊喜的发现没有什么require了，它们拼接成了一个函数，good!?</p>
-<h2 id="Magic-Comments"><a href="#Magic-Comments" class="headerlink" title="Magic Comments"></a>Magic Comments</h2><p>code splitting是webpack一个重点特性之一，涉及到要动态引入的时候，webpack可以使用 require.ensure去实现，后来webpack2支持使用了符合 ECMAScript 提案 的 import() 语法，但是它有个不足之处，无法指定chunk的名称chunkName,为了解决这个问题，出现了Magic Comments，支持用注释的方式去指定，如下</p>
-<pre><code>import(/* webpackChunkName: &quot;my-chunk-name&quot; */ &apos;module&apos;);
-</code></pre><h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>webpack是一个强大的模块打包工具，在处理依赖、模块上都很优秀，本文从bundle.js文件分析出发去探索了不同模块方案的加载机制，初步去理解webpack，并且对webpack3特性进行阐述，当然，webpack还有很多地方需要去探索深究，敬请期待以后的文章吧～</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3788,7 +3420,7 @@ es();
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">83</span>
+                  <span class="site-state-item-count">84</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3801,7 +3433,7 @@ es();
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">52</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
