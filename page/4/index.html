@@ -293,6 +293,1050 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/16/前端代码异常监控实战/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/16/前端代码异常监控实战/" itemprop="url">前端代码异常监控实战</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-16T11:22:33+08:00">
+                2018-09-16
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="把前端监控做到极致-掘金"><a href="#把前端监控做到极致-掘金" class="headerlink" title="把前端监控做到极致 - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a52f138f265da3e5b32a41b" target="_blank" rel="noopener">把前端监控做到极致 - 掘金</a></h2><h2 id="线上压缩代码-定位错误-掘金"><a href="#线上压缩代码-定位错误-掘金" class="headerlink" title="线上压缩代码-定位错误 - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a4f6886518825734216b352" target="_blank" rel="noopener">线上压缩代码-定位错误 - 掘金</a></h2><p>生产环境没有source-map文件，上报的错误都不好定位，这里实现一个简单的错误定位脚本</p>
+<p>1、获取压缩代码错误信息（行数、列数、错误信息，错误文件）</p>
+<h2 id="这里通过控制台看错误信息"><a href="#这里通过控制台看错误信息" class="headerlink" title="这里通过控制台看错误信息"></a>这里通过控制台看错误信息</h2><pre><code>window.addEventListener(&apos;error&apos;, function (e) {
+    console.debug(&apos;lineno: &apos;, e.lineno, &apos; colno: &apos;, e.colno)
+    console.debug(&apos;errorMessage:&apos;, e.message)
+    console.debug(&apos;errorFile:&apos;, e.filename)
+}, true)
+</code></pre><p>我们写一段错误的代码（single.vue的片段）</p>
+<pre><code>method: {
+   test (option) {
+        const data = option.test
+        const dataTest = option.data.test
+        return data + dataTest
+    }
+}, 
+created () {
+    // 设置异步错误的原因是，同步的错误会被vue捕获
+    setTimeout(() =&gt; {
+        this.test({
+          testOption: 1
+        })
+    }, 300)
+}
+</code></pre><p>在浏览器中运行，报错结果如下<br><img src="https://pic4.zhimg.com/v2-c3b8a3d91b6ee6040dbf18e06ec3431a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-c3b8a3d91b6ee6040dbf18e06ec3431a_hd.jpg" alt=""></p>
+<p>得到错误信息：</p>
+<ul>
+<li>错误行数：1</li>
+<li>错误列数：59236</li>
+<li>错误信息：cannot read property ‘test’ of undefined</li>
+<li>错误文件：0.0a77f.js</li>
+</ul>
+<p>2、定位错误的node脚本<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">## 安装依赖source-map</span><br><span class="line"></span><br><span class="line"> npm install source-map</span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">    node脚本如下（map/index.js）</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> // 读取文件</span><br><span class="line">var fs = require(&apos;fs&apos;)</span><br><span class="line">// souceMap处理文件</span><br><span class="line">var SourceMapConsumer = require(&apos;source-map&apos;).SourceMapConsumer</span><br><span class="line">// 启动构建进程（已构建则不需要）</span><br><span class="line">var exec = require(&apos;child_process&apos;).exec</span><br><span class="line"></span><br><span class="line">var lineno = process.argv[2] || 0   // 第一个参数为行数</span><br><span class="line">var columnno = process.argv[3] || 0 // 第二个参数为列数</span><br><span class="line">var fileName = process.argv[4] || &apos;&apos; // 第三个参数为错误文件（错误文件名就好）</span><br><span class="line"></span><br><span class="line">// 构建有map的线上代码</span><br><span class="line">// node build onlineMap为构建命令</span><br><span class="line">exec(&apos;node build onlineMap&apos;, function () &#123;</span><br><span class="line"> // 读取错误文件的map文件</span><br><span class="line"> var consumer = new SourceMapConsumer(fs.readFileSync(&apos;./dist/&apos; + fileName + &apos;.map&apos;, &apos;utf8&apos;))</span><br><span class="line">  // 输出map的错误信息</span><br><span class="line">  console.log(consumer.originalPositionFor(&#123;</span><br><span class="line">    line: +lineno,      // +是为了转化为数字</span><br><span class="line">    column: +columnno</span><br><span class="line">  &#125;))</span><br><span class="line">&#125;)</span><br><span class="line">`</span><br><span class="line"></span><br><span class="line">    运行node脚本</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> node map 1 59236 0.0a77f.js</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>效果如下：</p>
+</blockquote>
+<p><img src="https://pic1.zhimg.com/v2-cf68e7b673405c90fe024bf48dfb42c7_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-cf68e7b673405c90fe024bf48dfb42c7_hd.jpg" alt=""></p>
+<p>结合控制台输出的信息，就可以定位到错误代码了</p>
+<p>我们再来看一下，给代码开启source-map，看错误信息是否一致</p>
+<p><img src="https://pic3.zhimg.com/v2-5319b431cef161a0a07ba46f8b0e6a02_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-5319b431cef161a0a07ba46f8b0e6a02_hd.jpg" alt=""><br>错误代码的位置定位是准确的，证明可行。</p>
+<p>3、后续扩展思路</p>
+<h2 id="目前实现的是比较简单的脚本，所以存在一些问题："><a href="#目前实现的是比较简单的脚本，所以存在一些问题：" class="headerlink" title="目前实现的是比较简单的脚本，所以存在一些问题："></a>目前实现的是比较简单的脚本，所以存在一些问题：</h2><ul>
+<li>需要当前构建内容和线上是一致的</li>
+<li>操作比较繁琐</li>
+</ul>
+<p>优化思路如下：</p>
+<p><img src="https://pic4.zhimg.com/v2-a8b63ecc364c66c8bf4bbec9880f8c23_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-a8b63ecc364c66c8bf4bbec9880f8c23_hd.jpg" alt=""></p>
+<p>后续优化慢慢补充~</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>之前在对公司的前端代码脚本错误进行排查，试图降低 JS Error 的错误量，结合自己之前的经验对这方面内容进行了实践并总结，下面就此谈谈我对前端代码异常监控的一些见解。</p>
+<p>本文大致围绕下面几点展开讨论：</p>
+<ol>
+<li>JS 处理异常的方式</li>
+<li>上报方式</li>
+<li>异常监控上报常见问题</li>
+</ol>
+<h2 id="JS-异常处理"><a href="#JS-异常处理" class="headerlink" title="JS 异常处理"></a>JS 异常处理</h2><p>对于 Javascript 而言，我们面对的仅仅只是异常，异常的出现不会直接导致 JS 引擎崩溃，最多只会使当前执行的任务终止。</p>
+<ol>
+<li>当前代码块将作为一个任务压入任务队列中，JS 线程会不断地从任务队列中提取任务执行。</li>
+<li>当任务执行过程中出现异常，且异常没有捕获处理，则会一直沿着调用栈一层层向外抛出，最终终止当前任务的执行。</li>
+<li><p>JS 线程会继续从任务队列中提取下一个任务继续执行。</p>
+ <script>
+   error
+   console.log('永远不会执行');
+ </script>
+ <script>
+   console.log('我继续执行')
+ </script>
+
+
+</li>
+</ol>
+<p><img src="https://pic2.zhimg.com/v2-7a136ce7674914bcd7b7f42986d0c5bc_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7a136ce7674914bcd7b7f42986d0c5bc_hd.jpg" alt=""></p>
+<p>在对脚本错误进行上报之前，我们需要对异常进行处理，程序需要先感知到脚本错误的发生，然后再谈异常上报。</p>
+<p>脚本错误一般分为两种：语法错误，运行时错误。</p>
+<p>下面就谈谈几种异常监控的处理方式：</p>
+<h2 id="try-catch-异常处理"><a href="#try-catch-异常处理" class="headerlink" title="try-catch 异常处理"></a>try-catch 异常处理</h2><p>try-catch 在我们的代码中经常见到，通过给代码块进行 try-catch 进行包装后，当代码块发生出错时 catch 将能捕捉到错误的信息，页面也将可以继续执行。</p>
+<p>但是 try-catch 处理异常的能力有限，只能捕获捉到运行时非异步错误，对于语法错误和异步错误就显得无能为力，捕捉不到。</p>
+<h2 id="示例：运行时错误"><a href="#示例：运行时错误" class="headerlink" title="示例：运行时错误"></a>示例：运行时错误</h2><pre><code>try {
+  error    // 未定义变量 
+} catch(e) {
+  console.log(&apos;我知道错误了&apos;);
+  console.log(e);
+}
+</code></pre><p><img src="https://pic3.zhimg.com/v2-dc8ba7e4b9e56127799c11b46cf7068d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-dc8ba7e4b9e56127799c11b46cf7068d_hd.jpg" alt=""></p>
+<p>然而对于语法错误和异步错误就捕捉不到了。</p>
+<h2 id="示例：语法错误"><a href="#示例：语法错误" class="headerlink" title="示例：语法错误"></a>示例：语法错误</h2><pre><code>try {
+  var error = &apos;error&apos;；   // 大写分号
+} catch(e) {
+  console.log(&apos;我感知不到错误&apos;);
+  console.log(e);
+}
+</code></pre><p><img src="https://pic3.zhimg.com/v2-8ddf6acf0f42c4b08ba8b73798b863a0_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8ddf6acf0f42c4b08ba8b73798b863a0_hd.jpg" alt=""></p>
+<p>一般语法错误在编辑器就会体现出来，常表现的错误信息为： Uncaught SyntaxError: Invalid or unexpected token xxx 这样。但是这种错误会直接抛出异常，常使程序崩溃，一般在编码时候容易观察得到。</p>
+<h2 id="示例：异步错误"><a href="#示例：异步错误" class="headerlink" title="示例：异步错误"></a>示例：异步错误</h2><pre><code>try {
+  setTimeout(() =&gt; {
+    error        // 异步错误
+  })
+} catch(e) {
+  console.log(&apos;我感知不到错误&apos;);
+  console.log(e);
+}
+</code></pre><p><img src="https://pic4.zhimg.com/v2-0ed67a00e3c7762e74975bebbbc88274_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-0ed67a00e3c7762e74975bebbbc88274_hd.jpg" alt=""></p>
+<p>除非你在 setTimeout 函数中再套上一层 try-catch，否则就无法感知到其错误，但这样代码写起来比较啰嗦。</p>
+<h2 id="window-onerror-异常处理"><a href="#window-onerror-异常处理" class="headerlink" title="window.onerror 异常处理"></a>window.onerror 异常处理</h2><p>window.onerror 捕获异常能力比 try-catch 稍微强点，无论是异步还是非异步错误，onerror 都能捕获到运行时错误。</p>
+<p>示例：运行时同步错误</p>
+<pre><code>/**
+ * @param {String}  msg    错误信息
+ * @param {String}  url    出错文件
+ * @param {Number}  row    行号
+ * @param {Number}  col    列号
+ * @param {Object}  error  错误详细信息
+ */
+ window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道错误了&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+error;
+</code></pre><p>示例：异步错误</p>
+<pre><code>window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道异步错误了&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+setTimeout(() =&gt; {
+  error;
+});
+</code></pre><p><img src="https://pic3.zhimg.com/v2-8bfdbb4ef72e1fe0ee29f42708d1184d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8bfdbb4ef72e1fe0ee29f42708d1184d_hd.jpg" alt=""></p>
+<p>然而 window.onerror 对于语法错误还是无能为力，所以我们在写代码的时候要尽可能避免语法错误的，不过一般这样的错误会使得整个页面崩溃，还是比较容易能够察觉到的。</p>
+<p>在实际的使用过程中，onerror 主要是来捕获预料之外的错误，而 try-catch 则是用来在可预见情况下监控特定的错误，两者结合使用更加高效。</p>
+<p>需要注意的是，window.onerror 函数只有在返回 true 的时候，异常才不会向上抛出，否则即使是知道异常的发生控制台还是会显示 Uncaught Error: xxxxx。</p>
+<p><img src="https://pic3.zhimg.com/v2-875235a4876ea8429f12e7aaf2f19588_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-875235a4876ea8429f12e7aaf2f19588_hd.jpg" alt=""></p>
+<p>关于 window.onerror 还有两点需要值得注意</p>
+<ol>
+<li>对于 onerror 这种全局捕获，最好写在所有 JS 脚本的前面，因为你无法保证你写的代码是否出错，如果写在后面，一旦发生错误的话是不会被 onerror 捕获到的。</li>
+<li>另外 onerror 是无法捕获到网络异常的错误。</li>
+</ol>
+<p>当我们遇到 <code>&lt;img src=&quot;./404.png&quot;&gt;</code> 报 404 网络请求异常的时候，onerror 是无法帮助我们捕获到异常的。</p>
+<pre><code>&lt;script&gt;
+  window.onerror = function (msg, url, row, col, error) {
+    console.log(&apos;我知道异步错误了&apos;);
+    console.log({
+      msg,  url,  row, col, error
+    })
+    return true;
+  };
+&lt;/script&gt;
+&lt;img src=&quot;./404.png&quot;&gt;
+</code></pre><p><img src="https://pic3.zhimg.com/v2-81341c443f078b6526e0c6031dd40953_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-81341c443f078b6526e0c6031dd40953_hd.jpg" alt=""></p>
+<p>由于网络请求异常不会事件冒泡，因此必须在捕获阶段将其捕捉到才行，但是这种方式虽然可以捕捉到网络请求的异常，但是无法判断 HTTP 的状态是 404 还是其他比如 500 等等，所以还需要配合服务端日志才进行排查分析才可以。</p>
+<pre><code>&lt;script&gt;
+window.addEventListener(&apos;error&apos;, (msg, url, row, col, error) =&gt; {
+  console.log(&apos;我知道 404 错误了&apos;);
+  console.log(
+    msg, url, row, col, error
+  );
+  return true;
+}, true);
+&lt;/script&gt;
+&lt;img src=&quot;./404.png&quot; alt=&quot;&quot;&gt;
+</code></pre><p><img src="https://pic4.zhimg.com/v2-6d1c1196acd800a4a4475ee6847ee82a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-6d1c1196acd800a4a4475ee6847ee82a_hd.jpg" alt=""></p>
+<p>这点知识还是需要知道，要不然用户访问网站，图片 CDN 无法服务，图片加载不出来而开发人员没有察觉就尴尬了。</p>
+<h2 id="Promise-错误"><a href="#Promise-错误" class="headerlink" title="Promise 错误"></a>Promise 错误</h2><p>通过 Promise 可以帮助我们解决异步回调地狱的问题，但是一旦 Promise 实例抛出异常而你没有用 catch 去捕获的话，onerror 或 try-catch 也无能为力，无法捕捉到错误。</p>
+<pre><code>window.addEventListener(&apos;error&apos;, (msg, url, row, col, error) =&gt; {
+  console.log(&apos;我感知不到 promise 错误&apos;);
+  console.log(
+    msg, url, row, col, error
+  );
+}, true);
+Promise.reject(&apos;promise error&apos;);
+new Promise((resolve, reject) =&gt; {
+  reject(&apos;promise error&apos;);
+});
+new Promise((resolve) =&gt; {
+  resolve();
+}).then(() =&gt; {
+  throw &apos;promise error&apos;
+});
+</code></pre><p><img src="https://pic4.zhimg.com/v2-1ce580bb2344474b1df1517f2d11aa40_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-1ce580bb2344474b1df1517f2d11aa40_hd.jpg" alt=""></p>
+<p>虽然在写 Promise 实例的时候养成最后写上 catch 函数是个好习惯，但是代码写多了就容易糊涂，忘记写 catch。</p>
+<p>所以如果你的应用用到很多的 Promise 实例的话，特别是你在一些基于 promise 的异步库比如 axios 等一定要小心，因为你不知道什么时候这些异步请求会抛出异常而你并没有处理它，所以你最好添加一个 Promise 全局异常捕获事件 <strong>unhandledrejection</strong>。</p>
+<pre><code>window.addEventListener(&quot;unhandledrejection&quot;, function(e){
+  e.preventDefault()
+  console.log(&apos;我知道 promise 的错误了&apos;);
+  console.log(e.reason);
+  return true;
+});
+Promise.reject(&apos;promise error&apos;);
+new Promise((resolve, reject) =&gt; {
+  reject(&apos;promise error&apos;);
+});
+new Promise((resolve) =&gt; {
+  resolve();
+}).then(() =&gt; {
+  throw &apos;promise error&apos;
+});
+</code></pre><p><img src="https://pic2.zhimg.com/v2-115d494f26e4f8e2172e1f3b4cb6094f_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-115d494f26e4f8e2172e1f3b4cb6094f_hd.jpg" alt=""></p>
+<p>当然，如果你的应用没有做 Promise 全局异常处理的话，那很可能就像某乎首页这样：</p>
+<p><img src="https://pic2.zhimg.com/v2-37c6bc3763c147a4c97bdde688a59a5c_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-37c6bc3763c147a4c97bdde688a59a5c_hd.jpg" alt=""></p>
+<h2 id="异常上报方式"><a href="#异常上报方式" class="headerlink" title="异常上报方式"></a>异常上报方式</h2><p>监控拿到报错信息之后，接下来就需要将捕捉到的错误信息发送到信息收集平台上，常用的发送形式主要有两种:</p>
+<ol>
+<li>通过 Ajax 发送数据</li>
+<li>动态创建 img 标签的形式</li>
+</ol>
+<p>实例 - 动态创建 img 标签进行上报</p>
+<pre><code>function report(error) {
+  var reportUrl = &apos;http://xxxx/report&apos;;
+  new Image().src = reportUrl + &apos;error=&apos; + error;
+}
+</code></pre><h2 id="监控上报常见问题"><a href="#监控上报常见问题" class="headerlink" title="监控上报常见问题"></a>监控上报常见问题</h2><p>下述例子我全部放在我的 github 上，读者可以自行查阅，后面不再赘述。</p>
+<pre><code>git clone https://github.com/happylindz/blog.git
+cd blog/code/jserror/
+npm install
+</code></pre><h2 id="Script-error-脚本错误是什么"><a href="#Script-error-脚本错误是什么" class="headerlink" title="Script error 脚本错误是什么"></a>Script error 脚本错误是什么</h2><p>因为我们在线上的版本，经常做静态资源 CDN 化，这就会导致我们常访问的页面跟脚本文件来自不同的域名，这时候如果没有进行额外的配置，就会容易产生 Script error。</p>
+<p><img src="https://pic3.zhimg.com/v2-840f71bf7014767132b47ad2c6a37238_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-840f71bf7014767132b47ad2c6a37238_hd.jpg" alt=""></p>
+<p>可通过 <code>npm run nocors</code> 查看效果。</p>
+<p>Script error 是浏览器在同源策略限制下产生的，浏览器处于对安全性上的考虑，当页面引用非同域名外部脚本文件时中抛出异常的话，此时本页面是没有权利知道这个报错信息的，取而代之的是输出 Script error 这样的信息。</p>
+<p><img src="https://pic2.zhimg.com/v2-fc3941d89716f96374576d0426ff4ccb_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-fc3941d89716f96374576d0426ff4ccb_hd.jpg" alt=""></p>
+<p>这样做的目的是避免数据泄露到不安全的域中，举个简单的例子，</p>
+<pre><code>&lt;script src=&quot;xxxx.com/login.html&quot;&gt;&lt;/script&gt;
+</code></pre><p>上面我们并没有引入一个 js 文件，而是一个 html，这个 html 是银行的登录页面，如果你已经登录了，那 login 页面就会自动跳转到 <code>Welcome xxx...</code>，如果未登录则跳转到 <code>Please Login...</code>，那么报错也会是 <code>Welcome xxx... is not defined，Please Login... is not defined</code>，通过这些信息可以判断一个用户是否登录他的帐号，给入侵者提供了十分便利的判断渠道，这是相当不安全的。</p>
+<p>介绍完背景后，那么我们应该去解决这个问题？</p>
+<p>首先可以想到的方案肯定是同源化策略，将 JS 文件内联到 html 或者放到同域下，虽然能简单有效地解决 script error 问题，但是这样无法利用好文件缓存和 CDN 的优势，不推荐使用。正确的方法应该是从根本上解决 script error 的错误。</p>
+<h2 id="跨源资源共享机制-CORS"><a href="#跨源资源共享机制-CORS" class="headerlink" title="跨源资源共享机制( CORS )"></a>跨源资源共享机制( CORS )</h2><p>首先为页面上的 script 标签添加 crossOrigin 属性</p>
+<pre><code>// http://localhost:8080/index.html
+&lt;script&gt;
+  window.onerror = function (msg, url, row, col, error) {
+    console.log(&apos;我知道错误了，也知道错误信息&apos;);
+    console.log({
+      msg,  url,  row, col, error
+    })
+    return true;
+  };
+&lt;/script&gt;
+&lt;script src=&quot;http://localhost:8081/test.js&quot; crossorigin&gt;&lt;/script&gt;
+
+// http://localhost:8081/test.js
+setTimeout(() =&gt; {
+  console.log(error);
+});
+</code></pre><p>当你修改完前端代码后，你还需要额外给后端在响应头里加上 <code>Access-Control-Allow-Origin: localhost:8080</code>，这里我以 Koa 为例。</p>
+<pre><code>const Koa = require(&apos;koa&apos;);
+const path = require(&apos;path&apos;);
+const cors = require(&apos;koa-cors&apos;);
+const app = new Koa();
+
+app.use(cors());
+app.use(require(&apos;koa-static&apos;)(path.resolve(__dirname, &apos;./public&apos;)));
+
+app.listen(8081, () =&gt; {
+  console.log(&apos;koa app listening at 8081&apos;)
+});
+</code></pre><p><img src="https://pic1.zhimg.com/v2-9717062e56340cef40ee67b438b2ba95_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-9717062e56340cef40ee67b438b2ba95_hd.jpg" alt=""></p>
+<p>读者可通过 <code>npm run cors</code> 详细的跨域知识我就不展开了，有兴趣可以看看我之前写的文章：<a href="https://link.zhihu.com/?target=https%3A//github.com/happylindz/blog/issues/3" target="_blank" rel="noopener">跨域，你需要知道的全在这里</a></p>
+<p>你以为这样就完了吗？并没有，下面就说一些 Script error 你不常遇见的点：</p>
+<p>我们都知道 JSONP 是用来跨域获取数据的，并且兼容性良好，在一些应用中仍然会使用到，所以你的项目中可能会用这样的代码：</p>
+<pre><code>// http://localhost:8080/index.html
+window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道错误了，但不知道错误信息&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+function jsonpCallback(data) {
+  console.log(data);
+}
+const url = &apos;http://localhost:8081/data?callback=jsonpCallback&apos;;
+const script = document.createElement(&apos;script&apos;);
+script.src = url;
+document.body.appendChild(script);
+</code></pre><p>因为返回的信息会当做脚本文件来执行，一旦返回的脚本内容出错了，也是无法捕捉到错误的信息。</p>
+<p><img src="https://pic4.zhimg.com/v2-01afbf8a4ba1fc4fdd9a22b884f9a8d8_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-01afbf8a4ba1fc4fdd9a22b884f9a8d8_hd.jpg" alt=""></p>
+<p>解决办法也不难，跟之前一样，在添加动态添加脚本的时候加上 crossOrigin，并且在后端配上相应的 CORS 字段即可.</p>
+<pre><code>const script = document.createElement(&apos;script&apos;);
+script.crossOrigin = &apos;anonymous&apos;;
+script.src = url;
+document.body.appendChild(script);
+</code></pre><p>读者可以通过 <code>npm run jsonp</code> 查看效果</p>
+<p><img src="https://pic4.zhimg.com/v2-ab0b67a7e6b5afabf281b792ca2d6bd2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-ab0b67a7e6b5afabf281b792ca2d6bd2_hd.jpg" alt=""></p>
+<p>知道原理之后你可能会觉得没什么，不就是给每个动态生成的脚本添加 crossOrigin 字段嘛，但是在实际工程中，你可能是面向很多库来编程，比如使用 jQuery，Seajs 或者 webpack 来异步加载脚本，许多库封装了异步加载脚本的能力，以 jQeury 为例你可能是这样来触发异步脚本。</p>
+<pre><code>$.ajax({
+  url: &apos;http://localhost:8081/data&apos;,
+  dataType: &apos;jsonp&apos;,
+  success: (data) =&gt; {
+    console.log(data);
+  }
+})
+</code></pre><p>假如这些库中没有提供 crossOrigin 的能力的话(jQuery jsonp 可能有，假装你不知道)，那你只能去修改人家写的源代码了，所以我这里提供一个思路，就是去劫持 document.createElement，从根源上去为每个动态生成的脚本添加 crossOrigin 字段。</p>
+<pre><code>document.createElement = (function() {
+  const fn = document.createElement.bind(document);
+  return function(type) {
+    const result = fn(type);
+    if(type === &apos;script&apos;) {
+      result.crossOrigin = &apos;anonymous&apos;;
+    }
+    return result;
+  }
+})();
+window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道错误了，也知道错误信息&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+$.ajax({
+  url: &apos;http://localhost:8081/data&apos;,
+  dataType: &apos;jsonp&apos;,
+  success: (data) =&gt; {
+    console.log(data);
+  }
+})
+</code></pre><p>效果也是一样的，读者可以通过 <code>npm run jsonpjq</code> 来查看效果：</p>
+<p><img src="https://pic4.zhimg.com/v2-30d51a96cdb3286edd1e5a88e9f794bb_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-30d51a96cdb3286edd1e5a88e9f794bb_hd.jpg" alt=""></p>
+<p>这样重写 createElement 理论上没什么问题，但是入侵了原本的代码，不保证一定不会出错，在工程上还是需要多尝试下看看再使用，可能存在兼容性上问题，如果你觉得会出现什么问题的话也欢迎留言讨论下。</p>
+<p>关于 Script error 的问题就写到这里，如果你理解了上面的内容，基本上绝大部分的 Script error 都能迎刃而解。</p>
+<h2 id="window-onerror-能否捕获-iframe-的错误"><a href="#window-onerror-能否捕获-iframe-的错误" class="headerlink" title="window.onerror 能否捕获 iframe 的错误"></a>window.onerror 能否捕获 iframe 的错误</h2><p>当你的页面有使用 iframe 的时候，你需要对你引入的 iframe 做异常监控的处理，否则一旦你引入的 iframe 页面出现了问题，你的主站显示不出来，而你却浑然不知。</p>
+<p>首先需要强调，父窗口直接使用 window.onerror 是无法直接捕获，如果你想要捕获 iframe 的异常的话，有分好几种情况。</p>
+<p>如果你的 iframe 页面和你的主站是同域名的话，直接给 iframe 添加 onerror 事件即可。</p>
+<pre><code>&lt;iframe src=&quot;./iframe.html&quot; frameborder=&quot;0&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+  window.frames[0].onerror = function (msg, url, row, col, error) {
+    console.log(&apos;我知道 iframe 的错误了，也知道错误信息&apos;);
+    console.log({
+      msg,  url,  row, col, error
+    })
+    return true;
+  };
+&lt;/script&gt;
+</code></pre><p>读者可以通过 <code>npm run iframe</code> 查看效果：</p>
+<p><img src="https://pic2.zhimg.com/v2-3edcb5686e27ab11f5f3c9c1644986d0_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-3edcb5686e27ab11f5f3c9c1644986d0_hd.jpg" alt=""></p>
+<p>如果你嵌入的 iframe 页面和你的主站不是同个域名的，但是 iframe 内容不属于第三方，是你可以控制的，那么可以通过与 iframe 通信的方式将异常信息抛给主站接收。与 iframe 通信的方式有很多，常用的如：postMessage，hash 或者 name 字段跨域等等，这里就不展开了，感兴趣的话可以看：<a href="https://link.zhihu.com/?target=https%3A//github.com/happylindz/blog/issues/3" target="_blank" rel="noopener">跨域，你需要知道的全在这里</a></p>
+<p>如果是非同域且网站不受自己控制的话，除了通过控制台看到详细的错误信息外，没办法捕获，这是出于安全性的考虑，你引入了一个百度首页，人家页面报出的错误凭啥让你去监控呢，这会引出很多安全性的问题。</p>
+<h2 id="压缩代码如何定位到脚本异常位置"><a href="#压缩代码如何定位到脚本异常位置" class="headerlink" title="压缩代码如何定位到脚本异常位置"></a>压缩代码如何定位到脚本异常位置</h2><p>线上的代码几乎都经过了压缩处理，几十个文件打包成了一个并丑化代码，当我们收到 <code>a is not defined</code> 的时候，我们根本不知道这个变量 a 究竟是什么含义，此时报错的错误日志显然是无效的。</p>
+<p>第一想到的办法是利用 sourcemap 定位到错误代码的具体位置，详细内容可以参考：<a href="https://link.zhihu.com/?target=https%3A//github.com/joeyguo/blog/issues/14" target="_blank" rel="noopener">Sourcemap 定位脚本错误</a></p>
+<p>另外也可以通过在打包的时候，在每个合并的文件之间添加几行空格，并相应加上一些注释，这样在定位问题的时候很容易可以知道是哪个文件报的错误，然后再通过一些关键词的搜索，可以快速地定位到问题的所在位置。</p>
+<h2 id="收集异常信息量太多，怎么办"><a href="#收集异常信息量太多，怎么办" class="headerlink" title="收集异常信息量太多，怎么办"></a>收集异常信息量太多，怎么办</h2><p>如果你的网站访问量很大，假如网页的 PV 有 1kw，那么一个必然的错误发送的信息就有 1kw 条，我们可以给网站设置一个采集率：</p>
+<pre><code>Reporter.send = function(data) {
+  // 只采集 30%
+  if(Math.random() &lt; 0.3) {
+    send(data)      // 上报错误信息
+  }
+}
+</code></pre><p>这个采集率可以通过具体实际的情况来设定，方法多样化，可以使用一个随机数，也可以具体根据用户的某些特征来进行判定。</p>
+<p>上面差不多是我对前端代码监控的一些理解，说起来容易，但是一旦在工程化运用，难免需要考虑到兼容性等种种问题，读者可以通过自己的具体情况进行调整，前端代码异常监控对于我们的网站的稳定性起着至关重要的作用。如若文中所有不对的地方，还望指正。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/02/JS之call和apply-bind的模拟实现/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/02/JS之call和apply-bind的模拟实现/" itemprop="url">JS之call和apply,bind的模拟实现</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-02T22:39:16+08:00">
+                2018-09-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="call"><a href="#call" class="headerlink" title="call"></a>call</h2><p>一句话介绍 call：</p>
+<blockquote>
+<p>call() 方法在使用一个指定的 this 值和若干个指定的参数值的前提下调用某个函数或方法。</p>
+</blockquote>
+<p>举个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+bar.call(foo); // 1
+</code></pre><p>注意两点：</p>
+<ol>
+<li>call 改变了 this 的指向，指向到 foo</li>
+<li>bar 函数执行了</li>
+</ol>
+<h2 id="模拟实现第一步"><a href="#模拟实现第一步" class="headerlink" title="模拟实现第一步"></a>模拟实现第一步</h2><p>那么我们该怎么模拟实现这两个效果呢？</p>
+<p>试想当调用 call 的时候，把 foo 对象改造成如下：</p>
+<pre><code>var foo = {
+    value: 1,
+    bar: function() {
+        console.log(this.value)
+    }
+};
+
+foo.bar(); // 1
+</code></pre><p>这个时候 this 就指向了 foo，是不是很简单呢？</p>
+<p>但是这样却给 foo 对象本身添加了一个属性，这可不行呐！</p>
+<p>不过也不用担心，我们用 delete 再删除它不就好了~</p>
+<p>所以我们模拟的步骤可以分为：</p>
+<ol>
+<li>将函数设为对象的属性</li>
+<li>执行该函数</li>
+<li>删除该函数</li>
+</ol>
+<p>以上个例子为例，就是：</p>
+<pre><code>// 第一步
+foo.fn = bar
+// 第二步
+foo.fn()
+// 第三步
+delete foo.fn
+</code></pre><p>fn 是对象的属性名，反正最后也要删除它，所以起成什么都无所谓。</p>
+<p>根据这个思路，我们可以尝试着去写第一版的 call2 函数：</p>
+<pre><code>// 第一版
+Function.prototype.call2 = function(context) {
+    // 首先要获取调用call的函数，用this可以获取
+    context.fn = this;
+    context.fn();
+    delete context.fn;
+}
+
+// 测试一下
+var foo = {
+    value: 1
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+bar.call2(foo); // 1
+</code></pre><p>正好可以打印 1 哎！是不是很开心！(～￣▽￣)～</p>
+<h2 id="模拟实现第二步"><a href="#模拟实现第二步" class="headerlink" title="模拟实现第二步"></a>模拟实现第二步</h2><p>最一开始也讲了，call 函数还能给定参数执行函数。举个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    console.log(name)
+    console.log(age)
+    console.log(this.value);
+}
+
+bar.call(foo, &apos;kevin&apos;, 18);
+// kevin
+// 18
+// 1
+</code></pre><p>注意：传入的参数并不确定，这可咋办？</p>
+<p>不急，我们可以从 Arguments 对象中取值，取出第二个到最后一个参数，然后放到一个数组里。</p>
+<p>比如这样：</p>
+<pre><code>// 以上个例子为例，此时的arguments为：
+// arguments = {
+//      0: foo,
+//      1: &apos;kevin&apos;,
+//      2: 18,
+//      length: 3
+// }
+// 因为arguments是类数组对象，所以可以用for循环
+var args = [];
+for(var i = 1, len = arguments.length; i &lt; len; i++) {
+    args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+}
+
+// 执行后 args为 [foo, &apos;kevin&apos;, 18]
+</code></pre><p>不定长的参数问题解决了，我们接着要把这个参数数组放到要执行的函数的参数里面去。</p>
+<pre><code>// 将数组里的元素作为多个参数放进函数的形参里
+context.fn(args.join(&apos;,&apos;))
+// (O_o)??
+// 这个方法肯定是不行的啦！！！
+</code></pre><p>也许有人想到用 ES6 的方法，不过 call 是 ES3 的方法，我们为了模拟实现一个 ES3 的方法，要用到ES6的方法，好像……，嗯，也可以啦。但是我们这次用 eval 方法拼成一个函数，类似于这样：</p>
+<pre><code>eval(&apos;context.fn(&apos; + args +&apos;)&apos;)
+</code></pre><p>这里 args 会自动调用 Array.toString() 这个方法。</p>
+<p>所以我们的第二版克服了两个大问题，代码如下：</p>
+<pre><code>// 第二版
+Function.prototype.call2 = function(context) {
+    context.fn = this;
+    var args = [];
+    for(var i = 1, len = arguments.length; i &lt; len; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+    eval(&apos;context.fn(&apos; + args +&apos;)&apos;);
+    delete context.fn;
+}
+
+// 测试一下
+var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    console.log(name)
+    console.log(age)
+    console.log(this.value);
+}
+
+bar.call2(foo, &apos;kevin&apos;, 18); 
+// kevin
+// 18
+// 1
+</code></pre><p>(๑•̀ㅂ•́) ✧</p>
+<h2 id="模拟实现第三步"><a href="#模拟实现第三步" class="headerlink" title="模拟实现第三步"></a>模拟实现第三步</h2><p>模拟代码已经完成 80%，还有两个小点要注意：</p>
+<p>1.this 参数可以传 null，当为 null 的时候，视为指向 window</p>
+<p>举个例子：</p>
+<pre><code>var value = 1;
+
+function bar() {
+    console.log(this.value);
+}
+
+bar.call(null); // 1
+</code></pre><p>虽然这个例子本身不使用 call，结果依然一样。</p>
+<p>2.函数是可以有返回值的！</p>
+<p>举个例子：</p>
+<pre><code>var obj = {
+    value: 1
+}
+
+function bar(name, age) {
+    return {
+        value: this.value,
+        name: name,
+        age: age
+    }
+}
+
+console.log(bar.call(obj, &apos;kevin&apos;, 18));
+// Object {
+//    value: 1,
+//    name: &apos;kevin&apos;,
+//    age: 18
+// }
+</code></pre><p>不过都很好解决，让我们直接看第三版也就是最后一版的代码：</p>
+<pre><code>// 第三版
+Function.prototype.call2 = function (context) {
+    var context = context || window;
+    context.fn = this;
+
+    var args = [];
+    for(var i = 1, len = arguments.length; i &lt; len; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+
+    var result = eval(&apos;context.fn(&apos; + args +&apos;)&apos;);
+
+    delete context.fn
+    return result;
+}
+
+// 测试一下
+var value = 2;
+
+var obj = {
+    value: 1
+}
+
+function bar(name, age) {
+    console.log(this.value);
+    return {
+        value: this.value,
+        name: name,
+        age: age
+    }
+}
+
+bar.call(null); // 2
+
+console.log(bar.call2(obj, &apos;kevin&apos;, 18));
+// 1
+// Object {
+//    value: 1,
+//    name: &apos;kevin&apos;,
+//    age: 18
+// }
+</code></pre><p>到此，我们完成了 call 的模拟实现，给自己一个赞 ｂ（￣▽￣）ｄ</p>
+<h2 id="apply的模拟实现"><a href="#apply的模拟实现" class="headerlink" title="apply的模拟实现"></a>apply的模拟实现</h2><p>apply 的实现跟 call 类似，在这里直接给代码，代码来自于知乎 @郑航的实现：</p>
+<pre><code>Function.prototype.apply = function (context, arr) {
+    var context = Object(context) || window;
+    context.fn = this;
+
+    var result;
+    if (!arr) {
+        result = context.fn();
+    }
+    else {
+        var args = [];
+        for (var i = 0, len = arr.length; i &lt; len; i++) {
+            args.push(&apos;arr[&apos; + i + &apos;]&apos;);
+        }
+        result = eval(&apos;context.fn(&apos; + args + &apos;)&apos;)
+    }
+
+    delete context.fn
+    return result;
+}
+</code></pre><p><img src="https://pic1.zhimg.com/v2-23784bc5e0ab2bdcb4b879e5d28617c6_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-23784bc5e0ab2bdcb4b879e5d28617c6_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-9374916fd3f03dab5836b9fc4057070a_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-9374916fd3f03dab5836b9fc4057070a_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-7fe454d5cfd72880650f53a4f50c93cd_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-7fe454d5cfd72880650f53a4f50c93cd_hd.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/v2-4f15656852b764a859194a3d7156ea99_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4f15656852b764a859194a3d7156ea99_hd.jpg" alt=""></p>
+<pre><code>类数组转对象
+在上面的例子中已经提到了一种类数组转数组的方法，再补充三个：
+var arrayLike = {0: &apos;name&apos;, 1: &apos;age&apos;, 2: &apos;sex&apos;, length: 3 }
+// 1. slice
+Array.prototype.slice.call(arrayLike); // [&quot;name&quot;, &quot;age&quot;, &quot;sex&quot;] 
+// 2. splice
+Array.prototype.splice.call(arrayLike, 0); // [&quot;name&quot;, &quot;age&quot;, &quot;sex&quot;] 
+// 3. ES6 Array.from
+Array.from(arrayLike); // [&quot;name&quot;, &quot;age&quot;, &quot;sex&quot;] 
+// 4. apply
+Array.prototype.concat.apply([], arrayLike)   
+
+
+
+
+要说到类数组对象，Arguments 对象就是一个类数组对象。
+在客户端 JavaScript 中，一些 DOM 方法(document.getElementsByTagName()等)也返回类数组对象。
+
+
+传递参数
+将参数从一个函数传递到另一个函数
+// 使用 apply 将 foo 的参数传递给 bar
+function foo() {
+    bar.apply(this, arguments);
+}
+function bar(a, b, c) {
+   console.log(a, b, c);
+}
+
+foo(1, 2, 3)
+
+
+
+
+强大的ES6
+使用ES6的 ... 运算符，我们可以轻松转成数组。
+function func(...arguments) {
+    console.log(arguments); // [1, 2, 3]
+}
+
+func(1, 2, 3);
+</code></pre><h2 id="bind"><a href="#bind" class="headerlink" title="bind"></a>bind</h2><p>一句话介绍 bind:</p>
+<blockquote>
+<p>bind() 方法会创建一个新函数。当这个新函数被调用时，bind() 的第一个参数将作为它运行时的 this，之后的一序列参数将会在传递的实参前传入作为它的参数。(来自于 MDN )</p>
+</blockquote>
+<p>由此我们可以首先得出 bind 函数的两个特点：</p>
+<ol>
+<li>返回一个函数</li>
+<li>可以传入参数</li>
+</ol>
+<h2 id="返回函数的模拟实现"><a href="#返回函数的模拟实现" class="headerlink" title="返回函数的模拟实现"></a>返回函数的模拟实现</h2><p>从第一个特点开始，我们举个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+// 返回了一个函数
+var bindFoo = bar.bind(foo); 
+
+bindFoo(); // 1
+</code></pre><p>关于指定 this 的指向，我们可以使用 call 或者 apply 实现，关于 call 和 apply 的模拟实现，可以查看<a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/11" target="_blank" rel="noopener">《JavaScript深入之call和apply的模拟实现》</a>。我们来写第一版的代码：</p>
+<pre><code>// 第一版
+Function.prototype.bind2 = function (context) {
+    var self = this;
+    return function () {
+        self.apply(context);
+    }
+
+}
+</code></pre><h2 id="传参的模拟实现"><a href="#传参的模拟实现" class="headerlink" title="传参的模拟实现"></a>传参的模拟实现</h2><p>接下来看第二点，可以传入参数。这个就有点让人费解了，我在 bind 的时候，是否可以传参呢？我在执行 bind 返回的函数的时候，可不可以传参呢？让我们看个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    console.log(this.value);
+    console.log(name);
+    console.log(age);
+
+}
+
+var bindFoo = bar.bind(foo, &apos;daisy&apos;);
+bindFoo(&apos;18&apos;);
+// 1
+// daisy
+// 18
+</code></pre><p>函数需要传 name 和 age 两个参数，竟然还可以在 bind 的时候，只传一个 name，在执行返回的函数的时候，再传另一个参数 age!</p>
+<p>这可咋办？不急，我们用 arguments 进行处理：</p>
+<pre><code>// 第二版
+Function.prototype.bind2 = function (context) {
+
+    var self = this;
+    // 获取bind2函数从第二个参数到最后一个参数
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    return function () {
+        // 这个时候的arguments是指bind返回的函数传入的参数
+        var bindArgs = Array.prototype.slice.call(arguments);
+        self.apply(context, args.concat(bindArgs));
+    }
+
+}
+</code></pre><h2 id="构造函数效果的模拟实现"><a href="#构造函数效果的模拟实现" class="headerlink" title="构造函数效果的模拟实现"></a>构造函数效果的模拟实现</h2><p>完成了这两点，最难的部分到啦！因为 bind 还有一个特点，就是</p>
+<blockquote>
+<p>一个绑定函数也能使用new操作符创建对象：这种行为就像把原函数当成构造器。提供的 this 值被忽略，同时调用时的参数被提供给模拟函数。</p>
+</blockquote>
+<p>也就是说当 bind 返回的函数作为构造函数的时候，bind 时指定的 this 值会失效，但传入的参数依然生效。举个例子：</p>
+<pre><code>var value = 2;
+
+var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    this.habit = &apos;shopping&apos;;
+    console.log(this.value);
+    console.log(name);
+    console.log(age);
+}
+
+bar.prototype.friend = &apos;kevin&apos;;
+
+var bindFoo = bar.bind(foo, &apos;daisy&apos;);
+
+var obj = new bindFoo(&apos;18&apos;);
+// undefined
+// daisy
+// 18
+console.log(obj.habit);
+console.log(obj.friend);
+// shopping
+// kevin
+</code></pre><p>注意：尽管在全局和 foo 中都声明了 value 值，最后依然返回了 undefind，说明绑定的 this 失效了，如果大家了解 new 的模拟实现，就会知道这个时候的 this 已经指向了 obj。</p>
+<p>(哈哈，我这是为我的下一篇文章<a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/13" target="_blank" rel="noopener">《JavaScript深入系列之new的模拟实现》</a>打广告)。</p>
+<p>所以我们可以通过修改返回的函数的原型来实现，让我们写一下：</p>
+<pre><code>// 第三版
+Function.prototype.bind2 = function (context) {
+    var self = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var fBound = function () {
+        var bindArgs = Array.prototype.slice.call(arguments);
+        // 当作为构造函数时，this 指向实例，此时结果为 true，将绑定函数的 this 指向该实例，可以让实例获得来自绑定函数的值
+        // 以上面的是 demo 为例，如果改成 `this instanceof fBound ? null : context`，实例只是一个空对象，将 null 改成 this ，实例会具有 habit 属性
+        // 当作为普通函数时，this 指向 window，此时结果为 false，将绑定函数的 this 指向 context
+        self.apply(this instanceof fBound ? this : context, args.concat(bindArgs));
+    }
+    // 修改返回函数的 prototype 为绑定函数的 prototype，实例就可以继承绑定函数的原型中的值
+    fBound.prototype = this.prototype;
+    return fBound;
+}
+</code></pre><p>如果对原型链稍有困惑，可以查看<a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/2" target="_blank" rel="noopener">《JavaScript深入之从原型到原型链》</a>。</p>
+<h2 id="构造函数效果的优化实现"><a href="#构造函数效果的优化实现" class="headerlink" title="构造函数效果的优化实现"></a>构造函数效果的优化实现</h2><p>但是在这个写法中，我们直接将 fBound.prototype = this.prototype，我们直接修改 fBound.prototype 的时候，也会直接修改绑定函数的 prototype。这个时候，我们可以通过一个空函数来进行中转：</p>
+<pre><code>// 第四版
+Function.prototype.bind2 = function (context) {
+
+    var self = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var fNOP = function () {};
+
+    var fBound = function () {
+        var bindArgs = Array.prototype.slice.call(arguments);
+        self.apply(this instanceof fNOP ? this : context, args.concat(bindArgs));
+    }
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+    return fBound;
+}
+</code></pre><p>到此为止，大的问题都已经解决，给自己一个赞！o(￣▽￣)ｄ</p>
+<h2 id="三个小问题"><a href="#三个小问题" class="headerlink" title="三个小问题"></a>三个小问题</h2><p>接下来处理些小问题:</p>
+<p>1.apply 这段代码跟 MDN 上的稍有不同</p>
+<p>在 MDN 中文版讲 bind 的模拟实现时，apply 这里的代码是：</p>
+<pre><code>self.apply(this instanceof self ? this : context || this, args.concat(bindArgs))
+</code></pre><p>多了一个关于 context 是否存在的判断，然而这个是错误的！</p>
+<p>举个例子：</p>
+<pre><code>var value = 2;
+var foo = {
+    value: 1,
+    bar: bar.bind(null)
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+foo.bar() // 2
+</code></pre><p>以上代码正常情况下会打印 2，如果换成了 context || this，这段代码就会打印 1！</p>
+<p>所以这里不应该进行 context 的判断，大家查看 MDN 同样内容的英文版，就不存在这个判断！</p>
+<p>2.调用 bind 的不是函数咋办？</p>
+<p>不行，我们要报错！</p>
+<pre><code>if (typeof this !== &quot;function&quot;) {
+  throw new Error(&quot;Function.prototype.bind - what is trying to be bound is not callable&quot;);
+}
+</code></pre><p>3.我要在线上用</p>
+<p>那别忘了做个兼容：</p>
+<pre><code>Function.prototype.bind = Function.prototype.bind || function () {
+    ……
+};
+</code></pre><p>当然最好是用 <a href="https://link.zhihu.com/?target=https%3A//github.com/es-shims/es5-shim" target="_blank" rel="noopener">es5-shim</a> 啦。</p>
+<h2 id="最终代码"><a href="#最终代码" class="headerlink" title="最终代码"></a>最终代码</h2><p>所以最最后的代码就是：</p>
+<pre><code>Function.prototype.bind2 = function (context) {
+
+    if (typeof this !== &quot;function&quot;) {
+      throw new Error(&quot;Function.prototype.bind - what is trying to be bound is not callable&quot;);
+    }
+
+    var self = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var fNOP = function () {};
+
+    var fBound = function () {
+        var bindArgs = Array.prototype.slice.call(arguments);
+        self.apply(this instanceof fNOP ? this : context, args.concat(bindArgs));
+    }
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+    return fBound;
+}
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/31/JavaScript-中的-this/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3621,272 +4665,11 @@ store.dispatch = function(action){
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/31/为什么Redux-需要-reducers是纯函数？/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/07/31/为什么Redux-需要-reducers是纯函数？/" itemprop="url">为什么Redux 需要 reducers是纯函数？</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-31T00:13:40+08:00">
-                2018-07-31
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h4 id="为什么Redux-需要-reducers是纯函数？"><a href="#为什么Redux-需要-reducers是纯函数？" class="headerlink" title="为什么Redux 需要 reducers是纯函数？"></a>为什么Redux 需要 reducers是纯函数？</h4><p> 这又是一个很厉害的问题了，使用Redux的都知道，reducers会接收上一个state和action作为参数，然后返回一个新的state，这个新的state不能是在原来state基础上的修改。所以经常可以看到以下的写法：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">return Object.assign(...)</span><br><span class="line">//或者----------</span><br><span class="line">return &#123;...state,xx:xxx&#125;</span><br></pre></td></tr></table></figure></p>
-<p>其作用，都是为了返回一个全新的对象。</p>
-<p><strong>为什么reducers要求是纯函数(返回全新的对象，不影响原对象)?</strong>  –某面试官</p>
-<h3 id="纯函数"><a href="#纯函数" class="headerlink" title="纯函数"></a>纯函数</h3><p>从本质上讲，纯函数的定义如下：不修改函数的输入值，依赖于外部状态（比如数据库，DOM和全局变量），同时对于任何相同的输入有着相同的输出结果。<br>举个例子，下面的add函数不修改变量a或b，同时不依赖外部状态，对于相同的输入始终返回相同的结果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">const add = (a,b) =&gt; &#123;a + b&#125;;</span><br></pre></td></tr></table></figure></p>
-<p>这就是一个纯函数，结果对a、b没有任何影响，回头去看reducer，它符合纯函数的所有特征，所以就是一个纯函数<br>为什么必须是纯函数?<br>先告诉你结果吧，如果在reducer中，在原来的state上进行操作，并返回的话，并不会让React重新渲染。 完全不会有任何变化！<br>接下来看下Redux的源码：<br><img src="https://user-gold-cdn.xitu.io/2018/8/22/165609de895ae1ae?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>Redux接收一个给定的state（对象），然后通过循环将state的每一部分传递给每个对应的reducer。如果有发生任何改变，reducer将返回一个新的对象。如果不发生任何变化，reducer将返回旧的state。<br>Redux只通过比较新旧两个对象的存储位置来比较新旧两个对象是否相同。如果你在reducer内部直接修改旧的state对象的属性值，那么新的state和旧的state将都指向同一个对象。因此Redux认为没有任何改变，返回的state将为旧的state。<br>好了，也就是说，从源码的角度来讲，redux要求开发者必须让新的state是全新的对象。那么为什么非要这么麻烦开发者呢？<br>请看下面的例子：尝试比较a和b是否相同<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 12,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">var b = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 13,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p> 思路是怎样的？我们需要遍历对象，如果对象的属性是数组，还需要进行递归遍历，去看内容是否一致、是否发生了变化。 这带来的性能损耗是非常巨大的。 有没有更好的办法？<br>有！<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//接上面的例子</span><br><span class="line">a === b  //false</span><br></pre></td></tr></table></figure></p>
-<p> 我不要进行深度比较，只是浅比较，引用值不一样(不是同一个对象),那就是不一样的。 这就是redux的reducer如此设计的原因了</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/26/CSS-defer和async的区别/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/07/26/CSS-defer和async的区别/" itemprop="url">CSS defer和async的区别</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-26T22:46:19+08:00">
-                2018-07-26
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>先来试个一句话解释仨，当浏览器碰到 script 脚本的时候：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;script src=&quot;&quot;&gt;&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<p>没有 defer 或 async，浏览器会立即加载并执行指定的脚本，“立即”指的是在渲染该 script 标签之下的文档元素之前，也就是说不等待后续载入的文档元素，读到就加载并执行。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;script async src=&quot;&quot;&gt;&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<p>有 async，加载和渲染后续文档元素的过程将和 script.js 的加载与执行并行进行（异步）。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;script defer src=&quot;&quot;&gt;&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<p>有 defer，加载后续文档元素的过程将和 script.js 的加载并行进行（异步），但是 script.js 的执行要在所有元素解析完成之后，DOMContentLoaded 事件触发之前完成。</p>
-<p>然后从实用角度来说呢，首先把所有脚本都丢到  之前是最佳实践，因为对于旧浏览器来说这是唯一的优化选择，此法可保证非脚本的其他一切元素能够以最快的速度得到加载和解析。</p>
-<p>接着，我们来看一张图咯：</p>
-<p><img src="https://pic3.zhimg.com/v2-256ddc294b88b9a082b3b2aafe193728_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-256ddc294b88b9a082b3b2aafe193728_hd.jpg" alt=""></p>
-<p><img src="https://pic2.zhimg.com/v2-244a0c3246f534e96ce88124e3978261_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-244a0c3246f534e96ce88124e3978261_hd.jpg" alt=""></p>
-<h2 id="蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表-HTML-解析。【JS-解析会阻塞HTML解析】"><a href="#蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表-HTML-解析。【JS-解析会阻塞HTML解析】" class="headerlink" title="蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表 HTML 解析。【JS 解析会阻塞HTML解析】"></a>蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表 HTML 解析。【JS 解析会阻塞HTML解析】</h2><p>此图告诉我们以下几个要点：</p>
-<ol>
-<li>defer 和 async 在网络读取（下载）这块儿是一样的，都是异步的（相较于 HTML 解析）</li>
-<li>它俩的差别在于脚本下载完之后何时执行，显然 defer 是最接近我们对于应用脚本加载和执行的要求的</li>
-<li>关于 defer，此图未尽之处在于它是按照加载顺序执行脚本的，这一点要善加利用</li>
-<li>async 则是一个乱序执行的主，反正对它来说脚本的加载和执行是紧紧挨着的，所以不管你声明的顺序如何，只要它加载完了就会立刻执行</li>
-<li>仔细想想，async 对于应用脚本的用处不大，因为它完全不考虑依赖（哪怕是最低级的顺序执行），不过它对于那些可以不依赖任何脚本或不被任何脚本依赖的脚本来说却是非常合适的，最典型的例子：Google Analytics</li>
-</ol>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3936,7 +4719,7 @@ store.dispatch = function(action){
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">88</span>
+                  <span class="site-state-item-count">91</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3949,7 +4732,7 @@ store.dispatch = function(action){
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">56</span>
+                  <span class="site-state-item-count">57</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

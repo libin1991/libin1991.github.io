@@ -293,6 +293,968 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/19/HTTP三种缓存方式/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/19/HTTP三种缓存方式/" itemprop="url">HTTP三种缓存方式</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-19T00:03:50+08:00">
+                2018-04-19
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>依然在学习node的艰辛过程中，最近学习了http相关的知识，学到了东西当然第一时间就来和大家分享分享，今天呢就教大家来看看利用node中的http模块去实现不同的缓存策略！！！</p>
+<p>我们都知道，对于我们前端开发来说，缓存是一个十分重要的东西，即希望用户不能每次请求过来都要重复下载我们的页面内容，希望为用户节省流量，并且能提高我们页面的浏览流畅度，但是同时当我们修改了一个bug后，又希望线上能够及时更新，这时候就要求爷爷告奶奶让运维小哥哥帮我们刷新一下缓存了，那么有没有一些比较好的缓存策略可以针对我们修改bug又能不麻烦运维及时更新呢，今天我们就利用node来看一下后端中的缓存策略是如何设置的。</p>
+<h2 id="强制缓存"><a href="#强制缓存" class="headerlink" title="强制缓存"></a>强制缓存</h2><p>通常我们对于强制缓存的设置是服务端告诉客户端你刚刚已经请求过一次了，我们约定好十分钟内你再过来请求都直接读取缓存吧，意思也就是当客户端在十分钟内多次请求的话只有第一次会下载页面内容，其他的请求都是直接走缓存，不管我们页面在这期间有没有变化都不会影响客户端读取缓存。<br>那我们来看一下代码的实现</p>
+<pre><code>let http = require(&apos;http&apos;);
+let path = require(&apos;path&apos;);
+let fs = require(&apos;fs&apos;);
+let url = require(&apos;url&apos;);
+// 创建一个服务
+let server = http.createServer();
+// 监听请求
+server.on(&apos;request&apos;,(req,res)=&gt;{
+    // 获取到请求的路径
+    let {pathname,query} = url.parse(req.url,true);
+    // 将路径拼接成服务器上对应得文件路径
+    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
+    console.log(readPath)
+    try {
+        // 获取路径状态
+        let statObj = fs.statSync(readPath);
+        // 服务端设置响应头 Cache-Control 也就是缓存多久以秒为单位
+        res.setHeader(&apos;Cache-Control&apos;,&apos;max-age=10&apos;);
+        // 服务器设置响应头Expires 过期时间 获取当前时间加上刚刚设置的缓存秒数
+        res.setHeader(&apos;Expires&apos;,new Date(Date.now()+10*1000).toGMTString());
+        //判断如果路径是一件文件夹 就默认查找该文件下的index.html
+        if(statObj.isDirectory()){
+            let p = path.join(readPath,&apos;index.html&apos;);
+            console.log(p);
+            // 判断是否有index.html 没有就返回404
+            fs.statSync(p);
+            // 创建文件可读流 并且pipe到响应res可写流中
+            fs.createReadStream(p).pipe(res)
+        }else{
+            // 如果请求的就是一个文件 那么久直接返回
+            fs.createReadStream(readPath).pipe(res)
+        }
+    } catch (error) {
+        // 读取不到 返回404 
+        console.log(error)
+        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
+        res.statusCode = 404;
+        res.end(`未发现文件`)
+    }
+})
+// 监听3000端口
+server.listen(3000)
+复制代码
+</code></pre><p><a href="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过上面代码测试我们会发现当我们在10秒内进行对同一文件的请求，那么我们浏览器就会直接走缓存 通过上图可以看到我们重复请求的时候我们会看到css变成from memory cache，我们也看到我们刚刚的响应头也被设置上了</p>
+<p><a href="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
+<h2 id="协商缓存"><a href="#协商缓存" class="headerlink" title="协商缓存"></a>协商缓存</h2><p>上面的强制缓存我们就发现了 就是我们平时改完bug上线要苦苦等待的一个原因了，那么有没有其他的好的缓存处理方法呢，我们设想一下 假如我们能够知道我们文件有没有修改，假如我们修改了服务器就返回最新的内容假如没有修改 就一直默认缓存 ，这样是不是听起来十分的棒！那我们就想如果我们能够知道文件的最后修改时间是不是就可以实现了！</p>
+<h3 id="通过文件最后修改时间来缓存"><a href="#通过文件最后修改时间来缓存" class="headerlink" title="通过文件最后修改时间来缓存"></a>通过文件最后修改时间来缓存</h3><pre><code>let http = require(&apos;http&apos;);
+let path = require(&apos;path&apos;);
+let fs = require(&apos;fs&apos;);
+let url = require(&apos;url&apos;);
+let server = http.createServer();
+server.on(&apos;request&apos;,(req,res)=&gt;{
+    // 获取到请求的路径
+    let {pathname,query} = url.parse(req.url,true);
+    // 将路径拼接成服务器上对应得文件路径
+    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
+    try {
+        // 获取路径状态
+        let statObj = fs.statSync(readPath);
+        // 为了方便测试 我们告诉客户端不要走强制缓存了
+        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
+        if(statObj.isDirectory()){
+            let p = path.join(readPath,&apos;index.html&apos;);
+            let statObj = fs.statSync(p);
+            // 我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧
+            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
+            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
+                res.statusCode = 304;
+                res.end();
+                return
+            }
+            // 修改了那么我们就直接返回新的内容
+            fs.createReadStream(p).pipe(res)
+        }else{
+            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
+            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
+                res.statusCode = 304;
+                res.end();
+                return
+            }
+            fs.createReadStream(readPath).pipe(res)
+        }
+    } catch (error) {
+        console.log(error)
+        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
+        res.statusCode = 404;
+        res.end(`未发现文件`)
+    }
+})
+
+server.listen(3000)
+
+复制代码
+</code></pre><p><a href="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
+<p>我们通过请求可以看到，当我们第一次请求过后，无论怎么刷新请求都是304 直接读取的缓存，假如我们在服务端把这个文件修改了 那么我们就能看到又能请求到最新的内容了，这就是我们通过协商缓存来处理的，我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧</p>
+<h3 id="通过文件内容来缓存"><a href="#通过文件内容来缓存" class="headerlink" title="通过文件内容来缓存"></a>通过文件内容来缓存</h3><p>再再再再再假如我们在文件中删除了字符a然后又还原了，那么这时候保存我们的文件的修改时间其实也发生了变化，但是其实我们文件的真正内容并没有发生变化，所以这时候其实客户端继续走缓存也是可以的 ，我们来看看这样的缓存策略如何实现。</p>
+<pre><code>let http = require(&apos;http&apos;);
+let path = require(&apos;path&apos;);
+let fs = require(&apos;fs&apos;);
+let url = require(&apos;url&apos;);
+let crypto = require(&apos;crypto&apos;);
+let server = http.createServer();
+server.on(&apos;request&apos;,(req,res)=&gt;{
+    // 获取到请求的路径
+    let {pathname,query} = url.parse(req.url,true);
+    // 将路径拼接成服务器上对应得文件路径
+    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
+    try {
+        // 获取路径状态
+        let statObj = fs.statSync(readPath);
+        // 为了方便测试 我们告诉客户端不要走强制缓存了
+        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
+        if(statObj.isDirectory()){
+            let p = path.join(readPath,&apos;index.html&apos;);
+            let statObj = fs.statSync(p);
+            // 我们通过流把文件读取出来 然后对读取问来的内容进行md5加密 得到一个base64加密hash值
+            let rs = fs.createReadStream(p);
+            let md5 = crypto.createHash(&apos;md5&apos;);
+            let arr = [];
+            rs.on(&apos;data&apos;,(data)=&gt;{
+                arr.push(data);
+                md5.update(data);
+            })
+            rs.on(&apos;end&apos;,(data)=&gt;{
+                let r = md5.digest(&apos;base64&apos;);
+                // 然后我们将这个hash值通过响应头Etag传给客户端，客户端再下一次请求的时候会把上一次的Etag值通过请求头if-none-match带过来，然后我们就可以继续比对文件生成的hash值和上次产生的hash是否一样 如果一样说明文件内容没有发生变化 就告诉客户端304 读取缓存
+                res.setHeader(&apos;Etag&apos;,r);
+                if(req.headers[&apos;if-none-match&apos;]===r){
+                    res.statusCode=304;
+                    res.end();
+                    return;
+                }
+                res.end(Buffer.concat(arr))
+            })
+        }else{
+            let rs = fs.createReadStream(readPath);
+            let md5 = crypto.createHash(&apos;md5&apos;);
+            let arr = [];
+            rs.on(&apos;data&apos;,(data)=&gt;{
+                arr.push(data);
+                md5.update(data);
+            })
+            rs.on(&apos;end&apos;,(data)=&gt;{
+                let r = md5.digest(&apos;base64&apos;);
+                res.setHeader(&apos;Etag&apos;,r);
+                if(req.headers[&apos;if-none-match&apos;]===r){
+                    res.statusCode=304;
+                    res.end();
+                    return;
+                }
+                res.end(Buffer.concat(arr))
+            })
+        }
+    } catch (error) {
+        console.log(error)
+        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
+        res.statusCode = 404;
+        res.end(`未发现文件`)
+    }
+})
+
+server.listen(3000)
+
+复制代码
+</code></pre><p><a href="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过控制台我们可以看出来 请求头和响应头中都有我们上面所说的对应的值，但是从代码里我们也能看出来，我们每次在请求到来的时候都会把文件全部读取出来并且进行加密生产hash然后再做对比，这样其实十分的消耗性能，因此这种缓存方式也有他自己的缺点</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们通过node来亲自实现了三种缓存方式，我们可以总结出每种缓存方式对应的实现：</p>
+<ul>
+<li>强制缓存 服务端设置响应头Cache-Control:max-age=xxx，并且设置Expires响应头过期时间，客户端自行判断是否读取缓存</li>
+<li><p>协商缓存 通过状态码304告诉客户端该走缓存</p>
+</li>
+<li><p>修改时间：通过文件的最后修改时间判断该不该读取缓存，服务端设置响应头Last-Modified,客户端把上次服务端响应头中的Last-modified值通过if-modified-since 传递给服务端 ， 服务端通过比较当前文件的修改时间和上次修改时间(上次传给客户端的值),如果相等那么说明文件修改时间没变也就是没变化</p>
+</li>
+<li>文件内容：通过文件的内容来判断该不该读取缓存，服务端通过把文件内容读取出来，通过md5进行base64加密得出hash值，把这个值设置响应头Etag，客户端下一次请求通过if-none-match带过来，服务端再比对当前文件内容加密得出的hash值和上次是否一样，如果一样说明文件内容没有发生改变，这种方式是最准确的方式，但是也是最耗性能</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/10/Vue你可能不知道的7个技巧/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/10/Vue你可能不知道的7个技巧/" itemprop="url">Vue你可能不知道的7个技巧</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-10T15:02:13+08:00">
+                2018-04-10
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、善用watch的immediate属性"><a href="#一、善用watch的immediate属性" class="headerlink" title="一、善用watch的immediate属性"></a>一、善用watch的immediate属性</h2><p>这一点我在项目中也是这么写的。例如有请求需要再也没初始化的时候就执行一次，然后监听他的变化，很多人这么写：</p>
+<pre><code>created(){
+    this.fetchPostList()
+},
+watch: {
+    searchInputValue(){
+        this.fetchPostList()
+    }
+}
+</code></pre><p>上面的这种写法我们可以完全如下写：</p>
+<pre><code> watch: {
+    searchInputValue:{
+        handler: &apos;fetchPostList&apos;,
+        immediate: true
+    }
+}
+</code></pre><h2 id="二、组件注册，值得借鉴"><a href="#二、组件注册，值得借鉴" class="headerlink" title="二、组件注册，值得借鉴"></a>二、组件注册，值得借鉴</h2><p>一般情况下，我们组件如下写：</p>
+<pre><code>import BaseButton from &apos;./baseButton&apos;
+import BaseIcon from &apos;./baseIcon&apos;
+import BaseInput from &apos;./baseInput&apos;export default {
+  components: {
+    BaseButton,
+    BaseIcon,
+    BaseInput
+  }
+}
+&lt;BaseInput  v-model=&quot;searchText&quot; @keydown.enter=&quot;search&quot; /&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;  &lt;BaseIcon name=&quot;search&quot;/&gt;&lt;/BaseButton&gt;
+</code></pre><p>步骤一般有三部，</p>
+<blockquote>
+<p>第一步，引入、</p>
+</blockquote>
+<blockquote>
+<p>第二步注册、</p>
+</blockquote>
+<blockquote>
+<p>第三步才是正式的使用，</p>
+</blockquote>
+<p>这也是最常见和通用的写法。但是这种写法经典归经典，好多组件，要引入多次，注册多次，感觉很烦。</p>
+<p>我们可以借助一下webpack，使用 require.context() 方法来创建自己的（模块）上下文，从而实现自动动态require组件。</p>
+<p>思路是：在src文件夹下面main.js中，借助webpack动态将需要的基础组件统统打包进来。</p>
+<p>代码如下：</p>
+<pre><code>import Vue from &apos;vue&apos;
+import upperFirst from &apos;lodash/upperFirst&apos;
+import camelCase from &apos;lodash/camelCase&apos;
+
+// Require in a base component context
+const requireComponent = require.context(&apos;./components&apos;, false, /base-[\w-]+\.vue$/)
+
+requireComponent.keys().forEach(fileName =&gt; {
+  // Get component config
+  const componentConfig = requireComponent(fileName)
+
+  // Get PascalCase name of component
+  const componentName = upperFirst(
+    camelCase(fileName.replace(/^\.\//, &apos;&apos;).replace(/\.\w+$/, &apos;&apos;))
+  )
+
+  // Register component globally
+  Vue.component(componentName, componentConfig.default || componentConfig)
+})
+</code></pre><p>这样我们引入组件只需要第三步就可以了：</p>
+<pre><code>&lt;BaseInput
+   v-model=&quot;searchText&quot;
+   @keydown.enter=&quot;search&quot;
+/&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;
+   &lt;BaseIcon name=&quot;search&quot;/&gt;
+&lt;/BaseButton&gt;
+</code></pre><h2 id="三、精简vuex的modules引入"><a href="#三、精简vuex的modules引入" class="headerlink" title="三、精简vuex的modules引入"></a>三、精简vuex的modules引入</h2><p>对于vuex，我们输出store如下写：</p>
+<pre><code>import auth from &apos;./modules/auth&apos;
+import posts from &apos;./modules/posts&apos;
+import comments from &apos;./modules/comments&apos;
+
+
+export default new Vuex.Store({
+  modules: {
+    auth,
+    posts,
+    comments
+  }
+})
+</code></pre><p>要引入好多modules，然后再注册到Vuex.Store中~~</p>
+<p>精简的做法和上面类似，也是运用 require.context()读取文件，代码如下：</p>
+<pre><code>import camelCase from &apos;lodash/camelCase&apos;
+const requireModule = require.context(&apos;.&apos;, false, /\.js$/)
+const modules = {}
+
+requireModule.keys().forEach(fileName =&gt; {
+// Don&apos;t register this file as a Vuex module
+if (fileName === &apos;./index.js&apos;) return
+
+const moduleName = camelCase(
+  fileName.replace(/(\.\/|\.js)/g, &apos;&apos;)
+)
+modules[moduleName] = {
+              namespaced: true,
+             ...requireModule(fileName),
+            }
+
+})
+
+export default modules
+</code></pre><p>这样我们只需如下代码就可以了：</p>
+<pre><code>import modules from &apos;./modules&apos;
+export default new Vuex.Store({
+   modules
+})
+</code></pre><h2 id="四、路由的延迟加载"><a href="#四、路由的延迟加载" class="headerlink" title="四、路由的延迟加载"></a>四、路由的延迟加载</h2><p>这一点，关于vue的引入，我之前在中也提及过，可以通过require方式或者import()方式动态加载组件。</p>
+<pre><code>{
+ path: &apos;/admin&apos;,
+ name: &apos;admin-dashboard&apos;,
+ component:require(&apos;@views/admin&apos;).default
+}
+</code></pre><p>或者</p>
+<pre><code>{
+  path: &apos;/admin&apos;,
+  name: &apos;admin-dashboard&apos;,
+  component:() =&gt; import(&apos;@views/admin&apos;)
+}
+</code></pre><p>加载路由。</p>
+<h2 id="五、router-key组件刷新"><a href="#五、router-key组件刷新" class="headerlink" title="五、router key组件刷新"></a>五、router key组件刷新</h2><p>下面这个场景真的是伤透了很多程序员的心…<br> 先默认大家用的是Vue-router来实现路由的控制。 假设我们在写一个博客网站，需求是从/post-haorooms/a，跳转到/post-haorooms/b。然后我们惊人的发现，页面跳转后数据竟然没更新？！原因是vue-router”智能地”发现这是同一个组件，然后它就决定要复用这个组件，所以你在created函数里写的方法压根就没执行。通常的解决方案是监听$route的变化来初始化数据，如下：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+}, 
+watch: {
+  &apos;$route&apos;: {
+    handler: &apos;resetData&apos;,
+    immediate: true
+  }
+},
+methods: {
+  resetData() {
+    this.loading = false
+    this.error = null
+    this.post = null
+    this.getPost(this.$route.params.id)
+  },
+  getPost(id){
+
+  }
+}
+</code></pre><p>bug是解决了，可每次这么写也太不优雅了吧？秉持着能偷懒则偷懒的原则，我们希望代码这样写：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+},
+created () {
+  this.getPost(this.$route.params.id)
+},
+methods () {
+  getPost(postId) {
+    // ...
+  }
+}
+</code></pre><p>解决方案：给router-view添加一个唯一的key，这样即使是公用组件，只要url变化了，就一定会重新创建这个组件。</p>
+<pre><code>&lt;router-view :key=&quot;$route.fullpath&quot;&gt;&lt;/router-view&gt;
+</code></pre><p>注：我个人的经验，这个一般应用在子路由里面，这样才可以不避免大量重绘，假设app.vue根目录添加这个属性，那么每次点击改变地址都会重绘，还是得不偿失的！</p>
+<h2 id="六、唯一组件根元素"><a href="#六、唯一组件根元素" class="headerlink" title="六、唯一组件根元素"></a>六、唯一组件根元素</h2><p>场景如下：</p>
+<pre><code>(Emitted value instead of an instance of Error)
+ Error compiling template:
+
+ &lt;div&gt;&lt;/div&gt;
+ &lt;div&gt;&lt;/div&gt;
+
+ - Component template should contain exactly one root element. 
+   If you are using v-if on multiple elements, use v-else-if 
+   to chain them instead.
+</code></pre><p>模板中div只能有一个，不能如上面那么平行2个div。</p>
+<p>例如如下代码：</p>
+<pre><code>&lt;template&gt;
+  &lt;li
+    v-for=&quot;route in routes&quot;
+    :key=&quot;route.name&quot;
+  &gt;
+    &lt;router-link :to=&quot;route&quot;&gt;
+      {{ route.title }}
+    &lt;/router-link&gt;
+  &lt;/li&gt;
+&lt;/template&gt;
+</code></pre><p>会报错！</p>
+<p>我们可以用render函数来渲染</p>
+<pre><code>functional: true,
+render(h, { props }) {
+ return props.routes.map(route =&gt;
+   &lt;li key={route.name}&gt;
+     &lt;router-link to={route}&gt;
+       {route.title}
+     &lt;/router-link&gt;
+   &lt;/li&gt;
+ )
+}
+</code></pre><h2 id="七、组件包装、事件属性穿透问题"><a href="#七、组件包装、事件属性穿透问题" class="headerlink" title="七、组件包装、事件属性穿透问题"></a>七、组件包装、事件属性穿透问题</h2><p>当我们写组件的时候，通常我们都需要从父组件传递一系列的props到子组件，同时父组件监听子组件emit过来的一系列事件。举例子：</p>
+<pre><code>//父组件
+&lt;BaseInput 
+    :value=&quot;value&quot;
+    label=&quot;密码&quot; 
+    placeholder=&quot;请填写密码&quot;
+    @input=&quot;handleInput&quot;
+    @focus=&quot;handleFocus&gt;
+&lt;/BaseInput&gt;
+
+//子组件
+&lt;template&gt;
+  &lt;label&gt;
+    {{ label }}
+    &lt;input
+      :value=&quot;value&quot;
+      :placeholder=&quot;placeholder&quot;
+      @focus=$emit(&apos;focus&apos;, $event)&quot;
+      @input=&quot;$emit(&apos;input&apos;, $event.target.value)&quot;
+    &gt;
+  &lt;/label&gt;
+&lt;/template&gt;
+</code></pre><p>这样写很不精简，很多属性和事件都是手动定义的，我们可以如下写：</p>
+<pre><code>&lt;input
+    :value=&quot;value&quot;
+    v-bind=&quot;$attrs&quot;
+    v-on=&quot;listeners&quot;
+&gt;
+
+computed: {
+  listeners() {
+    return {
+      ...this.$listeners,
+      input: event =&gt; 
+        this.$emit(&apos;input&apos;, event.target.value)
+    }
+  }
+}
+</code></pre><p>$attrs包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (class 和 style 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定，并且可以通过 v-bind=”$attrs” 传入内部组件。</p>
+<p>$listeners包含了父作用域中的 (不含 .native 修饰器的) v-on 事件监听器。它可以通过 v-on=”$listeners” 传入内部组件。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/vue2-0模板渲染底层思想/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/02/vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
+                2018-04-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>初衷</p>
+<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
+<p>vue2.0和1.0模板渲染的区别</p>
+<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
+<p>知识普及</p>
+<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
+<p>AST 数据结构</p>
+<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
+<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
+<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
+declare type ASTElement = { // 有关元素的一些定义
+  type: 1;
+  tag: string;
+  attrsList: Array&lt;{ name: string; value: string }&gt;;
+  attrsMap: { [key: string]: string | null };
+  parent: ASTElement | void;
+  children: Array&lt;ASTNode&gt;;
+  //......
+}
+declare type ASTExpression = {
+  type: 2;
+  expression: string;
+  text: string;
+  static?: boolean;
+}
+declare type ASTText = {
+  type: 3;
+  text: string;
+  static?: boolean;
+}
+</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
+<p>VNode数据结构</p>
+<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
+<pre><code>constructor {
+  this.tag = tag   //元素标签
+  this.data = data  //属性
+  this.children = children  //子元素列表
+  this.text = text
+  this.elm = elm  //对应的真实 DOM 元素
+  this.ns = undefined
+  this.context = context 
+  this.functionalContext = undefined
+  this.key = data &amp;&amp; data.key
+  this.componentOptions = componentOptions
+  this.componentInstance = undefined
+  this.parent = undefined
+  this.raw = false
+  this.isStatic = false //是否被标记为静态节点
+  this.isRootInsert = true
+  this.isComment = false
+  this.isCloned = false
+  this.isOnce = false
+}
+</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
+<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
+<pre><code>let div = document.createElement(&apos;div&apos;);
+for(let k in div) {
+  console.log(k);
+}
+</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
+<p>render函数</p>
+<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
+<pre><code>&lt;div id=&quot;app&quot;&gt;
+  &lt;header&gt;
+    &lt;h1&gt;I am a template!&lt;/h1&gt;
+  &lt;/header&gt;
+  &lt;p v-if=&quot;message&quot;&gt;
+    {{ message }}
+  &lt;/p&gt;
+  &lt;p v-else&gt;
+    No message.
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
+<pre><code>(function() {
+  with(this){
+    return _c(&apos;div&apos;,{   //创建一个 div 元素
+      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
+      },[
+        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
+        _v(&quot; &quot;), //空的文本节点
+        (message) //三元表达式，判断 message 是否存在
+         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
+        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
+        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
+        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
+      ]
+    )
+  }
+})
+</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
+<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
+<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
+  with(this){
+    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
+  }
+})
+</code></pre><p>模板渲染过程（重要的函数介绍）</p>
+<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
+<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
+<pre><code>// 有缓存的话就直接在缓存里面拿
+const key = options &amp;&amp; options.delimiters
+            ? String(options.delimiters) + template
+            : template
+if (cache[key]) {
+    return cache[key]
+}
+const res = {}
+const compiled = compile(template, options) // compile 后面会详细讲
+res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
+const l = compiled.staticRenderFns.length
+res.staticRenderFns = new Array(l)
+for (let i = 0; i &lt; l; i++) {
+    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
+}
+......
+}
+return (cache[key] = res) // 记录至缓存中
+</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
+<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
+<pre><code>// 触发 beforeMount 生命周期钩子
+callHook(vm, &apos;beforeMount&apos;)
+// 重点：新建一个 Watcher 并赋值给 vm._watcher
+vm._watcher = new Watcher(vm, function updateComponent () {
+  vm._update(vm._render(), hydrating)
+}, noop)
+hydrating = false
+// manually mounted instance, call mounted on self
+// mounted is called for render-created child components in its inserted hook
+if (vm.$vnode == null) {
+  vm._isMounted = true
+  callHook(vm, &apos;mounted&apos;)
+}
+return vm
+</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
+<p>compile</p>
+<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
+<pre><code>export function compile (
+  template: string,
+  options: CompilerOptions
+): CompiledResult {
+  const AST = parse(template.trim(), options) //1. parse
+  optimize(AST, options)  //2.optimize
+  const code = generate(AST, options) //3.generate
+  return {
+    AST,
+    render: code.render,
+    staticRenderFns: code.staticRenderFns
+  }
+}
+</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
+<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
+staticRenderFns = prevStaticRenderFns
+onceCount = prevOnceCount
+return {
+    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
+    staticRenderFns: currentStaticRenderFns
+}
+</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
+<pre><code>function genElement (el: ASTElement): string {
+  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
+    return genStatic(el)
+  } else if (el.once &amp;&amp; !el.onceProcessed) {
+    return genOnce(el)
+  } else if (el.for &amp;&amp; !el.forProcessed) {
+    return genFor(el)
+  } else if (el.if &amp;&amp; !el.ifProcessed) {
+    return genIf(el)
+  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
+    return genChildren(el) || &apos;void 0&apos;
+  } else if (el.tag === &apos;slot&apos;) {
+  }
+    return code
+  }
+}
+</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
+<p>patch</p>
+<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
+<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
+<p>总结</p>
+<ul>
+<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
+<li>render函数 与数据通过 Watcher 产生关联；</li>
+<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/01/NPM学习笔记整理/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2632,789 +3594,11 @@ document.dispatchEvent(myEvent);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/29/从Vue-js源码看nextTick机制/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/29/从Vue-js源码看nextTick机制/" itemprop="url">从Vue.js源码看nextTick机制</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-29T22:30:13+08:00">
-                2017-10-29
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><a href="https://link.zhihu.com/?target=https%3A//chuckliu.me/%23%21/posts/58bd08a2b5187d2fb51c04f9" target="_blank" rel="noopener">Vue源码详解之nextTick：MutationObserver只是浮云，microtask才是核心！</a></p>
-<h2 id="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"><a href="#可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。" class="headerlink" title="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"></a>可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。</h2><h2 id="操作DOM"><a href="#操作DOM" class="headerlink" title="操作DOM"></a>操作DOM</h2><p>在使用vue.js的时候，有时候因为一些特定的业务场景，不得不去操作DOM，比如这样：</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
-    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: &apos;begin&apos;
-        };
-    },
-    methods () {
-        handleClick () {
-            this.test = &apos;end&apos;;
-            console.log(this.$refs.test.innerText);//打印“begin”
-        }
-    }
-}
-</code></pre><p>打印的结果是begin，为什么我们明明已经将test设置成了“end”，获取真实DOM节点的innerText却没有得到我们预期中的“end”，而是得到之前的值“begin”呢？</p>
-<h2 id="Watcher队列"><a href="#Watcher队列" class="headerlink" title="Watcher队列"></a>Watcher队列</h2><p>带着疑问，我们找到了Vue.js源码的Watch实现。当某个响应式数据发生变化的时候，它的setter函数会通知闭包中的Dep，Dep则会调用它管理的所有Watch对象。触发Watch对象的update实现。我们来看一下update的实现。</p>
-<pre><code>update () {
-    /* istanbul ignore else */
-    if (this.lazy) {
-        this.dirty = true
-    } else if (this.sync) {
-        /*同步则执行run直接渲染视图*/
-        this.run()
-    } else {
-        /*异步推送到观察者队列中，下一个tick时调用。*/
-        queueWatcher(this)
-    }
-}
-</code></pre><p>我们发现Vue.js默认是使用<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fguide%252Freactivity.html%2523%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0%25E9%2598%259F%25E5%2588%2597" target="_blank" rel="noopener">异步执行DOM更新</a>。<br>当异步执行update的时候，会调用queueWatcher函数。</p>
-<pre><code>/*将一个观察者对象push进观察者队列，在队列中已经存在相同的id则该观察者对象将被跳过，除非它是在队列被刷新时推送*/
-export function queueWatcher (watcher: Watcher) {
-  /*获取watcher的id*/
-  const id = watcher.id
-  /*检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验*/
-  if (has[id] == null) {
-    has[id] = true
-    if (!flushing) {
-      /*如果没有flush掉，直接push到队列中即可*/
-      queue.push(watcher)
-    } else {
-      // if already flushing, splice the watcher based on its id
-      // if already past its id, it will be run next immediately.
-      let i = queue.length - 1
-      while (i &gt;= 0 &amp;&amp; queue[i].id &gt; watcher.id) {
-        i--
-      }
-      queue.splice(Math.max(i, index) + 1, 0, watcher)
-    }
-    // queue the flush
-    if (!waiting) {
-      waiting = true
-      nextTick(flushSchedulerQueue)
-    }
-  }
-}
-</code></pre><p>查看queueWatcher的源码我们发现，Watch对象并不是立即更新视图，而是被push进了一个队列queue，此时状态处于waiting的状态，这时候会继续会有Watch对象被push进这个队列queue，等待下一个tick时，这些Watch对象才会被遍历取出，更新视图。同时，id重复的Watcher不会被多次加入到queue中去，因为在最终渲染时，我们只需要关心数据的最终结果。</p>
-<p>那么，什么是下一个tick？</p>
-<h2 id="nextTick"><a href="#nextTick" class="headerlink" title="nextTick"></a>nextTick</h2><p>vue.js提供了一个<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fapi%252F%2523Vue-nextTick" target="_blank" rel="noopener">nextTick</a>函数，其实也就是上面调用的nextTick。</p>
-<p>nextTick的实现比较简单，执行的目的是在microtask或者task中推入一个funtion，在当前栈执行完毕（也行还会有一些排在前面的需要执行的任务）以后执行nextTick传入的funtion，看一下源码：</p>
-<pre><code>/**
- * Defer a task to execute it asynchronously.
- */
- /*
-    延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function
-    这个函数的作用是在task或者microtask中推入一个timerFunc，
-    在当前调用栈执行完以后以此执行直到执行到timerFunc
-    目的是延迟到当前调用栈执行完以后执行
-*/
-export const nextTick = (function () {
-  /*存放异步执行的回调*/
-  const callbacks = []
-  /*一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送*/
-  let pending = false
-  /*一个函数指针，指向函数将被推送到任务队列中，等到主线程任务执行完时，任务队列中的timerFunc被调用*/
-  let timerFunc
-
-  /*下一个tick时的回调*/
-  function nextTickHandler () {
-    /*一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行），这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程*/
-    pending = false
-    /*执行所有callback*/
-    const copies = callbacks.slice(0)
-    callbacks.length = 0
-    for (let i = 0; i &lt; copies.length; i++) {
-      copies[i]()
-    }
-  }
-
-  // the nextTick behavior leverages the microtask queue, which can be accessed
-  // via either native Promise.then or MutationObserver.
-  // MutationObserver has wider support, however it is seriously bugged in
-  // UIWebView in iOS &gt;= 9.3.3 when triggered in touch event handlers. It
-  // completely stops working after triggering a few times... so, if native
-  // Promise is available, we will use it:
-  /* istanbul ignore if */
-
-  /*
-    这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法
-    优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法都会在microtask中执行，会比setTimeout更早执行，所以优先使用。
-    如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
-    参考：https://www.zhihu.com/question/55364497
-  */
-  if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
-    /*使用Promise*/
-    var p = Promise.resolve()
-    var logError = err =&gt; { console.error(err) }
-    timerFunc = () =&gt; {
-      p.then(nextTickHandler).catch(logError)
-      // in problematic UIWebViews, Promise.then doesn&apos;t completely break, but
-      // it can get stuck in a weird state where callbacks are pushed into the
-      // microtask queue but the queue isn&apos;t being flushed, until the browser
-      // needs to do some other work, e.g. handle a timer. Therefore we can
-      // &quot;force&quot; the microtask queue to be flushed by adding an empty timer.
-      if (isIOS) setTimeout(noop)
-    }
-  } else if (typeof MutationObserver !== &apos;undefined&apos; &amp;&amp; (
-    isNative(MutationObserver) ||
-    // PhantomJS and iOS 7.x
-    MutationObserver.toString() === &apos;[object MutationObserverConstructor]&apos;
-  )) {
-    // use MutationObserver where native Promise is not available,
-    // e.g. PhantomJS IE11, iOS7, Android 4.4
-    /*新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入主线程（比任务队列优先执行），即textNode.data = String(counter)时便会触发回调*/
-    var counter = 1
-    var observer = new MutationObserver(nextTickHandler)
-    var textNode = document.createTextNode(String(counter))
-    observer.observe(textNode, {
-      characterData: true
-    })
-    timerFunc = () =&gt; {
-      counter = (counter + 1) % 2
-      textNode.data = String(counter)
-    }
-  } else {
-    // fallback to setTimeout
-    /* istanbul ignore next */
-    /*使用setTimeout将回调推入任务队列尾部*/
-    timerFunc = () =&gt; {
-      setTimeout(nextTickHandler, 0)
-    }
-  }
-
-  /*
-    推送到队列中下一个tick时执行
-    cb 回调函数
-    ctx 上下文
-  */
-  return function queueNextTick (cb?: Function, ctx?: Object) {
-    let _resolve
-    /*cb存到callbacks中*/
-    callbacks.push(() =&gt; {
-      if (cb) {
-        try {
-          cb.call(ctx)
-        } catch (e) {
-          handleError(e, ctx, &apos;nextTick&apos;)
-        }
-      } else if (_resolve) {
-        _resolve(ctx)
-      }
-    })
-    if (!pending) {
-      pending = true
-      timerFunc()
-    }
-    if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
-      return new Promise((resolve, reject) =&gt; {
-        _resolve = resolve
-      })
-    }
-  }
-})()
-</code></pre><p>它是一个立即执行函数,返回一个queueNextTick接口。</p>
-<p>传入的cb会被push进callbacks中存放起来，然后执行timerFunc（pending是一个状态标记，保证timerFunc在下一个tick之前只执行一次）。</p>
-<p>timerFunc是什么？</p>
-<p>看了源码发现timerFunc会检测当前环境而不同实现，其实就是按照Promise，MutationObserver，setTimeout优先级，哪个存在使用哪个，最不济的环境下使用setTimeout。</p>
-<p>两者的具体实现</p>
-<ul>
-<li>macrotasks: setTimeout ，setInterval， setImmediate，requestAnimationFrame, I/O ，UI渲染</li>
-<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
-</ul>
-<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
-<ol>
-<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
-<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
-<li><p>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</p>
-<p>  这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。</p>
-<pre><code>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。
-如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
-</code></pre></li>
-</ol>
-<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
-<blockquote>
-<p>  JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、   MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>       要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>       实在不行，只能用 setTimeout 创建 task 了。<br>       为啥要用 microtask？<br>       根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>       反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
-</blockquote>
-<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
-<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
-<p>至于 MutationObserver 如何模拟 nextTick 这点，直接看源码，其实就是创建一个 TextNode 并监听内容变化，然后要 nextTick 的时候去改一下这个节点的文本内容：    var counter = 1</p>
-<pre><code>var observer = new MutationObserver(nextTickHandler)
-    var textNode = document.createTextNode(String(counter))
-    observer.observe(textNode, {
-      characterData: true
-    })
-    timerFunc = () =&gt; {
-      counter = (counter + 1) % 2
-      textNode.data = String(counter)
-    }
-</code></pre><p>   setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
-<pre><code>setTimeout(function(){
-    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
-},0);
-</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
-<pre><code>setTimeout(function(){console.log(4)},0);
-new Promise(function(resolve){
-    console.log(1)
-    for( var i=0 ; i&lt;10000 ; i++ ){
-        i==9999 &amp;&amp; resolve()
-    }
-    console.log(2)
-}).then(function(){
-    console.log(5)
-});
-console.log(3);
-结果是：
-1,2,3,5,4
-</code></pre><p>再看这个，两个自执行同时执行：</p>
-<pre><code>&lt;script&gt;
-(function test() {
-  setTimeout(function () {
-    console.log(4)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(1);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(2);
-  }).then(function() {
-    console.log(5);
-  });
-  console.log(3);
-})()
-
-(function test2() {
-  setTimeout(function () {
-    console.log(42)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(12);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(22);
-  }).then(function() {
-    console.log(52);
-  });
-  console.log(32);
-})()
-&lt;/script&gt;
-</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-afcb6fa6fb862818359f757107b769ab_hd.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的 <code>setTimeout</code> 进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
-<pre><code>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：
-</code></pre><p>   1.先执行 macrotasks：I/O -》 UI渲染</p>
-<p>   2.再执行 microtasks ：process.nextTick  -》 Promise  -》MutationObserver -&gt;Object.observe</p>
-<p>   3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
-<p>setTimeout ，setInterval –》setImmediate</p>
-<pre><code>  综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。
-
-setImmediate(function(){
-    console.log(1);
-},0);
-setTimeout(function(){
-    console.log(2);
-},0);
-new Promise(function(resolve){
-    console.log(3);
-    resolve();
-    console.log(4);
-}).then(function(){
-    console.log(5);
-});
-console.log(6);
-process.nextTick(function(){
-    console.log(7);
-});
-console.log(8);
-结果是：3 4 6 8 7 5 2 1
-</code></pre><h2 id="flushSchedulerQueue"><a href="#flushSchedulerQueue" class="headerlink" title="flushSchedulerQueue"></a>flushSchedulerQueue</h2><pre><code>/*Github:https://github.com/answershuto*/
-/**
- * Flush both queues and run the watchers.
- */
- /*nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers*/
-function flushSchedulerQueue () {
-  flushing = true
-  let watcher, id
-
-  // Sort queue before flush.
-  // This ensures that:
-  // 1. Components are updated from parent to child. (because parent is always
-  //    created before the child)
-  // 2. A component&apos;s user watchers are run before its render watcher (because
-  //    user watchers are created before the render watcher)
-  // 3. If a component is destroyed during a parent component&apos;s watcher run,
-  //    its watchers can be skipped.
-  /*
-    给queue排序，这样做可以保证：
-    1.组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。
-    2.一个组件的user watchers比render watcher先运行，因为user watchers往往比render watcher更早创建
-    3.如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过。
-  */
-  queue.sort((a, b) =&gt; a.id - b.id)
-
-  // do not cache length because more watchers might be pushed
-  // as we run existing watchers
-  /*这里不用index = queue.length;index &gt; 0; index--的方式写是因为不要将length进行缓存，因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue*/
-  for (index = 0; index &lt; queue.length; index++) {
-    watcher = queue[index]
-    id = watcher.id
-    /*将has的标记删除*/
-    has[id] = null
-    /*执行watcher*/
-    watcher.run()
-    // in dev build, check and stop circular updates.
-    /*
-      在测试环境中，检测watch是否在死循环中
-      比如这样一种情况
-      watch: {
-        test () {
-          this.test++;
-        }
-      }
-      持续执行了一百次watch代表可能存在死循环
-    */
-    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {
-      circular[id] = (circular[id] || 0) + 1
-      if (circular[id] &gt; MAX_UPDATE_COUNT) {
-        warn(
-          &apos;You may have an infinite update loop &apos; + (
-            watcher.user
-              ? `in watcher with expression &quot;${watcher.expression}&quot;`
-              : `in a component render function.`
-          ),
-          watcher.vm
-        )
-        break
-      }
-    }
-  }
-
-  // keep copies of post queues before resetting state
-  /**/
-  /*得到队列的拷贝*/
-  const activatedQueue = activatedChildren.slice()
-  const updatedQueue = queue.slice()
-
-  /*重置调度者的状态*/
-  resetSchedulerState()
-
-  // call component updated and activated hooks
-  /*使子组件状态都改编成active同时调用activated钩子*/
-  callActivatedHooks(activatedQueue)
-  /*调用updated钩子*/
-  callUpdateHooks(updatedQueue)
-
-  // devtool hook
-  /* istanbul ignore if */
-  if (devtools &amp;&amp; config.devtools) {
-    devtools.emit(&apos;flush&apos;)
-  }
-}
-</code></pre><p>flushSchedulerQueue是下一个tick时的回调函数，主要目的是执行Watcher的run函数，用来更新视图</p>
-<h2 id="为什么要异步更新视图"><a href="#为什么要异步更新视图" class="headerlink" title="为什么要异步更新视图"></a>为什么要异步更新视图</h2><p>来看一下下面这一段代码</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div&gt;{{test}}&lt;/div&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: 0
-        };
-    },
-    created () {
-      for(let i = 0; i &lt; 1000; i++) {
-        this.test++;
-      }
-    }
-}
-</code></pre><p>现在有这样的一种情况，created的时候test的值会被++循环执行1000次。<br>每次++时，都会根据响应式触发setter-&gt;Dep-&gt;Watcher-&gt;update-&gt;patch。<br>如果这时候没有异步更新视图，那么每次++都会直接操作DOM更新视图，这是非常消耗性能的。<br>所以Vue.js实现了一个queue队列，在下一个tick的时候会统一执行queue中Watcher的run。同时，拥有相同id的Watcher不会被重复加入到该queue中去，所以不会执行1000次Watcher的run。最终更新视图只会直接将test对应的DOM的0变成1000。<br>保证更新视图操作DOM的动作是在当前栈执行完以后下一个tick的时候调用，大大优化了性能。</p>
-<h2 id="访问真实DOM节点更新后的数据"><a href="#访问真实DOM节点更新后的数据" class="headerlink" title="访问真实DOM节点更新后的数据"></a>访问真实DOM节点更新后的数据</h2><p>所以我们需要在修改data中的数据后访问真实的DOM节点更新后的数据，只需要这样，我们把文章第一个例子进行修改。</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
-    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: &apos;begin&apos;
-        };
-    },
-    methods () {
-        handleClick () {
-            this.test = &apos;end&apos;;
-            this.$nextTick(() =&gt; {
-                console.log(this.$refs.test.innerText);//打印&quot;end&quot;
-            });
-            console.log(this.$refs.test.innerText);//打印“begin”
-        }
-    }
-}
-</code></pre><p>使用Vue.js的global API的$nextTick方法，即可在回调中获取已经更新好的DOM实例了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/28/CSS网格布局（Grid）完全教程/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/28/CSS网格布局（Grid）完全教程/" itemprop="url">CSS网格布局（Grid）完全教程</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-28T16:25:32+08:00">
-                2017-10-28
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="CSS网格布局（Grid）完全教程"><a href="#CSS网格布局（Grid）完全教程" class="headerlink" title="CSS网格布局（Grid）完全教程"></a><a href="https://www.zcfy.cc/article/learn-css-grid-a-guide-to-learning-css-grid-jonathan-suh" target="_blank" rel="noopener">CSS网格布局（Grid）完全教程</a></h3>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/24/自己动手实现ES6-EventBus/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/24/自己动手实现ES6-EventBus/" itemprop="url">自己动手实现ES6 EventBus</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-24T20:18:08+08:00">
-                2017-10-24
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line">class EventBus &#123;</span><br><span class="line"></span><br><span class="line">    constructor() &#123;</span><br><span class="line">        this.events = &#123;&#125;;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    on(type, callback, scope, ...args) &#123;</span><br><span class="line">        if (typeof this.events[type] == &quot;undefined&quot;) &#123;</span><br><span class="line">            this.events[type] = [];</span><br><span class="line">        &#125;</span><br><span class="line">        this.events[type].push(&#123;scope: scope, callback: callback, args: args&#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    off(type, callback, scope) &#123;</span><br><span class="line">        if (typeof this.events[type] == &quot;undefined&quot;) &#123;</span><br><span class="line">            return;</span><br><span class="line">        &#125;</span><br><span class="line">        let numOfCallbacks = this.events[type].length;</span><br><span class="line">        let newArray = [];</span><br><span class="line">        for (let i = 0; i &lt; numOfCallbacks; i++) &#123;</span><br><span class="line">            let event = this.events[type][i];</span><br><span class="line">            if (event.scope == scope &amp;&amp; event.callback == callback) &#123;</span><br><span class="line"></span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                newArray.push(event);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        this.events[type] = newArray;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    has(type, callback, scope) &#123;</span><br><span class="line">        if (typeof this.events[type] == &quot;undefined&quot;) &#123;</span><br><span class="line">            return false;</span><br><span class="line">        &#125;</span><br><span class="line">        let numOfCallbacks = this.events[type].length;</span><br><span class="line">        if (callback === undefined &amp;&amp; scope === undefined) &#123;</span><br><span class="line">            return numOfCallbacks &gt; 0;</span><br><span class="line">        &#125;</span><br><span class="line">        for (let i = 0; i &lt; numOfCallbacks; i++) &#123;</span><br><span class="line">            let event = this.events[type][i];</span><br><span class="line">            if ((scope ? event.scope == scope : true) &amp;&amp; event.callback == callback) &#123;</span><br><span class="line">                return true;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        return false;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    emit(type, target, ...args) &#123;</span><br><span class="line">        if (typeof this.events[type] == &quot;undefined&quot;) &#123;</span><br><span class="line">            return;</span><br><span class="line">        &#125;</span><br><span class="line">        let bag = &#123;</span><br><span class="line">            type: type,</span><br><span class="line">            target: target</span><br><span class="line">        &#125;;</span><br><span class="line">        args = [bag].concat(args);</span><br><span class="line">        let events = this.events[type].slice();</span><br><span class="line">        let numOfCallbacks = events.length;</span><br><span class="line">        for (let i = 0; i &lt; numOfCallbacks; i++) &#123;</span><br><span class="line">            let event = events[i];</span><br><span class="line">            if (event &amp;&amp; event.callback) &#123;</span><br><span class="line">                let concatArgs = args.concat(event.args);</span><br><span class="line">                event.callback.apply(event.scope, concatArgs);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    debug() &#123;</span><br><span class="line">        let str = &quot;&quot;;</span><br><span class="line">        for (let type in this.events) &#123;</span><br><span class="line">            let numOfCallbacks = this.events[type].length;</span><br><span class="line">            for (let i = 0; i &lt; numOfCallbacks; i++) &#123;</span><br><span class="line">                let event = this.events[type][i];</span><br><span class="line">                let className = &quot;Anonymous&quot;;</span><br><span class="line">                if (event.scope) &#123;</span><br><span class="line">                    if (event.scope.constructor.name) &#123;</span><br><span class="line">                        className = event.scope.constructor.name;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                str += `$&#123;className&#125; listening for &quot;$&#123;type&#125;&quot;\n`;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        return str;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">export default new EventBus();</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=&quot;en&quot;&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">    &lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">    &lt;title&gt;EventBus Examples&lt;/title&gt;</span><br><span class="line">&lt;/head&gt;</span><br><span class="line">&lt;body&gt;</span><br><span class="line"></span><br><span class="line">&lt;script type=&quot;module&quot;&gt;</span><br><span class="line">    import EventBus from &apos;/src/eventbus.js&apos;;</span><br><span class="line">    // Simple example</span><br><span class="line">    &#123;</span><br><span class="line">        function myHandler(event) &#123;</span><br><span class="line">            console.log(&quot;myHandler / type: &quot; + event.type);</span><br><span class="line">        &#125;</span><br><span class="line">        EventBus.on(&quot;my_event&quot;, myHandler);</span><br><span class="line">        EventBus.emit(&quot;my_event&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    // Keeping the scope</span><br><span class="line">    &#123;</span><br><span class="line">        class TestClass1 &#123;</span><br><span class="line">            constructor() &#123;</span><br><span class="line">                this.className = &quot;TestClass1&quot;;</span><br><span class="line">                EventBus.on(&quot;callback_event&quot;, this.callback, this);</span><br><span class="line">            &#125;</span><br><span class="line">            callback(event) &#123;</span><br><span class="line">                console.log(this.className + &quot; / type: &quot; + event.type + &quot; / dispatcher: &quot; + event.target.className);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        class TestClass2 &#123;</span><br><span class="line">            constructor() &#123;</span><br><span class="line">                this.className = &quot;TestClass2&quot;;</span><br><span class="line">            &#125;</span><br><span class="line">            dispatch() &#123;</span><br><span class="line">                EventBus.emit(&quot;callback_event&quot;, this);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        let t1 = new TestClass1();</span><br><span class="line">        let t2 = new TestClass2();</span><br><span class="line">        t2.dispatch();</span><br><span class="line">    &#125;</span><br><span class="line">    // Passing additional parameters</span><br><span class="line">    &#123;</span><br><span class="line">        class TestClass1 &#123;</span><br><span class="line">            constructor() &#123;</span><br><span class="line">                this.className = &quot;TestClass1&quot;;</span><br><span class="line">                EventBus.on(&quot;custom_event&quot;, this.doSomething, this);</span><br><span class="line">            &#125;</span><br><span class="line">            doSomething(event, param1, param2) &#123;</span><br><span class="line">                console.log(this.className + &quot;.doSomething&quot;);</span><br><span class="line">                console.log(&quot;type=&quot; + event.type);</span><br><span class="line">                console.log(&quot;params=&quot; + param1 + param2);</span><br><span class="line">                console.log(&quot;coming from=&quot; + event.target.className);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        class TestClass2 &#123;</span><br><span class="line">            constructor() &#123;</span><br><span class="line">                this.className = &quot;TestClass2&quot;;</span><br><span class="line">            &#125;</span><br><span class="line">            ready() &#123;</span><br><span class="line">                EventBus.emit(&quot;custom_event&quot;, this, &quot;javascript events&quot;, &quot; are really useful&quot;);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        let t1 = new TestClass1();</span><br><span class="line">        let t2 = new TestClass2();</span><br><span class="line">        t2.ready();</span><br><span class="line">    &#125;</span><br><span class="line">    // Debugging</span><br><span class="line">    console.log(EventBus.debug());</span><br><span class="line">    // Removing a registered handler</span><br><span class="line">    &#123;</span><br><span class="line">        var handler = function() &#123;</span><br><span class="line">            console.log(&apos;example callback&apos;);</span><br><span class="line">        &#125;;</span><br><span class="line">        EventBus.on(&apos;EXAMPLE_EVENT&apos;, handler);</span><br><span class="line">        EventBus.emit(&apos;EXAMPLE_EVENT&apos;);</span><br><span class="line">        EventBus.off(&apos;EXAMPLE_EVENT&apos;, handler);</span><br><span class="line">        // Not emitted because event was removed</span><br><span class="line">        EventBus.emit(&apos;EXAMPLE_EVENT&apos;);</span><br><span class="line">    &#125;</span><br><span class="line">&lt;/script&gt;</span><br><span class="line">&lt;/body&gt;</span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3464,7 +3648,7 @@ export default {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">88</span>
+                  <span class="site-state-item-count">91</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3477,7 +3661,7 @@ export default {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">56</span>
+                  <span class="site-state-item-count">57</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

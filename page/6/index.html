@@ -293,6 +293,1128 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/30/深入理解ES6  Async Functions/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/30/深入理解ES6  Async Functions/" itemprop="url">深入理解ES6 Async Functions (异步函数)</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-30T18:35:10+08:00">
+                2018-05-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h2 id="async-异步-函数变体"><a href="#async-异步-函数变体" class="headerlink" title="async(异步) 函数变体"></a>async(异步) 函数变体</h2><p>以下是已经存在的异步函数变体。请注意无处不在的 <code>async</code> 关键字。</p>
+<ul>
+<li>异步函数声明： <code>async function foo() {}</code></li>
+<li>异步函数表达式： <code>const foo = async function () {};</code></li>
+<li>异步函数定义：<code>let obj = { async foo() {} }</code></li>
+<li>异步箭头函数： <code>const foo = async () =&gt; {};</code></li>
+</ul>
+<h2 id="async-异步-函数总是返回-Promises"><a href="#async-异步-函数总是返回-Promises" class="headerlink" title="async(异步) 函数总是返回 Promises"></a>async(异步) 函数总是返回 Promises</h2><p>async(异步) 函数的 Promise 完成状态：</p>
+<pre><code>async function asyncFunc() {
+return 123;
+}
+
+asyncFunc()
+.then(x =&gt; console.log(x));
+// 123
+</code></pre><p>async(异步) 函数的 Promise 拒绝状态：</p>
+<pre><code>async function asyncFunc() {
+throw new Error(&apos;Problem!&apos;);
+}
+
+asyncFunc()
+.catch(err =&gt; console.log(err));
+// Error: Problem!
+</code></pre><h2 id="通过-await-处理-async-异步-计算的结果和错误"><a href="#通过-await-处理-async-异步-计算的结果和错误" class="headerlink" title="通过 await 处理 async(异步) 计算的结果和错误"></a>通过 <code>await</code> 处理 async(异步) 计算的结果和错误</h2><p><code>await</code>（只允许在 async(异步) 函数内部使用）等待其操作对象 Promise 返回：</p>
+<ul>
+<li>如果 Promise 是完成状态，<code>await</code> 的结果是完成态的值。</li>
+<li>如果 Promise 是拒绝状态，<code>await</code> 会抛出拒绝值。</li>
+</ul>
+<p>处理单个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const result = await otherAsyncFunc();
+   console.log(result);
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc()
+.then(result =&gt; {
+       console.log(result);
+});
+}
+</code></pre><p>按顺序处理多个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const result1 = await otherAsyncFunc1();
+   console.log(result1);
+const result2 = await otherAsyncFunc2();
+   console.log(result2);
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc1()
+.then(result1 =&gt; {
+       console.log(result1);
+return otherAsyncFunc2();
+})
+.then(result2 =&gt; {
+       console.log(result2);
+});
+}
+</code></pre><p>并行处理多个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const [result1, result2] = await Promise.all([
+       otherAsyncFunc1(),
+       otherAsyncFunc2(),
+]);
+   console.log(result1, result2);
+}
+
+// 等价于:
+function asyncFunc() {
+return Promise.all([
+       otherAsyncFunc1(),
+       otherAsyncFunc2(),
+])
+.then([result1, result2] =&gt; {
+       console.log(result1, result2);
+});
+}
+</code></pre><p>错误处理：</p>
+<pre><code>async function asyncFunc() {
+try {
+await otherAsyncFunc();
+} catch (err) {
+       console.error(err);
+}
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc()
+.catch(err =&gt; {
+       console.error(err);
+});
+}
+</code></pre><h2 id="理解-async-异步-函数"><a href="#理解-async-异步-函数" class="headerlink" title="理解 async(异步) 函数"></a>理解 async(异步) 函数</h2><p>在我解释 async(异步) 函数之前，我需要解释一下如何组合使用 Promises 和 Generator ，通过看起来同步的代码来执行 async(异步) 操作。</p>
+<p>对于能够 async(异步) 计算其一次性结果的函数，作为 ES6 一部分的 Promises 已经变得流行起来。一个例子是 <a href="https://link.zhihu.com/?target=https%3A//fetch.spec.whatwg.org/%23concept-request" target="_blank" rel="noopener">客户端 fetch API</a> ，它是 XMLHttpRequest 获取数据的替代方法。使用示例如下：</p>
+<pre><code>function fetchJson(url) {
+return fetch(url)
+.then(request =&gt; request.text())
+.then(text =&gt; {
+return JSON.parse(text);
+})
+.catch(error =&gt; {
+       console.log(`ERROR: ${error.stack}`);
+});
+}
+fetchJson(&apos;http://example.com/some_file.json&apos;)
+.then(obj =&gt; console.log(obj));
+</code></pre><h2 id="通过-generator-来编写异步代码"><a href="#通过-generator-来编写异步代码" class="headerlink" title="通过 generator 来编写异步代码"></a>通过 generator 来编写异步代码</h2><p>co 是一个使用 Promise 和 generator 来实现看似同步编码的库，但与上一示例中使用的样式相同：</p>
+<pre><code>const fetchJson = co.wrap(function* (url) {
+try {
+let request = yield fetch(url);
+let text = yield request.text();
+return JSON.parse(text);
+}
+catch (error) {
+       console.log(`ERROR: ${error.stack}`);
+}
+});
+</code></pre><p>每次回调函数（ generator 函数）产生一个 Promise 对象给 co ，回调会被暂停，只有当 Promise 执行完成后，co 才会继续执行回调 。 如果 Promise 处于完成状态，<code>yield</code> 返回完成状态的值，如果处于拒绝状态，<code>yield</code> 抛出拒绝状态的错误。此外，co 保证结果是通过回调执行完成才返回的（类似于 <code>then()</code> 所做的工作）。</p>
+<h2 id="通过-async-异步-函数来编写异步代码"><a href="#通过-async-异步-函数来编写异步代码" class="headerlink" title="通过 async(异步) 函数来编写异步代码"></a>通过 async(异步) 函数来编写异步代码</h2><p>async(异步) 函数用的特定语法基本上和 co 类似：</p>
+<pre><code>async function fetchJson(url) {
+try {
+let request = await fetch(url);
+let text = await request.text();
+return JSON.parse(text);
+}
+catch (error) {
+       console.log(`ERROR: ${error.stack}`);
+}
+}
+</code></pre><p>在内部，异步函数写法更类似于 generators 。</p>
+<h2 id="以同步开始，异步处理的-async-异步-函数"><a href="#以同步开始，异步处理的-async-异步-函数" class="headerlink" title="以同步开始，异步处理的 async(异步) 函数"></a>以同步开始，异步处理的 async(异步) 函数</h2><p>以下是 async(异步)函数是如何工作的：</p>
+<ol>
+<li>async(异步) 函数总是返回一个 Promise 对象 <code>p</code> 。Promise 对象在 async(异步) 函数开始执行时被创建。</li>
+<li>函数体执行过程中，可以通过 <code>return</code> 或 <code>throw</code> 终止执行。或者通过 <code>await</code> 暂停执行，在这种情况下，通常会在以后继续执行。</li>
+<li>返回 Promise 对象 <code>p</code>。</li>
+</ol>
+<p>当执行 async(异步) 函数的函数体时，<code>return x</code> 中的 <code>x</code> 是 Promise 对象 <code>p</code> 的完成状态的结果，而 <code>throw err</code> 是 <code>p</code> 的拒绝状态的结果。执行结果是异步返回的。换句话说：<code>then()</code> 和 <code>catch()</code> 的回调总是在当前代码完成后执行。</p>
+<p>以下是代码示例：</p>
+<pre><code>async function asyncFunc() {
+   console.log(&apos;asyncFunc()&apos;); // (A)
+return &apos;abc&apos;;
+}
+asyncFunc().
+then(x =&gt; console.log(`Resolved: ${x}`)); // (B)
+console.log(&apos;main&apos;); // (C)
+
+// Output:
+// asyncFunc()
+// main
+// Resolved: abc
+</code></pre><p>您可以认为是以下的执行顺序：</p>
+<ol>
+<li>行A：async(异步) 函数以同步开始。async(异步) 函数的 Promise 通过 <code>return</code> 来返回完成状态的结果。</li>
+<li>行C：执行继续。</li>
+<li>行B：Promise 完成状态通知是异步发生的。</li>
+</ol>
+<h2 id="返回不被包裹的-Promise-对象"><a href="#返回不被包裹的-Promise-对象" class="headerlink" title="返回不被包裹的 Promise 对象"></a>返回不被包裹的 Promise 对象</h2><p>Promise 的 resolve 是一项标准操作。 <code>return</code> 就是使用它来 resolve async(异步) 函数的 Promise <code>p</code> 的。这意味着：</p>
+<ol>
+<li>返回一个非 Promise 值，该值将被处理成 <code>p</code> 的完成状态值。</li>
+<li>返回一个 Promise 对象，那么 <code>p</code> 此时相当于是该 Promise 的状态。</li>
+</ol>
+<p>因此，您可以返回一个 Promise ，并且这个 Promise 不会包裹在别的 Promise 中：</p>
+<pre><code>async function asyncFunc() {
+return Promise.resolve(123);
+}
+asyncFunc()
+.then(x =&gt; console.log(x)) // 123
+</code></pre><p>有趣的是，返回一个拒绝状态（reject）的 Promise 对象会导致 async(异步) 函数被拒绝（reject）（通常，您可以使用 <code>throw</code> ）：</p>
+<pre><code>async function asyncFunc() {
+return Promise.reject(new Error(&apos;Problem!&apos;));
+}
+asyncFunc()
+.catch(err =&gt; console.error(err)); // Error: Problem!
+</code></pre><p>这与 Promise 解决方案的工作方式是一致的。 使你能够在不使用 <code>await</code> 的情况下，使用其他 async(异步) 计算来执行完成和拒绝处理：</p>
+<pre><code>async function asyncFunc() {
+return anotherAsyncFunc();
+}
+</code></pre><p>上面的代码示例和下面的类似，但是比下面的更高效。（以下代码示例没有包裹 <code>anotherAsyncFunc()</code> 的 Promise ，而是包裹 <code>anotherAsyncFunc()</code> 本身 ）：</p>
+<pre><code>async function asyncFunc() {
+return await anotherAsyncFunc();
+}
+</code></pre><h2 id="使用-await-小贴士"><a href="#使用-await-小贴士" class="headerlink" title="使用 await 小贴士"></a>使用 <code>await</code> 小贴士</h2><h2 id="不要忘记使用-await"><a href="#不要忘记使用-await" class="headerlink" title="不要忘记使用 await"></a>不要忘记使用 <code>await</code></h2><p>在 async(异步) 函数中容易犯的一个错误就是在调用 async(异步) 函数时忘记使用 <code>await</code> ：</p>
+<pre><code>async function asyncFunc() {
+const value = otherAsyncFunc(); // missing `await`!
+···
+}
+</code></pre><p>在这个例子中，方法执行返回的 Promise 对象赋值给了 <code>value</code> ，它通常不是你在 async(异步) 函数中想要的结果。</p>
+<p>await 甚至可以在 async(异步) 函数不返回任何值的情况下起作用。它的 Promise 只是用来告诉调用者完成状态。例如：</p>
+<pre><code>async function foo() {
+await step1(); // (A)
+···
+}
+</code></pre><p>行A中的 <code>await</code> 确保在执行 <code>foo()</code> 剩余部分之前， <code>step1()</code> 已经执行完成。</p>
+<h2 id="不需要使用-await-的情况"><a href="#不需要使用-await-的情况" class="headerlink" title="不需要使用 await 的情况"></a>不需要使用 await 的情况</h2><p>有时，你只想触发异步计算，并且不需要关注它什么时候完成。以下是代码示例：</p>
+<pre><code>async function asyncFunc() {
+const writer = openFile(&apos;someFile.txt&apos;);
+   writer.write(&apos;hello&apos;); // don’t wait
+   writer.write(&apos;world&apos;); // don’t wait
+await writer.close(); // wait for file to close
+}
+</code></pre><p>在这里，我们不关心单个的写入操作是否完成，只需要他们以正确的顺序执行 (API必须保证，但这是由 async(异步) 函数的执行模型所鼓励的，正如我们所见)。</p>
+<p><code>asyncFunc()</code> 函数最后一行的 <code>await</code> 确保该函数仅在文件写入关闭后才会执行。</p>
+<p>由于返回的 Promises 没有被其他 async(异步) 函数包裹，所以你可以用 <code>return</code> 替换 <code>await writer.close()</code> ：</p>
+<pre><code>async function asyncFunc() {
+const writer = openFile(&apos;someFile.txt&apos;);
+   writer.write(&apos;hello&apos;);
+   writer.write(&apos;world&apos;);
+return writer.close();
+}
+</code></pre><p>这两个版本各有利弊，<code>await</code> 版本可能稍微更容易理解。</p>
+<h2 id="await-是顺序执行的，Promise-all-是并行的"><a href="#await-是顺序执行的，Promise-all-是并行的" class="headerlink" title="await 是顺序执行的，Promise.all() 是并行的"></a>await 是顺序执行的，Promise.all() 是并行的</h2><p>下面的代码调用了两个 async(异步) 函数， <code>asyncFunc1()</code> 和 <code>asyncFunc1()</code> 。</p>
+<pre><code>async function foo() {
+const result1 = await asyncFunc1();
+const result2 = await asyncFunc2();
+}
+</code></pre><p>这两个函数调用顺序执行。但是并行执行它们往往会加快速度。您可以使用 Promise.all() ：</p>
+<pre><code>async function foo() {
+const [result1, result2] = await Promise.all([
+       asyncFunc1(),
+       asyncFunc2(),
+]);
+}
+</code></pre><p>我们现在正在等待一个包含两个元素的数组的 Promise ，而不是等待两个 Promise。</p>
+<h2 id="异步函数和回调"><a href="#异步函数和回调" class="headerlink" title="异步函数和回调"></a>异步函数和回调</h2><p>async(异步) 函数的一个限制是 <code>await</code>(等待) 只影响直接相关的 async(异步) 函数。因此，async(异步) 函数无法在回调（但是，回调可以是 async(异步) 函数本身，稍后我们将会看到）中使用 <code>await</code>(等待)。这使得基于回调的实用函数和方法难以使用。例子中我们将使用数组方法 <code>map()</code> 和 <code>forEach()</code>。</p>
+<h2 id="Array-prototype-map"><a href="#Array-prototype-map" class="headerlink" title="Array.prototype.map()"></a>Array.prototype.map()</h2><p>我们从数组方法 <code>map()</code> 开始讲解。在下面的代码示例中，我们想要加载由 URLs 数组指向的文件，并将它们返回到数组中。</p>
+<pre><code>async function downloadContent(urls) {
+return urls.map(url =&gt; {
+// 错误的语法!
+const content = await httpGet(url);
+return content;
+});
+}
+</code></pre><p>这不起作用，因为在正常箭头函数中 <code>await</code> 语法上是非法的(愚人码头注： <code>await</code>(等待) 只影响直接相关的 async(异步) 函数)。那么如何使用异步的箭头函数呢？</p>
+<pre><code>async function downloadContent(urls) {
+return urls.map(async (url) =&gt; { // 注意这一行中的 async ;
+const content = await httpGet(url);
+return content;
+});
+}
+</code></pre><p>这段代码有两个问题：</p>
+<ul>
+<li>现在返回的结果是一个 Promises 对象的数组，而不是一个字符串的数组。</li>
+<li>一旦 <code>map()</code> 执行完成，回调执行的工作并不能同时完成，因为 <code>await</code> 只暂停了包裹它的箭头函数 和 <code>httpGet()</code> 异步执行达到完成状态。这意味着你不能使用 <code>await</code>，来等待 <code>downloadContent()</code> 执行结束。</li>
+</ul>
+<p>我们可以通过 <code>Promise.all()</code> 来解决这两个问题，<code>Promise.all()</code> 可以将一系列的 Promise 转换为一个 Promise 数组（所有值都是经过 Promise 完成并返回）：</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(async (url) =&gt; {
+const content = await httpGet(url);
+return content;
+});
+return await Promise.all(promiseArray);
+}
+</code></pre><p><code>map()</code> 的回调并不对 <code>httpGet()</code> 的结果起作用，只是起到不断执行的作用。因此，这里我们不需要一个异步的箭头函数，只需要一个普通的箭头函数就能达到相同的结果。</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(
+       url =&gt; httpGet(url));
+return await Promise.all(promiseArray);
+}
+</code></pre><p>我们仍然可以做一个小的改进：这个异步函数稍微有点低效 – 首先通过 <code>await</code> 来解开 <code>Promise.all()</code> 的结果，然后通过 <code>return</code> 再次包裹它。 假设 <code>return</code> 不包裹 Promises，我们可以直接返回 <code>Promise.all()</code> 的结果：</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(
+       url =&gt; httpGet(url));
+return Promise.all(promiseArray);
+}
+</code></pre><h2 id="Array-prototype-forEach"><a href="#Array-prototype-forEach" class="headerlink" title="Array.prototype.forEach()"></a>Array.prototype.forEach()</h2><p>我们使用数组的 forEach() 方法在控制台中打印几个通过 URLs 加载的文件的内容：</p>
+<pre><code>async function logContent(urls) {
+   urls.forEach(url =&gt; {
+// Wrong syntax
+const content = await httpGet(url);
+       console.log(content);
+});
+}
+</code></pre><p>同样的，这里的代码会产生一个语法错误，因为你不能在通常的箭头函数内部使用 <code>await</code> 。</p>
+<p>我们换作异步箭头函数：</p>
+<pre><code>async function logContent(urls) {
+   urls.forEach(async url =&gt; {
+const content = await httpGet(url);
+       console.log(content);
+});
+// Not finished here
+}
+</code></pre><p>这段代码起作用了，但是会出现一个警告：<code>httpGet()</code> 返回的 Promise 对象是异步完成的，这也意味着当 <code>forEach()</code> 返回的时候回调可能还没有结束，因此你无法等到 <code>logContent()</code> 只能结束。</p>
+<p>如果你并不想要这个结果，你可以将 <code>forEach()</code> 转换为 <code>for-of</code> 循环。</p>
+<pre><code>async function logContent(urls) {
+for (const url of urls) {
+const content = await httpGet(url);
+       console.log(content);
+}
+}
+</code></pre><p>现在一切都在 <code>for-of</code> 循环完成后完成。但是，处理步骤依次发生：<code>httpGet()</code> 只是在第一次调用完成后再次调用。如果您希望处理步骤并行执行，你必须使用 <code>Promise.all()</code>：</p>
+<pre><code>async function logContent(urls) {
+await Promise.all(urls.map(
+async url =&gt; {
+const content = await httpGet(url);
+           console.log(content);
+}));
+}
+</code></pre><p><code>map()</code> 用于创建一个 Promises 数组。 我们对他们的完成结果并不感兴趣，我们只要 <code>await</code>(等待) 所有方法执行完成。这意味着我们希望的是在 async(异步) 函数完成之后所有的执行都已经完成。我们也可以返回 <code>Promise.all()</code> ，但是该函数的结果是一个数组，其元素都是未完成状态的。</p>
+<h2 id="使用异步函数小贴士"><a href="#使用异步函数小贴士" class="headerlink" title="使用异步函数小贴士"></a>使用异步函数小贴士</h2><h2 id="了解你的-Promises"><a href="#了解你的-Promises" class="headerlink" title="了解你的 Promises"></a>了解你的 Promises</h2><p>async(异步) 函数的基础就是 <a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">Promises</a> 对象，这就是为什么理解 Promises 对于理解 async(异步) 函数至关重要。特别是当遇到不是基于 Promises 的老代码来实现 async(异步) 函数时，你通常别无选择，只能用 Promise 来重构。</p>
+<p>举个例子，这里有个 “promisified” 版本的 <code>XMLHttpRequest</code> ：</p>
+<pre><code>function httpGet(url, responseType=&quot;&quot;) {
+return new Promise(
+function (resolve, reject) {
+const request = new XMLHttpRequest();
+           request.onload = function () {
+if (this.status === 200) {
+// Success
+                   resolve(this.response);
+} else {
+// Something went wrong (404 etc.)
+                   reject(new Error(this.statusText));
+}
+};
+           request.onerror = function () {
+               reject(new Error(
+&apos;XMLHttpRequest Error: &apos;+this.statusText));
+};
+           request.open(&apos;GET&apos;, url);
+           xhr.responseType = responseType;
+           request.send();
+});
+}
+</code></pre><p>XMLHttpRequest 的 API 是基于回调的。通过一个 async(异步) 函数来实现它，意味着你必须在回调中返回 Promise 的完成(fulfill) 或拒绝(reject) 状态。这是不可能的，因为你只能通过 <code>return</code> 或者 <code>throw</code> 来完成这样的操作。你不能从回调函数内部 <code>return</code> 一个函数的结果。<code>throw</code>也有类似的约束。</p>
+<p>因此，异步函数的通用编码风格是：</p>
+<ul>
+<li>直接使用 Promise 对象来构建异步原语。</li>
+<li>用异步函数来使用这些原语。</li>
+</ul>
+<p>扩展阅读：“Exploring ES6” 中的 “<a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">异步编程中的 Promises 对象</a>” 章节</p>
+<h2 id="立即调用异步函数表达式"><a href="#立即调用异步函数表达式" class="headerlink" title="立即调用异步函数表达式"></a>立即调用异步函数表达式</h2><p>有时，如果你可以在模块或脚本的顶层使用 await ，那将是一种很好的选择。当然，它只能在异步函数中使用。您可以创建一个异步函数 <code>main()</code> 并立即调用它：</p>
+<pre><code>async function main() {
+   console.log(await asyncFunction());
+}
+main();
+</code></pre><p>或者您可以使用立即调用异步函数表达式：</p>
+<pre><code>(async function () {
+   console.log(await asyncFunction());
+})();
+</code></pre><p>另一个选择是立即调用异步箭头函数：</p>
+<pre><code>(async () =&gt; {
+   console.log(await asyncFunction());
+})();
+</code></pre><h2 id="用异步函数进行单元测试"><a href="#用异步函数进行单元测试" class="headerlink" title="用异步函数进行单元测试"></a>用异步函数进行单元测试</h2><p>以下代码使用 <a href="https://link.zhihu.com/?target=https%3A//mochajs.org/" target="_blank" rel="noopener">测试框架 mocha</a> 对异步函数 asyncFun1() 和 asyncFun2() 来进行单元测试：</p>
+<pre><code>import assert from &apos;assert&apos;;
+
+// Bug: the following test always succeeds
+test(&apos;Testing async code&apos;, function () {
+   asyncFunc1() // (A)
+.then(result1 =&gt; {
+assert.strictEqual(result1, &apos;a&apos;); // (B)
+return asyncFunc2();
+})
+.then(result2 =&gt; {
+assert.strictEqual(result2, &apos;b&apos;); // (C)
+});
+});
+</code></pre><p>然而，这个测试总是成功的，因为 mocha 不会等待 B 行和 C 行断言执行完成。</p>
+<p>你可以通过返回链式调用的 Promise 来解决这个问题，因为 mocha 会识别一个测试是否返回一个 Promise ，然后等待该 Promise 完成 再进行下一步（除非超时）。</p>
+<pre><code>return asyncFunc1() // (A)
+</code></pre><p>异步函数总是返回 Promises ，这使得它们能方便的、完美的来进行这种单元测试：</p>
+<pre><code>import assert from &apos;assert&apos;;
+test(&apos;Testing async code&apos;, async function () {
+const result1 = await asyncFunc1();
+assert.strictEqual(result1, &apos;a&apos;);
+const result2 = await asyncFunc2();
+assert.strictEqual(result2, &apos;b&apos;);
+});
+</code></pre><p>在 mocha 中使用异步单元测试异步函数有两个优点：代码更简洁，能够准确处理返回的 Promise 对象。</p>
+<h2 id="不要担心没有处理的拒绝拒态"><a href="#不要担心没有处理的拒绝拒态" class="headerlink" title="不要担心没有处理的拒绝拒态"></a>不要担心没有处理的拒绝拒态</h2><p>当前的 JavaScript 引擎可以在拒绝态未处理的情况下提出警告。以下代码在过去会经常执行失败，但是当前的 JavaScript 引擎可以进行警告：</p>
+<pre><code>JavaScript 代码:
+async function foo() {
+throw new Error(&apos;Problem!&apos;);
+}
+foo();
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/21/跨域，你需要知道的全在这里/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/21/跨域，你需要知道的全在这里/" itemprop="url">跨域，你需要知道的全在这里</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-21T11:05:10+08:00">
+                2018-05-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>最近在面试的时候常被问到如何解决跨域的问题，看了网上的一些文章后，许多文章并没有介绍清楚，经常使读者(我)感到困惑，所以今天我整理一下常用的跨域技巧，写这篇关于跨域的文章目的在于：</p>
+<ol>
+<li>介绍常见的跨域的解决方案以及其优缺点</li>
+<li>模拟实际的跨域场景，在每种方案后给出一个简单的实例，能够让读者和我一起敲代码，直观地理解这些跨域技巧</li>
+</ol>
+<p>如果觉得本文有帮助，可以点 star 鼓励下，本文所有代码都可以从 github 仓库下载，读者可以按照下述打开:</p>
+<pre><code>git clone https://github.com/happylindz/blog.git
+cd blog/code/crossOrigin/
+yarn
+</code></pre><p>建议你 clone 下来，方便你阅读代码，跟我一起测试。</p>
+<h2 id="同源策略"><a href="#同源策略" class="headerlink" title="同源策略"></a>同源策略</h2><p>使用过 Ajax 的同学都知道其便利性，可以在不向服务端提交完整页面的情况下，实现局部刷新，在当今 SPA 应用普遍使用，但是浏览器处于对安全方面的考虑，不允许跨域调用其它页面的对象，这对于我们在注入 iframe 或是 ajax 应用上带来不少麻烦。</p>
+<p>简单来说，只有当协议，域名，端口号相同的时候才算是同一个域名，否则，均认为需要做跨域处理。</p>
+<p><img src="https://pic4.zhimg.com/v2-5fa29773fc875bf58e4513fdba402bf0_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-5fa29773fc875bf58e4513fdba402bf0_hd.jpg" alt=""></p>
+<h2 id="跨域方法"><a href="#跨域方法" class="headerlink" title="跨域方法"></a>跨域方法</h2><p>今天一共介绍七种常用的跨域技巧，关于跨域技巧大致可以分为 iframe 跨域和 API 跨域请求。</p>
+<p>下面就先介绍三种 API 跨域的方法:</p>
+<h2 id="1-JSONP："><a href="#1-JSONP：" class="headerlink" title="1. JSONP："></a>1. JSONP：</h2><p>只要说到跨域，就必须聊到 JSONP，JSONP 全称为：JSON with padding，可用于解决老版本浏览器的跨域数据访问问题。</p>
+<p>由于 web 页面上调用 js 文件不受浏览器同源策略的影响，所以通过 script 标签可以进行跨域请求：</p>
+<ol>
+<li>首先前端需要先设置好回调函数，并将其作为 url 的参数。</li>
+<li>服务端接收到请求后，通过该参数获取到回调函数名，并将数据放在参数中将其返回</li>
+<li>收到结果后因为是 script 标签，所以浏览器会当做是脚本进行运行，从而达到跨域获取数据的目的</li>
+</ol>
+<p>jsonp 之所以能够跨域的关键在于页面调用 JS 脚本是不受同源策略的影响，相当于向后端发起一条 http 请求，跟后端约定好函数名，后端拿到函数名，动态计算出返回结果并返回给前端执行 JS 脚本，相当于是一种 “动态 JS 脚本”</p>
+<p>接下来我们通过一个实例来尝试：</p>
+<p>后端逻辑：</p>
+<pre><code>// jsonp/server.js
+const url = require(&apos;url&apos;);
+
+require(&apos;http&apos;).createServer((req, res) =&gt; {
+    const data = {
+        x: 10
+    };
+    // 拿到回调函数名
+    const callback = url.parse(req.url, true).query.callback;
+    console.log(callback);
+    res.writeHead(200);
+    res.end(`${callback}(${JSON.stringify(data)})`);
+
+}).listen(3000, &apos;127.0.0.1&apos;);
+
+console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
+</code></pre><p>前端逻辑：</p>
+<pre><code>// jsonp/index.html
+&lt;script&gt;
+    function jsonpCallback(data) {
+        alert(&apos;获得 X 数据:&apos; + data.x);
+    }
+&lt;/script&gt;
+&lt;script src=&quot;http://127.0.0.1:3000?callback=jsonpCallback&quot;&gt;&lt;/script&gt;
+</code></pre><p>然后在终端开启服务：</p>
+<p>之所以能用脚本指令，是因为我在 package.json 里面设置好了脚本命令：</p>
+<pre><code>{
+  // 输入 yarn jsonp 等于 &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;
+  &quot;scripts&quot;: {
+    &quot;jsonp&quot;: &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;,
+    &quot;cors&quot;: &quot;node ./cors/server.js &amp; http-server ./cors&quot;,
+    &quot;proxy&quot;: &quot;node ./serverProxy/server.js&quot;,
+    &quot;hash&quot;: &quot;http-server ./hash/client/ -p 8080 &amp; http-server ./hash/server/ -p 8081&quot;,
+    &quot;name&quot;: &quot;http-server ./name/client/ -p 8080 &amp; http-server ./name/server/ -p 8081&quot;,
+    &quot;postMessage&quot;: &quot;http-server ./postMessage/client/ -p 8080 &amp; http-server ./postMessage/server/ -p 8081&quot;,
+    &quot;domain&quot;: &quot;http-server ./domain/client/ -p 8080 &amp; http-server ./domain/server/ -p 8081&quot;
+  },
+  // ...
+}
+
+yarn jsonp
+// 因为端口 3000 和 8080 分别属于不同域名下
+// 在 localhost:3000 查看效果，即可收到后台返回的数据 10
+</code></pre><p>打开浏览器访问 <code>localhost:8080</code> 即可看到获取到的数据。</p>
+<p><img src="https://pic2.zhimg.com/v2-1bd48c160110899a8ad7e08e56d36560_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-1bd48c160110899a8ad7e08e56d36560_hd.jpg" alt=""></p>
+<p>至此，通过 JSONP 跨域获取数据已经成功了，但是通过这种方式也存在着一定的优缺点：</p>
+<p>优点：</p>
+<ol>
+<li>它不像XMLHttpRequest 对象实现 Ajax 请求那样受到同源策略的限制</li>
+<li>兼容性很好，在古老的浏览器也能很好的运行</li>
+<li>不需要 XMLHttpRequest 或 ActiveX 的支持；并且在请求完毕后可以通过调用 callback 的方式回传结果。</li>
+</ol>
+<p>缺点：</p>
+<ol>
+<li>它支持 GET 请求而不支持 POST 等其它类行的 HTTP 请求。</li>
+<li>它只支持跨域 HTTP 请求这种情况，不能解决不同域的两个页面或 iframe 之间进行数据通信的问题</li>
+<li>无法捕获 Jsonp 请求时的连接异常，只能通过超时进行处理</li>
+</ol>
+<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS:"></a>CORS:</h2><p>CORS 是一个 W3C 标准，全称是”跨域资源共享”（Cross-origin resource sharing）它允许浏览器向跨源服务器，发出 XMLHttpRequest 请求，从而克服了 ajax 只能同源使用的限制。</p>
+<p>CORS 需要浏览器和服务器同时支持才可以生效，对于开发者来说，CORS 通信与同源的 ajax 通信没有差别，代码完全一样。浏览器一旦发现 ajax 请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。</p>
+<p>因此，实现 CORS 通信的关键是服务器。只要服务器实现了 CORS 接口，就可以跨域通信。</p>
+<p>前端逻辑很简单，只要正常发起 ajax 请求即可:</p>
+<pre><code>// cors/index.html
+&lt;script&gt;
+    const xhr = new XMLHttpRequest();
+    xhr.open(&apos;GET&apos;, &apos;http://127.0.0.1:3000&apos;, true);
+    xhr.onreadystatechange = function() {
+        if(xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
+            alert(xhr.responseText);
+        }
+    }
+    xhr.send(null);
+&lt;/script&gt;
+</code></pre><p>这似乎跟一次正常的异步 ajax 请求没有什么区别，关键是在服务端收到请求后的处理：</p>
+<pre><code>// cors/server.js
+require(&apos;http&apos;).createServer((req, res) =&gt; {
+
+    res.writeHead(200, {
+        &apos;Access-Control-Allow-Origin&apos;: &apos;http://localhost:8080&apos;,
+        &apos;Content-Type&apos;: &apos;text/html;charset=utf-8&apos;,
+    });
+    res.end(&apos;这是你要的数据：1111&apos;);
+
+}).listen(3000, &apos;127.0.0.1&apos;);
+
+console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
+</code></pre><p>关键是在于设置相应头中的 Access-Control-Allow-Origin，该值要与请求头中 Origin 一致才能生效，否则将跨域失败。</p>
+<p>然后我们执行命令：<code>yarn cors</code> 打开浏览器访问 <code>localhost:3000</code> 即可看到效果：</p>
+<p><img src="https://pic2.zhimg.com/v2-13ee0a40a998948019749da80e1d259a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-13ee0a40a998948019749da80e1d259a_hd.jpg" alt=""></p>
+<p>成功的关键在于 Access-Control-Allow-Origin 是否包含请求页面的域名，如果不包含的话，浏览器将认为这是一次失败的异步请求，将会调用 xhr.onerror 中的函数。</p>
+<p>CORS 的优缺点：</p>
+<ol>
+<li>使用简单方便，更为安全</li>
+<li>支持 POST 请求方式</li>
+<li>CORS 是一种新型的跨域问题的解决方案，存在兼容问题，仅支持 IE 10 以上</li>
+</ol>
+<p>这里只是对 CORS 做一个简单的介绍，如果想更详细地了解其原理的话，可以看看下面这篇文章：</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/cors.html" target="_blank" rel="noopener">跨域资源共享 CORS 详解 - 阮一峰的网络日志</a></p>
+<h2 id="3-服务端代理："><a href="#3-服务端代理：" class="headerlink" title="3. 服务端代理："></a>3. 服务端代理：</h2><p>服务器代理，顾名思义，当你需要有跨域的请求操作时发送请求给后端，让后端帮你代为请求，然后最后将获取的结果发送给你。</p>
+<p>假设有这样的一个场景，你的页面需要获取 <a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/api" target="_blank" rel="noopener">CNode：Node.js专业中文社区</a> 论坛上一些数据，如通过 <code>https://cnodejs.org/api/v1/topics</code>，当时因为不同域，所以你可以将请求后端，让其对该请求代为转发。</p>
+<p>代码如下：</p>
+<pre><code>// serverProxy/server.js
+const url = require(&apos;url&apos;);
+const http = require(&apos;http&apos;);
+const https = require(&apos;https&apos;);
+
+const server = http.createServer((req, res) =&gt; {
+    const path = url.parse(req.url).path.slice(1);
+    if(path === &apos;topics&apos;) {
+        https.get(&apos;https://cnodejs.org/api/v1/topics&apos;, (resp) =&gt; {
+            let data = &quot;&quot;;
+            resp.on(&apos;data&apos;, chunk =&gt; {
+                data += chunk;
+            });
+            resp.on(&apos;end&apos;, () =&gt; {
+                res.writeHead(200, {
+                    &apos;Content-Type&apos;: &apos;application/json; charset=utf-8&apos;
+                });
+                res.end(data);
+            });
+        })        
+    }
+}).listen(3000, &apos;127.0.0.1&apos;);
+console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
+</code></pre><p>通过代码你可以看出，当你访问 <code>http://127.0.0.1:3000/topics</code> 的时候，服务器收到请求，会代你发送请求 <code>https://cnodejs.org/api/v1/topics</code> 最后将获取到的数据发送给浏览器。</p>
+<p>启动服务 <code>yarn proxy</code> 并访问 <code>http://localhost:3000/topics</code> 即可看到效果：<br><img src="https://pic1.zhimg.com/v2-a14f2dd5cfd124187cabff0fdfabe5a9_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-a14f2dd5cfd124187cabff0fdfabe5a9_hd.jpg" alt=""></p>
+<p>跨域请求成功。纯粹的获取跨域获取后端数据的请求的方式已经介绍完了，另外介绍四种通过 iframe 跨域与其它页面通信的方式。</p>
+<h2 id="location-hash："><a href="#location-hash：" class="headerlink" title="location.hash："></a>location.hash：</h2><p>在 url 中，<code>http://www.baidu.com#helloworld</code> 的 “#helloworld” 就是 location.hash，改变 hash 值不会导致页面刷新，所以可以利用 hash 值来进行数据的传递，当然数据量是有限的。</p>
+<p>假设 <code>localhost:8080</code> 下有文件 index.html 要和 <code>localhost:8081</code> 下的 data.html 传递消息，index.html 首先创建一个隐藏的 iframe，iframe 的 src 指向 <code>localhost:8081/data.html</code>，这时的 hash 值就可以做参数传递。</p>
+<pre><code>// hash/client/index.html 对应 localhost:8080/index.html
+&lt;script&gt;
+    let ifr = document.createElement(&apos;iframe&apos;);
+    ifr.style.display = &apos;none&apos;;
+    ifr.src = &quot;http://localhost:8081/data.html#data&quot;;
+    document.body.appendChild(ifr);
+
+    function checkHash() {
+        try {
+            let data = location.hash ? location.hash.substring(1) : &apos;&apos;;
+            console.log(&apos;获得到的数据是：&apos;, data);
+        }catch(e) {
+
+        }
+    }
+    window.addEventListener(&apos;hashchange&apos;, function(e) {
+        console.log(&apos;获得的数据是：&apos;, location.hash.substring(1));
+    });
+&lt;/script&gt;
+</code></pre><p>data.html 收到消息后通过 parent.location.hash 值来修改 index.html 的 hash 值，从而达到数据传递。</p>
+<pre><code>// hash/server/data.html 对应 localhost:8081/data.html
+&lt;script&gt;
+    switch(location.hash) {
+        case &quot;#data&quot;:
+            callback();
+            break;
+    }
+    function callback() {
+        const data = &quot;data.html 的数据&quot;
+        try {
+            parent.location.hash = data;
+        }catch(e) {
+            // ie, chrome 下的安全机制无法修改 parent.location.hash
+            // 所以要利用一个中间的代理 iframe 
+            var ifrproxy = document.createElement(&apos;iframe&apos;);
+            ifrproxy.style.display = &apos;none&apos;;
+            ifrproxy.src = &apos;http://localhost:8080/proxy.html#&apos; + data;     // 该文件在 client 域名的域下
+            document.body.appendChild(ifrproxy);
+        }
+    }
+&lt;/script&gt;
+</code></pre><p>由于两个页面不在同一个域下 IE、Chrome 不允许修改 parent.location.hash 的值，所以要借助于 <code>localhost:8080</code> 域名下的一个代理 iframe 的 proxy.html 页面</p>
+<pre><code>// hash/client/proxy.html 对应 localhost:8080/proxy.html
+&lt;script&gt;
+    parent.parent.location.hash = self.location.hash.substring(1);
+&lt;/script&gt;
+</code></pre><p>之后启动服务 <code>yarn hash</code>，即可在 <code>localhost:8080</code> 下观察到：</p>
+<p><img src="https://pic2.zhimg.com/v2-278b33c730dc9aaf499f172424adde00_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-278b33c730dc9aaf499f172424adde00_hd.jpg" alt=""></p>
+<p>当然这种方法存在着诸多的缺点：</p>
+<ol>
+<li>数据直接暴露在了 url 中</li>
+<li>数据容量和类型都有限等等</li>
+</ol>
+<h2 id="window-name"><a href="#window-name" class="headerlink" title="window.name:"></a>window.name:</h2><p>window.name（一般在 js 代码里出现）的值不是一个普通的全局变量，而是当前窗口的名字，这里要注意的是每个 iframe 都有包裹它的 window，而这个 window 是 top window 的子窗口，而它自然也有 window.name 的属性，window.name 属性的神奇之处在于 name 值在不同的页面（甚至不同域名）加载后依旧存在（如果没修改则值不会变化），并且可以支持非常长的 name 值（2MB）。</p>
+<p>举个简单的例子：</p>
+<p>你在某个页面的控制台输入：</p>
+<pre><code>window.name = &quot;Hello World&quot;
+window.location = &quot;http://www.baidu.com&quot;
+</code></pre><p>页面跳转到了百度首页，但是 window.name 却被保存了下来，还是 Hello World，跨域解决方案似乎可以呼之欲出了：</p>
+<p>前端逻辑：</p>
+<pre><code>// name/client/index.html 对应 localhost:8080/index.html 
+&lt;script&gt;
+    let data = &apos;&apos;;
+    const ifr = document.createElement(&apos;iframe&apos;);
+    ifr.src = &quot;http://localhost:8081/data.html&quot;;
+    ifr.style.display = &apos;none&apos;;
+    document.body.appendChild(ifr);
+    ifr.onload = function() {
+        ifr.onload = function() {
+            data = ifr.contentWindow.name;
+            console.log(&apos;收到数据:&apos;, data);
+        }
+        ifr.src = &quot;http://localhost:8080/proxy.html&quot;;
+    }
+&lt;/script&gt;
+</code></pre><p>数据页面：</p>
+<pre><code>// name/server/data.html 对应 localhost:8081/data.html
+&lt;script&gt;
+    window.name = &quot;data.html 的数据!&quot;;
+&lt;/script&gt;
+</code></pre><p><code>localhost:8080index.html</code> 在请求数据端 <code>localhost:8081/data.html</code> 时，我们可以在该页面新建一个 iframe，该 iframe 的 src 指向数据端地址(利用 iframe 标签的跨域能力)，数据端文件设置好 window.name 的值。</p>
+<p>但是由于 index.html 页面与该页面 iframe 的 src 如果不同源的话，则无法操作 iframe 里的任何东西，所以就取不到 iframe 的 name 值，所以我们需要在 data.html 加载完后重新换个 src 去指向一个同源的 html 文件，或者设置成 ‘about:blank;’ 都行，这时候我只要在 index.html 相同目录下新建一个 proxy.html 的空页面即可。如果不重新指向 src 的话直接获取的 window.name 的话会报错：</p>
+<p><img src="https://pic2.zhimg.com/v2-7bd77f4df4565cd258bbeeed28515152_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7bd77f4df4565cd258bbeeed28515152_hd.jpg" alt=""></p>
+<p>之后运行 <code>yarn name</code> 即可看到效果：</p>
+<p><img src="https://pic4.zhimg.com/v2-4dcf4a5d25982ce71bdbe6f14af4620c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-4dcf4a5d25982ce71bdbe6f14af4620c_hd.jpg" alt=""></p>
+<h2 id="6-postMessage"><a href="#6-postMessage" class="headerlink" title="6.postMessage"></a>6.postMessage</h2><p>postMessage 是 HTML5 新增加的一项功能，跨文档消息传输(Cross Document Messaging)，目前：Chrome 2.0+、Internet Explorer 8.0+, Firefox 3.0+, Opera 9.6+, 和 Safari 4.0+ 都支持这项功能，使用起来也特别简单。</p>
+<p>前端逻辑：</p>
+<pre><code>// postMessage/client/index.html 对应 localhost:8080/index.html
+&lt;iframe src=&quot;http://localhost:8081/data.html&quot; style=&apos;display: none;&apos;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+    window.onload = function() {
+        let targetOrigin = &apos;http://localhost:8081&apos;;
+        window.frames[0].postMessage(&apos;index.html 的 data!&apos;, targetOrigin);
+    }
+    window.addEventListener(&apos;message&apos;, function(e) {
+        console.log(&apos;index.html 接收到的消息:&apos;, e.data);
+    });
+&lt;/script&gt;
+</code></pre><p>创建一个 iframe，使用 iframe 的一个方法 postMessage 可以想 <code>http://localhost:8081/data.html</code> 发送消息，然后监听 message，可以获得其文档发来的消息。</p>
+<p>数据端逻辑：</p>
+<pre><code>// postMessage/server/data.html 对应 localhost:8081/data.html
+&lt;script&gt;
+    window.addEventListener(&apos;message&apos;, function(e) {
+        if(e.source != window.parent) {
+            return;
+        }
+        let data = e.data;
+        console.log(&apos;data.html 接收到的消息:&apos;, data);
+        parent.postMessage(&apos;data.html 的 data!&apos;, e.origin);
+    });
+&lt;/script&gt;
+</code></pre><p>启动服务：<code>yarn postMessage</code> 并打开浏览器访问：</p>
+<p><img src="https://pic1.zhimg.com/v2-62c2ff153980a18ddd08110cd41cfde4_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-62c2ff153980a18ddd08110cd41cfde4_hd.jpg" alt=""></p>
+<p>对 postMessage 感兴趣的详细内容可以看看教程：</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//baike.baidu.com/item/PostMessage/6373972%3Ffr%3Daladdin" target="_blank" rel="noopener">PostMessage_百度百科</a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/Window/postMessage" target="_blank" rel="noopener">Window.postMessage()</a></p>
+<h2 id="7-document-domain"><a href="#7-document-domain" class="headerlink" title="7.document.domain"></a>7.document.domain</h2><p>对于主域相同而子域不同的情况下，可以通过设置 document.domain 的办法来解决，具体做法是可以在 <code>http://www.example.com/index.html</code> 和 <code>http://sub.example.com/data.html</code> 两个文件分别加上 <code>document.domain = &quot;example.com&quot;</code> 然后通过 index.html 文件创建一个 iframe，去控制 iframe 的 window，从而进行交互，当然这种方法只能解决主域相同而二级域名不同的情况，如果你异想天开的把 script.example.com 的 domain 设为 qq.com 显然是没用的，那么如何测试呢？</p>
+<p>测试的方式稍微复杂点，需要安装 nginx 做域名映射，如果你电脑没有安装 nginx，请先去安装一下: <a href="https://link.zhihu.com/?target=http%3A//nginx.org/" target="_blank" rel="noopener">nginx</a></p>
+<p>前端逻辑：</p>
+<pre><code>// domain/client/index.html 对应 sub1.example.com/index.html
+&lt;script&gt;
+    document.domain = &apos;example.com&apos;;
+    let ifr = document.createElement(&apos;iframe&apos;);
+    ifr.src = &apos;http://sub2.example.com/data.html&apos;;
+    ifr.style.display = &apos;none&apos;;
+    document.body.append(ifr);
+    ifr.onload = function() {
+        let win = ifr.contentWindow;
+        alert(win.data);
+    }
+&lt;/script&gt;
+</code></pre><p>数据端逻辑：</p>
+<pre><code>// domain/server/data 对应 sub2.example.com/data.html
+&lt;script&gt;
+    document.domain = &apos;example.com&apos;;
+    window.data = &apos;data.html 的数据！&apos;;
+&lt;/script&gt;
+</code></pre><p>打开操作系统下的 hosts 文件：mac 是位于 /etc/hosts 文件，并添加：</p>
+<pre><code>127.0.0.1 sub1.example.com
+127.0.0.1 sub2.example.com
+</code></pre><p>之后打开 nginx 的配置文件：/usr/local/etc/nginx/nginx.conf，并在 http 模块里添加，记得输入 nginx 启动 nginx 服务：</p>
+<pre><code>/usr/local/etc/nginx/nginx.conf
+http {
+    // ...
+    server {
+        listen 80;
+        server_name sub1.example.com;
+        location / {
+            proxy_pass http://127.0.0.1:8080/;
+        }
+    }
+    server {
+        listen 80;
+        server_name sub2.example.com;
+        location / {
+            proxy_pass http://127.0.0.1:8081/;
+        }
+    }
+    // ...
+}
+</code></pre><p>相当于是讲 <code>sub1.example.com</code> 和 <code>sub2.example.com</code> 这些域名地址指向本地 <code>127.0.0.1:80</code>，然后用 nginx 做反向代理分别映射到 8080 和 8081 端口。</p>
+<p>这样访问 <code>sub1(2).example.com</code> 等于访问 <code>127.0.0.1:8080(1)</code></p>
+<p>启动服务 <code>yarn domain</code> 访问浏览器即可看到效果：</p>
+<p><img src="https://pic2.zhimg.com/v2-19277c077856648ca1d593f44afadf6e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-19277c077856648ca1d593f44afadf6e_hd.jpg" alt=""></p>
+<h2 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h2><p>前面七种跨域方式我已经全部讲完，其实讲道理，常用的也就是前三种方式，后面四种更多时候是一些小技巧，虽然在工作中不一定会用到，但是如果你在面试过程中能够提到这些跨域的技巧，无疑在面试官的心中是一个加分项。</p>
+<p>上面阐述方法的时候可能有些讲的不明白，希望在阅读的过程中建议你跟着我敲代码，当你打开浏览器看到结果的时候，你也就能掌握到这种方法。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/19/for-in-、Object-keys-和Object-getOwnPropertyNames-for-of/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/19/for-in-、Object-keys-和Object-getOwnPropertyNames-for-of/" itemprop="url">(for..in)、Object.keys()和Object.getOwnPropertyNames(),for...of</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-19T23:15:50+08:00">
+                2018-05-19
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="https://pic2.zhimg.com/v2-8b77517cd30c95a804e67ebf584d888a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-8b77517cd30c95a804e67ebf584d888a_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-474fc5622ed4a673ef33d34a682250bc_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-474fc5622ed4a673ef33d34a682250bc_hd.jpg" alt=""></p>
+<p>Object.keys（obj），返回一个数组，数组里是该obj可被枚举的所有属性。请看示例：</p>
+<p>示例一：</p>
+<pre><code>function Pasta(grain, width, shape) {
+          this.grain = grain;
+          this.width = width;
+          this.shape = shape;
+          this.toString = function () {
+                  return (this.grain + &quot;, &quot; + this.width + &quot;, &quot; + this.shape);
+          }
+  }
+  console.log(Object.keys(Pasta)); //console: []
+  var spaghetti = new Pasta(&quot;wheat&quot;, 0.2, &quot;circle&quot;);
+  console.log(Object.keys(spaghetti)); //console: [&quot;grain&quot;, &quot;width&quot;, &quot;shape&quot;, &quot;toString&quot;]
+</code></pre><p>示例二：</p>
+<pre><code>var arr = [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;];
+   console.log(Object.keys(arr)); // console: [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]
+   var obj = { 0 : &quot;a&quot;, 1 : &quot;b&quot;, 2 : &quot;c&quot;};
+   console.log(Object.keys(obj)); // console: [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]
+   var an_obj = { 100: &quot;a&quot;, 2: &quot;b&quot;, 7: &quot;c&quot;};
+   console.log(Object.keys(an_obj)); // console: [&quot;2&quot;, &quot;7&quot;, &quot;100&quot;]
+   var my_obj = Object.create({}, { getFoo : { value : function () { return this.foo } } });
+   my_obj.foo = 1;
+   console.log(Object.keys(my_obj)); // console: [&quot;foo&quot;]
+</code></pre><p>js中几种遍历对象的方法，包括for in、Object.keys、Object.getOwnProperty,它们在使用场景方面各有不同。</p>
+<p>for in</p>
+<p>主要用于遍历对象的可枚举属性，包括自有属性、继承自原型的属性</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;For In : &quot;);
+for(var a in obj) console.log(a);
+</code></pre><p><img src="https://pic4.zhimg.com/v2-07286d25bcdcd379c3da29cf98076e14_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-07286d25bcdcd379c3da29cf98076e14_hd.jpg" alt=""></p>
+<p><img src="https://pic4.zhimg.com/v2-ae93be2db86b326d8c5081a88bcf7636_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-ae93be2db86b326d8c5081a88bcf7636_hd.jpg" alt=""></p>
+<p>Object.keys</p>
+<p>返回一个数组，元素均为对象自有的可枚举属性</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;Object.keys:&quot;)
+console.log(Object.keys(obj));
+</code></pre><p><img src="https://pic1.zhimg.com/v2-a1f7c5f0d6d306c25660d0087ccd477e_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-a1f7c5f0d6d306c25660d0087ccd477e_hd.jpg" alt=""></p>
+<p><img src="https://pic4.zhimg.com/v2-fd283ee34f31f9aa9133cd96c0ac3fdd_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-fd283ee34f31f9aa9133cd96c0ac3fdd_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-e02bca1186672970087d9a8bc8a5ff08_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-e02bca1186672970087d9a8bc8a5ff08_hd.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/v2-65ab14f08c0821aaddf792402b19aeec_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-65ab14f08c0821aaddf792402b19aeec_hd.jpg" alt=""></p>
+<p>Object.getOwnProperty</p>
+<p>用于返回对象的自有属性，包括可枚举和不可枚举的</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;Object.getOwnPropertyNames: &quot;);
+console.log(Object.getOwnPropertyNames(obj));
+</code></pre><p><img src="https://pic3.zhimg.com/v2-e58a5ceb8f77c623bd452a5fc8063745_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-e58a5ceb8f77c623bd452a5fc8063745_hd.jpg" alt=""></p>
+<p>for..of</p>
+<pre><code>var obj = {&quot;name&quot;:&quot;Poly&quot;, &quot;career&quot;:&quot;it&quot;}
+Object.defineProperty(obj, &quot;age&quot;, {value:&quot;forever 18&quot;, enumerable:false});
+Object.prototype.protoPer1 = function(){console.log(&quot;proto&quot;);};
+Object.prototype.protoPer2 = 2;
+console.log(&quot;For of : &quot;);
+for(var a of Object.entries(obj)) console.log(a);
+</code></pre><p><img src="https://pic1.zhimg.com/v2-cb632b12eee1e290befbd61a0da022fd_b.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/v2-32223787728e13f239b4f59b0aa64a94_b.jpg" alt=""></p>
+<p><img src="https://pic1.zhimg.com/v2-6ce8346c2e1e4479f49c6acf22292fac_b.jpg" alt=""></p>
+<p><img src="https://pic1.zhimg.com/v2-ec6d7c3be11ccc0101407a2f40ef803a_b.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-84d13fa8dbdace85c39378fd2e9dc09a_b.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/19/CSS等比例缩放的盒子/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1123,176 +2245,6 @@ es();
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/Vue源码必知必会/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/02/Vue源码必知必会/" itemprop="url">Vue源码必知必会</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T16:24:04+08:00">
-                2018-05-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>Vue.js源码分析，记录了个人学习Vue.js源码的过程中的一些心得以及收获。以及对于Vue框架，周边库的一些学习心得和个人见解。</p>
-<p>在学习的过程中我分别为Vue.js、Vuex、Vue-router加上了注释，分别在文件夹<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-src" target="_blank" rel="noopener">vue-src</a>、<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vuex-src" target="_blank" rel="noopener">vuex-src</a>以及<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-router-src" target="_blank" rel="noopener">vue-router-src</a>中，希望可以帮助有需要的同学更好地学习理解Vue.js及周边库的源码。</p>
-<p>感谢尤大提高生产力。</p>
-<p>当前Vue.js源码版本2.3.0，Vuex版本为2.4.0，Vue-router版本为3.0.1。</p>
-<p>本项目希望对Vue.js做更进一步的探索与学习，Vue.js基础内容请参考Vue.js官网，<a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/guide/" target="_blank" rel="noopener">https://cn.vuejs.org/v2/guide/</a>。 可能会有理解存在偏差的地方，欢迎提issue指出，共同学习，共同进步。</p>
-<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><h2 id="源码相关"><a href="#源码相关" class="headerlink" title="源码相关"></a>源码相关</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E5%2593%258D%25E5%25BA%2594%25E5%25BC%258F%25E5%258E%259F%25E7%2590%2586.MarkDown" target="_blank" rel="noopener">Vue.js响应式原理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BE%259D%25E8%25B5%2596%25E6%2594%25B6%25E9%259B%2586.MarkDown" target="_blank" rel="noopener">Vue.js依赖收集</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258E%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E5%2586%258D%25E7%259C%258B%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.MarkDown" target="_blank" rel="noopener">从Vue.js源码角度再看数据绑定</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E4%25BA%258B%25E4%25BB%25B6%25E6%259C%25BA%25E5%2588%25B6.MarkDown" target="_blank" rel="noopener">Vue.js事件机制</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VNode%25E8%258A%2582%25E7%2582%25B9.MarkDown" target="_blank" rel="noopener">VNode节点(Vue.js实现)</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VirtualDOM%25E4%25B8%258Ediff%28Vue%25E5%25AE%259E%25E7%258E%25B0%29.MarkDown" target="_blank" rel="noopener">Virtual DOM与diff(Vue.js实现)</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%2581%258A%25E8%2581%258AVue%25E7%259A%2584template%25E7%25BC%2596%25E8%25AF%2591.MarkDown" target="_blank" rel="noopener">聊聊Vue.js的template编译</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue.js%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0DOM%25E7%25AD%2596%25E7%2595%25A5%25E5%258F%258AnextTick.MarkDown" target="_blank" rel="noopener">Vue.js异步更新DOM策略及nextTick</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258Etemplate%25E5%2588%25B0DOM%28Vue.js%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E7%259C%258B%25E5%2586%2585%25E9%2583%25A8%25E8%25BF%2590%25E8%25A1%258C%25E6%259C%25BA%25E5%2588%25B6%29.MarkDown" target="_blank" rel="noopener">从template到DOM（Vue.js源码角度看内部运行机制）</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vuex%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%25A3%25E6%259E%2590.MarkDown" target="_blank" rel="noopener">Vuex源码解析</a></p>
-<h2 id="随笔杂谈"><a href="#随笔杂谈" class="headerlink" title="随笔杂谈"></a>随笔杂谈</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E7%25BB%2584%25E4%25BB%25B6%25E9%2597%25B4%25E9%2580%259A%25E4%25BF%25A1.MarkDown" target="_blank" rel="noopener">Vue组件间通信</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%25AF%25B4%25E8%25AF%25B4element%25E7%25BB%2584%25E4%25BB%25B6%25E5%25BA%2593broadcast%25E4%25B8%258Edispatch.MarkDown" target="_blank" rel="noopener">说说element组件库broadcast与dispatch</a></p>
-<p>该源码分析，会带着大家一起学习<code>Vue</code>的大部分代码，而不是简单的讲一下它的原理，我会尽可能的多解释每一行主要的代码含义，另外一些辅助方法什么的，大家可以在学习的过程中，自己看一眼就知道了。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E6%25BA%2590%25E7%25A0%2581%25E7%259B%25AE%25E5%25BD%2595%25E7%25BB%2593%25E6%259E%2584%25E6%2595%25B4%25E7%2590%2586.md" target="_blank" rel="noopener">Vue源码目录结构整理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E5%2585%25A5%25E5%258F%25A3%25E6%2596%2587%25E4%25BB%25B6%25E6%259F%25A5%25E7%259C%258BVue%25E6%25BA%2590%25E7%25A0%2581.md" target="_blank" rel="noopener">从入口文件查看Vue源码</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E4%25B8%2580%25E4%25B8%25AA%25E5%25B0%258F%25E6%25A0%2597%25E5%25AD%2590%25E6%259F%25A5%25E7%259C%258BVue%25E7%259A%2584%25E7%2594%259F%25E5%2591%25BD%25E5%2591%25A8%25E6%259C%259F.md" target="_blank" rel="noopener">从小栗子查看Vue的生命周期</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E5%258F%258C%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.md" target="_blank" rel="noopener">双向数据绑定</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">compile概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590ast.md" target="_blank" rel="noopener">compile——生成ast</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E4%25BC%2598%25E5%258C%2596%25E9%259D%2599%25E6%2580%2581%25E5%2586%2585%25E5%25AE%25B9.md" target="_blank" rel="noopener">compile——优化静态内容</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590render%25E5%25AD%2597%25E7%25AC%25A6%25E4%25B8%25B2.md" target="_blank" rel="noopener">compile——生成render字符串</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">vdom概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue.extend.md" target="_blank" rel="noopener">Vue.extend</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E2%2580%2594%25E2%2580%2594VNode.md" target="_blank" rel="noopener">vdom——VNode</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/children%25E7%259A%2584%25E5%25BD%2592%25E4%25B8%2580%25E5%258C%2596%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">children的归一化处理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E5%2588%259B%25E5%25BB%25BAdom.md" target="_blank" rel="noopener">patch——创建dom</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594diff.md" target="_blank" rel="noopener">patch——diff</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E7%25BB%2584%25E4%25BB%25B6%25E7%259A%2584%25E5%25A4%2584%25E7%2590%2586%25E6%25B5%2581%25E7%25A8%258B.md" target="_blank" rel="noopener">patch——自定义组件的处理流程</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BA%258B%25E4%25BB%25B6%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">事件处理</a></p>
-<p>指令的处理</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/directives%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">directives概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E6%258C%2587%25E4%25BB%25A4.md" target="_blank" rel="noopener">自定义指令</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-for.md" target="_blank" rel="noopener">v-for</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-if.md" target="_blank" rel="noopener">v-if</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-once.md" target="_blank" rel="noopener">v-once</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-show.md" target="_blank" rel="noopener">v-show</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-text%25E3%2580%2581v-html%25E3%2580%2581v-cloak%25E3%2580%2581v-pre.md" target="_blank" rel="noopener">v-text、v-html、v-cloak、v-pre</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-model.md" target="_blank" rel="noopener">v-model</a></p>
-<p>内置组件和标签</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/slot%25E5%2592%258C%25E4%25BD%259C%25E7%2594%25A8%25E5%259F%259F%25E6%258F%2592%25E6%25A7%25BD.md" target="_blank" rel="noopener">slot和作用域插槽</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/keep-alive.md" target="_blank" rel="noopener">keep-alive</a></p>
-<p>以下是整理一些比较零散的数据，主要是记录结构中每个数据表示什么意思，会不断完善更新：</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue-globals.md" target="_blank" rel="noopener">Vue全局属性</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E5%25AE%259E%25E4%25BE%258B%25E5%25B1%259E%25E6%2580%25A7.md" target="_blank" rel="noopener">Vue实例属性</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/AstElement.md" target="_blank" rel="noopener">AstElement</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/VNode.md" target="_blank" rel="noopener">VNode</a></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/20个CSS高级技巧汇总/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1599,6 +2551,176 @@ h2[data-text]::after {
   text-shadow: 0 0 5px rgba(0,0,0,0.5);
 }
 </code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/Vue源码必知必会/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/02/Vue源码必知必会/" itemprop="url">Vue源码必知必会</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T16:24:04+08:00">
+                2018-05-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>Vue.js源码分析，记录了个人学习Vue.js源码的过程中的一些心得以及收获。以及对于Vue框架，周边库的一些学习心得和个人见解。</p>
+<p>在学习的过程中我分别为Vue.js、Vuex、Vue-router加上了注释，分别在文件夹<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-src" target="_blank" rel="noopener">vue-src</a>、<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vuex-src" target="_blank" rel="noopener">vuex-src</a>以及<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-router-src" target="_blank" rel="noopener">vue-router-src</a>中，希望可以帮助有需要的同学更好地学习理解Vue.js及周边库的源码。</p>
+<p>感谢尤大提高生产力。</p>
+<p>当前Vue.js源码版本2.3.0，Vuex版本为2.4.0，Vue-router版本为3.0.1。</p>
+<p>本项目希望对Vue.js做更进一步的探索与学习，Vue.js基础内容请参考Vue.js官网，<a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/guide/" target="_blank" rel="noopener">https://cn.vuejs.org/v2/guide/</a>。 可能会有理解存在偏差的地方，欢迎提issue指出，共同学习，共同进步。</p>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><h2 id="源码相关"><a href="#源码相关" class="headerlink" title="源码相关"></a>源码相关</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E5%2593%258D%25E5%25BA%2594%25E5%25BC%258F%25E5%258E%259F%25E7%2590%2586.MarkDown" target="_blank" rel="noopener">Vue.js响应式原理</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BE%259D%25E8%25B5%2596%25E6%2594%25B6%25E9%259B%2586.MarkDown" target="_blank" rel="noopener">Vue.js依赖收集</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258E%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E5%2586%258D%25E7%259C%258B%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.MarkDown" target="_blank" rel="noopener">从Vue.js源码角度再看数据绑定</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E4%25BA%258B%25E4%25BB%25B6%25E6%259C%25BA%25E5%2588%25B6.MarkDown" target="_blank" rel="noopener">Vue.js事件机制</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VNode%25E8%258A%2582%25E7%2582%25B9.MarkDown" target="_blank" rel="noopener">VNode节点(Vue.js实现)</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VirtualDOM%25E4%25B8%258Ediff%28Vue%25E5%25AE%259E%25E7%258E%25B0%29.MarkDown" target="_blank" rel="noopener">Virtual DOM与diff(Vue.js实现)</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%2581%258A%25E8%2581%258AVue%25E7%259A%2584template%25E7%25BC%2596%25E8%25AF%2591.MarkDown" target="_blank" rel="noopener">聊聊Vue.js的template编译</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue.js%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0DOM%25E7%25AD%2596%25E7%2595%25A5%25E5%258F%258AnextTick.MarkDown" target="_blank" rel="noopener">Vue.js异步更新DOM策略及nextTick</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258Etemplate%25E5%2588%25B0DOM%28Vue.js%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E7%259C%258B%25E5%2586%2585%25E9%2583%25A8%25E8%25BF%2590%25E8%25A1%258C%25E6%259C%25BA%25E5%2588%25B6%29.MarkDown" target="_blank" rel="noopener">从template到DOM（Vue.js源码角度看内部运行机制）</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vuex%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%25A3%25E6%259E%2590.MarkDown" target="_blank" rel="noopener">Vuex源码解析</a></p>
+<h2 id="随笔杂谈"><a href="#随笔杂谈" class="headerlink" title="随笔杂谈"></a>随笔杂谈</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E7%25BB%2584%25E4%25BB%25B6%25E9%2597%25B4%25E9%2580%259A%25E4%25BF%25A1.MarkDown" target="_blank" rel="noopener">Vue组件间通信</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%25AF%25B4%25E8%25AF%25B4element%25E7%25BB%2584%25E4%25BB%25B6%25E5%25BA%2593broadcast%25E4%25B8%258Edispatch.MarkDown" target="_blank" rel="noopener">说说element组件库broadcast与dispatch</a></p>
+<p>该源码分析，会带着大家一起学习<code>Vue</code>的大部分代码，而不是简单的讲一下它的原理，我会尽可能的多解释每一行主要的代码含义，另外一些辅助方法什么的，大家可以在学习的过程中，自己看一眼就知道了。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E6%25BA%2590%25E7%25A0%2581%25E7%259B%25AE%25E5%25BD%2595%25E7%25BB%2593%25E6%259E%2584%25E6%2595%25B4%25E7%2590%2586.md" target="_blank" rel="noopener">Vue源码目录结构整理</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E5%2585%25A5%25E5%258F%25A3%25E6%2596%2587%25E4%25BB%25B6%25E6%259F%25A5%25E7%259C%258BVue%25E6%25BA%2590%25E7%25A0%2581.md" target="_blank" rel="noopener">从入口文件查看Vue源码</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E4%25B8%2580%25E4%25B8%25AA%25E5%25B0%258F%25E6%25A0%2597%25E5%25AD%2590%25E6%259F%25A5%25E7%259C%258BVue%25E7%259A%2584%25E7%2594%259F%25E5%2591%25BD%25E5%2591%25A8%25E6%259C%259F.md" target="_blank" rel="noopener">从小栗子查看Vue的生命周期</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E5%258F%258C%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.md" target="_blank" rel="noopener">双向数据绑定</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">compile概述</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590ast.md" target="_blank" rel="noopener">compile——生成ast</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E4%25BC%2598%25E5%258C%2596%25E9%259D%2599%25E6%2580%2581%25E5%2586%2585%25E5%25AE%25B9.md" target="_blank" rel="noopener">compile——优化静态内容</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590render%25E5%25AD%2597%25E7%25AC%25A6%25E4%25B8%25B2.md" target="_blank" rel="noopener">compile——生成render字符串</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">vdom概述</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue.extend.md" target="_blank" rel="noopener">Vue.extend</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E2%2580%2594%25E2%2580%2594VNode.md" target="_blank" rel="noopener">vdom——VNode</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/children%25E7%259A%2584%25E5%25BD%2592%25E4%25B8%2580%25E5%258C%2596%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">children的归一化处理</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E5%2588%259B%25E5%25BB%25BAdom.md" target="_blank" rel="noopener">patch——创建dom</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594diff.md" target="_blank" rel="noopener">patch——diff</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E7%25BB%2584%25E4%25BB%25B6%25E7%259A%2584%25E5%25A4%2584%25E7%2590%2586%25E6%25B5%2581%25E7%25A8%258B.md" target="_blank" rel="noopener">patch——自定义组件的处理流程</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BA%258B%25E4%25BB%25B6%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">事件处理</a></p>
+<p>指令的处理</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/directives%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">directives概述</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E6%258C%2587%25E4%25BB%25A4.md" target="_blank" rel="noopener">自定义指令</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-for.md" target="_blank" rel="noopener">v-for</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-if.md" target="_blank" rel="noopener">v-if</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-once.md" target="_blank" rel="noopener">v-once</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-show.md" target="_blank" rel="noopener">v-show</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-text%25E3%2580%2581v-html%25E3%2580%2581v-cloak%25E3%2580%2581v-pre.md" target="_blank" rel="noopener">v-text、v-html、v-cloak、v-pre</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-model.md" target="_blank" rel="noopener">v-model</a></p>
+<p>内置组件和标签</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/slot%25E5%2592%258C%25E4%25BD%259C%25E7%2594%25A8%25E5%259F%259F%25E6%258F%2592%25E6%25A7%25BD.md" target="_blank" rel="noopener">slot和作用域插槽</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/keep-alive.md" target="_blank" rel="noopener">keep-alive</a></p>
+<p>以下是整理一些比较零散的数据，主要是记录结构中每个数据表示什么意思，会不断完善更新：</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue-globals.md" target="_blank" rel="noopener">Vue全局属性</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E5%25AE%259E%25E4%25BE%258B%25E5%25B1%259E%25E6%2580%25A7.md" target="_blank" rel="noopener">Vue实例属性</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/AstElement.md" target="_blank" rel="noopener">AstElement</a></p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/VNode.md" target="_blank" rel="noopener">VNode</a></p>
+
           
         
       
@@ -2693,973 +3815,11 @@ socket.listen(server).on(&apos;connection&apos;, function(client) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/19/HTTP三种缓存方式/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/19/HTTP三种缓存方式/" itemprop="url">HTTP三种缓存方式</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-19T00:03:50+08:00">
-                2018-04-19
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>依然在学习node的艰辛过程中，最近学习了http相关的知识，学到了东西当然第一时间就来和大家分享分享，今天呢就教大家来看看利用node中的http模块去实现不同的缓存策略！！！</p>
-<p>我们都知道，对于我们前端开发来说，缓存是一个十分重要的东西，即希望用户不能每次请求过来都要重复下载我们的页面内容，希望为用户节省流量，并且能提高我们页面的浏览流畅度，但是同时当我们修改了一个bug后，又希望线上能够及时更新，这时候就要求爷爷告奶奶让运维小哥哥帮我们刷新一下缓存了，那么有没有一些比较好的缓存策略可以针对我们修改bug又能不麻烦运维及时更新呢，今天我们就利用node来看一下后端中的缓存策略是如何设置的。</p>
-<h2 id="强制缓存"><a href="#强制缓存" class="headerlink" title="强制缓存"></a>强制缓存</h2><p>通常我们对于强制缓存的设置是服务端告诉客户端你刚刚已经请求过一次了，我们约定好十分钟内你再过来请求都直接读取缓存吧，意思也就是当客户端在十分钟内多次请求的话只有第一次会下载页面内容，其他的请求都是直接走缓存，不管我们页面在这期间有没有变化都不会影响客户端读取缓存。<br>那我们来看一下代码的实现</p>
-<pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-// 创建一个服务
-let server = http.createServer();
-// 监听请求
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    console.log(readPath)
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 服务端设置响应头 Cache-Control 也就是缓存多久以秒为单位
-        res.setHeader(&apos;Cache-Control&apos;,&apos;max-age=10&apos;);
-        // 服务器设置响应头Expires 过期时间 获取当前时间加上刚刚设置的缓存秒数
-        res.setHeader(&apos;Expires&apos;,new Date(Date.now()+10*1000).toGMTString());
-        //判断如果路径是一件文件夹 就默认查找该文件下的index.html
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            console.log(p);
-            // 判断是否有index.html 没有就返回404
-            fs.statSync(p);
-            // 创建文件可读流 并且pipe到响应res可写流中
-            fs.createReadStream(p).pipe(res)
-        }else{
-            // 如果请求的就是一个文件 那么久直接返回
-            fs.createReadStream(readPath).pipe(res)
-        }
-    } catch (error) {
-        // 读取不到 返回404 
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-// 监听3000端口
-server.listen(3000)
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/3ca59134ca5ee58d2a4c0b139c8c829bc81d1965/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633646236643965613131323f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过上面代码测试我们会发现当我们在10秒内进行对同一文件的请求，那么我们浏览器就会直接走缓存 通过上图可以看到我们重复请求的时候我们会看到css变成from memory cache，我们也看到我们刚刚的响应头也被设置上了</p>
-<p><a href="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/efed3949630e898e6f5351b5b47d23e536ae6be8/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396633663737303637353231353f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
-<h2 id="协商缓存"><a href="#协商缓存" class="headerlink" title="协商缓存"></a>协商缓存</h2><p>上面的强制缓存我们就发现了 就是我们平时改完bug上线要苦苦等待的一个原因了，那么有没有其他的好的缓存处理方法呢，我们设想一下 假如我们能够知道我们文件有没有修改，假如我们修改了服务器就返回最新的内容假如没有修改 就一直默认缓存 ，这样是不是听起来十分的棒！那我们就想如果我们能够知道文件的最后修改时间是不是就可以实现了！</p>
-<h3 id="通过文件最后修改时间来缓存"><a href="#通过文件最后修改时间来缓存" class="headerlink" title="通过文件最后修改时间来缓存"></a>通过文件最后修改时间来缓存</h3><pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-let server = http.createServer();
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 为了方便测试 我们告诉客户端不要走强制缓存了
-        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            let statObj = fs.statSync(p);
-            // 我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧
-            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
-            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
-                res.statusCode = 304;
-                res.end();
-                return
-            }
-            // 修改了那么我们就直接返回新的内容
-            fs.createReadStream(p).pipe(res)
-        }else{
-            res.setHeader(&apos;Last-Modified&apos;,statObj.ctime.toGMTString());
-            if(req.headers[&apos;if-modified-since&apos;] === statObj.ctime.toGMTString()){
-                res.statusCode = 304;
-                res.end();
-                return
-            }
-            fs.createReadStream(readPath).pipe(res)
-        }
-    } catch (error) {
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-
-server.listen(3000)
-
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2c5d1c2ea01db5d6f83ffda15dd41afcdfc0ed61/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396634386366343637626232303f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a></p>
-<p>我们通过请求可以看到，当我们第一次请求过后，无论怎么刷新请求都是304 直接读取的缓存，假如我们在服务端把这个文件修改了 那么我们就能看到又能请求到最新的内容了，这就是我们通过协商缓存来处理的，我们通过获取到文件状态来拿到文件的最后修改时间 也就是ctime 我们把这个时间通过响应头Last-Modified来告诉客户端，客户端再下一次请求的时候会通过请求头If-Modified-Since把这个值带给服务端，我们只要判断这两个值是否相等，假如相等那么也就是说 文件没有被修改那么我们就告诉客户端304 你直接读缓存吧</p>
-<h3 id="通过文件内容来缓存"><a href="#通过文件内容来缓存" class="headerlink" title="通过文件内容来缓存"></a>通过文件内容来缓存</h3><p>再再再再再假如我们在文件中删除了字符a然后又还原了，那么这时候保存我们的文件的修改时间其实也发生了变化，但是其实我们文件的真正内容并没有发生变化，所以这时候其实客户端继续走缓存也是可以的 ，我们来看看这样的缓存策略如何实现。</p>
-<pre><code>let http = require(&apos;http&apos;);
-let path = require(&apos;path&apos;);
-let fs = require(&apos;fs&apos;);
-let url = require(&apos;url&apos;);
-let crypto = require(&apos;crypto&apos;);
-let server = http.createServer();
-server.on(&apos;request&apos;,(req,res)=&gt;{
-    // 获取到请求的路径
-    let {pathname,query} = url.parse(req.url,true);
-    // 将路径拼接成服务器上对应得文件路径
-    let readPath = path.join(__dirname, &apos;public&apos;,pathname);
-    try {
-        // 获取路径状态
-        let statObj = fs.statSync(readPath);
-        // 为了方便测试 我们告诉客户端不要走强制缓存了
-        res.setHeader(&apos;Cache-Control&apos;,&apos;no-cache&apos;);
-        if(statObj.isDirectory()){
-            let p = path.join(readPath,&apos;index.html&apos;);
-            let statObj = fs.statSync(p);
-            // 我们通过流把文件读取出来 然后对读取问来的内容进行md5加密 得到一个base64加密hash值
-            let rs = fs.createReadStream(p);
-            let md5 = crypto.createHash(&apos;md5&apos;);
-            let arr = [];
-            rs.on(&apos;data&apos;,(data)=&gt;{
-                arr.push(data);
-                md5.update(data);
-            })
-            rs.on(&apos;end&apos;,(data)=&gt;{
-                let r = md5.digest(&apos;base64&apos;);
-                // 然后我们将这个hash值通过响应头Etag传给客户端，客户端再下一次请求的时候会把上一次的Etag值通过请求头if-none-match带过来，然后我们就可以继续比对文件生成的hash值和上次产生的hash是否一样 如果一样说明文件内容没有发生变化 就告诉客户端304 读取缓存
-                res.setHeader(&apos;Etag&apos;,r);
-                if(req.headers[&apos;if-none-match&apos;]===r){
-                    res.statusCode=304;
-                    res.end();
-                    return;
-                }
-                res.end(Buffer.concat(arr))
-            })
-        }else{
-            let rs = fs.createReadStream(readPath);
-            let md5 = crypto.createHash(&apos;md5&apos;);
-            let arr = [];
-            rs.on(&apos;data&apos;,(data)=&gt;{
-                arr.push(data);
-                md5.update(data);
-            })
-            rs.on(&apos;end&apos;,(data)=&gt;{
-                let r = md5.digest(&apos;base64&apos;);
-                res.setHeader(&apos;Etag&apos;,r);
-                if(req.headers[&apos;if-none-match&apos;]===r){
-                    res.statusCode=304;
-                    res.end();
-                    return;
-                }
-                res.end(Buffer.concat(arr))
-            })
-        }
-    } catch (error) {
-        console.log(error)
-        res.setHeader(&apos;Content-Type&apos;,&apos;text/html;charset=utf8&apos;)
-        res.statusCode = 404;
-        res.end(`未发现文件`)
-    }
-})
-
-server.listen(3000)
-
-复制代码
-</code></pre><p><a href="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" target="_blank" rel="noopener"><img src="https://camo.githubusercontent.com/2f8b1e0fdea5971d22f52b82ebae608cf2f8d73b/68747470733a2f2f757365722d676f6c642d63646e2e786974752e696f2f323031382f392f332f313635396665623530666363373334393f696d61676556696577322f302f772f313238302f682f3936302f666f726d61742f776562702f69676e6f72652d6572726f722f31" alt=""></a><br>通过控制台我们可以看出来 请求头和响应头中都有我们上面所说的对应的值，但是从代码里我们也能看出来，我们每次在请求到来的时候都会把文件全部读取出来并且进行加密生产hash然后再做对比，这样其实十分的消耗性能，因此这种缓存方式也有他自己的缺点</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们通过node来亲自实现了三种缓存方式，我们可以总结出每种缓存方式对应的实现：</p>
-<ul>
-<li>强制缓存 服务端设置响应头Cache-Control:max-age=xxx，并且设置Expires响应头过期时间，客户端自行判断是否读取缓存</li>
-<li><p>协商缓存 通过状态码304告诉客户端该走缓存</p>
-</li>
-<li><p>修改时间：通过文件的最后修改时间判断该不该读取缓存，服务端设置响应头Last-Modified,客户端把上次服务端响应头中的Last-modified值通过if-modified-since 传递给服务端 ， 服务端通过比较当前文件的修改时间和上次修改时间(上次传给客户端的值),如果相等那么说明文件修改时间没变也就是没变化</p>
-</li>
-<li>文件内容：通过文件的内容来判断该不该读取缓存，服务端通过把文件内容读取出来，通过md5进行base64加密得出hash值，把这个值设置响应头Etag，客户端下一次请求通过if-none-match带过来，服务端再比对当前文件内容加密得出的hash值和上次是否一样，如果一样说明文件内容没有发生改变，这种方式是最准确的方式，但是也是最耗性能</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/10/Vue你可能不知道的7个技巧/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/10/Vue你可能不知道的7个技巧/" itemprop="url">Vue你可能不知道的7个技巧</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-10T15:02:13+08:00">
-                2018-04-10
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="一、善用watch的immediate属性"><a href="#一、善用watch的immediate属性" class="headerlink" title="一、善用watch的immediate属性"></a>一、善用watch的immediate属性</h2><p>这一点我在项目中也是这么写的。例如有请求需要再也没初始化的时候就执行一次，然后监听他的变化，很多人这么写：</p>
-<pre><code>created(){
-    this.fetchPostList()
-},
-watch: {
-    searchInputValue(){
-        this.fetchPostList()
-    }
-}
-</code></pre><p>上面的这种写法我们可以完全如下写：</p>
-<pre><code> watch: {
-    searchInputValue:{
-        handler: &apos;fetchPostList&apos;,
-        immediate: true
-    }
-}
-</code></pre><h2 id="二、组件注册，值得借鉴"><a href="#二、组件注册，值得借鉴" class="headerlink" title="二、组件注册，值得借鉴"></a>二、组件注册，值得借鉴</h2><p>一般情况下，我们组件如下写：</p>
-<pre><code>import BaseButton from &apos;./baseButton&apos;
-import BaseIcon from &apos;./baseIcon&apos;
-import BaseInput from &apos;./baseInput&apos;export default {
-  components: {
-    BaseButton,
-    BaseIcon,
-    BaseInput
-  }
-}
-&lt;BaseInput  v-model=&quot;searchText&quot; @keydown.enter=&quot;search&quot; /&gt;
-&lt;BaseButton @click=&quot;search&quot;&gt;  &lt;BaseIcon name=&quot;search&quot;/&gt;&lt;/BaseButton&gt;
-</code></pre><p>步骤一般有三部，</p>
-<blockquote>
-<p>第一步，引入、</p>
-</blockquote>
-<blockquote>
-<p>第二步注册、</p>
-</blockquote>
-<blockquote>
-<p>第三步才是正式的使用，</p>
-</blockquote>
-<p>这也是最常见和通用的写法。但是这种写法经典归经典，好多组件，要引入多次，注册多次，感觉很烦。</p>
-<p>我们可以借助一下webpack，使用 require.context() 方法来创建自己的（模块）上下文，从而实现自动动态require组件。</p>
-<p>思路是：在src文件夹下面main.js中，借助webpack动态将需要的基础组件统统打包进来。</p>
-<p>代码如下：</p>
-<pre><code>import Vue from &apos;vue&apos;
-import upperFirst from &apos;lodash/upperFirst&apos;
-import camelCase from &apos;lodash/camelCase&apos;
-
-// Require in a base component context
-const requireComponent = require.context(&apos;./components&apos;, false, /base-[\w-]+\.vue$/)
-
-requireComponent.keys().forEach(fileName =&gt; {
-  // Get component config
-  const componentConfig = requireComponent(fileName)
-
-  // Get PascalCase name of component
-  const componentName = upperFirst(
-    camelCase(fileName.replace(/^\.\//, &apos;&apos;).replace(/\.\w+$/, &apos;&apos;))
-  )
-
-  // Register component globally
-  Vue.component(componentName, componentConfig.default || componentConfig)
-})
-</code></pre><p>这样我们引入组件只需要第三步就可以了：</p>
-<pre><code>&lt;BaseInput
-   v-model=&quot;searchText&quot;
-   @keydown.enter=&quot;search&quot;
-/&gt;
-&lt;BaseButton @click=&quot;search&quot;&gt;
-   &lt;BaseIcon name=&quot;search&quot;/&gt;
-&lt;/BaseButton&gt;
-</code></pre><h2 id="三、精简vuex的modules引入"><a href="#三、精简vuex的modules引入" class="headerlink" title="三、精简vuex的modules引入"></a>三、精简vuex的modules引入</h2><p>对于vuex，我们输出store如下写：</p>
-<pre><code>import auth from &apos;./modules/auth&apos;
-import posts from &apos;./modules/posts&apos;
-import comments from &apos;./modules/comments&apos;
-
-
-export default new Vuex.Store({
-  modules: {
-    auth,
-    posts,
-    comments
-  }
-})
-</code></pre><p>要引入好多modules，然后再注册到Vuex.Store中~~</p>
-<p>精简的做法和上面类似，也是运用 require.context()读取文件，代码如下：</p>
-<pre><code>import camelCase from &apos;lodash/camelCase&apos;
-const requireModule = require.context(&apos;.&apos;, false, /\.js$/)
-const modules = {}
-
-requireModule.keys().forEach(fileName =&gt; {
-// Don&apos;t register this file as a Vuex module
-if (fileName === &apos;./index.js&apos;) return
-
-const moduleName = camelCase(
-  fileName.replace(/(\.\/|\.js)/g, &apos;&apos;)
-)
-modules[moduleName] = {
-              namespaced: true,
-             ...requireModule(fileName),
-            }
-
-})
-
-export default modules
-</code></pre><p>这样我们只需如下代码就可以了：</p>
-<pre><code>import modules from &apos;./modules&apos;
-export default new Vuex.Store({
-   modules
-})
-</code></pre><h2 id="四、路由的延迟加载"><a href="#四、路由的延迟加载" class="headerlink" title="四、路由的延迟加载"></a>四、路由的延迟加载</h2><p>这一点，关于vue的引入，我之前在中也提及过，可以通过require方式或者import()方式动态加载组件。</p>
-<pre><code>{
- path: &apos;/admin&apos;,
- name: &apos;admin-dashboard&apos;,
- component:require(&apos;@views/admin&apos;).default
-}
-</code></pre><p>或者</p>
-<pre><code>{
-  path: &apos;/admin&apos;,
-  name: &apos;admin-dashboard&apos;,
-  component:() =&gt; import(&apos;@views/admin&apos;)
-}
-</code></pre><p>加载路由。</p>
-<h2 id="五、router-key组件刷新"><a href="#五、router-key组件刷新" class="headerlink" title="五、router key组件刷新"></a>五、router key组件刷新</h2><p>下面这个场景真的是伤透了很多程序员的心…<br> 先默认大家用的是Vue-router来实现路由的控制。 假设我们在写一个博客网站，需求是从/post-haorooms/a，跳转到/post-haorooms/b。然后我们惊人的发现，页面跳转后数据竟然没更新？！原因是vue-router”智能地”发现这是同一个组件，然后它就决定要复用这个组件，所以你在created函数里写的方法压根就没执行。通常的解决方案是监听$route的变化来初始化数据，如下：</p>
-<pre><code>data() {
-  return {
-    loading: false,
-    error: null,
-    post: null
-  }
-}, 
-watch: {
-  &apos;$route&apos;: {
-    handler: &apos;resetData&apos;,
-    immediate: true
-  }
-},
-methods: {
-  resetData() {
-    this.loading = false
-    this.error = null
-    this.post = null
-    this.getPost(this.$route.params.id)
-  },
-  getPost(id){
-
-  }
-}
-</code></pre><p>bug是解决了，可每次这么写也太不优雅了吧？秉持着能偷懒则偷懒的原则，我们希望代码这样写：</p>
-<pre><code>data() {
-  return {
-    loading: false,
-    error: null,
-    post: null
-  }
-},
-created () {
-  this.getPost(this.$route.params.id)
-},
-methods () {
-  getPost(postId) {
-    // ...
-  }
-}
-</code></pre><p>解决方案：给router-view添加一个唯一的key，这样即使是公用组件，只要url变化了，就一定会重新创建这个组件。</p>
-<pre><code>&lt;router-view :key=&quot;$route.fullpath&quot;&gt;&lt;/router-view&gt;
-</code></pre><p>注：我个人的经验，这个一般应用在子路由里面，这样才可以不避免大量重绘，假设app.vue根目录添加这个属性，那么每次点击改变地址都会重绘，还是得不偿失的！</p>
-<h2 id="六、唯一组件根元素"><a href="#六、唯一组件根元素" class="headerlink" title="六、唯一组件根元素"></a>六、唯一组件根元素</h2><p>场景如下：</p>
-<pre><code>(Emitted value instead of an instance of Error)
- Error compiling template:
-
- &lt;div&gt;&lt;/div&gt;
- &lt;div&gt;&lt;/div&gt;
-
- - Component template should contain exactly one root element. 
-   If you are using v-if on multiple elements, use v-else-if 
-   to chain them instead.
-</code></pre><p>模板中div只能有一个，不能如上面那么平行2个div。</p>
-<p>例如如下代码：</p>
-<pre><code>&lt;template&gt;
-  &lt;li
-    v-for=&quot;route in routes&quot;
-    :key=&quot;route.name&quot;
-  &gt;
-    &lt;router-link :to=&quot;route&quot;&gt;
-      {{ route.title }}
-    &lt;/router-link&gt;
-  &lt;/li&gt;
-&lt;/template&gt;
-</code></pre><p>会报错！</p>
-<p>我们可以用render函数来渲染</p>
-<pre><code>functional: true,
-render(h, { props }) {
- return props.routes.map(route =&gt;
-   &lt;li key={route.name}&gt;
-     &lt;router-link to={route}&gt;
-       {route.title}
-     &lt;/router-link&gt;
-   &lt;/li&gt;
- )
-}
-</code></pre><h2 id="七、组件包装、事件属性穿透问题"><a href="#七、组件包装、事件属性穿透问题" class="headerlink" title="七、组件包装、事件属性穿透问题"></a>七、组件包装、事件属性穿透问题</h2><p>当我们写组件的时候，通常我们都需要从父组件传递一系列的props到子组件，同时父组件监听子组件emit过来的一系列事件。举例子：</p>
-<pre><code>//父组件
-&lt;BaseInput 
-    :value=&quot;value&quot;
-    label=&quot;密码&quot; 
-    placeholder=&quot;请填写密码&quot;
-    @input=&quot;handleInput&quot;
-    @focus=&quot;handleFocus&gt;
-&lt;/BaseInput&gt;
-
-//子组件
-&lt;template&gt;
-  &lt;label&gt;
-    {{ label }}
-    &lt;input
-      :value=&quot;value&quot;
-      :placeholder=&quot;placeholder&quot;
-      @focus=$emit(&apos;focus&apos;, $event)&quot;
-      @input=&quot;$emit(&apos;input&apos;, $event.target.value)&quot;
-    &gt;
-  &lt;/label&gt;
-&lt;/template&gt;
-</code></pre><p>这样写很不精简，很多属性和事件都是手动定义的，我们可以如下写：</p>
-<pre><code>&lt;input
-    :value=&quot;value&quot;
-    v-bind=&quot;$attrs&quot;
-    v-on=&quot;listeners&quot;
-&gt;
-
-computed: {
-  listeners() {
-    return {
-      ...this.$listeners,
-      input: event =&gt; 
-        this.$emit(&apos;input&apos;, event.target.value)
-    }
-  }
-}
-</code></pre><p>$attrs包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (class 和 style 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定，并且可以通过 v-bind=”$attrs” 传入内部组件。</p>
-<p>$listeners包含了父作用域中的 (不含 .native 修饰器的) v-on 事件监听器。它可以通过 v-on=”$listeners” 传入内部组件。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/vue2-0模板渲染底层思想/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/02/vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
-                2018-04-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>初衷</p>
-<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
-<p>vue2.0和1.0模板渲染的区别</p>
-<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
-<p>知识普及</p>
-<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
-<p>AST 数据结构</p>
-<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
-<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
-<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
-declare type ASTElement = { // 有关元素的一些定义
-  type: 1;
-  tag: string;
-  attrsList: Array&lt;{ name: string; value: string }&gt;;
-  attrsMap: { [key: string]: string | null };
-  parent: ASTElement | void;
-  children: Array&lt;ASTNode&gt;;
-  //......
-}
-declare type ASTExpression = {
-  type: 2;
-  expression: string;
-  text: string;
-  static?: boolean;
-}
-declare type ASTText = {
-  type: 3;
-  text: string;
-  static?: boolean;
-}
-</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
-<p>VNode数据结构</p>
-<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
-<pre><code>constructor {
-  this.tag = tag   //元素标签
-  this.data = data  //属性
-  this.children = children  //子元素列表
-  this.text = text
-  this.elm = elm  //对应的真实 DOM 元素
-  this.ns = undefined
-  this.context = context 
-  this.functionalContext = undefined
-  this.key = data &amp;&amp; data.key
-  this.componentOptions = componentOptions
-  this.componentInstance = undefined
-  this.parent = undefined
-  this.raw = false
-  this.isStatic = false //是否被标记为静态节点
-  this.isRootInsert = true
-  this.isComment = false
-  this.isCloned = false
-  this.isOnce = false
-}
-</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
-<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
-<pre><code>let div = document.createElement(&apos;div&apos;);
-for(let k in div) {
-  console.log(k);
-}
-</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
-<p>render函数</p>
-<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
-<pre><code>&lt;div id=&quot;app&quot;&gt;
-  &lt;header&gt;
-    &lt;h1&gt;I am a template!&lt;/h1&gt;
-  &lt;/header&gt;
-  &lt;p v-if=&quot;message&quot;&gt;
-    {{ message }}
-  &lt;/p&gt;
-  &lt;p v-else&gt;
-    No message.
-  &lt;/p&gt;
-&lt;/div&gt;
-</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
-<pre><code>(function() {
-  with(this){
-    return _c(&apos;div&apos;,{   //创建一个 div 元素
-      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
-      },[
-        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
-        _v(&quot; &quot;), //空的文本节点
-        (message) //三元表达式，判断 message 是否存在
-         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
-        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
-        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
-        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
-      ]
-    )
-  }
-})
-</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
-<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
-<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
-  with(this){
-    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
-  }
-})
-</code></pre><p>模板渲染过程（重要的函数介绍）</p>
-<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
-<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
-<pre><code>// 有缓存的话就直接在缓存里面拿
-const key = options &amp;&amp; options.delimiters
-            ? String(options.delimiters) + template
-            : template
-if (cache[key]) {
-    return cache[key]
-}
-const res = {}
-const compiled = compile(template, options) // compile 后面会详细讲
-res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
-const l = compiled.staticRenderFns.length
-res.staticRenderFns = new Array(l)
-for (let i = 0; i &lt; l; i++) {
-    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
-}
-......
-}
-return (cache[key] = res) // 记录至缓存中
-</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
-<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
-<pre><code>// 触发 beforeMount 生命周期钩子
-callHook(vm, &apos;beforeMount&apos;)
-// 重点：新建一个 Watcher 并赋值给 vm._watcher
-vm._watcher = new Watcher(vm, function updateComponent () {
-  vm._update(vm._render(), hydrating)
-}, noop)
-hydrating = false
-// manually mounted instance, call mounted on self
-// mounted is called for render-created child components in its inserted hook
-if (vm.$vnode == null) {
-  vm._isMounted = true
-  callHook(vm, &apos;mounted&apos;)
-}
-return vm
-</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
-<p>compile</p>
-<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
-<pre><code>export function compile (
-  template: string,
-  options: CompilerOptions
-): CompiledResult {
-  const AST = parse(template.trim(), options) //1. parse
-  optimize(AST, options)  //2.optimize
-  const code = generate(AST, options) //3.generate
-  return {
-    AST,
-    render: code.render,
-    staticRenderFns: code.staticRenderFns
-  }
-}
-</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
-<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
-staticRenderFns = prevStaticRenderFns
-onceCount = prevOnceCount
-return {
-    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
-    staticRenderFns: currentStaticRenderFns
-}
-</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
-<pre><code>function genElement (el: ASTElement): string {
-  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
-    return genStatic(el)
-  } else if (el.once &amp;&amp; !el.onceProcessed) {
-    return genOnce(el)
-  } else if (el.for &amp;&amp; !el.forProcessed) {
-    return genFor(el)
-  } else if (el.if &amp;&amp; !el.ifProcessed) {
-    return genIf(el)
-  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
-    return genChildren(el) || &apos;void 0&apos;
-  } else if (el.tag === &apos;slot&apos;) {
-  }
-    return code
-  }
-}
-</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
-<p>patch</p>
-<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
-<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
-<p>总结</p>
-<ul>
-<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
-<li>render函数 与数据通过 Watcher 产生关联；</li>
-<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/5/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/7/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/5/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/7/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3709,7 +3869,7 @@ return {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">88</span>
+                  <span class="site-state-item-count">91</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3722,7 +3882,7 @@ return {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">56</span>
+                  <span class="site-state-item-count">57</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
