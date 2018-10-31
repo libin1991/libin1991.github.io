@@ -300,6 +300,558 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/22/前端常见跨域解决方案/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/22/前端常见跨域解决方案/" itemprop="url">前端常见跨域解决方案</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-22T22:23:15+08:00">
+                2018-04-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="什么是跨域？"><a href="#什么是跨域？" class="headerlink" title="什么是跨域？"></a>什么是跨域？</h2><p>跨域是指一个域下的文档或脚本试图去请求另一个域下的资源，这里跨域是广义的。</p>
+<p>广义的跨域：</p>
+<pre><code>1.) 资源跳转： A链接、重定向、表单提交
+2.) 资源嵌入： &lt;link&gt;、&lt;script&gt;、&lt;img&gt;、&lt;frame&gt;等dom标签，还有样式中background:url()、@font-face()等文件外链
+3.) 脚本请求： js发起的ajax请求、dom和js对象的跨域操作等
+</code></pre><p>其实我们通常所说的跨域是狭义的，是由浏览器同源策略限制的一类请求场景。</p>
+<p>什么是同源策略？<br>同源策略/SOP（Same origin policy）是一种约定，由Netscape公司1995年引入浏览器，它是浏览器最核心也最基本的安全功能，如果缺少了同源策略，浏览器很容易受到XSS、CSFR等攻击。所谓同源是指”协议+域名+端口”三者相同，即便两个不同的域名指向同一个ip地址，也非同源。</p>
+<p>同源策略限制以下几种行为：</p>
+<pre><code>1.) Cookie、LocalStorage 和 IndexDB 无法读取
+2.) DOM 和 Js对象无法获得
+3.) AJAX 请求不能发送
+</code></pre><h2 id="常见跨域场景"><a href="#常见跨域场景" class="headerlink" title="常见跨域场景"></a>常见跨域场景</h2><pre><code>URL                                      说明                    是否允许通信
+http://www.domain.com/a.js
+http://www.domain.com/b.js         同一域名，不同文件或路径           允许
+http://www.domain.com/lab/c.js
+
+http://www.domain.com:8000/a.js
+http://www.domain.com/b.js         同一域名，不同端口                不允许
+
+http://www.domain.com/a.js
+https://www.domain.com/b.js        同一域名，不同协议                不允许
+
+http://www.domain.com/a.js
+http://192.168.4.12/b.js           域名和域名对应相同ip              不允许
+
+http://www.domain.com/a.js
+http://x.domain.com/b.js           主域相同，子域不同                不允许
+http://domain.com/c.js
+
+http://www.domain1.com/a.js
+http://www.domain2.com/b.js        不同域名                         不允许
+</code></pre><h2 id="跨域解决方案"><a href="#跨域解决方案" class="headerlink" title="跨域解决方案"></a>跨域解决方案</h2><p>1、 通过jsonp跨域<br>2、 document.domain + iframe跨域<br>3、 location.hash + iframe<br>4、 window.name + iframe跨域<br>5、 postMessage跨域<br>6、 跨域资源共享（CORS）<br>7、 nginx代理跨域<br>8、 nodejs中间件代理跨域<br>9、 WebSocket协议跨域</p>
+<h2 id="一、-通过jsonp跨域"><a href="#一、-通过jsonp跨域" class="headerlink" title="一、 通过jsonp跨域"></a>一、 通过jsonp跨域</h2><p>通常为了减轻web服务器的负载，我们把js、css，img等静态资源分离到另一台独立域名的服务器上，在html页面中再通过相应的标签从不同域名下加载静态资源，而被浏览器允许，基于此原理，我们可以通过动态创建script，再请求一个带参网址实现跨域通信。</p>
+<p>1.）原生实现：</p>
+<pre><code>&lt;script&gt;
+    var script = document.createElement(&apos;script&apos;);
+    script.type = &apos;text/javascript&apos;;
+
+    // 传参并指定回调执行函数为onBack
+    script.src = &apos;http://www.domain2.com:8080/login?user=admin&amp;callback=onBack&apos;;
+    document.head.appendChild(script);
+
+    // 回调执行函数
+    function onBack(res) {
+        alert(JSON.stringify(res));
+    }
+ &lt;/script&gt;
+</code></pre><p>服务端返回如下（返回时即执行全局函数）：</p>
+<pre><code>onBack({&quot;status&quot;: true, &quot;user&quot;: &quot;admin&quot;})
+</code></pre><p>2.）jquery ajax：</p>
+<pre><code>$.ajax({
+    url: &apos;http://www.domain2.com:8080/login&apos;,
+    type: &apos;get&apos;,
+    dataType: &apos;jsonp&apos;,  // 请求方式为jsonp
+    jsonpCallback: &quot;onBack&quot;,    // 自定义回调函数名
+    data: {}
+});
+</code></pre><p>3.）vue.js：</p>
+<pre><code>this.$http.jsonp(&apos;http://www.domain2.com:8080/login&apos;, {
+    params: {},
+    jsonp: &apos;onBack&apos;
+}).then((res) =&gt; {
+    console.log(res); 
+})
+</code></pre><p>后端node.js代码示例：</p>
+<pre><code>var querystring = require(&apos;querystring&apos;);
+var http = require(&apos;http&apos;);
+var server = http.createServer();
+
+server.on(&apos;request&apos;, function(req, res) {
+    var params = qs.parse(req.url.split(&apos;?&apos;)[1]);
+    var fn = params.callback;
+
+    // jsonp返回设置
+    res.writeHead(200, { &apos;Content-Type&apos;: &apos;text/javascript&apos; });
+    res.write(fn + &apos;(&apos; + JSON.stringify(params) + &apos;)&apos;);
+
+    res.end();
+});
+
+server.listen(&apos;8080&apos;);
+console.log(&apos;Server is running at port 8080...&apos;);
+</code></pre><p>jsonp缺点：只能实现get一种请求。</p>
+<h2 id="二、-document-domain-iframe跨域"><a href="#二、-document-domain-iframe跨域" class="headerlink" title="二、 document.domain + iframe跨域"></a>二、 document.domain + iframe跨域</h2><p>此方案仅限主域相同，子域不同的跨域应用场景。</p>
+<p>实现原理：两个页面都通过js强制设置document.domain为基础主域，就实现了同域。</p>
+<p>1.）父窗口：(<a href="https://link.zhihu.com/?target=http%3A//www.domain.com/a.html%29" target="_blank" rel="noopener">http://www.domain.com/a.html)</a></p>
+<pre><code>&lt;iframe id=&quot;iframe&quot; src=&quot;http://child.domain.com/b.html&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+    document.domain = &apos;domain.com&apos;;
+    var user = &apos;admin&apos;;
+&lt;/script&gt;
+</code></pre><p>2.）子窗口：(<a href="https://link.zhihu.com/?target=http%3A//child.domain.com/b.html%29" target="_blank" rel="noopener">http://child.domain.com/b.html)</a></p>
+<pre><code>&lt;script&gt;
+    document.domain = &apos;domain.com&apos;;
+    // 获取父窗口中变量
+    alert(&apos;get js data from parent ---&gt; &apos; + window.parent.user);
+&lt;/script&gt;
+</code></pre><h2 id="三、-location-hash-iframe跨域"><a href="#三、-location-hash-iframe跨域" class="headerlink" title="三、 location.hash + iframe跨域"></a>三、 location.hash + iframe跨域</h2><p>实现原理： a欲与b跨域相互通信，通过中间页c来实现。 三个页面，不同域之间利用iframe的location.hash传值，相同域之间直接js访问来通信。</p>
+<p>具体实现：A域：a.html -&gt; B域：b.html -&gt; A域：c.html，a与b不同域只能通过hash值单向通信，b与c也不同域也只能单向通信，但c与a同域，所以c可通过parent.parent访问a页面所有对象。</p>
+<p>1.）a.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain1.com/a.html%29" target="_blank" rel="noopener">http://www.domain1.com/a.html)</a></p>
+<pre><code>&lt;iframe id=&quot;iframe&quot; src=&quot;http://www.domain2.com/b.html&quot; style=&quot;display:none;&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+    var iframe = document.getElementById(&apos;iframe&apos;);
+
+    // 向b.html传hash值
+    setTimeout(function() {
+        iframe.src = iframe.src + &apos;#user=admin&apos;;
+    }, 1000);
+
+    // 开放给同域c.html的回调方法
+    function onCallback(res) {
+        alert(&apos;data from c.html ---&gt; &apos; + res);
+    }
+&lt;/script&gt;
+</code></pre><p>2.）b.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain2.com/b.html%29" target="_blank" rel="noopener">http://www.domain2.com/b.html)</a></p>
+<pre><code>&lt;iframe id=&quot;iframe&quot; src=&quot;http://www.domain1.com/c.html&quot; style=&quot;display:none;&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+    var iframe = document.getElementById(&apos;iframe&apos;);
+
+    // 监听a.html传来的hash值，再传给c.html
+    window.onhashchange = function () {
+        iframe.src = iframe.src + location.hash;
+    };
+&lt;/script&gt;
+</code></pre><p>3.）c.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain1.com/c.html%29" target="_blank" rel="noopener">http://www.domain1.com/c.html)</a></p>
+<pre><code>&lt;script&gt;
+    // 监听b.html传来的hash值
+    window.onhashchange = function () {
+        // 再通过操作同域a.html的js回调，将结果传回
+        window.parent.parent.onCallback(&apos;hello: &apos; + location.hash.replace(&apos;#user=&apos;, &apos;&apos;));
+    };
+&lt;/script&gt;
+</code></pre><h2 id="四、-window-name-iframe跨域"><a href="#四、-window-name-iframe跨域" class="headerlink" title="四、 window.name + iframe跨域"></a>四、 window.name + iframe跨域</h2><p>window.name属性的独特之处：name值在不同的页面（甚至不同域名）加载后依旧存在，并且可以支持非常长的 name 值（2MB）。</p>
+<p>1.）a.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain1.com/a.html%29" target="_blank" rel="noopener">http://www.domain1.com/a.html)</a></p>
+<pre><code>var proxy = function(url, callback) {
+    var state = 0;
+    var iframe = document.createElement(&apos;iframe&apos;);
+
+    // 加载跨域页面
+    iframe.src = url;
+
+    // onload事件会触发2次，第1次加载跨域页，并留存数据于window.name
+    iframe.onload = function() {
+        if (state === 1) {
+            // 第2次onload(同域proxy页)成功后，读取同域window.name中数据
+            callback(iframe.contentWindow.name);
+            destoryFrame();
+
+        } else if (state === 0) {
+            // 第1次onload(跨域页)成功后，切换到同域代理页面
+            iframe.contentWindow.location = &apos;http://www.domain1.com/proxy.html&apos;;
+            state = 1;
+        }
+    };
+
+    document.body.appendChild(iframe);
+
+    // 获取数据以后销毁这个iframe，释放内存；这也保证了安全（不被其他域frame js访问）
+    function destoryFrame() {
+        iframe.contentWindow.document.write(&apos;&apos;);
+        iframe.contentWindow.close();
+        document.body.removeChild(iframe);
+    }
+};
+
+// 请求跨域b页面数据
+proxy(&apos;http://www.domain2.com/b.html&apos;, function(data){
+    alert(data);
+});
+</code></pre><p>2.）proxy.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain1.com/proxy.html%29" target="_blank" rel="noopener">http://www.domain1.com/proxy….</a><br>中间代理页，与a.html同域，内容为空即可。</p>
+<p>3.）b.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain2.com/b.html%29" target="_blank" rel="noopener">http://www.domain2.com/b.html)</a></p>
+<pre><code>&lt;script&gt;
+    window.name = &apos;This is domain2 data!&apos;;
+&lt;/script&gt;
+</code></pre><p>总结：通过iframe的src属性由外域转向本地域，跨域数据即由iframe的window.name从外域传递到本地域。这个就巧妙地绕过了浏览器的跨域访问限制，但同时它又是安全操作。</p>
+<h2 id="五、-postMessage跨域"><a href="#五、-postMessage跨域" class="headerlink" title="五、 postMessage跨域"></a>五、 postMessage跨域</h2><p>postMessage是HTML5 XMLHttpRequest Level 2中的API，且是为数不多可以跨域操作的window属性之一，它可用于解决以下方面的问题：<br>a.） 页面和其打开的新窗口的数据传递<br>b.） 多窗口之间消息传递<br>c.） 页面与嵌套的iframe消息传递<br>d.） 上面三个场景的跨域数据传递</p>
+<p>用法：postMessage(data,origin)方法接受两个参数<br>data： html5规范支持任意基本类型或可复制的对象，但部分浏览器只支持字符串，所以传参时最好用JSON.stringify()序列化。<br>origin： 协议+主机+端口号，也可以设置为”*”，表示可以传递给任意窗口，如果要指定和当前窗口同源的话设置为”/“。</p>
+<p>1.）a.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain1.com/a.html%29" target="_blank" rel="noopener">http://www.domain1.com/a.html)</a></p>
+<pre><code>&lt;iframe id=&quot;iframe&quot; src=&quot;http://www.domain2.com/b.html&quot; style=&quot;display:none;&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;       
+    var iframe = document.getElementById(&apos;iframe&apos;);
+    iframe.onload = function() {
+        var data = {
+            name: &apos;aym&apos;
+        };
+        // 向domain2传送跨域数据
+        iframe.contentWindow.postMessage(JSON.stringify(data), &apos;http://www.domain2.com&apos;);
+    };
+
+    // 接受domain2返回数据
+    window.addEventListener(&apos;message&apos;, function(e) {
+        alert(&apos;data from domain2 ---&gt; &apos; + e.data);
+    }, false);
+&lt;/script&gt;
+</code></pre><p>2.）b.html：(<a href="https://link.zhihu.com/?target=http%3A//www.domain2.com/b.html%29" target="_blank" rel="noopener">http://www.domain2.com/b.html)</a></p>
+<pre><code>&lt;script&gt;
+    // 接收domain1的数据
+    window.addEventListener(&apos;message&apos;, function(e) {
+        alert(&apos;data from domain1 ---&gt; &apos; + e.data);
+
+        var data = JSON.parse(e.data);
+        if (data) {
+            data.number = 16;
+
+            // 处理后再发回domain1
+            window.parent.postMessage(JSON.stringify(data), &apos;http://www.domain1.com&apos;);
+        }
+    }, false);
+&lt;/script&gt;
+</code></pre><h2 id="六、-跨域资源共享（CORS）"><a href="#六、-跨域资源共享（CORS）" class="headerlink" title="六、 跨域资源共享（CORS）"></a>六、 跨域资源共享（CORS）</h2><p>普通跨域请求：只服务端设置Access-Control-Allow-Origin即可，前端无须设置，若要带cookie请求：前后端都需要设置。</p>
+<p>需注意的是：由于同源策略的限制，所读取的cookie为跨域请求接口所在域的cookie，而非当前页。如果想实现当前页cookie的写入，可参考下文：七、nginx反向代理中设置proxy_cookie_domain 和 八、NodeJs中间件代理中cookieDomainRewrite参数的设置。</p>
+<p>目前，所有浏览器都支持该功能(IE8+：IE8/9需要使用XDomainRequest对象来支持CORS）)，CORS也已经成为主流的跨域解决方案。</p>
+<h2 id="1、-前端设置："><a href="#1、-前端设置：" class="headerlink" title="1、 前端设置："></a>1、 前端设置：</h2><p>1.）原生ajax</p>
+<pre><code>// 前端设置是否带cookie
+xhr.withCredentials = true;
+</code></pre><p>示例代码：</p>
+<pre><code>var xhr = new XMLHttpRequest(); // IE8/9需用window.XDomainRequest兼容
+
+// 前端设置是否带cookie
+xhr.withCredentials = true;
+
+xhr.open(&apos;post&apos;, &apos;http://www.domain2.com:8080/login&apos;, true);
+xhr.setRequestHeader(&apos;Content-Type&apos;, &apos;application/x-www-form-urlencoded&apos;);
+xhr.send(&apos;user=admin&apos;);
+
+xhr.onreadystatechange = function() {
+    if (xhr.readyState == 4 &amp;&amp; xhr.status == 200) {
+        alert(xhr.responseText);
+    }
+};
+</code></pre><p>2.）jQuery ajax</p>
+<pre><code>$.ajax({
+    ...
+   xhrFields: {
+       withCredentials: true    // 前端设置是否带cookie
+   },
+   crossDomain: true,   // 会让请求头中包含跨域的额外信息，但不会含cookie
+    ...
+});
+</code></pre><p>3.）vue框架<br>在vue-resource封装的ajax组件中加入以下代码：</p>
+<pre><code>Vue.http.options.credentials = true
+</code></pre><h2 id="2、-服务端设置："><a href="#2、-服务端设置：" class="headerlink" title="2、 服务端设置："></a>2、 服务端设置：</h2><p>若后端设置成功，前端浏览器控制台则不会出现跨域报错信息，反之，说明没设成功。</p>
+<p>1.）Java后台：</p>
+<pre><code>/*
+ * 导入包：import javax.servlet.http.HttpServletResponse;
+ * 接口参数中定义：HttpServletResponse response
+ */
+response.setHeader(&quot;Access-Control-Allow-Origin&quot;, &quot;http://www.domain1.com&quot;);  // 若有端口需写全（协议+域名+端口）
+response.setHeader(&quot;Access-Control-Allow-Credentials&quot;, &quot;true&quot;);
+</code></pre><p>2.）Nodejs后台示例：</p>
+<pre><code>var http = require(&apos;http&apos;);
+var server = http.createServer();
+var qs = require(&apos;querystring&apos;);
+
+server.on(&apos;request&apos;, function(req, res) {
+    var postData = &apos;&apos;;
+
+    // 数据块接收中
+    req.addListener(&apos;data&apos;, function(chunk) {
+        postData += chunk;
+    });
+
+    // 数据接收完毕
+    req.addListener(&apos;end&apos;, function() {
+        postData = qs.parse(postData);
+
+        // 跨域后台设置
+        res.writeHead(200, {
+            &apos;Access-Control-Allow-Credentials&apos;: &apos;true&apos;,     // 后端允许发送Cookie
+            &apos;Access-Control-Allow-Origin&apos;: &apos;http://www.domain1.com&apos;,    // 允许访问的域（协议+域名+端口）
+            &apos;Set-Cookie&apos;: &apos;l=a123456;Path=/;Domain=www.domain2.com;HttpOnly&apos;   // HttpOnly:脚本无法读取cookie
+        });
+
+        res.write(JSON.stringify(postData));
+        res.end();
+    });
+});
+
+server.listen(&apos;8080&apos;);
+console.log(&apos;Server is running at port 8080...&apos;);
+</code></pre><h2 id="七、-nginx代理跨域"><a href="#七、-nginx代理跨域" class="headerlink" title="七、 nginx代理跨域"></a>七、 nginx代理跨域</h2><h2 id="1、-nginx配置解决iconfont跨域"><a href="#1、-nginx配置解决iconfont跨域" class="headerlink" title="1、 nginx配置解决iconfont跨域"></a>1、 nginx配置解决iconfont跨域</h2><p>浏览器跨域访问js、css、img等常规静态资源被同源策略许可，但iconfont字体文件(eot|otf|ttf|woff|svg)例外，此时可在nginx的静态资源服务器中加入以下配置。</p>
+<pre><code>location / {
+  add_header Access-Control-Allow-Origin *;
+}
+</code></pre><h2 id="2、-nginx反向代理接口跨域"><a href="#2、-nginx反向代理接口跨域" class="headerlink" title="2、 nginx反向代理接口跨域"></a>2、 nginx反向代理接口跨域</h2><p>跨域原理： 同源策略是浏览器的安全策略，不是HTTP协议的一部分。服务器端调用HTTP接口只是使用HTTP协议，不会执行JS脚本，不需要同源策略，也就不存在跨越问题。</p>
+<p>实现思路：通过nginx配置一个代理服务器（域名与domain1相同，端口不同）做跳板机，反向代理访问domain2接口，并且可以顺便修改cookie中domain信息，方便当前域cookie写入，实现跨域登录。</p>
+<p>nginx具体配置：</p>
+<pre><code>#proxy服务器
+server {
+    listen       81;
+    server_name  www.domain1.com;
+
+    location / {
+        proxy_pass   http://www.domain2.com:8080;  #反向代理
+        proxy_cookie_domain www.domain2.com www.domain1.com; #修改cookie里域名
+        index  index.html index.htm;
+
+        # 当用webpack-dev-server等中间件代理接口访问nignx时，此时无浏览器参与，故没有同源限制，下面的跨域配置可不启用
+        add_header Access-Control-Allow-Origin http://www.domain1.com;  #当前端只跨域不带cookie时，可为*
+        add_header Access-Control-Allow-Credentials true;
+    }
+}
+</code></pre><p>1.) 前端代码示例：</p>
+<pre><code>var xhr = new XMLHttpRequest();
+
+// 前端开关：浏览器是否读写cookie
+xhr.withCredentials = true;
+
+// 访问nginx中的代理服务器
+xhr.open(&apos;get&apos;, &apos;http://www.domain1.com:81/?user=admin&apos;, true);
+xhr.send();
+</code></pre><p>2.) Nodejs后台示例：</p>
+<pre><code>var http = require(&apos;http&apos;);
+var server = http.createServer();
+var qs = require(&apos;querystring&apos;);
+
+server.on(&apos;request&apos;, function(req, res) {
+    var params = qs.parse(req.url.substring(2));
+
+    // 向前台写cookie
+    res.writeHead(200, {
+        &apos;Set-Cookie&apos;: &apos;l=a123456;Path=/;Domain=www.domain2.com;HttpOnly&apos;   // HttpOnly:脚本无法读取
+    });
+
+    res.write(JSON.stringify(params));
+    res.end();
+});
+
+server.listen(&apos;8080&apos;);
+console.log(&apos;Server is running at port 8080...&apos;);
+</code></pre><h2 id="八、-Nodejs中间件代理跨域"><a href="#八、-Nodejs中间件代理跨域" class="headerlink" title="八、 Nodejs中间件代理跨域"></a>八、 Nodejs中间件代理跨域</h2><p>node中间件实现跨域代理，原理大致与nginx相同，都是通过启一个代理服务器，实现数据的转发，也可以通过设置cookieDomainRewrite参数修改响应头中cookie中域名，实现当前域的cookie写入，方便接口登录认证。</p>
+<h2 id="1、-非vue框架的跨域（2次跨域）"><a href="#1、-非vue框架的跨域（2次跨域）" class="headerlink" title="1、 非vue框架的跨域（2次跨域）"></a>1、 非vue框架的跨域（2次跨域）</h2><p>利用node + express + http-proxy-middleware搭建一个proxy服务器。</p>
+<p>1.）前端代码示例：</p>
+<pre><code>var xhr = new XMLHttpRequest();
+
+// 前端开关：浏览器是否读写cookie
+xhr.withCredentials = true;
+
+// 访问http-proxy-middleware代理服务器
+xhr.open(&apos;get&apos;, &apos;http://www.domain1.com:3000/login?user=admin&apos;, true);
+xhr.send();
+</code></pre><p>2.）中间件服务器：</p>
+<pre><code>var express = require(&apos;express&apos;);
+var proxy = require(&apos;http-proxy-middleware&apos;);
+var app = express();
+
+app.use(&apos;/&apos;, proxy({
+    // 代理跨域目标接口
+    target: &apos;http://www.domain2.com:8080&apos;,
+    changeOrigin: true,
+
+    // 修改响应头信息，实现跨域并允许带cookie
+    onProxyRes: function(proxyRes, req, res) {
+        res.header(&apos;Access-Control-Allow-Origin&apos;, &apos;http://www.domain1.com&apos;);
+        res.header(&apos;Access-Control-Allow-Credentials&apos;, &apos;true&apos;);
+    },
+
+    // 修改响应信息中的cookie域名
+    cookieDomainRewrite: &apos;www.domain1.com&apos;  // 可以为false，表示不修改
+}));
+
+app.listen(3000);
+console.log(&apos;Proxy server is listen at port 3000...&apos;);
+</code></pre><p>3.）Nodejs后台同（六：nginx）</p>
+<h2 id="2、-vue框架的跨域（1次跨域）"><a href="#2、-vue框架的跨域（1次跨域）" class="headerlink" title="2、 vue框架的跨域（1次跨域）"></a>2、 vue框架的跨域（1次跨域）</h2><p>利用node + webpack + webpack-dev-server代理接口跨域。在开发环境下，由于vue渲染服务和接口代理服务都是webpack-dev-server同一个，所以页面与代理接口之间不再跨域，无须设置headers跨域信息了。</p>
+<p>webpack.config.js部分配置：</p>
+<pre><code>module.exports = {
+    entry: {},
+    module: {},
+    ...
+    devServer: {
+        historyApiFallback: true,
+        proxy: [{
+            context: &apos;/login&apos;,
+            target: &apos;http://www.domain2.com:8080&apos;,  // 代理跨域目标接口
+            changeOrigin: true,
+            cookieDomainRewrite: &apos;www.domain1.com&apos;  // 可以为false，表示不修改
+        }],
+        noInfo: true
+    }
+}
+</code></pre><h2 id="九、-WebSocket协议跨域"><a href="#九、-WebSocket协议跨域" class="headerlink" title="九、 WebSocket协议跨域"></a>九、 WebSocket协议跨域</h2><p>WebSocket protocol是HTML5一种新的协议。它实现了浏览器与服务器全双工通信，同时允许跨域通讯，是server push技术的一种很好的实现。<br>原生WebSocket API使用起来不太方便，我们使用<a href="https://link.zhihu.com/?target=http%3A//Socket.io" target="_blank" rel="noopener">http://Socket.io</a>，它很好地封装了webSocket接口，提供了更简单、灵活的接口，也对不支持webSocket的浏览器提供了向下兼容。</p>
+<p>1.）前端代码：</p>
+<pre><code>&lt;div&gt;user input：&lt;input type=&quot;text&quot;&gt;&lt;/div&gt;
+&lt;script src=&quot;./socket.io.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+var socket = io(&apos;http://www.domain2.com:8080&apos;);
+
+// 连接成功处理
+socket.on(&apos;connect&apos;, function() {
+    // 监听服务端消息
+    socket.on(&apos;message&apos;, function(msg) {
+        console.log(&apos;data from server: ---&gt; &apos; + msg); 
+    });
+
+    // 监听服务端关闭
+    socket.on(&apos;disconnect&apos;, function() { 
+        console.log(&apos;Server socket has closed.&apos;); 
+    });
+});
+
+document.getElementsByTagName(&apos;input&apos;)[0].onblur = function() {
+    socket.send(this.value);
+};
+&lt;/script&gt;
+</code></pre><p>2.）Nodejs socket后台：</p>
+<pre><code>var http = require(&apos;http&apos;);
+var socket = require(&apos;socket.io&apos;);
+
+// 启http服务
+var server = http.createServer(function(req, res) {
+    res.writeHead(200, {
+        &apos;Content-type&apos;: &apos;text/html&apos;
+    });
+    res.end();
+});
+
+server.listen(&apos;8080&apos;);
+console.log(&apos;Server is running at port 8080...&apos;);
+
+// 监听socket连接
+socket.listen(server).on(&apos;connection&apos;, function(client) {
+    // 接收信息
+    client.on(&apos;message&apos;, function(msg) {
+        client.send(&apos;hello：&apos; + msg);
+        console.log(&apos;data from client: ---&gt; &apos; + msg);
+    });
+
+    // 断开处理
+    client.on(&apos;disconnect&apos;, function() {
+        console.log(&apos;Client socket has closed.&apos;); 
+    });
+}); 
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/19/HTTP三种缓存方式/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3421,186 +3973,6 @@ document.dispatchEvent(myEvent);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/03/Git-的-4-个阶段的撤销更改/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/03/Git-的-4-个阶段的撤销更改/" itemprop="url">Git 的 4 个阶段的撤销更改</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-03T13:07:36+08:00">
-                2017-11-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>虽然git诞生距今已有12年之久，网上各种关于git的介绍文章数不胜数，但是依然有很多人（包括我自己在内）对于它的功能不能完全掌握。以下的介绍只是基于我个人对于git的理解，并且可能生编硬造了一些不完全符合git说法的词语。目的只是为了让git通俗化，使初学者也能大概了解如何快速上手git。同时，下面所有讨论，我们都假设只使用一个分支，也就是主分支master的情况，虽然这种作法并不符合git规范，但是现实情况中绝大部分用户是直接在master分支上进行工作的，所以在这里我们不去引入更加复杂的各种分支的情况，也不涉及标签tag的操作，只讲在最简单的主分支上如何回退。</p>
-<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a><strong>基本概念</strong></h1><h2 id="3个步骤"><a href="#3个步骤" class="headerlink" title="3个步骤"></a><strong>3个步骤</strong></h2><p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwzsRUe3nJiclZIHpg0Mc2EYjcdSxicXjJSJDs9bOYlNEHbwJZzibibQxKpg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>正常情况下，我们的工作流就是3个步骤，对应上图中的3个箭头线：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  git add .</span><br><span class="line">  </span><br><span class="line">  git commit -m &quot;comment&quot;</span><br><span class="line">  </span><br><span class="line">  git push</span><br><span class="line"></span><br><span class="line">  </span><br><span class="line">git add .把所有文件放入暂存区；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git commit把所有文件从暂存区提交进本地仓库；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git push把所有文件从本地仓库推送进远程仓库。</span><br></pre></td></tr></table></figure></p>
-<h2 id="4个区"><a href="#4个区" class="headerlink" title="4个区"></a><strong>4个区</strong></h2><p>git之所以令人费解，主要是它相比于svn等等传统的版本管理工具，多引入了一个暂存区(Stage)的概念，就因为多了这一个概念，而使很多人疑惑。其实，在初学者来说，每个区具体怎么工作的，我们完全不需要关心，而只要知道有这么4个区就够了：</p>
-<ul>
-<li><p>工作区(Working Area)</p>
-</li>
-<li><p>暂存区(Stage)</p>
-</li>
-<li><p>本地仓库(Local Repository)</p>
-</li>
-<li><p>远程仓库(Remote Repository)</p>
-</li>
-</ul>
-<h2 id="5种状态"><a href="#5种状态" class="headerlink" title="5种状态"></a><strong>5种状态</strong></h2><p>以上4个区，进入每一个区成功之后会产生一个状态，再加上最初始的一个状态，一共是5种状态。以下我们把这5种状态分别命名为：</p>
-<ul>
-<li><p>未修改(Origin)</p>
-</li>
-<li><p>已修改(Modified)</p>
-</li>
-<li><p>已暂存(Staged)</p>
-</li>
-<li><p>已提交(Committed)</p>
-</li>
-<li><p>已推送(Pushed)</p>
-</li>
-</ul>
-<h1 id="检查修改"><a href="#检查修改" class="headerlink" title="检查修改"></a><strong>检查修改</strong></h1><p>了解了基本概念之后，我们来谈一谈犯错误之后如何撤销的问题。首先，我们要了解如何检查这3个步骤当中每一个步骤修改了什么，然后才好判断有没有修改成功。检查修改的二级命令都相同，都是diff，只是参数有所不同。</p>
-<h2 id="已修改，未暂存"><a href="#已修改，未暂存" class="headerlink" title="已修改，未暂存"></a><strong>已修改，未暂存</strong></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff</span><br></pre></td></tr></table></figure>
-<p>首先，我们来看一下，如果我们只是简单地在浏览器里保存了一下文件，但是还没有做git add .之前，我们如何检查有哪些修改。我们先随便拿一个文件来做一下实验：</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwDg9nsy9V0Ra5nMdBquNG1HpYFaOazjo6vl1LPHJpjMia8ibicSXu0Svyw/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>我们在文件开头的第2行胡乱加了4个数字1234，存盘，这时文件进入了已修改状态，但是还没有进入暂存区，我们运行git diff，结果如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">diff --git a/index.md b/index.md</span><br><span class="line"></span><br><span class="line">index 73ff1ba..1066758 100644</span><br><span class="line"></span><br><span class="line">--- a/index.md</span><br><span class="line"></span><br><span class="line">+++ b/index.md</span><br><span class="line"></span><br><span class="line">@@ -1,5 +1,5 @@</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">-layout: main</span><br><span class="line"></span><br><span class="line">+1234layout: main</span><br><span class="line"></span><br><span class="line">color: black</span><br><span class="line"></span><br><span class="line">---</span><br></pre></td></tr></table></figure></p>
-<p>git diff的结果告诉我们哪些文件已经做了哪些修改。</p>
-<p><strong>已暂存，未提交</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff --cached</span><br></pre></td></tr></table></figure></p>
-<p>现在我们把修改放入暂存区看一下。先执行git add .，然后执行git diff，你会发现没有任何结果：</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwXwBzS1lToMWWjy9lEibicoiaibAAAaZa1HCp2j6v52OTN1cjRDia7VTVE6w/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>这说明git diff这个命令只检查我们的工作区和暂存区之间的差异，如果我们想看到暂存区和本地仓库之间的差异，就需要加一个参数git diff –cached：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">diff --git a/index.md b/index.md</span><br><span class="line"></span><br><span class="line">index 73ff1ba..1066758 100644</span><br><span class="line"></span><br><span class="line">--- a/index.md</span><br><span class="line"></span><br><span class="line">+++ b/index.md</span><br><span class="line"></span><br><span class="line">@@ -1,5 +1,5 @@</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">-layout: main</span><br><span class="line"></span><br><span class="line">+1234layout: main</span><br><span class="line"></span><br><span class="line">color: black</span><br><span class="line"></span><br><span class="line">---</span><br></pre></td></tr></table></figure></p>
-<p>这时候我们看到的差异是暂存区和本地仓库之间的差异。</p>
-<p><strong>已提交，未推送</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff master origin/master</span><br></pre></td></tr></table></figure></p>
-<p>现在，我们把修改从暂存区提交到本地仓库，再看一下差异。先执行git commit，然后再执行git diff –cached，没有差异，执行git diff master origin/master，可以看到差异：</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwNSkuZnLBptQUSBddcyOZURahoMau6Rq0cebaYVniaudrh3kXToVj6WA/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>在这里，master就是你的本地仓库，而origin/master就是你的远程仓库，master是主分支的意思，因为我们都在主分支上工作，所以这里两边都是master，而origin就代表远程。</p>
-<h1 id="撤销修改"><a href="#撤销修改" class="headerlink" title="撤销修改"></a><strong>撤销修改</strong></h1><p>了解清楚如何检查各种修改之后，我们开始尝试各种撤销操作。</p>
-<h2 id="已修改，未暂存-1"><a href="#已修改，未暂存-1" class="headerlink" title="已修改，未暂存"></a><strong>已修改，未暂存</strong></h2><p>如果我们只是在编辑器里修改了文件，但还没有执行git add .，这时候我们的文件还在工作区，并没有进入暂存区，我们可以用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"> git checkout .</span><br><span class="line"></span><br><span class="line">或者</span><br><span class="line"></span><br><span class="line">  git reset --hard</span><br></pre></td></tr></table></figure></p>
-<p>来进行撤销操作。</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnw3vn4WgIpIIyGGweDCXuZzlhpOwS62ibmJNjwviaXsCp9bwshpI9KAKBQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>可以看到，在执行完git checkout .之后，修改已被撤销，git diff没有任何内容了。</p>
-<blockquote>
-<p>一对反义词 git add .的反义词是git checkout .。做完修改之后，如果你想向前走一步，让修改进入暂存区，就执行git add .，如果你想向后退一步，撤销刚才的修改，就执行git checkout .。</p>
-</blockquote>
-<h2 id="已暂存，未提交"><a href="#已暂存，未提交" class="headerlink" title="已暂存，未提交"></a><strong>已暂存，未提交</strong></h2><p>你已经执行了git add .，但还没有执行git commit -m “comment”。这时候你意识到了错误，想要撤销，你可以执行：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset</span><br><span class="line"></span><br><span class="line">git checkout .</span><br></pre></td></tr></table></figure></p>
-<p>或者<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard</span><br></pre></td></tr></table></figure></p>
-<p>git reset只是把修改退回到了git add .之前的状态，也就是说文件本身还处于已修改未暂存状态，你如果想退回未修改状态，还需要执行git checkout .。</p>
-<p>或许你已经注意到了，以上两个步骤都可以用同一个命令git reset –hard来完成。是的，就是这个强大的命令，可以一步到位地把你的修改完全恢复到未修改的状态。</p>
-<p><strong>已提交，未推送</strong></p>
-<p>你的手太快，你既执行了git add .，又执行了git commit，这时候你的代码已经进入了你的本地仓库，然而你后悔了，怎么办？不要着急，还有办法。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard origin/master</span><br></pre></td></tr></table></figure></p>
-<p>还是这个git reset –hard命令，只不过这次多了一个参数origin/master，正如我们上面讲过的，origin/master代表远程仓库，既然你已经污染了你的本地仓库，那么就从远程仓库把代码取回来吧。</p>
-<p><strong>已推送</strong></p>
-<p>很不幸，你的手实在是太快了，你既git add了，又git commit了，并且还git push了，这时你的代码已经进入远程仓库。如果你想恢复的话，还好，由于你的本地仓库和远程仓库是等价的，你只需要先恢复本地仓库，再强制push到远程仓库就好了：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard HEAD^</span><br><span class="line"></span><br><span class="line">git push -f</span><br></pre></td></tr></table></figure></p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwCtsdla2FrJ4nCjP0tBssNeB7ZqBkQON4Jcxb2ghrAUEibNa2icoiaB3cg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a><strong>总结</strong></h1><p>以上4种状态的撤销我们都用到了同一个命令git reset –hard，前2种状态的用法甚至完全一样，所以只要掌握了git reset –hard这个命令的用法，从此你再也不用担心提交错误了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3655,7 +4027,7 @@ document.dispatchEvent(myEvent);
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">91</span>
+                  <span class="site-state-item-count">93</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
