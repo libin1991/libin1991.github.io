@@ -300,6 +300,201 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/05/01/实现一个-Virtual-DOM-算法/" itemprop="url">实现一个 Virtual DOM 算法[转]</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:04:50+08:00">
+                2017-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="目录："><a href="#目录：" class="headerlink" title="目录："></a>目录：</h2><ul>
+<li>1 前言</li>
+<li>2 对前端应用状态管理思考</li>
+<li>3 Virtual DOM 算法</li>
+<li>4 算法实现<ul>
+<li>4.1 步骤一：用JS对象模拟DOM树</li>
+<li>4.2 步骤二：比较两棵虚拟DOM树的差异</li>
+<li>4.3 步骤三：把差异应用到真正的DOM树上</li>
+</ul>
+</li>
+<li>5 结语</li>
+<li>6 References</li>
+</ul>
+<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a>1 前言</h2><p>本文会在教你怎么用 300~400 行代码实现一个基本的 Virtual DOM 算法，并且尝试尽量把 Virtual DOM 的算法思路阐述清楚。希望在阅读本文后，能让你深入理解 Virtual DOM 算法，给你现有前端的编程提供一些新的思考。</p>
+<h2 id="2-对前端应用状态管理的思考"><a href="#2-对前端应用状态管理的思考" class="headerlink" title="2 对前端应用状态管理的思考"></a>2 对前端应用状态管理的思考</h2><p>假如现在你需要写一个像下面一样的表格的应用程序，这个表格可以根据不同的字段进行升序或者降序的展示。<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/1.png" alt=""><br>这个应用程序看起来很简单，你可以想出好几种不同的方式来写。最容易想到的可能是，在你的 JavaScript 代码里面存储这样的数据：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var sortKey = &quot;new&quot; // 排序的字段，新增（new）、取消（cancel）、净关注（gain）、累积（cumulate）人数</span><br><span class="line">var sortType = 1 // 升序还是逆序</span><br><span class="line">var data = [&#123;...&#125;, &#123;...&#125;, &#123;..&#125;, ..] // 表格数据</span><br></pre></td></tr></table></figure></p>
+<p>用三个字段分别存储当前排序的字段、排序方向、还有表格数据；然后给表格头部加点击事件：当用户点击特定的字段的时候，根据上面几个字段存储的内容来对内容进行排序，然后用 JS 或者 jQuery 操作 DOM，更新页面的排序状态（表头的那几个箭头表示当前排序状态，也需要更新）和表格内容。</p>
+<p>这样做会导致的后果就是，随着应用程序越来越复杂，需要在JS里面维护的字段也越来越多，需要监听事件和在事件回调用更新页面的DOM操作也越来越多，应用程序会变得非常难维护。后来人们使用了 MVC、MVP 的架构模式，希望能从代码组织方式来降低维护这种复杂应用程序的难度。但是 MVC 架构没办法减少你所维护的状态，也没有降低状态更新你需要对页面的更新操作（前端来说就是DOM操作），你需要操作的DOM还是需要操作，只是换了个地方。</p>
+<p>既然状态改变了要操作相应的DOM元素，为什么不做一个东西可以让视图和状态进行绑定，状态变更了视图自动变更，就不用手动更新页面了。这就是后来人们想出了 MVVM 模式，只要在模版中声明视图组件是和什么状态进行绑定的，双向绑定引擎就会在状态更新的时候自动更新视图（关于MV*模式的内容，可以看<a href="https://github.com/livoras/blog/issues/11" target="_blank" rel="noopener">这篇介绍</a>）。</p>
+<p>MVVM 可以很好的降低我们维护状态 -&gt; 视图的复杂程度（大大减少代码中的视图更新逻辑）。但是这不是唯一的办法，还有一个非常直观的方法，可以大大降低视图更新的操作：一旦状态发生了变化，就用模版引擎重新渲染<strong>整个视图</strong>，然后用新的视图更换掉旧的视图。就像上面的表格，当用户点击的时候，还是在JS里面更新状态，但是页面更新就不用手动操作 DOM 了，直接把整个表格用模版引擎重新渲染一遍，然后设置一下<code>innerHTML</code>就完事了。</p>
+<p>听到这样的做法，经验丰富的你一定第一时间意识这样的做法会导致很多的问题。最大的问题就是这样做会很慢，因为即使一个小小的状态变更都要重新构造整棵 DOM，性价比太低；而且这样做的话，<code>input</code>和<code>textarea</code>的会失去原有的焦点。最后的结论会是：对于局部的小视图的更新，没有问题（Backbone就是这么干的）；但是对于大型视图，如全局应用状态变更的时候，需要更新页面较多局部视图的时候，这样的做法不可取。</p>
+<p><strong>但是这里要明白和记住这种做法</strong>，因为后面你会发现，<strong>其实 Virtual DOM 就是这么做的，只是加了一些特别的步骤来避免了整棵 DOM 树变更</strong>。</p>
+<p>另外一点需要注意的就是，上面提供的几种方法，其实都在解决同一个问题：<strong>维护状态，更新视图</strong>。在一般的应用当中，如果能够很好方案来应对这个问题，那么就几乎降低了大部分复杂性。</p>
+<h2 id="3-Virtual-DOM算法"><a href="#3-Virtual-DOM算法" class="headerlink" title="3 Virtual DOM算法"></a>3 Virtual DOM算法</h2><p>DOM是很慢的。如果我们把一个简单的<code>div</code>元素的属性都打印出来，你会看到：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/2.png" alt=""><br>而这仅仅是第一层。真正的 DOM 元素非常庞大，这是因为标准就是这么设计的。而且操作它们的时候你要小心翼翼，轻微的触碰可能就会导致页面重排，这可是杀死性能的罪魁祸首。</p>
+<p>相对于 DOM 对象，原生的 JavaScript 对象处理起来更快，而且更简单。DOM 树上的结构、属性信息我们都可以很容易地用 JavaScript 对象表示出来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">var element = &#123;</span><br><span class="line">  tagName:&apos;ul&apos;, // 节点标签名</span><br><span class="line">  props: &#123; // DOM的属性，用一个对象存储键值对</span><br><span class="line">    id:&apos;list&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  children: [ // 该节点的子节点</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 1&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 2&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 3&quot;]&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>上面对应的HTML写法是：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
+<p>既然原来 DOM 树的信息都可以用 JavaScript 对象来表示，反过来，你就可以根据这个用 JavaScript 对象表示的树结构来构建一棵真正的DOM树。</p>
+<p>之前的章节所说的，状态变更-&gt;重新渲染整个视图的方式可以稍微修改一下：用 JavaScript 对象表示 DOM 信息和结构，当状态变更的时候，重新渲染这个 JavaScript 的对象结构。当然这样做其实没什么卵用，因为真正的页面其实没有改变。</p>
+<p>但是可以用新渲染的对象树去和旧的树进行对比，记录这两棵树差异。记录下来的不同就是我们需要对页面真正的 DOM 操作，然后把它们应用在真正的 DOM 树上，页面就变更了。这样就可以做到：视图的结构确实是整个全新渲染了，但是最后操作DOM的时候确实只变更有不同的地方。</p>
+<p>这就是所谓的 Virtual DOM 算法。包括几个步骤：</p>
+<ol>
+<li>用 JavaScript 对象结构表示 DOM 树的结构；然后用这个树构建一个真正的 DOM 树，插到文档当中</li>
+<li>当状态变更的时候，重新构造一棵新的对象树。然后用新的树和旧的树进行比较，记录两棵树差异</li>
+<li>把2所记录的差异应用到步骤1所构建的真正的DOM树上，视图就更新了</li>
+</ol>
+<p>Virtual DOM 本质上就是在 JS 和 DOM 之间做了一个缓存。可以类比 CPU 和硬盘，既然硬盘这么慢，我们就在它们之间加个缓存：既然 DOM 这么慢，我们就在它们 JS 和 DOM 之间加个缓存。CPU（JS）只操作内存（Virtual DOM），最后的时候再把变更写入硬盘（DOM）。</p>
+<h2 id="4-算法实现"><a href="#4-算法实现" class="headerlink" title="4 算法实现"></a>4 算法实现</h2><h3 id="4-1-步骤一：用JS对象模拟DOM树"><a href="#4-1-步骤一：用JS对象模拟DOM树" class="headerlink" title="4.1 步骤一：用JS对象模拟DOM树"></a>4.1 步骤一：用JS对象模拟DOM树</h3><p>用 JavaScript 来表示一个 DOM 节点是很简单的事情，你只需要记录它的节点类型、属性，还有子节点：</p>
+<p>element.js<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">functionElement (tagName, props, children) &#123;</span><br><span class="line">  this.tagName= tagName</span><br><span class="line">  this.props= props</span><br><span class="line">  this.children= children</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports=function (tagName, props, children) &#123;</span><br><span class="line">  returnnewElement(tagName, props, children)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>例如上面的 DOM 结构就可以简单的表示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var el =require(&apos;./element&apos;)</span><br><span class="line"></span><br><span class="line">var ul =el(&apos;ul&apos;, &#123;id:&apos;list&apos;&#125;, [</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 1&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 2&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 3&apos;])</span><br><span class="line">])</span><br></pre></td></tr></table></figure></p>
+<p>现在<code>ul</code>只是一个 JavaScript 对象表示的 DOM 结构，页面上并没有这个结构。我们可以根据这个<code>ul</code>构建真正的<code>&lt;ul&gt;</code>：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Element.prototype.render=function () &#123;</span><br><span class="line">  var el =document.createElement(this.tagName) // 根据tagName构建var props =this.propsfor (var propName in props) &#123; // 设置节点的DOM属性var propValue = props[propName]</span><br><span class="line">    el.setAttribute(propName, propValue)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var children =this.children|| []</span><br><span class="line"></span><br><span class="line">  children.forEach(function (child) &#123;</span><br><span class="line">    var childEl = (child instanceofElement)</span><br><span class="line">      ?child.render() // 如果子节点也是虚拟DOM，递归构建DOM节点:document.createTextNode(child) // 如果字符串，只构建文本节点el.appendChild(childEl)</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line">  return el</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>render</code>方法会根据<code>tagName</code>构建一个真正的DOM节点，然后设置这个节点的属性，最后递归地把自己的子节点也构建起来。所以只需要：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">var ulRoot =ul.render()</span><br><span class="line">document.body.appendChild(ulRoot)</span><br></pre></td></tr></table></figure></p>
+<p>上面的<code>ulRoot</code>是真正的DOM节点，把它塞入文档中，这样<code>body</code>里面就有了真正的<code>&lt;ul&gt;</code>的DOM结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
+<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element.js</a>。</p>
+<h3 id="4-2-步骤二：比较两棵虚拟DOM树的差异"><a href="#4-2-步骤二：比较两棵虚拟DOM树的差异" class="headerlink" title="4.2 步骤二：比较两棵虚拟DOM树的差异"></a>4.2 步骤二：比较两棵虚拟DOM树的差异</h3><p>正如你所预料的，比较两棵DOM树的差异是 Virtual DOM 算法最核心的部分，这也是所谓的 Virtual DOM 的 diff 算法。两个树的完全的 diff 算法是一个时间复杂度为 O(n^3) 的问题。但是在前端当中，你很少会跨越层级地移动DOM元素。所以 Virtual DOM 只会对同一个层级的元素进行对比：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/3.png" alt=""><br>上面的<code>div</code>只会和同一层级的<code>div</code>对比，第二层级的只会跟第二层级对比。这样算法复杂度就可以达到 O(n)。</p>
+<h4 id="4-2-1-深度优先遍历，记录差异"><a href="#4-2-1-深度优先遍历，记录差异" class="headerlink" title="4.2.1 深度优先遍历，记录差异"></a>4.2.1 深度优先遍历，记录差异</h4><p>在实际的代码中，会对新旧两棵树进行一个深度优先的遍历，这样每个节点都会有一个唯一的标记：</p>
+<p> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/4.png" alt=""></p>
+<p>在深度优先遍历的时候，每遍历到一个节点就把该节点和新的的树进行对比。如果有差异的话就记录到一个对象里面。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// diff 函数，对比两棵树functiondiff (oldTree, newTree) &#123;</span><br><span class="line">  var index =0// 当前节点的标志var patches = &#123;&#125; // 用来记录每个节点差异的对象dfsWalk(oldTree, newTree, index, patches)</span><br><span class="line">  return patches</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 对两棵树进行深度优先遍历functiondfsWalk (oldNode, newNode, index, patches) &#123;</span><br><span class="line">  // 对比oldNode和newNode的不同，记录下来</span><br><span class="line">  patches[index] = [...]</span><br><span class="line"></span><br><span class="line">  diffChildren(oldNode.children, newNode.children, index, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 遍历子节点functiondiffChildren (oldChildren, newChildren, index, patches) &#123;</span><br><span class="line">  var leftNode =nullvar currentNodeIndex = index</span><br><span class="line">  oldChildren.forEach(function (child, i) &#123;</span><br><span class="line">    var newChild = newChildren[i]</span><br><span class="line">    currentNodeIndex = (leftNode &amp;&amp;leftNode.count) // 计算节点的标识? currentNodeIndex +leftNode.count+1: currentNodeIndex +1dfsWalk(child, newChild, currentNodeIndex, patches) // 深度遍历子节点</span><br><span class="line">    leftNode = child</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>例如，上面的<code>div</code>和新的<code>div</code>有差异，当前的标记是0，那么：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;difference&#125;, &#123;difference&#125;, ...] // 用数组存储新旧节点的不同</span><br></pre></td></tr></table></figure></p>
+<p>同理<code>p</code>是<code>patches[1]</code>，<code>ul</code>是<code>patches[3]</code>，类推。</p>
+<h4 id="4-2-2-差异类型"><a href="#4-2-2-差异类型" class="headerlink" title="4.2.2 差异类型"></a>4.2.2 差异类型</h4><p>上面说的节点的差异指的是什么呢？对 DOM 操作可能会：</p>
+<ol>
+<li>替换掉原来的节点，例如把上面的<code>div</code>换成了<code>section</code></li>
+<li>移动、删除、新增子节点，例如上面<code>div</code>的子节点，把<code>p</code>和<code>ul</code>顺序互换</li>
+<li>修改了节点的属性</li>
+<li>对于文本节点，文本内容可能会改变。例如修改上面的文本节点2内容为<code>Virtual DOM 2</code>。</li>
+</ol>
+<p>所以我们定义了几种差异类型：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var REPLACE = 0</span><br><span class="line">var REORDER = 1</span><br><span class="line">var PROPS = 2</span><br><span class="line">var TEXT = 3</span><br></pre></td></tr></table></figure></p>
+<p>对于节点替换，很简单。判断新旧节点的<code>tagName</code>和是不是一样的，如果不一样的说明需要替换掉。如<code>div</code>换成<code>section</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>如果给<code>div</code>新增了属性<code>id</code>为<code>container</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;, &#123;</span><br><span class="line">  type:PROPS,</span><br><span class="line">  props: &#123;</span><br><span class="line">    id:&quot;container&quot;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>如果是文本节点，如上面的文本节点2，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[2] = [&#123;</span><br><span class="line">  type:TEXT,</span><br><span class="line">  content:&quot;Virtual DOM2&quot;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>那如果把我<code>div</code>的子节点重新排序呢？例如<code>p, ul, div</code>的顺序换成了<code>div, p, ul</code>。这个该怎么对比？如果按照同层级进行顺序对比的话，它们都会被替换掉。如<code>p</code>和<code>div</code>的<code>tagName</code>不同，<code>p</code>会被<code>div</code>所替代。最终，三个节点都会被替换，这样DOM开销就非常大。而实际上是不需要替换节点，而只需要经过节点移动就可以达到，我们只需知道怎么进行移动。</p>
+<p>这牵涉到两个列表的对比算法，需要另外起一个小节来讨论。</p>
+<h4 id="4-2-3-列表对比算法"><a href="#4-2-3-列表对比算法" class="headerlink" title="4.2.3 列表对比算法"></a>4.2.3 列表对比算法</h4><p>假设现在可以英文字母唯一地标识每一个子节点：<br>旧的节点顺序：</p>
+<pre><code>a b c d e f g h i
+</code></pre><p>现在对节点进行了删除、插入、移动的操作。新增<code>j</code>节点，删除<code>e</code>节点，移动<code>h</code>节点：<br>新的节点顺序：</p>
+<pre><code>a b c h d f g i j
+</code></pre><p>现在知道了新旧的顺序，求最小的插入、删除操作（移动可以看成是删除和插入操作的结合）。这个问题抽象出来其实是字符串的最小编辑距离问题（<a href="https://en.wikipedia.org/wiki/Edit_distance" target="_blank" rel="noopener">Edition Distance</a>），最常见的解决算法是 <a href="https://en.wikipedia.org/wiki/Levenshtein_distance" target="_blank" rel="noopener">Levenshtein Distance</a>，通过动态规划求解，时间复杂度为 O(M * N)。但是我们并不需要真的达到最小的操作，我们只需要优化一些比较常见的移动情况，牺牲一定DOM操作，让算法时间复杂度达到线性的（O(max(M, N))。具体算法细节比较多，这里不累述，有兴趣可以参考<a href="https://github.com/livoras/list-diff/blob/master/lib/diff.js" target="_blank" rel="noopener">代码</a>。</p>
+<p>我们能够获取到某个父节点的子节点的操作，就可以记录下来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REORDER,</span><br><span class="line">  moves: [&#123;remove or insert&#125;, &#123;remove or insert&#125;, ...]</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>但是要注意的是，因为<code>tagName</code>是可重复的，不能用这个来进行对比。所以需要给子节点加上唯一标识<code>key</code>，列表对比的时候，使用<code>key</code>进行对比，这样才能复用老的 DOM 树上的节点。</p>
+<p>这样，我们就可以通过深度优先遍历两棵树，每层的节点进行对比，记录下每个节点的差异了。完整 diff 算法代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff.js</a>。</p>
+<h3 id="4-3-步骤三：把差异应用到真正的DOM树上"><a href="#4-3-步骤三：把差异应用到真正的DOM树上" class="headerlink" title="4.3 步骤三：把差异应用到真正的DOM树上"></a>4.3 步骤三：把差异应用到真正的DOM树上</h3><p>因为步骤一所构建的 JavaScript 对象树和<code>render</code>出来真正的DOM树的信息、结构是一样的。所以我们可以对那棵DOM树也进行深度优先的遍历，遍历的时候从步骤二生成的<code>patches</code>对象中找出当前遍历的节点差异，然后进行 DOM 操作。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">functionpatch (node, patches) &#123;</span><br><span class="line">  var walker = &#123;index:0&#125;</span><br><span class="line">  dfsWalk(node, walker, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">functiondfsWalk (node, walker, patches) &#123;</span><br><span class="line">  var currentPatches = patches[walker.index] // 从patches拿出当前节点的差异var len =node.childNodes?node.childNodes.length:0for (var i =0; i &lt; len; i++) &#123; // 深度遍历子节点var child =node.childNodes[i]</span><br><span class="line">    walker.index++dfsWalk(child, walker, patches)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (currentPatches) &#123;</span><br><span class="line">    applyPatches(node, currentPatches) // 对当前节点进行DOM操作</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>applyPatches，根据不同类型的差异对当前节点进行 DOM 操作：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">functionapplyPatches (node, currentPatches) &#123;</span><br><span class="line">  currentPatches.forEach(function (currentPatch) &#123;</span><br><span class="line">    switch (currentPatch.type) &#123;</span><br><span class="line">      caseREPLACE:</span><br><span class="line">        node.parentNode.replaceChild(currentPatch.node.render(), node)</span><br><span class="line">        breakcaseREORDER:</span><br><span class="line">        reorderChildren(node, currentPatch.moves)</span><br><span class="line">        breakcasePROPS:</span><br><span class="line">        setProps(node, currentPatch.props)</span><br><span class="line">        breakcaseTEXT:</span><br><span class="line">        node.textContent=currentPatch.contentbreakdefault:</span><br><span class="line">        thrownewError(&apos;Unknown patch type &apos;+currentPatch.type)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch.js</a>。</p>
+<h2 id="5-结语"><a href="#5-结语" class="headerlink" title="5 结语"></a>5 结语</h2><p>Virtual DOM 算法主要是实现上面步骤的三个函数：<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch</a>。然后就可以实际的进行使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// 1. 构建虚拟DOM</span><br><span class="line">var tree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: blue&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 2. 通过虚拟DOM构建真正的DOM</span><br><span class="line">var root =tree.render()</span><br><span class="line">document.body.appendChild(root)</span><br><span class="line"></span><br><span class="line">// 3. 生成新的虚拟DOMvar newTree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: red&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;), el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 4. 比较两棵虚拟DOM树的不同</span><br><span class="line">var patches =diff(tree, newTree)</span><br><span class="line"></span><br><span class="line">// 5. 在真正的DOM元素上应用变更</span><br><span class="line">patch(root, patches)</span><br></pre></td></tr></table></figure></p>
+<p>当然这是非常粗糙的实践，实际中还需要处理事件监听等；生成虚拟 DOM 的时候也可以加入 JSX 语法。这些事情都做了的话，就可以构造一个简单的ReactJS了。</p>
+<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>，仅供学习。</p>
+<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/18/简化版的vue-router/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3942,7 +4137,7 @@ private WebView Wv;
 <p>对于ios手机，会有如下写法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&quot;apple-itunes-app&quot; content=&quot;app-id=414478124&quot; /&gt;</span><br></pre></td></tr></table></figure></p>
 <p>将上面代码放到head中，根据name也会知道意思，app-id是微信的app-id，用ios手机看会看到提示，andriod比可以，结果自行实验。（ios就是强大）</p>
 <h1 id="H5唤起客户端通用机方案"><a href="#H5唤起客户端通用机方案" class="headerlink" title="H5唤起客户端通用机方案"></a><strong>H5唤起客户端通用机方案</strong></h1><h4 id="H5唤起客户端"><a href="#H5唤起客户端" class="headerlink" title="H5唤起客户端"></a><a href="https://github.com/suanmei/callapp-lib" target="_blank" rel="noopener">H5唤起客户端</a></h4><h1 id="6-总结"><a href="#6-总结" class="headerlink" title="6 总结"></a><strong>6 总结</strong></h1><p>这篇文章主要剖析的 JSBridge 的实现及应用，包括 <strong>JavaScript 与 Native 间的通信原理</strong>，<strong>JSBridge 的 JavaScript 端实现</strong> 以及 <strong>引用方式</strong>，并给出了一些示例代码，希望对读者有一定的帮助。</p>
-
+<h3 id="JSBridge实战"><a href="#JSBridge实战" class="headerlink" title="JSBridge实战"></a><a href="https://juejin.im/post/5bda6f276fb9a0226d18931f" target="_blank" rel="noopener">JSBridge实战</a></h3>
           
         
       
@@ -4486,161 +4681,6 @@ define(function(require, exports, module) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/04/26/关于Viewport与device-width的一点理解/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2016/04/26/关于Viewport与device-width的一点理解/" itemprop="url">关于Viewport与device-width的一点理解</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-04-26T16:55:37+08:00">
-                2016-04-26
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="再进行移动web开发的时候都要加一句："><a href="#再进行移动web开发的时候都要加一句：" class="headerlink" title="再进行移动web开发的时候都要加一句："></a>再进行移动web开发的时候都要加一句：</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&quot; /&gt;</span><br></pre></td></tr></table></figure>
-<ol>
-<li>我们经常使用的<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">里的viewport究竟是什么意思，这里的device-width跟我们用JS获取到的屏宽的区别与联系分别是什么，为什么去掉<meta>标签后页面会变得很小很小？</li>
-<li>为什么很多分辨率很大的屏幕宽度其实并不大，屏幕分辨率与用JS获取到的屏宽的区别与联系分别又是什么？</li>
-</ol>
-<hr>
-<p>要说这个，先来了解下一些移动端基础知识：</p>
-<h3 id="1、物理像素-设备像素，分辨率"><a href="#1、物理像素-设备像素，分辨率" class="headerlink" title="1、物理像素(设备像素，分辨率)"></a>1、物理像素(设备像素，分辨率)</h3><p>设备像素，在同一个设备上，它的物理像素是固定的，这是厂商在出厂时就设置好了的，即一个设备的分辨率是固定的。</p>
-<h3 id="2、逻辑像素-CSS像素"><a href="#2、逻辑像素-CSS像素" class="headerlink" title="2、逻辑像素(CSS像素)"></a>2、逻辑像素(CSS像素)</h3><p>CSS像素，viewport中的一个小方格，CSS样式代码中使用的是逻辑像素。如果在一个设备中，物理像素与逻辑像素相等，将不会产生任何问题。但是，在iphone 4中，物理像素是640px<em>960px，而逻辑像素数为320</em>480px。因此，需要使用大约4个物理像素来显示一个CSS像素。</p>
-<h3 id="3、像素比"><a href="#3、像素比" class="headerlink" title="3、像素比"></a>3、像素比</h3><p>物理像素与逻辑像素之间的比例。当像素比为1:1时，使用1个物理像素显示1个逻辑像素；当像素比为2:1时，使用4个物理像素显示1个逻辑像素。</p>
-<h3 id="4、CSS中的1px并不等于设备的1px"><a href="#4、CSS中的1px并不等于设备的1px" class="headerlink" title="4、CSS中的1px并不等于设备的1px"></a>4、CSS中的1px并不等于设备的1px</h3><p>在CSS中一般使用px作为单位，在Web浏览器中CSS的1个像素往往都是对应着电脑屏幕的1个物理像素，这可能会造成一个错觉，那就是CSS中的像素就是设备的物理像素。但实际情况却并非如此，CSS中的像素只是一个抽象的单位，在不同的设备或不同的环境中，CSS中的1px所代表的设备物理像素是不同的。<br>在早先的移动设备中，屏幕像素密度都比较低，如iphone3，它的分辨率为320<em>480，在iphone3上，1个CSS像素确实是等于1个物理像素的。后来随着技术的发展，移动设备的像素越来越高，从iphone4开始，推出了所谓的Retina屏，分辨率提高了一倍，变成640</em>960，但屏幕尺寸却没变化，这就意味着同样大小的屏幕上，像素却多了一倍，这时，1个CSS像素是等于4个物理像素的。</p>
-<h3 id="5、实现真正的1物理像素"><a href="#5、实现真正的1物理像素" class="headerlink" title="5、实现真正的1物理像素"></a>5、实现真正的1物理像素</h3><p>当viewport的属性initial-scale为1时，页面大小正常，但initial-scale为0.5时，页面被缩小了1倍，像素比为2:1的设备本来1个CSS像素宽度占2个物理像素宽度，缩小后的1个CSS像素宽度就只占1个物理像素，即实现了真正的1物理像素。<br><code>eg：border-width:1px</code>并不是最小边框，浏览器可以显示的最小粒度比1px还要小。为什么会出现比border-width:1px更细的边框？<br>屏幕能够显示的最小粒度是1个物理像素，iPhone4的像素比为2，设置border-width:1px后，边框占了4个物理像素，如果能让边框的宽度为1物理像素，那么它就比1个CSS像素要细，这可以通过设置<code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=0.5&quot;&gt;</code>。</p>
-<h2 id="CSS-pixel与device-pixels-css-px与device-px"><a href="#CSS-pixel与device-pixels-css-px与device-px" class="headerlink" title="CSS pixel与device pixels (css px与device px)"></a>CSS pixel与device pixels (css px与device px)</h2><p>首先了解下什么是CSS pixels，什么是device pixels；</p>
-<p>1．CSS pixels可以理解为<code>css像素</code>，是浏览器使用的抽象单位，主要用来在网页上绘制内容。也可以说css px是专门为web开发者提出的一个抽象概念，也只跟我们平时写的css样式有关，与分辨率（比如720px*1280px）里的px没关系。</p>
-<p>2． device pixels可以理解为是设备像素，官方的解释是：显示屏幕的最小物理单位，每个dp包含自己的颜色、高宽等。</p>
-<p>对于我们做web开发的人来说，我们用到的最多的地方是“css像素”，即类似width:300px;font-size:14px;这类的css语句里用到的。它跟设备自身的px是没关系的。也就是说1个CSS 像素占多少个物理像素是不确定的，这个问题通过页面的放缩比较容易理解。比如一个普通的html页面上，有一个300px的元素；如果我们放大页面，元素会占据更多的设备像素（即device pixels），但它的CSS pixels不变，依然是300px；缩小页面也是同样的道理，占据了更少的device pixels，但它的CSS pixels不变。也就是说，元素占据了多少device pixels，是由当前页面的放缩比例而定的。</p>
-<p>不过，页面的缩放对我们web开发来说是好像没有任何意义的。但有一个问题，我们开发出来的页面是想要在各个屏幕个以最佳的样式展示出来的，我们不能让页面里存在不能控制的元素。所以就出现了它：<code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0&quot; /&gt;</code> 也就是我们在进行web开发的时候经常用到的viewport。那么viewport到底是个什么玩意儿呢，而且content里面width为什么要等于device-width呢，device-width又是个什么概念呢？下面我们来看看它们哥俩儿是什么。</p>
-<h2 id="Viewport-与-device-width"><a href="#Viewport-与-device-width" class="headerlink" title="Viewport 与 device-width"></a>Viewport 与 device-width</h2><p>在解释这两个概念之前，先说一个大家都知道，但不明白为什么的情况：把一个普通的在PC上开发的HTML页面直接放手机上，你会发现不管多大的页面都可以在小小的手机屏幕上显示，但是图文都会显示的特别小；如果你用js获取下页面宽度，你会发现，大多数的页面宽度都是980px的，这个就跟viewport有关。</p>
-<p>Viewport起源于苹果，但现在已经被大多数浏览器支持。关于viewport有两个概念visual viewport跟layout viewport。这里visual viewport也就是视觉上的窗口，可以理解为设备自己的宽度。这时，如果你有一个长960的页面，有一个元素是20%（实际解析出来就是192px）。但如果我用宽为320px的屏幕打开呢，这个元素就成了64px，但是这个时候我设置的字体大小是12px，在320px的屏幕上就只能显示64/12个字了～</p>
-<p>鉴于这个问题，苹果找到一种解决方法，在移动版的safari中定义了viewport meta标签，它的作用就是创建一个虚拟的窗口（viewport），这个虚拟的窗口就是layout viewport分辨率接近桌面显示器，apple将其定位为980px。在手机上，可以通过document.documentElement.clientWidth来获取。</p>
-<p>其他浏览器厂商也有不同的解决办法，例如UCweb是使用的中间技术。</p>
-<p>另外据说，不同浏览器厂商对于layout viewport的大小都有自己的定义。但是，我用手上不多的几个手机（小米2s、SONY、金立、ipad）测试的结果，都是980px。其中在小米2s上测试了小米自带浏览器、QQ浏览器、UC浏览器、谷歌浏览器，还有opera浏览器，结果都一样；其他的手机上面不管装了什么浏览器，都测试了，结果都是980px。但是这个值对于我们web开发来说，好像也没有什么用处。</p>
-<p>因为大多数情况下，<code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width&quot; /&gt;</code>这个标签对我们来说是最给力的，可以让我们的页面里的图文显示的是正常的，很大程度上提高了页面的可读性。而这一meta标签的功能就是设置layout viewport为device-width的宽度。但是device-width具体是什么呢？</p>
-<blockquote>
-<font color="#ff0000">第一代iphone的时候，分辨率为320<em>480，屏幕尺寸为3.5寸<span style="border-bottom:2px solid blue;">（注意，这个3.5寸说的是屏幕的对角线宽）</span>，这时候device-width就是320px，也是手机的分辨率宽，此时device-width就是设备宽。但第二代的iphone分辨率提高为了480</em>960，屏幕尺寸为依然为3.5寸，如果device-width还是设备宽，那么同样是320px的页面放480*960的手机屏上，图文就会变得比较小，又会影响其可读性。<span style="border-bottom:2px solid blue;">因此iphone的device-width一直维持在320px，ipad一直维持在1024px</span>。这个时候，device-width就不是设备宽了（也就不是分辨率的宽了），是一个中间层。Android采用的也是这一概念，其device-width值以360居多，但也不乏有像540px和600px这样的奇葩。在设置了<meta>标签以后，device-width值可以用window.innerWidth来获取device-width值。</font>
-</blockquote>
-<h2 id="有关DPI"><a href="#有关DPI" class="headerlink" title="有关DPI"></a>有关DPI</h2><p>dpi(Dots Per Inch)，有时也叫做ppi(Point Per Inch)，翻译过来也叫像素密度，表示设备每英寸所占有的像素数；数值越高，即代表显示屏能够以越高的密度显示图像。（注：这里的像素，指的是device pixels。）DPI的计算公式：</p>
-<p><img src="/2016/04/26/关于Viewport与device-width的一点理解/201157547867064.jpg" alt=""></p>
-<p>有意思的是，这个值比苹果官网上公布的326还有高一点点。</p>
-<p><img src="/2016/04/26/关于Viewport与device-width的一点理解/201158077397288.jpg" alt=""></p>
-<p>其中，PPI在120-160之间的手机被归为低密度手机，160-240被归为中密度，240-320被归为高密度，320以上被归为超高密度（Apple给了它一个上流的名字——retina）。</p>
-<p>这些密度对应着一个特定的缩放比例值，拿我们最熟悉的iphone4或4s来说，它们的PPI是326，属于超高密度的手机。当我们书写一个宽度为320px的页面放到iphone中显示，你会发现，它竟然是满宽的。这是因为，页面被默认放大了两倍，也就是640px，而iphone4或4s的宽，正是640px。    </p>
-<h2 id="DevicePixelRadio"><a href="#DevicePixelRadio" class="headerlink" title="DevicePixelRadio"></a>DevicePixelRadio</h2><p>DevicePixelRadio，定义：<code>window.devicePixelRatio</code>是设备上物理像素（也就是device-width）和设备独立像素（device-independent pixels，即dips）的比例。公式表示就是：window.devicePixelRatio = 物理像素/dips</p>
-<p>Android 和 iPhone 中，都有一个占整个屏幕大小的换算单位，<font color="#ff0000"><strong> Android 中叫 dip 或 dp，iPhone 中叫 point </strong></font>。Dip，就是device independent pixels，设备独立像素。而设备的物理像素和 dip 的比例就是 devicePixelRatio，此值可以通过 window.devicePixelRatio 属性获取。</p>
-<p>据我查找到的一些资料显示，这里的独立像素的值其实就是device-width值。这个值也就是我们平时在手机上布局用的宽度，当然是在设置了<meta>标签的前提下。</p>
-<h3 id="这里为什么提到devicePixelRatio这个概念呢？"><a href="#这里为什么提到devicePixelRatio这个概念呢？" class="headerlink" title="这里为什么提到devicePixelRatio这个概念呢？"></a>这里为什么提到devicePixelRatio这个概念呢？</h3><p>因为当devicePixelRatio=1.5的时候，也就是说当屏幕分辨率宽与device-width的比值为1.5时，某些手机自带的浏览器（特别是三星手机出现在最多）会出现1px的线解析成2px的bug，但是经测试同一部手机上安装的UC浏览器一般不会有这个bug。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4695,7 +4735,7 @@ define(function(require, exports, module) {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">95</span>
+                  <span class="site-state-item-count">96</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4708,7 +4748,7 @@ define(function(require, exports, module) {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">59</span>
+                  <span class="site-state-item-count">60</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
