@@ -300,6 +300,237 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/浅谈-instanceof-和-typeof-的实现原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/03/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T13:17:32+08:00">
+                2018-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
+<pre><code>let s =newString(&apos;abc&apos;);
+typeof s ===&apos;object&apos;// true
+s instanceofString// true
+</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
+<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
+<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>1：整数</li>
+</ul>
+<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
+<p><code>null</code>：所有机器码均为0</p>
+<p><code>undefined</code>：用 −2^30 整数来表示</p>
+<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
+<p>然而用 <code>instanceof</code> 来判断的话👉</p>
+<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
+</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
+<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
+<p>还有一个不错的判断类型的方法，就是<strong><font color="#dd0000">Object.prototype.toString</font></strong>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
+<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
+Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
+Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
+Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
+Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
+Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
+Object.prototype.toString.call(null)// &quot;[object Null]&quot;
+Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
+Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
+</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
+<pre><code>let person =function(){
+}
+let nicole =new person()
+nicole instanceof person // true
+</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
+<pre><code>let person =function(){
+}
+let programmer =function(){
+}
+programmer.prototype =new person()
+let nicole =new programmer()
+nicole instanceof person // true
+nicole instanceof programmer // true
+</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
+<pre><code>function new_instance_of(leftVaule, rightVaule){
+    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
+    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
+    while(true){
+        if(leftVaule ===null){
+            returnfalse;    
+        }
+        if(leftVaule === rightProto){
+            returntrue;    
+        }
+        leftVaule = leftVaule.__proto__ 
+    }
+}
+</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
+<pre><code>functionFoo(){
+}
+Object instanceof Object// true
+Function instanceof Function// true
+Function instanceof Object// true
+Foo instanceof Foo// false
+Foo instanceof Object// true
+Foo instanceof Function// true
+</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
+<p>关于原型继承的原理，我简单用一张图来表示</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
+<p><code>Object instanceof Object</code></p>
+<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
+<pre><code>leftValue =Object.__proto__ =Function.prototype;
+rightValue =Object.prototype;
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true
+</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
+<p><code>Foo instanceof Foo</code></p>
+<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
+<p>我们用代码简单的表示一下</p>
+<pre><code>leftValue =Foo, rightValue =Foo
+leftValue =Foo.__proto =Function.prototype
+rightValue =Foo.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue != rightValue
+leftValue =Object.prototype =null
+// 第三次判断
+leftValue ===null
+// 返回 false
+</code></pre><p><code>Foo instanceof Object</code></p>
+<pre><code>leftValue =Foo, rightValue =Object
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Object.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><p><code>Foo instanceof Function</code></p>
+<pre><code>leftValue =Foo, rightValue =Function
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Function.prototype
+// 第一次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/你可能会忽略的vue-router技巧/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2757,159 +2988,6 @@ console.log(check); // 18男
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/30/pm2-常用配置及命令/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/30/pm2-常用配置及命令/" itemprop="url">pm2 常用配置及命令</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-30T12:11:05+08:00">
-                2018-09-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <blockquote>
-<p>如果直接通过node app来启动，如果报错了可能直接停在整个运行，supervisor感觉只是拿来用作开发环境的。再网上找到pm2.目前似乎最常见的线上部署nodejs项目的有forever,pm2这两种。<br>使用场合:</p>
-</blockquote>
-<ul>
-<li>supervisor是开发环境用。</li>
-<li>forever管理多个站点，每个站点访问量不大，不需要监控。</li>
-<li>nodemon 是开发环境使用，修改自动重启。</li>
-<li>pm2 网站访问量比较大,需要完整的监控界面。</li>
-</ul>
-<p><code>PM2</code> 是 <code>node</code> 进程管理工具，可以利用它来简化很多 <code>node</code> 应用管理的繁琐任务，如性能监控、自动重启、负载均衡等，而且使用非常简单。本文就 <code>PM2</code> 进行入门性的介绍，基本涵盖了 <code>PM2</code> 的常用的功能和配置。</p>
-<h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -g pm2</span><br></pre></td></tr></table></figure>
-<p>如果你的node项目配置文件和以上代码不一样，，，莫急，pm2 也是有办法可以启动的（个人觉得这是一个万能的启动的方法）：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pm2 start npm -- run XXX</span><br><span class="line">pm2 start npm --watch --name XXX -- run start</span><br></pre></td></tr></table></figure></p>
-<p>用她替代：<code>npm run dev</code>，就可以写成：<code>pm2 start npm -- run dev</code>，项目启动：    </p>
-<h2 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">pm2 start [server.js]</span><br><span class="line"># 启动服务</span><br><span class="line">pm2 list</span><br><span class="line"># 查看当前所跑服务的详情</span><br><span class="line">pm2 show [name]</span><br><span class="line"># 查看更加详细的信息这个命令可查看pm2配置 包括日志文件存放的位置等</span><br><span class="line">pm2 stop [id/name]</span><br><span class="line"># 关闭某个服务</span><br><span class="line">pm2 delete [id/name]</span><br><span class="line"># 删除某个服务</span><br><span class="line">pm2 stop all</span><br><span class="line"># 关闭所有服务</span><br><span class="line">pm2 logs</span><br><span class="line"># 查看实时日志</span><br><span class="line">pm2 restart [name]</span><br><span class="line"># 重新启动服务</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">$ pm2 logs 显示所有进程日志</span><br><span class="line">$ pm2 stop all 停止所有进程</span><br><span class="line">$ pm2 restart all 重启所有进程</span><br><span class="line">$ pm2 reload all 0秒停机重载进程 (用于 NETWORKED 进程)</span><br><span class="line">$ pm2 stop 0 停止指定的进程</span><br><span class="line">$ pm2 restart 0 重启指定的进程</span><br><span class="line">$ pm2 startup 产生 init 脚本 保持进程活着</span><br><span class="line">$ pm2 web 运行健壮的 computer API endpoint (http://localhost:9615)</span><br><span class="line">$ pm2 delete 0 杀死指定的进程</span><br><span class="line">$ pm2 delete all 杀死全部进程</span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">运行进程的不同方式：</span><br><span class="line">$ pm2 start app.js -i max 根据有效CPU数目启动最大进程数目</span><br><span class="line">$ pm2 start app.js -i 3 启动3个进程</span><br><span class="line">$ pm2 start app.js -x 用fork模式启动 app.js 而不是使用 cluster</span><br><span class="line">$ pm2 start app.js -x -- -a 23 用fork模式启动 app.js 并且传递参数 (-a 23)</span><br><span class="line">$ pm2 start app.js --name serverone 启动一个进程并把它命名为 serverone</span><br><span class="line">$ pm2 stop serverone 停止 serverone 进程</span><br><span class="line">$ pm2 start app.json 启动进程, 在 app.json里设置选项</span><br><span class="line">$ pm2 start app.js -i max -- -a 23 在--之后给 app.js 传递参数</span><br><span class="line">$ pm2 start app.js -i max -e err.log -o out.log 启动 并 生成一个配置文件</span><br></pre></td></tr></table></figure>
-<h2 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h2><p>参数说明：</p>
-<ul>
-<li><code>--watch</code>：监听应用目录的变化，一旦发生变化，自动重启。如果要精确监听、不见听的目录，最好通过配置文件。</li>
-<li><code>-i --instances</code>：启用多少个实例，可用于负载均衡。如果 <code>-i 0</code> 或者 <code>-i max</code>，则根据当前机器核数确定实例数目。</li>
-<li><code>--ignore-watch</code>：排除监听的目录/文件，可以是特定的文件名，也可以是正则。比如 <code>--ignore-watch=&quot;test node_modules &quot;some scripts&quot;&quot;</code></li>
-<li><code>-n --name</code>：应用的名称。查看应用信息的时候可以用到。</li>
-<li><code>-o --output &lt;path&gt;</code>：标准输出日志文件的路径。</li>
-<li><code>-e --error &lt;path&gt;</code>：错误输出日志文件的路径。</li>
-</ul>
-<h2 id="监听"><a href="#监听" class="headerlink" title="监听"></a>监听</h2><pre><code>pm2 start ./bin/www --watch
-#注意，这里用了--watch参数，意味着当你的应用代码发生变化时，pm2会帮你自动重启服务
-</code></pre><h2 id="配置及部署"><a href="#配置及部署" class="headerlink" title="配置及部署"></a>配置及部署</h2><p>部署的配置文件示例<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  // 数组中放的是需要发布的项目一些变量的定义</span><br><span class="line">  &quot;apps&quot;: [&#123;</span><br><span class="line">    &quot;name&quot;: &quot;xxx&quot;, //项目名称</span><br><span class="line">    &quot;script&quot;: &quot;server.js&quot;, //用来启动的脚本</span><br><span class="line">    // &quot;instances&quot;:2,</span><br><span class="line">    // 启动项目所需要的环境变量</span><br><span class="line">    &quot;env&quot;: &#123;</span><br><span class="line">      &quot;COMMON_VARIABLE&quot;: &quot;true&quot;, //设置为true 可以在启动的时传入外部的变量进去</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;env_production&quot;: &#123;</span><br><span class="line">      &quot;NODE_ENV&quot;: &quot;production&quot;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;],</span><br><span class="line">  // 部署</span><br><span class="line">  &quot;deploy&quot;: &#123;</span><br><span class="line">    &quot;production&quot;: &#123;</span><br><span class="line">      &quot;user&quot;: &quot;root&quot;,</span><br><span class="line">      &quot;host&quot;: &quot;0.0.0.0&quot;, //可以是数组 部署到多台主机</span><br><span class="line">      &quot;ref&quot;: &quot;origin/master&quot;, //选择拿哪个个分支的代码</span><br><span class="line">      &quot;repo&quot;: &quot;git@github.com:ihoey/hitalk.git&quot;, //仓库地址</span><br><span class="line">      &quot;path&quot;: &quot;/root/www/hitalk/production&quot;, //要发布到服务器上哪个目录下面</span><br><span class="line">      &quot;ssh_options&quot;: &quot;StrictHostKeyChecking=no&quot;, //避免key验证导致代码更新到远程仓库失败</span><br><span class="line">      &quot;post-deploy&quot;: &quot;source ~/.nvm/nvm.sh &amp;&amp; pm2 startOrRestart ecosystem.json --env production&quot;, //发布之后执行的动作 执行开启或更新pm2运行的服务</span><br><span class="line">      &quot;pre-deploy-local&quot;: &quot;echo &apos;Deploy Done!&apos;&quot;, //本地发布之前的动作</span><br><span class="line">      &quot;env&quot;: &#123; //指定部署到远程的仓库的环境 是production生产环境</span><br><span class="line">        &quot;NODE_ENV&quot;: &quot;production&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<blockquote>
-<p>说明:</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">apps:json结构，apps是一个数组，每一个数组成员就是对应一个pm2中运行的应用</span><br><span class="line">name:应用程序名称</span><br><span class="line">cwd:应用程序所在的目录</span><br><span class="line">script:应用程序的脚本路径</span><br><span class="line">log_date_format:</span><br><span class="line">error_file:自定义应用程序的错误日志文件</span><br><span class="line">out_file:自定义应用程序日志文件</span><br><span class="line">pid_file:自定义应用程序的pid文件</span><br><span class="line">instances:</span><br><span class="line">min_uptime:最小运行时间，这里设置的是60s即如果应用程序在60s内退出，pm2会认为程序异常退出，此时触发重启max_restarts设置数量</span><br><span class="line">max_restarts:设置应用程序异常退出重启的次数，默认15次（从0开始计数）</span><br><span class="line">cron_restart:定时启动，解决重启能解决的问题</span><br><span class="line">watch:是否启用监控模式，默认是false。如果设置成true，当应用程序变动时，pm2会自动重载。这里也可以设置你要监控的文件。</span><br><span class="line">merge_logs:</span><br><span class="line">exec_interpreter:应用程序的脚本类型，这里使用的shell，默认是nodejs</span><br><span class="line">exec_mode:应用程序启动模式，这里设置的是cluster_mode（集群），默认是fork</span><br><span class="line">autorestart:启用/禁用应用程序崩溃或退出时自动重启</span><br><span class="line">vizion:启用/禁用vizion特性(版本控制)</span><br></pre></td></tr></table></figure>
-<h3 id="初始化配置"><a href="#初始化配置" class="headerlink" title="初始化配置"></a>初始化配置</h3><p>第一次部署</p>
-<pre><code>pm2 deploy ecosystem.json production setup
-</code></pre><h3 id="部署"><a href="#部署" class="headerlink" title="部署"></a>部署</h3><pre><code>pm2 deploy ecosystem.json production
-</code></pre><p>好了，先记录这么多~</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2964,7 +3042,7 @@ console.log(check); // 18男
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">101</span>
+                  <span class="site-state-item-count">102</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

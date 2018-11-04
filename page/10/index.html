@@ -300,6 +300,428 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/10/28/JSBridge的原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/10/28/JSBridge的原理/" itemprop="url">JSBridge的原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-10-28T10:21:44+08:00">
+                2016-10-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>关于 JSBridge，绝大多数同学最早遇到的是微信的 WeiXinJSBridge（现在被封装成 JSSDK），各种 Web 页面可以通过 Bridge 调用微信提供的一些原生功能，为用户提供相关的功能。其实，JSBridge 很早就出现在软件开发中，在一些桌面软件中很早就运用了这样的形式，多用在通知、产品详情、广告等模块中，然后这些模块中，使用的是 Web UI，而相关按钮点击后，调用的是 Native 功能。现在移动端盛行，不管是 Hybrid 应用，还是 React-Native 都离不开 JSBridge，当然也包括在国内举足轻重的微信小程序。那么，JSBridge 到底是什么？它的出现是为了什么？它究竟是怎么实现的？在这篇文章中，会在移动混合开发的范畴内，将给大家带来 JSBridge 的深入剖析。</p>
+<p>当然，这段代码片段只是一个示例，主要用于剖析 JSBridge 的原理和流程，里面存在诸多省略和不完善的代码逻辑，读者们可以自行完善。<br><img src="/2016/10/28/JSBridge的原理/1.webp" alt=""><br><img src="/2016/10/28/JSBridge的原理/2.webp" alt=""></p>
+<h1 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a><strong>1 前言</strong></h1><p>有些童鞋听到 JSBridge 这个名词，就是觉得非常高上大，有了它 Web 和 Native 可以进行交互，就像『进化药水』，让 Web 摇身一变，成为移动战场的『上将一名』。其实并非如此，JSBridge 其实真是一个很简单的东西，更多的是一种形式、一种思想。</p>
+<h1 id="2-JSBridge-的起源"><a href="#2-JSBridge-的起源" class="headerlink" title="2 JSBridge 的起源"></a><strong>2 JSBridge 的起源</strong></h1><p>为什么是 JSBridge ？而不是 PythonBridge 或是 RubyBridge ？</p>
+<p>当然不是因为 JavaScript 语言高人一等（虽然斯坦福大学已经把算法导论的语言从 Java 改成 JavaScript，小得意一下，嘻嘻），主要的原因还是因为 JavaScript 主要载体 Web 是当前世界上的 <strong>最易编写</strong> 、 <strong>最易维护</strong> 、<strong>最易部署</strong> 的 UI 构建方式。工程师可以用很简单的 HTML 标签和 CSS 样式快速的构建出一个页面，并且在服务端部署后，用户不需要主动更新，就能看到最新的 UI 展现。</p>
+<p>因此，<strong>开发维护成本</strong> 和 <strong>更新成本</strong> 较低的 Web 技术成为混合开发中几乎不二的选择，而作为 Web 技术逻辑核心的 JavaScript 也理所应当肩负起与其他技术『桥接』的职责，并且作为移动不可缺少的一部分，任何一个移动操作系统中都包含可运行 JavaScript 的容器，例如 WebView 和 JSCore。所以，运行 JavaScript 不用像运行其他语言时，要额外添加运行环境。因此，基于上面种种原因，JSBridge 应运而生。</p>
+<p>PhoneGap（Codova 的前身）作为 Hybrid 鼻祖框架，应该是最先被开发者广泛认知的 JSBridge 的应用场景；而对于 JSBridge 的应用在国内真正兴盛起来，则是因为杀手级应用微信的出现，主要用途是在网页中通过 JSBridge 设置分享内容。</p>
+<p>移动端混合开发中的 JSBridge，主要被应用在两种形式的技术方案上：</p>
+<p>基于 Web 的 Hybrid 解决方案：例如微信浏览器、各公司的 Hybrid 方案</p>
+<p>非基于 Web UI 但业务逻辑基于 JavaScript 的解决方案：例如 React-Native</p>
+<p>【注】：微信小程序基于 Web UI，但是为了追求运行效率，对 UI 展现逻辑和业务逻辑的 JavaScript 进行了隔离。因此小程序的技术方案介于上面描述的两种方式之间。</p>
+<h1 id="3-JSBridge-的用途"><a href="#3-JSBridge-的用途" class="headerlink" title="3 JSBridge 的用途"></a><strong>3 JSBridge 的用途</strong></h1><p>JSBridge 简单来讲，主要是 <strong>给 JavaScript 提供调用 Native 功能的接口</strong>，让混合开发中的『前端部分』可以方便地使用地址位置、摄像头甚至支付等 Native 功能。</p>
+<p>既然是『简单来讲』，那么 JSBridge 的用途肯定不只『调用 Native 功能』这么简单宽泛。实际上，JSBridge 就像其名称中的『Bridge』的意义一样，是 Native 和非 Native 之间的桥梁，它的核心是 <strong>构建 Native 和非 Native 间消息通信的通道</strong>，而且是 <strong>双向通信的通道</strong>。<br><img src="/2016/10/28/JSBridge的原理/3.webp" alt=""><br>所谓 <strong>双向通信的通道</strong>:</p>
+<ul>
+<li>JS 向 Native 发送消息 : 调用相关功能、通知 Native 当前 JS 的相关状态等。</li>
+<li>Native 向 JS 发送消息 : 回溯调用结果、消息推送、通知 JS 当前 Native 的状态等。</li>
+</ul>
+<p>这里有些同学有疑问了：<em>消息都是单向的，那么调用 Native 功能时 Callback 怎么实现的？</em><br>对于这个问题，在下一节里会给出解释。</p>
+<h1 id="4-JSBridge-的实现原理"><a href="#4-JSBridge-的实现原理" class="headerlink" title="4 JSBridge 的实现原理"></a><strong>4 JSBridge 的实现原理</strong></h1><p>JavaScript 是运行在一个单独的 JS Context 中（例如，WebView 的 Webkit 引擎、JSCore）。由于这些 Context 与原生运行环境的天然隔离，我们可以将这种情况与 RPC（Remote Procedure Call，远程过程调用）通信进行类比，将 Native 与 JavaScript 的每次互相调用看做一次 RPC 调用。</p>
+<p>在 JSBridge 的设计中，可以把前端看做 RPC 的客户端，把 Native 端看做 RPC 的服务器端，从而 JSBridge 要实现的主要逻辑就出现了：<strong>通信调用（Native 与 JS 通信）</strong> 和 <strong>句柄解析调用</strong>。（如果你是个前端，而且并不熟悉 RPC 的话，你也可以把这个流程类比成 JSONP 的流程）</p>
+<p>通过以上的分析，可以清楚地知晓 JSBridge 主要的功能和职责，接下来就以 <strong>Hybrid 方案</strong> 为案例从这几点来剖析 JSBridge 的实现原理。</p>
+<h2 id="4-1-JSBridge-的通信原理"><a href="#4-1-JSBridge-的通信原理" class="headerlink" title="4.1 JSBridge 的通信原理"></a><strong>4.1 JSBridge 的通信原理</strong></h2><p>Hybrid 方案是基于 WebView 的，JavaScript 执行在 WebView 的 Webkit 引擎中。因此，Hybrid 方案中 JSBridge 的通信原理会具有一些 Web 特性。</p>
+<h3 id="4-1-1-JavaScript-调用-Native"><a href="#4-1-1-JavaScript-调用-Native" class="headerlink" title="4.1.1 JavaScript 调用 Native"></a><strong>4.1.1 JavaScript 调用 Native</strong></h3><p>JavaScript 调用 Native 的方式，主要有两种：<font color="#ff0000"><strong>注入 API</strong> </font> 和 <font color="#ff0000"> <strong>拦截 URL SCHEME</strong> </font>。</p>
+<h4 id="4-1-1-1-注入API"><a href="#4-1-1-1-注入API" class="headerlink" title="4.1.1.1 注入API"></a><strong>4.1.1.1 注入API</strong></h4><p>注入 API 方式的主要原理是，通过 WebView 提供的接口，向 JavaScript 的 Context（window）中注入对象或者方法，让 JavaScript 调用时，直接执行相应的 Native 代码逻辑，达到 JavaScript 调用 Native 的目的。</p>
+<p>对于 iOS 的 UIWebView，实例如下：</p>
+<pre><code>JSContext *context = [uiWebView valueForKeyPath:@&quot;documentView.webView.mainFrame.javaScriptContext&quot;];
+
+context[@&quot;postBridgeMessage&quot;] = ^(NSArray&lt;NSArray *&gt; *calls) {
+    // Native 逻辑
+};
+</code></pre><p>前端调用方式：</p>
+<pre><code>window.postBridgeMessage(message);
+</code></pre><p>对于 iOS 的 WKWebView 可以用以下方式：</p>
+<pre><code>@interface WKWebVIewVC ()&lt;WKScriptMessageHandler&gt;
+
+@implementation WKWebVIewVC
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+
+    WKWebViewConfiguration* configuration = [[WKWebViewConfiguration alloc] init];
+    configuration.userContentController = [[WKUserContentController alloc] init];
+    WKUserContentController *userCC = configuration.userContentController;
+    // 注入对象，前端调用其方法时，Native 可以捕获到
+    [userCC addScriptMessageHandler:self name:@&quot;nativeBridge&quot;];
+
+    WKWebView wkWebView = [[WKWebView alloc] initWithFrame:self.view.frame configuration:configuration];
+
+    // TODO 显示 WebView
+}
+
+- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
+    if ([message.name isEqualToString:@&quot;nativeBridge&quot;]) {
+        NSLog(@&quot;前端传递的数据 %@: &quot;,message.body);
+        // Native 逻辑
+    }
+}
+</code></pre><p>前端调用方式：</p>
+<pre><code>window.webkit.messageHandlers.nativeBridge.postMessage(message);
+</code></pre><p>对于 Android 可以采用下面的方式：</p>
+<pre><code>publicclassJavaScriptInterfaceDemoActivityextendsActivity{
+private WebView Wv;
+
+    @Override
+    publicvoidonCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+
+        Wv = (WebView)findViewById(R.id.webView);     
+        final JavaScriptInterface myJavaScriptInterface = new JavaScriptInterface(this);         
+
+        Wv.getSettings().setJavaScriptEnabled(true);
+        Wv.addJavascriptInterface(myJavaScriptInterface, &quot;nativeBridge&quot;);
+
+        // TODO 显示 WebView
+
+    }
+
+    publicclassJavaScriptInterface{
+         Context mContext;
+
+         JavaScriptInterface(Context c) {
+             mContext = c;
+         }
+
+         publicvoidpostMessage(String webMessage){            
+             // Native 逻辑
+         }
+     }
+}
+</code></pre><p>前端调用方式：</p>
+<pre><code>window.nativeBridge.postMessage(message);
+</code></pre><p>在 4.2 之前，Android 注入 JavaScript 对象的接口是 addJavascriptInterface，但是这个接口有漏洞，可以被不法分子利用，危害用户的安全，因此在 4.2 中引入新的接口 @JavascriptInterface（上面代码中使用的）来替代这个接口，解决安全问题。所以 Android 注入对对象的方式是 <strong>有兼容性问题的</strong>。（4.2 之前很多方案都采用拦截 prompt 的方式来实现，因为篇幅有限，这里就不展开了。）</p>
+<h4 id="4-1-1-2-拦截-URL-SCHEME"><a href="#4-1-1-2-拦截-URL-SCHEME" class="headerlink" title="4.1.1.2 拦截 URL SCHEME"></a><strong>4.1.1.2 拦截 URL SCHEME</strong></h4><p>先解释一下 URL SCHEME：URL SCHEME是一种类似于url的链接，是为了方便app直接互相调用设计的，形式和普通的 url 近似，主要区别是 protocol 和 host 一般是自定义的，例如: qunarhy://hy/url?url=<a href="https://link.juejin.im?target=http%3A%2F%2Fymfe.tech" target="_blank" rel="noopener">ymfe.tech</a>，protocol 是 qunarhy，host 则是 hy。</p>
+<p>拦截 URL SCHEME 的主要流程是：Web 端通过某种方式（例如 iframe.src）发送 URL Scheme 请求，之后 Native 拦截到请求并根据 URL SCHEME（包括所带的参数）进行相关操作。</p>
+<p>在时间过程中，这种方式有一定的 <strong>缺陷</strong>：</p>
+<ul>
+<li><font color="#dd0000"><strong> 使用 iframe.src 发送 URL SCHEME 会有 url 长度的隐患。</strong></font>
+</li>
+<li><font color="#dd0000"><strong>创建请求，需要一定的耗时，比注入 API 的方式调用同样的功能，耗时会较长。</strong></font>
+
+</li>
+</ul>
+<p>但是之前为什么很多方案使用这种方式呢？因为它 <strong>支持 iOS6</strong>。而现在的大环境下，iOS6 占比很小，基本上可以忽略，所以并不推荐为了 iOS6 使用这种 <strong>并不优雅</strong> 的方式。</p>
+<p>【注】：有些方案为了规避 url 长度隐患的缺陷，在 iOS 上采用了使用 Ajax 发送同域请求的方式，并将参数放到 head 或 body 里。这样，虽然规避了 url 长度的隐患，但是 WKWebView 并不支持这样的方式。</p>
+<p>【注2】：为什么选择 iframe.src 不选择 locaiton.href ？因为如果通过 location.href 连续调用 Native，很容易丢失一些调用。</p>
+<h3 id="4-1-2-Native-调用-JavaScript"><a href="#4-1-2-Native-调用-JavaScript" class="headerlink" title="4.1.2 Native 调用 JavaScript"></a><strong>4.1.2 Native 调用 JavaScript</strong></h3><p>相比于 JavaScript 调用 Native， Native 调用 JavaScript 较为简单，毕竟不管是 iOS 的 UIWebView 还是 WKWebView，还是 Android 的 WebView 组件，都以子组件的形式存在于 View/Activity 中，直接调用相应的 API 即可。</p>
+<p>Native 调用 JavaScript，其实就是执行拼接 JavaScript 字符串，从外部调用 JavaScript 中的方法，因此 JavaScript 的方法必须在全局的 window 上。（闭包里的方法，JavaScript 自己都调用不了，更不用想让 Native 去调用了）</p>
+<p>对于 iOS 的 UIWebView，示例如下：</p>
+<pre><code>result = [uiWebview stringByEvaluatingJavaScriptFromString:javaScriptString];
+</code></pre><p>对于 iOS 的 WKWebView，示例如下：</p>
+<pre><code>[wkWebView evaluateJavaScript:javaScriptString completionHandler:completionHandler];
+</code></pre><p>对于 Android，在 Kitkat（4.4）之前并没有提供 iOS 类似的调用方式，只能用 loadUrl 一段 JavaScript 代码，来实现：</p>
+<pre><code>webView.loadUrl(&quot;javascript:&quot; + javaScriptString);
+</code></pre><p>而 Kitkat 之后的版本，也可以用 evaluateJavascript 方法实现：</p>
+<pre><code>webView.evaluateJavascript(javaScriptString, new ValueCallback&lt;String&gt;() {
+    @Override
+    publicvoidonReceiveValue(String value){
+
+    }
+});
+</code></pre><p>【注】：使用 loadUrl 的方式，并不能获取 JavaScript 执行后的结果。</p>
+<h3 id="4-1-3-通信原理小总结"><a href="#4-1-3-通信原理小总结" class="headerlink" title="4.1.3 通信原理小总结"></a><strong>4.1.3 通信原理小总结</strong></h3><p>通信原理是 JSBridge 实现的核心，实现方式可以各种各样，但是万变不离其宗。这里，笔者推荐的实现方式如下：</p>
+<ul>
+<li><p>JavaScript 调用 Native 推荐使用 <strong>注入 API</strong> 的方式（iOS6 忽略，Android 4.2以下使用 WebViewClient 的 onJsPrompt 方式）。</p>
+</li>
+<li><p>Native 调用 JavaScript 则直接执行拼接好的 JavaScript 代码即可。</p>
+</li>
+</ul>
+<p>对于其他方式，诸如 React Native、微信小程序 的通信方式都与上描述的近似，并根据实际情况进行优化。</p>
+<p>以 React Native 的 iOS 端举例：JavaScript 运行在 JSCore 中，实际上可以与上面的方式一样，利用注入 API 来实现 JavaScript 调用 Native 功能。不过 React Native 并没有设计成 JavaScript 直接调用 Object-C，而是 <strong>为了与 Native 开发里事件响应机制一致</strong>，设计成 <strong>需要在 Object-C 去调 JavaScript 时才通过返回值触发调用</strong>。原理基本一样，只是实现方式不同。</p>
+<p>当然不仅仅 iOS 和 Android，其他手机操作系统也用相应的 API，例如 WMP（Win 10）下可以用 window.external.notify 和 WebView.InvokeScript/InvokeScriptAsync 进行双向通信。其他系统也类似。</p>
+<h2 id="4-2-JSBridge-接口实现"><a href="#4-2-JSBridge-接口实现" class="headerlink" title="4.2 JSBridge 接口实现"></a><strong>4.2 JSBridge 接口实现</strong></h2><p>从上面的剖析中，可以得知，JSBridge 的接口主要功能有两个：<strong>调用 Native（给 Native 发消息）</strong> 和 <strong>接被 Native 调用（接收 Native 消息）</strong>。因此，JSBridge 可以设计如下：</p>
+<pre><code>window.JSBridge = {
+    // 调用 Native
+    invoke: function(msg) {
+        // 判断环境，获取不同的 nativeBridge
+        nativeBridge.postMessage(msg);
+    },
+    receiveMessage: function(msg) {
+        // 处理 msg
+    }
+};
+</code></pre><p>在上面的文章中，提到过 RPC 中有一个非常重要的环节是 <strong>句柄解析调用</strong> ，这点在 JSBridge 中体现为 <strong>句柄与功能对应关系</strong>。同时，我们将句柄抽象为 <strong>桥名（BridgeName）</strong>，最终演化为 <strong>一个 BridgeName 对应一个 Native 功能或者一类 Native 消息</strong>。 基于此点，JSBridge 的实现可以优化为如下：</p>
+<pre><code>window.JSBridge = {
+    // 调用 Native
+    invoke: function(bridgeName, data) {
+        // 判断环境，获取不同的 nativeBridge
+        nativeBridge.postMessage({
+            bridgeName: bridgeName,
+            data: data || {}
+        });
+    },
+    receiveMessage: function(msg) {
+        var bridgeName = msg.bridgeName,
+            data = msg.data || {};
+        // 具体逻辑
+    }
+};
+</code></pre><p>JSBridge 大概的雏形出现了。现在终于可以着手解决这个问题了：<strong>消息都是单向的，那么调用 Native 功能时 Callback 怎么实现的？</strong></p>
+<p>对于 JSBridge 的 Callback ，其实就是 RPC 框架的回调机制。当然也可以用更简单的 JSONP 机制解释：</p>
+<blockquote>
+<p>当发送 JSONP 请求时，url 参数里会有 callback 参数，其值是 <strong>当前页面唯一</strong> 的，而同时以此参数值为 key 将回调函数存到 window 上，随后，服务器返回 script 中，也会以此参数值作为句柄，调用相应的回调函数。</p>
+</blockquote>
+<p>由此可见，callback 参数这个 <strong>唯一标识</strong> 是这个回调逻辑的关键。这样，我们可以参照这个逻辑来实现 JSBridge：用一个自增的唯一 id，来标识并存储回调函数，并把此 id 以参数形式传递给 Native，而 Native 也以此 id 作为回溯的标识。这样，即可实现 Callback 回调逻辑。</p>
+<pre><code>(function () {
+    var id = 0,
+        callbacks = {};
+
+    window.JSBridge = {
+        // 调用 Native
+        invoke: function(bridgeName, callback, data) {
+            // 判断环境，获取不同的 nativeBridge
+            var thisId = id ++; // 获取唯一 id
+            callbacks[thisId] = callback; // 存储 Callback
+            nativeBridge.postMessage({
+                bridgeName: bridgeName,
+                data: data || {},
+                callbackId: thisId // 传到 Native 端
+            });
+        },
+        receiveMessage: function(msg) {
+            var bridgeName = msg.bridgeName,
+                data = msg.data || {},
+                callbackId = msg.callbackId; // Native 将 callbackId 原封不动传回
+            // 具体逻辑
+            // bridgeName 和 callbackId 不会同时存在
+            if (callbackId) {
+                if (callbacks[callbackId]) { // 找到相应句柄
+                    callbacks[callbackId](msg.data); // 执行调用
+                }
+            } elseif (bridgeName) {
+
+            }
+        }
+    };
+})();
+</code></pre><p>最后用同样的方式加上 Native 调用的回调逻辑，同时对代码进行一些优化，就大概实现了一个功能比较完整的 JSBridge。其代码如下：</p>
+<pre><code>(function () {
+    var id = 0,
+        callbacks = {},
+        registerFuncs = {};
+
+    window.JSBridge = {
+        // 调用 Native
+        invoke: function(bridgeName, callback, data) {
+            // 判断环境，获取不同的 nativeBridge
+            var thisId = id ++; // 获取唯一 id
+            callbacks[thisId] = callback; // 存储 Callback
+            nativeBridge.postMessage({
+                bridgeName: bridgeName,
+                data: data || {},
+                callbackId: thisId // 传到 Native 端
+            });
+        },
+        receiveMessage: function(msg) {
+            var bridgeName = msg.bridgeName,
+                data = msg.data || {},
+                callbackId = msg.callbackId, // Native 将 callbackId 原封不动传回
+                responstId = msg.responstId;
+            // 具体逻辑
+            // bridgeName 和 callbackId 不会同时存在
+            if (callbackId) {
+                if (callbacks[callbackId]) { // 找到相应句柄
+                    callbacks[callbackId](msg.data); // 执行调用
+                }
+            } elseif (bridgeName) {
+                if (registerFuncs[bridgeName]) { // 通过 bridgeName 找到句柄
+                    var ret = {},
+                        flag = false;
+                    registerFuncs[bridgeName].forEach(function(callback) =&gt; {
+                        callback(data, function(r) {
+                            flag = true;
+                            ret = Object.assign(ret, r);
+                        });
+                    });
+                    if (flag) {
+                        nativeBridge.postMessage({ // 回调 Native
+                            responstId: responstId,
+                            ret: ret
+                        });
+                    }
+                }
+            }
+        },
+        register: function(bridgeName, callback) {
+            if (!registerFuncs[bridgeName])  {
+                registerFuncs[bridgeName] = [];
+            }
+            registerFuncs[bridgeName].push(callback); // 存储回调
+        }
+    };
+})();
+</code></pre><p>当然，这段代码片段只是一个示例，主要用于剖析 JSBridge 的原理和流程，里面存在诸多省略和不完善的代码逻辑，读者们可以自行完善。</p>
+<p>【注】：这一节主要讲的是，JavaScript 端的 JSBridge 的实现，对于 Native 端涉及的并不多。在 Native 端配合实现 JSBridge 的 JavaScript 调用 Native 逻辑也很简单，主要的代码逻辑是：接收到 JavaScript 消息 =&gt; 解析参数，拿到 bridgeName、data 和 callbackId =&gt; 根据 bridgeName 找到功能方法，以 data 为参数执行 =&gt; 执行返回值和 callbackId 一起回传前端。 Native 调用 JavaScript 也同样简单，直接自动生成一个唯一的 ResponseId，并存储句柄，然后和 data 一起发送给前端即可。</p>
+<h1 id="5-JSBridge-如何引用"><a href="#5-JSBridge-如何引用" class="headerlink" title="5 JSBridge 如何引用"></a><strong>5 JSBridge 如何引用</strong></h1><p>对于 JSBridge 的引用，常用有两种方式，各有利弊。</p>
+<h2 id="5-1-由-Native-端进行注入"><a href="#5-1-由-Native-端进行注入" class="headerlink" title="5.1 由 Native 端进行注入"></a><strong>5.1 由 Native 端进行注入</strong></h2><p>注入方式和 Native 调用 JavaScript 类似，直接执行桥的全部代码。</p>
+<p>它的优点在于：桥的版本很容易与 Native 保持一致，Native 端不用对不同版本的 JSBridge 进行兼容；与此同时，它的缺点是：注入时机不确定，需要实现注入失败后重试的机制，保证注入的成功率，同时 JavaScript 端在调用接口时，需要优先判断 JSBridge 是否已经注入成功。</p>
+<h2 id="5-2-由-JavaScript-端引用"><a href="#5-2-由-JavaScript-端引用" class="headerlink" title="5.2 由 JavaScript 端引用"></a><strong>5.2 由 JavaScript 端引用</strong></h2><p>直接与 JavaScript 一起执行。</p>
+<p>与由 Native 端注入正好相反，它的优点在于：JavaScript 端可以确定 JSBridge 的存在，直接调用即可；缺点是：如果桥的实现方式有更改，JSBridge 需要兼容多版本的 Native Bridge 或者 Native Bridge 兼容多版本的 JSBridge。</p>
+<h1 id="如何调用三种唤端媒介"><a href="#如何调用三种唤端媒介" class="headerlink" title="如何调用三种唤端媒介"></a><strong>如何调用三种唤端媒介</strong></h1><p>无论是 URL Scheme 还是 Intent 或者 Universal Link ，他们都算是 URL ，只是 URL Scheme 和 Intent 算是特殊的 URL。所以我们可以拿使用 URL 的方法来使用它们。</p>
+<blockquote>
+<p>iframe</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;iframe src=&quot;sinaweibo://qrcode&quot;&gt;</span><br></pre></td></tr></table></figure>
+<p>在只有 URL Scheme 的日子里，iframe 是使用最多的了。因为在未安装 app 的情况下，不会去跳转错误页面。但是 iframe 在各个系统以及各个应用中的兼容问题还是挺多的，不能全部使用 URL Scheme。</p>
+<blockquote>
+<p>a 标签</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end&quot;&quot;&gt;扫一扫&lt;/a&gt;</span><br></pre></td></tr></table></figure>
+<p>对于动态生成的 a 标签，使用 dispatch 来模拟触发点击事件，发现很多种 event 传递过去都无效；使用 click() 来模拟触发，部分场景下存在这样的情况，第一次点击过后，回到原先页面，再次点击，点击位置和页面所识别位置有不小的偏移，所以 Intent 协议从 a 标签换成了 window.location。</p>
+<blockquote>
+<p>window.location</p>
+</blockquote>
+<p>URL Scheme 在 ios 9+ 上诸如 safari、UC、QQ浏览器中， iframe 均无法成功唤起 APP，只能通过 window.location 才能成功唤端。<br>当然，如果我们的 app 支持 Universal Link，ios 9+ 就用不到 URL Scheme 了。而 Universal Link 在使用过程中，我发现在 qq 中，无论是 iframe 导航 还是 a 标签打开 又或者 window.location 都无法成功唤端，一开始我以为是 qq 和微信一样禁止了 Universal Link 唤端的功能，其实不然，百般试验下，通过 top.location 唤端成功了。</p>
+<h3 id="判断唤端是否成功"><a href="#判断唤端是否成功" class="headerlink" title="判断唤端是否成功"></a>判断唤端是否成功</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">const initialTime = new Date();</span><br><span class="line">let counter = 0;</span><br><span class="line">let waitTime = 0;</span><br><span class="line"></span><br><span class="line">const checkOpen = setInterval(() =&gt; &#123;</span><br><span class="line">   count++;</span><br><span class="line">   waitTime = new Date() - initialTime;</span><br><span class="line"></span><br><span class="line">   if (waitTime &gt; 2500) &#123;</span><br><span class="line">      clearInterval(checkOpen);</span><br><span class="line">      cb();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (counter &lt; 100) return;</span><br><span class="line"></span><br><span class="line">   clearInterval(checkOpen);</span><br><span class="line"></span><br><span class="line">   const hide = document.hidden || document.webkitHidden;</span><br><span class="line"></span><br><span class="line">   if (!hide) &#123;</span><br><span class="line">      cb(); // 唤端失败的回调函数</span><br><span class="line">   &#125;</span><br><span class="line">&#125;, 20);</span><br></pre></td></tr></table></figure>
+<p>APP 如果被唤起的话，页面就会进入后台运行，setInterval 在 ios 中不会停止运行，在 android 中停止运行。<br>每 20ms 执行一次，执行 100次 在页面中实际耗费与 2000 ms 不会相差多少。<br>我们的判断条件比预期时间多设置了 500ms，所以如果安卓中 setInterval 内的函数执行 100 次以内所费时间超过 2500ms，则说明 APP 唤起成功，反之则代表失败。<br>我们通过 document.hidden 和 document.webkitHidden 属性来判断 APP 在 ios 中是否被正常唤起，2000ms 内，页面转入后台运行，document.hidden 会返回 true，代表唤端成功，反之则代表失败。</p>
+<h1 id="判断是否安装app并打开-否则跳转下载的方法"><a href="#判断是否安装app并打开-否则跳转下载的方法" class="headerlink" title="判断是否安装app并打开,否则跳转下载的方法"></a><strong>判断是否安装app并打开,否则跳转下载的方法</strong></h1><blockquote>
+<p>应用场景</p>
+</blockquote>
+<p>App产品在运营推广上有一个需求，就是要求可以让用户在访问我们的推广网页时，就可以判断出这个用户手机上是否安装了我们的App，如果安装了则可以直接在网页上打开，否则就引导用户前往下载。从而形成一个推广上的闭环。</p>
+<blockquote>
+<p>解决办法</p>
+</blockquote>
+<p>而对于点击链接后，能否直接打开，可以通过下面的代码来实现。前提条件：你得知道你的APP对应的打开协议，如贴吧APP，协议为：com.baidu.tieba:// ，微信的：weixin:// ，等等</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- a标签点击打开的动作，在click事件中注册 --&gt;</span><br><span class="line">&lt;a href=&quot;javascript:;&quot; id=&quot;openApp&quot;&gt;贴吧客户端&lt;/a&gt;</span><br><span class="line">&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">    document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">        // 通过iframe的方式试图打开APP，如果能正常打开，会直接切换到APP，并自动阻止js其他行为</span><br><span class="line">        </span><br><span class="line">        var ifr = document.createElement(&apos;iframe&apos;);</span><br><span class="line">        ifr.src = &apos;com.baidu.tieba://&apos;;//打开app的协议，有app同事提供</span><br><span class="line">        ifr.style.display = &apos;none&apos;;</span><br><span class="line">        document.body.appendChild(ifr);</span><br><span class="line">        window.setTimeout(function()&#123;</span><br><span class="line">            document.body.removeChild(ifr);</span><br><span class="line">　　　　　　　window.location.href = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;//打开app下载地址，有app同事提供</span><br><span class="line">        &#125;,2000)</span><br><span class="line">    &#125;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>此方法有些浏览器不兼容iframe，可以window.location的方法解决<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;javascript:;&quot; id=&quot;openApp&quot;&gt;贴吧客户端&lt;/a&gt;</span><br><span class="line">&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">    document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">        window.location.href = &quot;com.baidu.tieba://&quot;;</span><br><span class="line">        window.setTimeout(function()&#123;</span><br><span class="line">            window.location.href = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;//打开app下载地址，有app同事提供</span><br><span class="line">        &#125;,2000)</span><br><span class="line">    &#125;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
+<h1 id="js判断本地是否安装app"><a href="#js判断本地是否安装app" class="headerlink" title="js判断本地是否安装app"></a><strong>js判断本地是否安装app</strong></h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&lt;script language=&quot;javascript&quot;&gt;</span><br><span class="line">             document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">                if(navigator.userAgent.match(/(iPhone|iPod|iPad);?/i)) &#123;</span><br><span class="line">                var loadDateTime = new Date();</span><br><span class="line">                window.setTimeout(function() &#123;</span><br><span class="line">                        var timeOutDateTime = new Date();</span><br><span class="line">                        if(timeOutDateTime - loadDateTime &lt; 5000) &#123;</span><br><span class="line">                            window.location = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;</span><br><span class="line">                        &#125; else &#123;</span><br><span class="line">                            window.close();</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    25);</span><br><span class="line">                window.location = &quot;weixin:// &quot;;</span><br><span class="line">            &#125; else if(navigator.userAgent.match(/android/i)) &#123;</span><br><span class="line">                var state = null;</span><br><span class="line">                try &#123;</span><br><span class="line">                    state = window.open(&quot;weixin://&quot;);</span><br><span class="line">                &#125; catch(e) &#123;&#125;</span><br><span class="line">                if(state) &#123;</span><br><span class="line">                    window.close();</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    window.location = &quot;http://dldir1.qq.com/weixin/android/weixin656android1020.apk&quot;;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        &lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>如果本地安装了app那么直接打开，否则苹果要跳转到app-store，安卓则要跳到对应的市场</p>
+<blockquote>
+<p>解决方案 一</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">//html代码中 的 a 标签，以微信为例，默认的是调用weixin scheme，去打开本机的微信，如果没有则跳转到相应连接</span><br><span class="line">　　　　&lt;a href=&quot;weixin://&quot; class=&quot;btn-download&quot;&gt;立即打开&lt;/a&gt;</span><br><span class="line">　　</span><br><span class="line">　　　　// 为btn-download 绑定事件，如果在500ms内，没有解析到协议，那么就会跳转到下载链接 </span><br><span class="line">　　　　 var appstore, ua = navigator.userAgent;</span><br><span class="line">        if(ua.match(/Android/i))&#123; </span><br><span class="line">            appstore = &apos;market://search?q=com.singtel.travelbuddy.android&apos;;</span><br><span class="line">        &#125;</span><br><span class="line">        if(ua.match(/iphone|ipod|ipad/))&#123;</span><br><span class="line">            appstore = &quot;https://itunes.apple.com/cn/app/wei-xin/id414478124?mt=8&amp;ign-mpt=uo%3D4&quot;; </span><br><span class="line">        &#125;</span><br><span class="line">        function applink(fail)&#123;  </span><br><span class="line">            return function()&#123;  </span><br><span class="line">                var clickedAt = +new Date;  </span><br><span class="line">                // During tests on 3g/3gs this timeout fires immediately if less than 500ms.  </span><br><span class="line">                setTimeout(function()&#123;  </span><br><span class="line">                     // To avoid failing on return to MobileSafari, ensure freshness!  </span><br><span class="line">                      if (+new Date - clickedAt &lt; 2000)&#123;  </span><br><span class="line">                          window.location = fail;  </span><br><span class="line">                      &#125;  </span><br><span class="line">                &#125;, 500);      </span><br><span class="line">            &#125;;  </span><br><span class="line">        &#125;  </span><br><span class="line">        $(&apos;.icon-download, .btn-download&apos;)[0].onclick = applink(appstore);</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>解决方案二 </p>
+</blockquote>
+<p>通过在页面中生成一个隐藏的iframe，iframe的src指向 app 协议，例如 weixin scheme，并监听onerror事件，意思是如果无法解析协议，就会触发onerror事件，但是我尝试了一下，未果。代码如下，可参考一下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">// 页面中有div#iframe-box 用来插入生成的iframe，还是以微信为例</span><br><span class="line">　　　　 var ifm = document.createElement(&apos;iframe&apos;), isInstalled;</span><br><span class="line">        ifm.style.display = &apos;none&apos;;</span><br><span class="line">        ifm.src = &apos;wixin://&apos;;</span><br><span class="line">        ifm.onload = function(e)&#123;</span><br><span class="line">            var e = e || window.event;</span><br><span class="line">            e.preventDefault();</span><br><span class="line">        &#125;</span><br><span class="line">        ifm.onerror = function()&#123;</span><br><span class="line">            //isInstalled = false;</span><br><span class="line">            alert(1);</span><br><span class="line">        &#125;</span><br><span class="line">        document.getElementById(&apos;iframe-box&apos;).appendChild(ifm);</span><br><span class="line"></span><br><span class="line">　　　　// 但这时的问题是，iframe的src成功解析到了协议，则会直接跳转，但是解析不到的话，也不会触发error事件，这个还要继续研究</span><br><span class="line">　　　　// 可以把上面的代码，放到函数中，然后作为某个按钮的响应函数。</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>解决方案三</p>
+</blockquote>
+<p>对于ios手机，会有如下写法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&quot;apple-itunes-app&quot; content=&quot;app-id=414478124&quot; /&gt;</span><br></pre></td></tr></table></figure></p>
+<p>将上面代码放到head中，根据name也会知道意思，app-id是微信的app-id，用ios手机看会看到提示，andriod比可以，结果自行实验。（ios就是强大）</p>
+<h1 id="H5唤起客户端通用机方案"><a href="#H5唤起客户端通用机方案" class="headerlink" title="H5唤起客户端通用机方案"></a><strong>H5唤起客户端通用机方案</strong></h1><h4 id="H5唤起客户端"><a href="#H5唤起客户端" class="headerlink" title="H5唤起客户端"></a><a href="https://github.com/suanmei/callapp-lib" target="_blank" rel="noopener">H5唤起客户端</a></h4><h1 id="6-总结"><a href="#6-总结" class="headerlink" title="6 总结"></a><strong>6 总结</strong></h1><p>这篇文章主要剖析的 JSBridge 的实现及应用，包括 <strong>JavaScript 与 Native 间的通信原理</strong>，<strong>JSBridge 的 JavaScript 端实现</strong> 以及 <strong>引用方式</strong>，并给出了一些示例代码，希望对读者有一定的帮助。</p>
+<h3 id="JSBridge实战"><a href="#JSBridge实战" class="headerlink" title="JSBridge实战"></a><a href="https://juejin.im/post/5bda6f276fb9a0226d18931f" target="_blank" rel="noopener">JSBridge实战</a></h3>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/10/26/ES6-中-Promise-的面试题/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1901,310 +2323,6 @@ function strictFunc(){
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/04/26/Ajax与Comet/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/04/26/Ajax与Comet/" itemprop="url">Ajax与Comet</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-04-26T20:19:20+08:00">
-                2015-04-26
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <blockquote>
-<p>下述内存主要讲述了《JavaScript高级程序设计（第3版）》第21章关于“Ajax与Comet”。</p>
-</blockquote>
-<p><strong>Ajax（Asynchronous JavaScript + XML的简写）</strong>可以向服务器请求数据而无需卸载（刷新）页面，带来更好的用户体验。<br><strong>Ajax技术的核心是XMLHttpRequest对象（简称XHR）。</strong></p>
-<h3 id="一、XMLHttpRequest对象"><a href="#一、XMLHttpRequest对象" class="headerlink" title="一、XMLHttpRequest对象"></a>一、XMLHttpRequest对象</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">/* 兼容IE早期版本 */</span><br><span class="line">function createXHR()&#123;</span><br><span class="line">    if (typeof XMLHttpRequest != &quot;undefined&quot;)&#123;</span><br><span class="line">        return new XMLHttpRequest();</span><br><span class="line">    &#125; else if (typeof ActiveXObject != &quot;undefined&quot;)&#123;    // 适用于IE7之前的版本</span><br><span class="line">        if (typeof arguments.callee.activeXString != &quot;string&quot;)&#123;</span><br><span class="line">            var versions = [&quot;MSXML2.XMLHttp.6.0&quot;, &quot;MSXML2.XMLHttp.3.0&quot;,</span><br><span class="line">                            &quot;MSXML2.XMLHttp&quot;],</span><br><span class="line">                i, len;</span><br><span class="line"></span><br><span class="line">            for (i=0,len=versions.length; i &lt; len; i++)&#123;</span><br><span class="line">                try &#123;</span><br><span class="line">                    new ActiveXObject(versions[i]);</span><br><span class="line">                    arguments.callee.activeXString = versions[i];</span><br><span class="line">                    break;</span><br><span class="line">                &#125; catch (ex)&#123;</span><br><span class="line">                    //skip</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        return new ActiveXObject(arguments.callee.activeXString);</span><br><span class="line">    &#125; else &#123;  // XHR对象和ActiveX对象都不存在，则抛出错误 </span><br><span class="line">        throw new Error(&quot;No XHR object available.&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="1-XHR的用法"><a href="#1-XHR的用法" class="headerlink" title="1. XHR的用法"></a>1. XHR的用法</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">xhr.open(&quot;请求的类型get|post等&quot;, &quot;请求的URL&quot;, &quot;是否异步发送请求&quot;);</span><br></pre></td></tr></table></figure>
-<p><strong>说明：</strong><br>（1）URL相对于执行代码的当前页面（当然也可以使用绝对路径）<br>（2）open()方法并不会真正发送请求，而只是启动一个请求以备发送<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">xhr.send(&quot;请求主体发送的数据&quot;);</span><br></pre></td></tr></table></figure></p>
-<p><strong>说明：</strong><br>（1）如果不需要通过请求主体发送数据（比如get请求），则必须传入null，因为这个参数对有些浏览器来说是必需的<br>（2）调用send()之后，请求就会被分派到服务器</p>
-<p><strong>补充</strong>：xhr.open()方法为“false”，即同步请求，JavaScript代码会等到服务器响应后再继续执行；否则，继续执行后续代码。</p>
-<p>在收到服务器响应后，相应的数据会自动填充XHR对象的属性。</p>
-<ul>
-<li>responseText：作为响应主体被返回的文本</li>
-<li>responseXML：如果响应的内容类型是”text/xml”或”application/xml”，这个属性中将保存包含着响应数据的XML DOM文档</li>
-<li>status：响应的HTTP状态</li>
-<li>statusText：HTTP状态的说明<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">// 为确保接收到适当的响应 200:成功；304:资源未被修改</span><br><span class="line">if((xhr.status &gt;= 200 &amp;&amp; xhr.status &lt; 300) || xhr.status == 304) &#123;</span><br><span class="line">    console.log(xhr.responseText);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><strong>说明</strong>：<br>（1）有的浏览器会错误的报告成功状态码为204<br>（2）无论内容类型是什么，响应主体的内容都会保存到responseText属性中；而对于XML数据而言，responseXML同时也将被赋值，否则其值为null</p>
-<p><strong>对于异步请求，可以检测XHR对象的readyState属性，该属性表示请求/响应过程的当前活动阶段</strong></p>
-<ul>
-<li>0：未初始化。尚未调用open()方法</li>
-<li>1：启动。已经调用open()方法，但尚未调用send()方法</li>
-<li>2：发送。已经调用send()方法，但尚未接收到响应</li>
-<li>3：接收。已经接收到部分响应数据</li>
-<li>4：完成。已经接收全部响应数据，而且已经可以在客户端使用了。</li>
-</ul>
-<p>readyState属性的值发生变化，都会触发<strong>readystatechange</strong>事件。可以利用这个事件来检测每次状态变化后<strong>readyState</strong>的值。不过，<em>必须在调用open()之前指定onreadystatechange事件处理程序才能确保跨浏览器兼容性。</em></p>
-<pre><code>var xhr = createXHR();        
-xhr.onreadystatechange = function(event){
-    // 不要使用this，作用域会产生问题，在部分浏览器中会执行失败
-    if (xhr.readyState == 4){
-        if ((xhr.status &gt;= 200 &amp;&amp; xhr.status &lt; 300) || xhr.status == 304){
-            console.log(xhr.responseText);
-        } else {
-            console.log(&quot;Request was unsuccessful: &quot; + xhr.status);
-        }
-    }
-};
-xhr.open(&quot;get&quot;, &quot;example.txt&quot;, true);
-xhr.send(null);
-</code></pre><p>在接收到响应数据之前可以调用abort()方法来取消异步请求：</p>
-<pre><code>xhr.abort();
-xhr =null; // 解除引用，释放内存
-</code></pre><h4 id="2-HTTP头部信息"><a href="#2-HTTP头部信息" class="headerlink" title="2. HTTP头部信息"></a>2. HTTP头部信息</h4><p><strong>setRequestHeader()</strong>：设置自定义的请求头信息。必须在调用open()方法之后且调用send()方法之前调用。<br><strong>getResponseHeader() getAllResponseHeaders()</strong>：可以获取指定（全部）响应头信息。</p>
-<pre><code>var xhr = createXHR();        
-xhr.onreadystatechange = function(){};
-xhr.open(&quot;get&quot;, &quot;example.php&quot;, true);
-xhr.setRequestHeader(&quot;MyHeader&quot;, &quot;MyValue&quot;);
-xhr.send(null);
-</code></pre><h4 id="3-GET请求"><a href="#3-GET请求" class="headerlink" title="3. GET请求"></a>3. GET请求</h4><p><strong>open()</strong>方法的URL尾部的查询字符串必须经过正确的编码</p>
-<pre><code>functionaddURLParam(url, name, value) {
-    url += (url.indexOf(&quot;?&quot;) == -1 ? &quot;?&quot; : &quot;&amp;&quot;);
-    url += encodeURIComponent(name) + &quot;=&quot; + encodeURIComponent(value);
-    return url;
-}
-
-var url = &quot;http://test.com&quot;;
-url = addURLParam(url, &quot;uid&quot; , 5);
-url = addURLParam(url, &quot;siteid&quot;, 123);  // &quot;http://test.com?uid=5&amp;siteid=123&quot;
-xhr.open(&quot;get&quot;, url, true);
-xhr.send(null);
-</code></pre><h4 id="4-POST请求"><a href="#4-POST请求" class="headerlink" title="4. POST请求"></a>4. POST请求</h4><p>POST请求将数据作为请求的主体<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">/* 序列化表单 */</span><br><span class="line">function serialize(form)&#123;        </span><br><span class="line">    var parts = new Array();</span><br><span class="line">    var field = null;</span><br><span class="line"></span><br><span class="line">    for (var i=0, len=form.elements.length; i &lt; len; i++)&#123;</span><br><span class="line">        field = form.elements[i];</span><br><span class="line"></span><br><span class="line">        switch(field.type)&#123;</span><br><span class="line">            case &quot;select-one&quot;:</span><br><span class="line">            case &quot;select-multiple&quot;:</span><br><span class="line">                for (var j=0, optLen = field.options.length; j &lt; optLen; j++)&#123;</span><br><span class="line">                    var option = field.options[j];</span><br><span class="line">                    if (option.selected)&#123;</span><br><span class="line">                        var optValue = &quot;&quot;;</span><br><span class="line">                        if (option.hasAttribute)&#123;</span><br><span class="line">                            optValue = (option.hasAttribute(&quot;value&quot;) ? </span><br><span class="line">                                        option.value : option.text);</span><br><span class="line">                        &#125; else &#123;</span><br><span class="line">                            optValue = (option.attributes[&quot;value&quot;].specified ? </span><br><span class="line">                                        option.value : option.text);</span><br><span class="line">                        &#125;</span><br><span class="line">                        parts.push(encodeURIComponent(field.name) + &quot;=&quot; + </span><br><span class="line">                                   encodeURIComponent(optValue));</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                break;</span><br><span class="line"></span><br><span class="line">            case undefined:     //fieldset</span><br><span class="line">            case &quot;file&quot;:        //file input</span><br><span class="line">            case &quot;submit&quot;:      //submit button</span><br><span class="line">            case &quot;reset&quot;:       //reset button</span><br><span class="line">            case &quot;button&quot;:      //custom button</span><br><span class="line">                break;</span><br><span class="line"></span><br><span class="line">            case &quot;radio&quot;:       //radio button</span><br><span class="line">            case &quot;checkbox&quot;:    //checkbox</span><br><span class="line">                if (!field.checked)&#123;</span><br><span class="line">                    break;</span><br><span class="line">                &#125;</span><br><span class="line">                /* falls through */              </span><br><span class="line">            default:</span><br><span class="line">                parts.push(encodeURIComponent(field.name) + &quot;=&quot; + </span><br><span class="line">                    encodeURIComponent(field.value));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;        </span><br><span class="line">    return parts.join(&quot;&amp;&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">/* 发送请求 */</span><br><span class="line">function submitData()&#123;</span><br><span class="line">    var xhr = createXHR();        </span><br><span class="line">    xhr.onreadystatechange = function(event)&#123;</span><br><span class="line">        if (xhr.readyState == 4)&#123;</span><br><span class="line">            if ((xhr.status &gt;= 200 &amp;&amp; xhr.status &lt; 300) || xhr.status == 304)&#123;</span><br><span class="line">                alert(xhr.responseText);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                alert(&quot;Request was unsuccessful: &quot; + xhr.status);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    xhr.open(&quot;post&quot;, &quot;postexample.php&quot;, true);</span><br><span class="line">    // 表单提交的内容类型</span><br><span class="line">    xhr.setRequestHeader(&quot;Content-Type&quot;, &quot;application/x-www-form-urlencoded&quot;);</span><br><span class="line">    var form = document.getElementById(&quot;user-info&quot;);   </span><br><span class="line">    // 请求主体为数据         </span><br><span class="line">    xhr.send(serialize(form));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h3 id="二、XMLHttpRequest-2级"><a href="#二、XMLHttpRequest-2级" class="headerlink" title="二、XMLHttpRequest 2级"></a>二、XMLHttpRequest 2级</h3><p>XMLHttpRequest 1级只是把已有的XHR对象的实现细节描述了出来。而XMLHttpRequest 2级则进一步发展了XHR。并非所有浏览器都完整地实现了XMLHttpRequest 2级规范，但所有浏览器都实现了它规定的部分内容。</p>
-<h4 id="1-FormData"><a href="#1-FormData" class="headerlink" title="1. FormData"></a>1. FormData</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">// 创建FormData对象</span><br><span class="line">var data=new FormData();</span><br><span class="line">data.append(&quot;name&quot;, &quot;ligang&quot;);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// 用表单元素填充</span><br><span class="line">xhr.open(&quot;post&quot;, &quot;postexample.php&quot;, true);</span><br><span class="line">var form = document.getElementById(&quot;user-info&quot;);</span><br><span class="line">// 使用FormData的方便之处在于不必明确地在XHR对象上设置请求头。</span><br><span class="line">// xhr.setRequestHeader(&quot;Content-Type&quot;, &quot;application/x-www-form-urlencoded&quot;);</span><br><span class="line">xhr.send(new FormData(form));</span><br></pre></td></tr></table></figure>
-<h4 id="2-超时设定"><a href="#2-超时设定" class="headerlink" title="2. 超时设定"></a>2. 超时设定</h4><p>IE8为XHR对象添加了一个timeout属性，表示请求在等待响应多少毫秒后就终止。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">xhr.open(&quot;get&quot;, &quot;timeout.php&quot;, true);</span><br><span class="line">xhr.timeout = 60 * 1000;</span><br><span class="line">xhr.ontimeout = function()&#123;</span><br><span class="line">    alert(&quot;Request did not return in a second.&quot;);</span><br><span class="line">&#125;;        </span><br><span class="line">xhr.send(null);</span><br></pre></td></tr></table></figure></p>
-<p>对于其他浏览器的兼容做法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">xhr.open(&quot;get&quot;, &quot;timeout.php&quot;, true);</span><br><span class="line">xhr.onreadystatechange = function(event)&#123;if (xhr.readyState == 4)&#123;</span><br><span class="line">        // 清除定时器</span><br><span class="line">        clearTimeout(timeout);</span><br><span class="line">        if ((xhr.status &gt;= 200 &amp;&amp; xhr.status &lt; 300) || xhr.status == 304)&#123;</span><br><span class="line">            console.log(xhr.responseText);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            console.log(&quot;Request was unsuccessful: &quot; + xhr.status);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line">// 设置超时时间 1分钟</span><br><span class="line">var timeout = setTimeout(function() &#123;</span><br><span class="line">    xmlHttpRequest.abort();</span><br><span class="line">    xmlHttpRequest = null;</span><br><span class="line">&#125;, 60 * 1000);</span><br><span class="line">xmlHttpRequest.send(null);</span><br></pre></td></tr></table></figure></p>
-<h4 id="3-overrideMimeType-方法"><a href="#3-overrideMimeType-方法" class="headerlink" title="3. overrideMimeType()方法"></a>3. overrideMimeType()方法</h4><p>重写XHR响应的MIME类型，<em>必须在send()方法之前</em>。</p>
-<p>如果，服务器返回的MIME类型是text/plain，但数据中实际包含的是XML。根据MIME类型，responseXML属性中仍然是null。此时，通过<strong>overrideMimeType()</strong>方法，可以保证把响应当作XML而非纯文本来处理（即，responseXML中被赋值）。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var xhr = createXHR();</span><br><span class="line">xhr.open(&quot;get&quot;, &quot;text.php&quot;, true);</span><br><span class="line">xhr.overrideMimeType(&quot;text/xml&quot;);</span><br><span class="line">xhr.send(null);</span><br></pre></td></tr></table></figure></p>
-<h3 id="三、进度事件"><a href="#三、进度事件" class="headerlink" title="三、进度事件"></a>三、进度事件</h3><p>6个进度事件：</p>
-<ul>
-<li>loadstart：在接收到响应数据的第一个字节时触发。</li>
-<li>progress：在接收响应期间持续不断地触发。</li>
-<li>error：在请求发生错误时触发。</li>
-<li>abort：在因为调用abort()方法而终止时触发。</li>
-<li>load：在接收到完整的响应数据时触发。</li>
-<li>loadend：在通信完成或者触发error、abort或load事件后触发。<br><img src="/2015/04/26/Ajax与Comet/20160419113844270.png" alt="图 进度事件"></li>
-</ul>
-<h4 id="1-load事件"><a href="#1-load事件" class="headerlink" title="1. load事件"></a>1. load事件</h4><p>可以代替readystatechagne事件。其处理程序会接收到一个event对象，其target属性指向XHR对象实例，因而可以访问到XHR对象的所有方法和属性。然而，并非所有浏览器都实现了事件对象。</p>
-<h4 id="2-progress事件"><a href="#2-progress事件" class="headerlink" title="2. progress事件"></a>2. progress事件</h4><p>其处理程序会接收一个event对象，其target属性指向XHR对象实例，但包含着三个额外的属性</p>
-<ul>
-<li>lengthComputable：是一个表示进度信息是否可用的布尔值</li>
-<li>position：表示已经接收的字节数</li>
-<li>totalSize：根据content-length响应头确定的预期字节数<br><strong>注意</strong>：<em>其必须在调用open()方法之前添加</em><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">var xhr = createXHR();        </span><br><span class="line">xhr.onload = function(event)&#123;</span><br><span class="line">    // event.target存在兼容性问题，所以只能使用xhr</span><br><span class="line">    if ((xhr.status &gt;= 200 &amp;&amp; xhr.status &lt; 300) ||  xhr.status == 304)&#123;</span><br><span class="line">        console.log(xhr.responseText);</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        console.log(&quot;Request was unsuccessful: &quot; + xhr.status);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line">xhr.onprogress = function(event)&#123;</span><br><span class="line">    var divStatus = document.getElementById(&quot;status&quot;);</span><br><span class="line">    if (event.lengthComputable)&#123;</span><br><span class="line">        divStatus.innerHTML = &quot;Received &quot; + event.position + &quot; of &quot; + event.totalSize + &quot; bytes&quot;;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line">xhr.open(&quot;get&quot;, &quot;altevents.php&quot;, true);</span><br><span class="line">xhr.send(null);</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3 id="四、跨源资源共享"><a href="#四、跨源资源共享" class="headerlink" title="四、跨源资源共享"></a>四、跨源资源共享</h3><p><strong>CORS（Cross-Origin Resource Sharing）</strong>背后的基本思想，就是使用自定义的HTTP头部让浏览器与服务器进行沟通，从而决定请求或响应是应该成功还是失败。</p>
-<p>在发送请求时，给其附加一个额外的Origin头部，其中包含请求页面的源信息（协议、域名和端口），以便服务器根据这个头部信息来决定是否给予响应。</p>
-<pre><code>Origin: http://www.test.com
-</code></pre><p>如果服务认为这个请求可以接受，在Access-Control-Allow-Origin头部中回发相同的源信息（如果是公共资源，可以回发”*”）。</p>
-<pre><code>Access-Control-Allow-Origin: http://www.test.com
-</code></pre><p><strong>注意</strong>：请求和响应都不包含cookie信息。</p>
-<h4 id="1-IE中实现CORS：XDR（XDomainRequest），所有的XDR请求都是异步的，不能创建同步请求。其使用方法类似于XHR。"><a href="#1-IE中实现CORS：XDR（XDomainRequest），所有的XDR请求都是异步的，不能创建同步请求。其使用方法类似于XHR。" class="headerlink" title="1. IE中实现CORS：XDR（XDomainRequest），所有的XDR请求都是异步的，不能创建同步请求。其使用方法类似于XHR。"></a>1. IE中实现CORS：XDR（XDomainRequest），所有的XDR请求都是异步的，不能创建同步请求。其使用方法类似于XHR。</h4><h4 id="2-其他浏览器对CORS的实现：通过XMLHttpRequest对象实现对CORS的原生支持。只需给open-方法传入绝对地址。支持同步请求。"><a href="#2-其他浏览器对CORS的实现：通过XMLHttpRequest对象实现对CORS的原生支持。只需给open-方法传入绝对地址。支持同步请求。" class="headerlink" title="2. 其他浏览器对CORS的实现：通过XMLHttpRequest对象实现对CORS的原生支持。只需给open()方法传入绝对地址。支持同步请求。"></a>2. 其他浏览器对CORS的实现：通过XMLHttpRequest对象实现对CORS的原生支持。只需给open()方法传入绝对地址。支持同步请求。</h4><p>跨域XHR对象的安全限制： </p>
-<p>（1）不能使用setRequestHeader()设置自定义头部。 </p>
-<p>（2）不能发送和接收cookie。 </p>
-<p>（3）调用getAllResponseHeaders()方法总会返回空字符串。</p>
-<p><strong>建议</strong>：访问本地资源，最好使用相对URL；访问远程资源，使用绝对URL。</p>
-<h4 id="3-跨浏览器的CORS"><a href="#3-跨浏览器的CORS" class="headerlink" title="3. 跨浏览器的CORS"></a>3. 跨浏览器的CORS</h4><pre><code>functioncreateCORSRequest(method, url){var xhr = new XMLHttpRequest();
-    if (&quot;withCredentials&quot;in xhr){    // 检测XHR是否支持CORS的简单方式，就是检测是否存在withCredentials属性
-        xhr.open(method, url, true);
-    } elseif (typeof XDomainRequest != &quot;undefined&quot;){    // IE XDR
-        xhr = new XDomainRequest();
-        xhr.open(method, url);
-    } else {
-        xhr = null;
-    }
-    return xhr;
-}
-
-var request = createCORSRequest(&quot;get&quot;, &quot;http://www.somewhere-else.com/xdr.php&quot;);
-if (request){
-    request.onload = function(){//do something with request.responseText
-    };
-    request.send();
-}
-</code></pre><h3 id="五、其他跨域技术"><a href="#五、其他跨域技术" class="headerlink" title="五、其他跨域技术"></a>五、其他跨域技术</h3><p>利用DOM中能够执行跨域请求的功能，在不依赖XHR对象的情况下也能发送某种请求，其不需要修改服务器端代码。</p>
-<h4 id="1-图像Ping"><a href="#1-图像Ping" class="headerlink" title="1. 图像Ping"></a>1. 图像Ping</h4><p><code>&lt;img&gt;</code>标签，可以从任何网页中加载图像，无需关注是否跨域。这也是广告跟踪浏览量的主要方式。 </p>
-<p>图像Ping是与服务器进行简单、单向的跨域通信的一种方式。浏览器得不到任何具体的数据。但通过监听load和error事件，可以知道响应是什么时间接收到的。</p>
-<pre><code>var img = new Image();
-img.onload = img.error = function() {
-    console.log(&quot;Done!&quot;);
-};
-img.src = &quot;http://www.test.com/getImage?id=1&quot;;
-</code></pre><p><strong>缺点</strong>: </p>
-<p>（1）只能发送Get请求 </p>
-<p>（2）无法访问服务器的响应文本</p>
-<h4 id="2-JSONP（JSON-with-padding）"><a href="#2-JSONP（JSON-with-padding）" class="headerlink" title="2. JSONP（JSON with padding）"></a>2. JSONP（JSON with padding）</h4><p>两部分组成：回调函数和数据。 </p>
-<p>回调函数是当响应到来时应该在页面调用的函数。回到函数的名字一般是在请求中指定的。而数据是传入回调函数中的JSON数据。 </p>
-<p>JSONP是通过动态<code>&lt;script&gt;</code>元素来使用的</p>
-<pre><code>function handleResponse(response){
-    alert(&quot;You&apos;re at IP address &quot; + response.ip + &quot;, which is in &quot; + response.city + &quot;, &quot; + response.region_name);
-}
-
-var script = document.createElement(&quot;script&quot;);
-script.src = &quot;http://freegeoip.net/json/?callback=handleResponse&quot;;
-document.body.insertBefore(script, document.body.firstChild);
-</code></pre><p><strong>优点</strong>：能够直接访问响应文本，支持在浏览器与服务器之间双向通信。<br><strong>缺点</strong>： </p>
-<p>（1）JSONP是从其他域中加载代码执行，其安全性无法确保。 </p>
-<p>（2）不能很容易的确定JSONP请求是否失败。</p>
-<h4 id="3-Comet"><a href="#3-Comet" class="headerlink" title="3. Comet"></a>3. Comet</h4><p>更高级的Ajax技术，服务器向页面推送数据。 </p>
-<p>Comet 本质上和 C/S 中的通信并不一样，它是通过长连接来模拟推送的。也就是说，在没有数据的时候，这个连接挂起，直到有数据来了（推送），服务器端返回响应，该连接结束，客户端的 JS 重新建立下一个等待连接。</p>
-<p>这种方式并不像 C/S 通信建立长期使用的通道，只是长期“等待”而已，避免了在数据更新频率不大的情况下轮询的开销：试想如果五分钟才一次更新，那么轮询方式在此期间几秒钟就要发生一次请求&amp;响应，而这些请求响应都是没有价值的，因为它们并没有传输有用数据。Comet 避免的是这方面的浪费，不再有空请求，因为挂起的连接直到数据更新了才结束。</p>
-<p>性能方面，对于数据量不大但需要实时更新的应用来说，Comet 能更有效利用连接，同时因为没有轮询的心跳频率，Comet 会比轮询更加实时——因为只消耗响应的网络传输时间。</p>
-<p>但是 Comet 本身并不能在数据传输方面提供比轮询更高的效率，仅仅避免了轮询的空请求浪费。所以 Comet 和 web socket 之类的通讯方式差距还是有的。</p>
-<p>大型网站的应用方面，知乎、QQ 邮箱都有用到 Comet，还有新浪微博的私信（聊天）。使用 Comet 主要需要是服务器端的支持，因为使用长连接，所以要有一定负载量一般得使用异步的网络框架，Python 的 tornado、gevent 和 JavaScript 的 node.js 都是此列。</p>
-<p>两种实现Comet的方式：长轮询和流。<br><img src="/2015/04/26/Ajax与Comet/20160419114753780.png" alt="Ajax与Comet-Comet长轮询"></p>
-<p>（1）长轮询：页面发起一个到服务器的请求，然后服务器一直保持连接打开，直到有数据可发送。发送完数据之后，浏览器关闭连接，随即又发起一个到服务器的新请求。【区别：短轮询，服务器立即发送响应，无论是否有效，而长轮询是等待发送响应。】</p>
-<p>（2）HTTP流：生命周期内只使用一个HTTP连接。浏览器向服务器发送一个请求，而服务器保持连接打开，然后周期性地向浏览器发送数据。</p>
-<pre><code>/**
- * progress：接收数据时调用的函数
- * finished：关闭连接时调用的函数
- */
-function createStreamingClient(url, progress, finished){
- var xhr = new XMLHttpRequest(),
-        received = 0;
-
-    xhr.open(&quot;get&quot;, url, true);
-    xhr.onreadystatechange = function(){var result;
-        if (xhr.readyState == 3){
-            //get only the new data and adjust counter
-            result = xhr.responseText.substring(received);
-            received += result.length;
-
-            //call the progress callback
-            progress(result);
-        } elseif (xhr.readyState == 4){
-            finished(xhr.responseText);
-        }
-    };
-    xhr.send(null);
-    return xhr;
-}
-
-var client = createStreamingClient(&quot;streaming.php&quot;,function(data){alert(&quot;Received: &quot; + data);}, function(data){alert(&quot;Done!&quot;);});
-</code></pre><p>服务器发送事件：SSE和事件流</p>
-<h4 id="4-Web-Sockets"><a href="#4-Web-Sockets" class="headerlink" title="4. Web Sockets"></a>4. Web Sockets</h4><p>目标是在一个单独的持久连接上提供全双工、双向通信。 </p>
-<p>优点：能够在客户端和服务器之间发送非常少量的数据，而不必担心HTTP那样字节级的开销。 </p>
-<p>缺点：制定协议的时间比制定JavaScript API的时间还要长。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">// 必须给WebSocket构造函数传入绝对URL</span><br><span class="line">var socket = new WebSocket(&quot;ws://www.example.com/server.php&quot;);</span><br><span class="line">// 向服务器发送数据（只能发送纯文本，其他数据需要序列化）</span><br><span class="line">socket.send(&quot;Hello&quot;);</span><br><span class="line">// 接收服务器的响应数据</span><br><span class="line">socket.onmessage = function(event) &#123;</span><br><span class="line">    var data = event.data;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
-<p>其他事件：</p>
-<ul>
-<li>open：在成功建立连接时触发。</li>
-<li>error：在发生错误时触发，连接不能持续。</li>
-<li>close：在连接关闭时触发。</li>
-</ul>
-<p><strong>注意</strong>：WebSocket对象不支持DOM 2级事件侦听器，必须使用DOM 0级语法分别定义各个事件。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2259,7 +2377,7 @@ var client = createStreamingClient(&quot;streaming.php&quot;,function(data){aler
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">101</span>
+                  <span class="site-state-item-count">102</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
