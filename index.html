@@ -476,8 +476,8 @@ middleware2 before dispatch
       dispatch: (...args) =&gt; dispatch(...args)
     }
 
-    // #1 中间件应该接收
-    storeconst chain = middlewares.map(middleware =&gt; middleware(middlewareAPI))
+    // #1 中间件应该接收store
+    const chain = middlewares.map(middleware =&gt; middleware(middlewareAPI))
 
     // #2 返回的函数用于处理dispatch函数
     dispatch = compose(...chain)(store.dispatch)
@@ -490,7 +490,7 @@ middleware2 before dispatch
 }
 </code></pre><p>代码片段<code>#2</code>中我们传入<code>compose</code>函数里的所有函数都是用于扩展<code>dispatch</code>的，这些函数会被定义为这种形式</p>
 <pre><code>(dispatch) =&gt; {
-  returnfunction(...args) {
+  return function(...args) {
     // do something before
     dispatch(...args)
     // do something after
@@ -641,7 +641,8 @@ function articleReducer(article={}, action) {
     return function combination(state = {}, action) {
     .....
 
-    let hasChanged = falseconst nextState = {}
+    let hasChanged = false
+    const nextState = {}
     for (let i = 0; i &lt; finalReducerKeys.length; i++) {
       const key = finalReducerKeys[i]
       const reducer = finalReducers[key] // #2
@@ -682,8 +683,7 @@ for (let i = 0; i &lt; finalReducerKeys.length; i++) {
   hasChanged = hasChanged || nextStateForKey !== previousStateForKey
 }
 </code></pre><p>也就是说在所有的迭代中至少有一次迭代符合<code>nextStateForKey !== previousStateForKey</code>这个条件的时候(所对应的reducer返回了新的对象)<code>hasChanged</code>才会为真，新的reducer函数才会返回新的状态对象<code>nextState</code>。否则将返回原有的状态对象<code>state</code>，这样在绑定React组件的时候则有可能会出现状态数据更新了，组件却没有响应的情况。</p>
-<hr>
-<h2 id="1-ActionCreator创建动作"><a href="#1-ActionCreator创建动作" class="headerlink" title="1. ActionCreator创建动作"></a>1. ActionCreator创建动作</h2><p>在深入分析源码之前我们先来聊聊<code>ActionCreator</code>。从字面上理解，它是一个动作的创造者，或者说是动作的工厂。如果我们想根据不同的参数来生成不同步长的计数器动作，则可以把工厂函数声明为</p>
+<h2 id="为什么Redux-需要-reducers是纯函数？"><a href="#为什么Redux-需要-reducers是纯函数？" class="headerlink" title="为什么Redux 需要 reducers是纯函数？"></a><a href="http://localhost:4000/2018/07/31/%E4%B8%BA%E4%BB%80%E4%B9%88Redux-%E9%9C%80%E8%A6%81-reducers%E6%98%AF%E7%BA%AF%E5%87%BD%E6%95%B0%EF%BC%9F/" target="_blank" rel="noopener">为什么Redux 需要 reducers是纯函数？</a></h2><h2 id="1-ActionCreator创建动作"><a href="#1-ActionCreator创建动作" class="headerlink" title="1. ActionCreator创建动作"></a>1. ActionCreator创建动作</h2><p>在深入分析源码之前我们先来聊聊<code>ActionCreator</code>。从字面上理解，它是一个动作的创造者，或者说是动作的工厂。如果我们想根据不同的参数来生成不同步长的计数器动作，则可以把工厂函数声明为</p>
 <pre><code>const counterIncActionCreator = function(step) {
   return {
     type: &apos;INCREMENT&apos;,
@@ -785,7 +785,7 @@ dispatch(MyActionCreators.decrement(2)) // { type: &apos;DECREMENT&apos;, step: 
 dispatch(MyActionCreators.decrement(3)) // { type: &apos;DECREMENT&apos;, step: -3 }
 </code></pre><hr>
 <h2 id="重点说说redux-middleware"><a href="#重点说说redux-middleware" class="headerlink" title="重点说说redux middleware"></a>重点说说redux middleware</h2><h3 id="middleware-的由来"><a href="#middleware-的由来" class="headerlink" title="middleware 的由来"></a>middleware 的由来</h3><p>在业务中需要打印每一个 action 信息来调试，又或者希望 dispatch 或 reducer 拥有异步请求的功能。面对这些场景时，一个个修改 dispatch 或 reducer 代码有些乏力，我们需要一个可组合的、自由增减的插件机制，Redux 借鉴了 Koa 中 middleware 的思想，利用它我们可以在前端应用中便捷地实现如日志打印、异步请求等功能。<br><img src="/2018/11/05/Redux源码分析/3.webp" alt=""></p>
-<p>比如在<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FMuYunyun%2FreactSPA%2Fblob%2F274c00870853638fb0f77df8497f911eb560b617%2Fsrc%2Fclient%2Fstore%2FconfigureStore.dev.js%23L14" target="_blank" rel="noopener">项目</a>中，进行了如下调用后，redux 就集成了 thunk 函数调用以及打印日志的功能。</p>
+<p>比如在项目中，进行了如下调用后，redux 就集成了 thunk 函数调用以及打印日志的功能。</p>
 <pre><code>import thunk from&apos;redux-thunk&apos;
 import logger from&apos;../middleware/logger&apos;
 const enhancer = applyMiddleware(thunk, logger),  // 以 redux-thunk、logger 中间件为例介绍中间件的使用
@@ -866,9 +866,21 @@ export function thunkActionCreator(payload){
 
 //最后，在组件中dispatch thunk
 this.dispatch(thunkActionCreator(payload));
+
+
+DEMO:
+export const getNav = () =&gt; async (dispatch, getState) =&gt; {
+    try {
+        let response = await instance.get(`book/navigation`)
+        await dispatch(receiveNav(response.data))
+    } catch (error) {
+        console.log(&apos;error: &apos;, error)
+    }
+  }
 </code></pre><h3 id="dispatch-是如何被加工的"><a href="#dispatch-是如何被加工的" class="headerlink" title="dispatch 是如何被加工的"></a>dispatch 是如何被加工的</h3><p>接着上个小节，在 <code>dispatch = compose(...chain)(store.dispatch)</code> 中发现了 compose 函数，来看下 compose 的源码 </p>
 <pre><code>export default function compose(...funcs) {
-  // ...return funcs.reduce((a, b) =&gt; (...args) =&gt; a(b(...args)))
+  // ...
+  return funcs.reduce((a, b) =&gt; (...args) =&gt; a(b(...args)))
 }
 </code></pre><p>compose 源码中的 <code>funcs.reduce((a, b) =&gt; (...args) =&gt; a(b(...args)))</code> 算是比较重要的一句，它的作用是返回组合参数后的函数，比如 compose(f, g, h) 等价于 (…args) =&gt; f(g(h(…args)))，效果图如下所示，调用 this.props.dispatch() 后，会调用相应的中间件，最终会调用 redux 原生的 store.dispatch()，并且可以看到中间件调用的形式类似数据结构中的栈(先进后出)。<br><img src="/2018/11/05/Redux源码分析/4.webp" alt=""><br>拿上个小节提到的 logger、redux-thunk 中间件为例，其 middleware 的内部串行调用方式如下，从而完成了 dispatch 功能的增强(支持如 <code>this.props.dispatch(func)</code> 的调用以及日志功能)。具体可以看 <a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FMuYunyun%2FreactSPA%2Fblob%2F274c00870853638fb0f77df8497f911eb560b617%2Fsrc%2Fcommon%2Fpages%2Fmusic%2Findex.js%23L35" target="_blank" rel="noopener">项目中的运用</a></p>
 <pre><code>action =&gt; {
@@ -887,6 +899,12 @@ this.dispatch(thunkActionCreator(payload));
 <p>写法二，action 对象的payload属性是一个Promise对象，这需要从<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">function payloadIncrement()&#123;</span><br><span class="line">    return &#123;</span><br><span class="line">        type:types.INCREMENT,</span><br><span class="line">        payload: new Promise(function(resolve,reject)&#123;</span><br><span class="line">            setTimeout(function()&#123;</span><br><span class="line">                if(Math.random()&gt;.5)&#123;</span><br><span class="line">                    resolve(100);</span><br><span class="line">                &#125;else&#123;</span><br><span class="line">                    reject(-100);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,1000)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>下面我们来看看 redux-promise是怎么实现的，就会明白它内部是怎么操作的.<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">let promise = (&#123;dispatch,getState&#125;)=&gt;next=&gt;action=&gt;&#123;</span><br><span class="line">    if(action.then &amp;&amp; typeof action.then == &apos;function&apos;)&#123;</span><br><span class="line">        action.then(dispatch);</span><br><span class="line">        // 这里的dispatch就是一个函数，dispatch(action)&#123;state:reducer(state,action)&#125;;</span><br><span class="line">    &#125;else if(action.payload&amp;&amp; action.payload.then&amp;&amp; typeof action.payload.then == &apos;function&apos;)&#123;</span><br><span class="line">        action.payload.then(payload=&gt;dispatch(&#123;...action,payload&#125;),payload=&gt;dispatch(&#123;...action,payload&#125;));</span><br><span class="line">    &#125;else&#123;</span><br><span class="line">        next(action);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>上面的代码可以看出，如果Action本身就是一个Promise，它resolve以后的值应该是一个Action对象，会被dispatch方法送出action.then(dispatch)；如果Action对象的 payload属性是一个Promise对象，那么无论resolve和reject,dispatch 方法都会发出Action。</p>
+<h2 id="理解-funcs-reduce-a-b-gt-args-gt-a-b-args"><a href="#理解-funcs-reduce-a-b-gt-args-gt-a-b-args" class="headerlink" title="理解 funcs.reduce((a, b) =&gt; (args) =&gt; a(b(args)))"></a>理解 funcs.reduce((a, b) =&gt; (args) =&gt; a(b(args)))</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function originDispatch(...args) &#123;</span><br><span class="line">				console.log(...args)</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function middleware1(dispatch) &#123;</span><br><span class="line">				return (...args) =&gt; &#123;</span><br><span class="line">					console.log(&apos;middleware1 before dispatch&apos;)</span><br><span class="line">					dispatch(...args)</span><br><span class="line">					console.log(&apos;middleware1 after dispatch&apos;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function middleware2(dispatch) &#123;</span><br><span class="line">				return (...args) =&gt; &#123;</span><br><span class="line">					console.log(&apos;middleware2 before dispatch&apos;)</span><br><span class="line">					dispatch(...args)</span><br><span class="line">					console.log(&apos;middleware2 after dispatch&apos;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function middleware3(dispatch) &#123;</span><br><span class="line">				return (...args) =&gt; &#123;</span><br><span class="line">					console.log(&apos;middleware3 before dispatch&apos;)</span><br><span class="line">					dispatch(...args)</span><br><span class="line">					console.log(&apos;middleware3 after dispatch&apos;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			//			originDispatch = middleware2(middleware1(originDispatch))</span><br><span class="line">			//			originDispatch(&apos;redux&apos;, &apos;is&apos;, &apos;cool&apos;);</span><br><span class="line"></span><br><span class="line">			function compose(...funcs) &#123;</span><br><span class="line">				return funcs.reduce((a, b) =&gt; (args) =&gt; a(b(args)))</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">            //console.log(compose(middleware2, middleware1))</span><br><span class="line">               //(args) =&gt; middleware2(middleware1(args))  </span><br><span class="line">               //(originDispatch)=&gt;middleware2(middleware1(originDispatch))  </span><br><span class="line">               </span><br><span class="line">			compose(middleware2, middleware1)(originDispatch)(&apos;redux&apos;, &apos;is&apos;, &apos;cool&apos;);</span><br><span class="line">			</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>compose(middleware2, middleware1)</code>返回<code>(args) =&gt; middleware2(middleware1(args))</code>;</li>
+<li><code>compose(middleware2, middleware1)(originDispatch)</code> 返回<code>middleware2(middleware1(originDispatch))</code></li>
+<li>将<code>middleware1(originDispatch)</code>当做一个整体,<code>middleware2(middleware1(originDispatch))</code>中的<code>middleware2</code>返回一个函数，等着接受<code>...args</code>;当<code>compose(middleware2, middleware1)(originDispatch)(&#39;redux&#39;, &#39;is&#39;, &#39;cool&#39;)</code>,<code>...args</code>为<code>(&#39;redux&#39;, &#39;is&#39;, &#39;cool&#39;)</code>。</li>
+</ul>
 
           
         
