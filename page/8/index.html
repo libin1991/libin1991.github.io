@@ -300,6 +300,670 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/02/Vue大数据渲染虚拟滚动列表/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/01/02/Vue大数据渲染虚拟滚动列表/" itemprop="url">Vue大数据渲染虚拟滚动列表</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-02T22:59:12+08:00">
+                2018-01-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>Github：<a href="https://link.zhihu.com/?target=https%3A//github.com/tangbc/vue-virtual-scroll-list" target="_blank" rel="noopener">tangbc/vue-virtual-scroll-list</a><br><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.gif" alt=""></p>
+<p><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.jpg" alt=""></p>
+<pre><code>;
+(function(root, factory) {
+    var namespace = &apos;VirtualScrollList&apos;
+    if(typeof exports === &apos;object&apos; &amp;&amp; typeof module === &apos;object&apos;) {
+        module.exports = factory(namespace, require(&apos;vue&apos;))
+    } else if(typeof define === &apos;function&apos; &amp;&amp; define.amd) {
+        define([&apos;vue&apos;], factory.bind(root, namespace))
+    } else if(typeof exports === &apos;object&apos;) {
+        exports[namespace] = factory(namespace, require(&apos;vue&apos;))
+    } else {
+        root[namespace] = factory(namespace, root[&apos;Vue&apos;])
+    }
+})(this, function(namespace, Vue2) {
+    if(typeof Vue2 === &apos;object&apos; &amp;&amp; typeof Vue2.default === &apos;function&apos;) {
+        Vue2 = Vue2.default
+    }
+
+    var _debounce = function(func, wait, immediate) {
+        var timeout
+        return function() {
+            var context = this
+            var args = arguments
+            var later = function() {
+                timeout = null
+                if(!immediate) {
+                    func.apply(context, args)
+                }
+            }
+            var callNow = immediate &amp;&amp; !timeout
+            clearTimeout(timeout)
+            timeout = setTimeout(later, wait)
+            if(callNow) {
+                func.apply(context, args)
+            }
+        }
+    }
+
+    return Vue2.component(namespace, {
+        props: {
+            size: {
+                type: Number,
+                required: true
+            },
+            remain: {
+                type: Number,
+                required: true
+            },
+            rtag: {
+                type: String,
+                default: &apos;div&apos;
+            },
+            wtag: {
+                type: String,
+                default: &apos;p&apos;
+            },
+            wclass: {
+                type: String,
+                default: &apos;&apos;
+            },
+            start: {
+                type: Number,
+                default: 0
+            },
+            offset: {
+                type: Number,
+                default: 0
+            },
+            variable: [Function, Boolean],
+            bench: Number,
+            debounce: Number,
+            totop: Function,
+            tobottom: Function,
+            onscroll: Function
+        },
+
+        data(){
+            return {
+                delta:{}
+            }
+        },
+
+        created: function() {   // :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;44&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;
+            var start = this.start &gt;= this.remain ? this.start : 0
+            var keeps = this.remain + (this.bench || this.remain)
+
+            console.log(start)
+            console.log(keeps)
+
+            this.delta = {
+                start: start, // start index.   //起始index
+                end: start + keeps - 1, // end index.   //显示列表last index
+                keeps: keeps, // nums keeping in real dom.      //要显示的列表数据
+                total: 0, // all items count, update in filter.    //总的列表数据
+                offsetAll: 0, // cache all the scrollable offset.
+                paddingTop: 0, // container wrapper real padding-top.
+                paddingBottom: 0, // container wrapper real padding-bottom.
+                varCache: {}, // object to cache variable index height and scroll offset.
+                varAverSize: 0, // average/estimate item height before variable be calculated.
+                varLastCalcIndex: 0 // last calculated variable height/offset index, always increase.
+            }
+
+
+        },
+
+        watch: {
+            size: function() {
+                this.alter = &apos;size&apos;
+            },
+            remain: function() {
+                this.alter = &apos;remain&apos;
+            },
+            bench: function() {
+                this.alter = &apos;bench&apos;
+            },
+            start: function() {
+                this.alter = &apos;start&apos;
+            },
+            offset: function() {
+                this.alter = &apos;offset&apos;
+            }
+        },
+
+        methods: {
+            onScroll: function(e) {
+                var delta = this.delta
+                var offset = this.$refs.vsl.scrollTop
+
+                if(delta.total &gt; delta.keeps) {
+                    this.updateZone(offset)
+                } else {
+                    delta.end = delta.total - 1
+                }
+
+                var offsetAll = delta.offsetAll
+                if(this.onscroll) {
+                    this.onscroll(e, {
+                        offset: offset,
+                        offsetAll: offsetAll,
+                        start: delta.start,
+                        end: delta.end
+                    })
+                }
+
+                if(!offset &amp;&amp; delta.total) {
+                    this.triggerEvent(&apos;totop&apos;)
+                }
+
+                if(offset &gt;= offsetAll) {
+                    this.triggerEvent(&apos;tobottom&apos;)
+                }
+            },
+
+            // update render zone by scroll offset.
+            updateZone: function(offset) {
+                var overs = this.variable ?
+                    this.getVarOvers(offset) :
+                    Math.floor(offset / this.size)
+
+                var delta = this.delta
+                var zone = this.getZone(overs)
+                var bench = this.bench || this.remain
+
+                // for better performance, if scroll pass items within now bench, do not update.
+                if(!zone.isLast &amp;&amp; (overs &gt; delta.start) &amp;&amp; (overs - delta.start &lt;= bench)) {
+                    return
+                }
+
+                delta.end = zone.end
+                delta.start = zone.start
+                this.$forceUpdate()
+            },
+
+            // return the scroll passed items count in variable.
+            getVarOvers: function(offset) {
+                var low = 0
+                var middle = 0
+                var middleOffset = 0
+                var delta = this.delta
+                var high = delta.total
+
+                while(low &lt;= high) {
+                    middle = low + Math.floor((high - low) / 2)
+                    middleOffset = this.getVarOffset(middle)
+
+                    // calculate the average variable height at first binary search.
+                    if(!delta.varAverSize) {
+                        delta.varAverSize = Math.floor(middleOffset / middle)
+                    }
+
+                    if(middleOffset === offset) {
+                        return middle
+                    } else if(middleOffset &lt; offset) {
+                        low = middle + 1
+                    } else if(middleOffset &gt; offset) {
+                        high = middle - 1
+                    }
+                }
+
+                return low &gt; 0 ? --low : 0
+            },
+
+            // return a variable scroll offset from given index.
+            getVarOffset: function(index, nocache) {
+                var delta = this.delta
+                var cache = delta.varCache[index]
+
+                if(!nocache &amp;&amp; cache) {
+                    return cache.offset
+                }
+
+                var offset = 0
+                for(var i = 0; i &lt; index; i++) {
+                    var size = this.getVarSize(i, nocache)
+                    delta.varCache[i] = {
+                        size: size,
+                        offset: offset
+                    }
+                    offset += size
+                }
+
+                delta.varLastCalcIndex = Math.max(delta.varLastCalcIndex, index - 1)
+                delta.varLastCalcIndex = Math.min(delta.varLastCalcIndex, delta.total - 1)
+
+                return offset
+            },
+
+            // return a variable size (height) from given index.
+            getVarSize: function(index, nocache) {
+                var cache = this.delta.varCache[index]
+                if(!nocache &amp;&amp; cache) {
+                    return cache.size
+                }
+
+                if(typeof this.variable === &apos;function&apos;) {
+                    return this.variable(index) || 0
+                } else {
+                    var slot = this.$slots.default[index]
+                    var style = slot &amp;&amp; slot.data &amp;&amp; slot.data.style
+                    if(style &amp;&amp; style.height) {
+                        var shm = style.height.match(/^(.*)px$/)
+                        return(shm &amp;&amp; +shm[1]) || 0
+                    }
+                }
+                return 0
+            },
+
+            // return the variable paddingTop base current zone.
+            // @todo: if set a large `start` before variable was calculated,
+            // here will also case too much offset calculate when list is very large,
+            // consider use estimate paddingTop in this case just like `getVarPaddingBottom`.
+            getVarPaddingTop: function() {
+                return this.getVarOffset(this.delta.start)
+            },
+
+            // return the variable paddingBottom base current zone.
+            getVarPaddingBottom: function() {
+                var delta = this.delta
+                var last = delta.total - 1
+                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === last) {
+                    return this.getVarOffset(last) - this.getVarOffset(delta.end)
+                } else {
+                    // if unreached last zone or uncalculate real behind offset
+                    // return the estimate paddingBottom avoid too much calculate.
+                    return(delta.total - delta.end) * (delta.varAverSize || this.size)
+                }
+            },
+
+            // retun the variable all heights use to judge reach bottom.
+            getVarAllHeight: function() {
+                var delta = this.delta
+                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === delta.total - 1) {
+                    return this.getVarOffset(delta.total)
+                } else {
+                    return this.getVarOffset(delta.start) + (delta.total - delta.end) * (delta.varAverSize || this.size)
+                }
+            },
+
+            // the ONLY ONE public method, allow the parent update variable by index.
+            updateVariable: function(index) {
+                // clear/update all the offfsets and heights ahead of index.
+                this.getVarOffset(index, true)
+            },
+
+            // return the right zone info base on `start/index`.
+            getZone: function(index) {
+                var start, end
+                var delta = this.delta
+
+                index = parseInt(index, 10)
+                index = Math.max(0, index)
+
+                var lastStart = delta.total - delta.keeps
+                var isLast = (index &lt;= delta.total &amp;&amp; index &gt;= lastStart) || (index &gt; delta.total)
+                if(isLast) {
+                    end = delta.total - 1
+                    start = Math.max(0, lastStart)
+                } else {
+                    start = index
+                    end = start + delta.keeps - 1
+                }
+
+                return {
+                    end: end,
+                    start: start,
+                    isLast: isLast
+                }
+            },
+
+            // trigger a props event on parent.
+            triggerEvent: function(event) {
+                if(this[event]) {
+                    this[event]()
+                }
+            },
+
+            // set manual scroll top.
+            setScrollTop: function(scrollTop) {
+                this.$refs.vsl.scrollTop = scrollTop
+            },
+
+            // filter the shown items base on `start` and `end`.
+            filter: function() {
+                var delta = this.delta
+                var slots = this.$slots.default
+
+                if(!slots) {
+                    slots = []
+                    delta.start = 0
+                }
+
+                delta.total = slots.length
+
+                var paddingTop, paddingBottom, allHeight;
+
+
+                var hasPadding = delta.total &gt; delta.keeps
+
+                if(this.variable) {
+                    allHeight = this.getVarAllHeight()
+                    paddingTop = hasPadding ? this.getVarPaddingTop() : 0
+                    paddingBottom = hasPadding ? this.getVarPaddingBottom() : 0
+                } else {
+                    allHeight = this.size * delta.total
+                    paddingTop = this.size * (hasPadding ? delta.start : 0)
+                    paddingBottom = this.size * (hasPadding ? delta.total - delta.keeps : 0) - paddingTop
+                }
+
+                delta.paddingTop = paddingTop
+                delta.paddingBottom = paddingBottom
+                delta.offsetAll = allHeight - this.size * this.remain  //总高度减去窗口的高度
+
+                return slots.filter(function(slot, index) {
+                    return index &gt;= delta.start &amp;&amp; index &lt;= delta.end
+                })
+            }
+        },
+
+        mounted: function() {
+            if(this.start) {
+                var start = this.getZone(this.start).start
+                this.setScrollTop(this.variable ? this.getVarOffset(start) : start * this.size)
+            } else if(this.offset) {
+                this.setScrollTop(this.offset)
+            }
+        },
+
+        // check if delta should update when prorps change.
+        beforeUpdate: function() {
+            var delta = this.delta
+            delta.keeps = this.remain + (this.bench || this.remain)
+
+            var calcstart = this.alter === &apos;start&apos; ? this.start : delta.start
+            var zone = this.getZone(calcstart)
+
+            // if start, size or offset change, update scroll position.
+            if(~[&apos;start&apos;, &apos;size&apos;, &apos;offset&apos;].indexOf(this.alter)) {
+                this.$nextTick(this.setScrollTop.bind(this, this.alter === &apos;offset&apos; ?
+                    this.offset : this.variable ?
+                    this.getVarOffset(zone.isLast ? delta.total : zone.start) :
+                    zone.isLast ? delta.total * this.size : zone.start * this.size))
+            }
+
+            // if points out difference, force update once again.
+            if(calcstart !== zone.start || delta.end !== zone.end || this.alter) {
+                this.alter = &apos;&apos;
+                delta.end = zone.end
+                delta.start = zone.start
+                this.$forceUpdate()
+            }
+        },
+
+        render: function(h) {
+            var list = this.filter()
+            var delta = this.delta
+            var dbc = this.debounce
+            console.log(list)
+            return h(this.rtag, {
+                &apos;ref&apos;: &apos;vsl&apos;,
+                &apos;style&apos;: {
+                    &apos;display&apos;: &apos;block&apos;,
+                    &apos;overflow-y&apos;: &apos;auto&apos;,
+                    &apos;height&apos;: this.size * this.remain + &apos;px&apos;
+                },
+                &apos;on&apos;: {
+                    &apos;scroll&apos;: dbc ? _debounce(this.onScroll.bind(this), dbc) : this.onScroll
+                }
+            }, [
+                h(this.wtag, {
+                    &apos;style&apos;: {
+                        &apos;display&apos;: &apos;block&apos;,
+                        &apos;padding-top&apos;: delta.paddingTop + &apos;px&apos;,
+                        &apos;padding-bottom&apos;: delta.paddingBottom + &apos;px&apos;
+                    },
+                    &apos;class&apos;: this.wclass
+                }, list)
+            ])
+        }
+    })
+})
+
+
+&lt;template&gt;
+    &lt;div class=&quot;appWraper&quot;&gt;
+        &lt;div class=&quot;scrollToIndex&quot;&gt;
+            &lt;span&gt;Scroll to index: &lt;/span&gt;
+            &lt;input type=&quot;text&quot; v-model.number.lazy=&quot;startIndex&quot;&gt;
+            &lt;small&gt;Change and blur to set start index.&lt;/small&gt;
+        &lt;/div&gt;
+        &lt;VirtualList :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;24&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;&gt;
+            &lt;Item v-for=&quot;(udf, index) of items&quot; :index=&quot;index&quot; :key=&quot;index&quot;&gt;&lt;/Item&gt;
+        &lt;/VirtualList&gt;
+
+
+
+
+        &lt;div class=&quot;source&quot;&gt;
+            &lt;a href=&quot;https://github.com/tangbc/vue-virtual-scroll-list/blob/master/examples/finite/finite.vue#L1&quot;&gt;
+                View this demo source code
+            &lt;/a&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+    import Item from &apos;./item.vue&apos;
+    import VirtualList from &apos;./VirtualScrollList.js&apos;
+
+    export default {
+        name: &apos;finite-test&apos;,
+
+        components: {
+            Item,
+            VirtualList
+        },
+
+        data() {
+            return {
+                startIndex: 9,
+                items: new Array(100)
+            }
+        }
+    }
+&lt;/script&gt;
+
+&lt;style&gt;
+
+    body {
+        background: #fffaf0;
+    }
+    .appWraper {
+        width: 440px;
+        margin: 0 auto;
+        overflow-y: auto;
+    }
+    .title {
+        font-size: 25px;
+        font-weight: 100;
+        text-align: center;
+    }
+    @media (max-width: 640px) {
+        .appWraper {
+            width: 100%;
+        }
+        .title {
+            font-size: 16px;
+        }
+    }
+
+
+
+
+
+    .scrollToIndex {
+        padding-bottom: 20px;
+    }
+
+    input {
+        outline: none;
+        padding: .4em .5em;
+        width: 55px;
+        height: 16px;
+        border-radius: 3px;
+        border: 1px solid;
+        border-color: #dddddd;
+        font-size: 16px;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    input:focus {
+        border-color: #6495ed;
+    }
+
+    small {
+        color: #999;
+    }
+
+    .list {
+        background: #fff;
+        border-radius: 3px;
+        border: 1px solid #ddd;
+        -webkit-overflow-scrolling: touch;
+        overflow-scrolling: touch;
+    }
+
+    .source {
+        text-align: center;
+        padding-top: 20px;
+    }
+
+    .source a {
+        color: #999;
+        text-decoration: none;
+        font-weight: 100;
+    }
+
+    @media (max-width: 640px) {
+        small {
+            display: none;
+        }
+    }
+&lt;/style&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/20/promise的模拟实现/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2803,221 +3467,6 @@ exportdefault withTextFieldState;
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/02/CSS如何实现文字两端对齐/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/02/CSS如何实现文字两端对齐/" itemprop="url">CSS如何实现文字两端对齐</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-02T23:22:03+08:00">
-                2017-10-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>最近在工作项目中接触到Web界面设计的问题，要实现文字两端对齐的效果。在网上搜索了一下，差不多都是互相转帖，用的都是类似的技巧：</p>
-<pre><code>text-align:justify;
-text-justify:inter-ideograph;
-</code></pre><p>但问题是，我怎么就看不到效果呢？无论是英文还是中文，在IE和chrome下都不起作用。后来，终于在StackOverflow上找到解决方法了。</p>
-<pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-
-    &lt;head&gt;
-        &lt;meta charset=&quot;UTF-8&quot;&gt;
-        &lt;title&gt;&lt;/title&gt;
-        &lt;style type=&quot;text/css&quot;&gt;
-            .arter li {
-                font-size: 14px;
-                line-height: 24px;
-                color: #4a4a4a;
-            }
-
-            .arter span {
-                height: 24px;
-                line-height: 24px;
-                width: 65px;
-                text-align: justify;
-                display: inline-block;
-                overflow: hidden;
-                vertical-align: top;
-            }
-
-            .arter i {
-                display: inline-block;
-                width: 100%;
-                height: 0;
-            }
-
-
-
-
-            .arter1 li {
-                font-size: 14px;
-                line-height: 24px;
-                color: #4a4a4a;
-            }
-
-
-
-            .arter1 span {
-                height: 24px;
-                line-height: 24px;
-                width: 65px;
-                text-align: justify;
-                display: inline-block;
-                overflow: hidden;
-                vertical-align: top;
-            }
-            .arter1 span:after {
-                content: &quot; &quot;;
-                display: inline-block;
-                width: 100%;
-                height: 0px;
-            }
-        &lt;/style&gt;
-    &lt;/head&gt;
-
-    &lt;body&gt;
-        &lt;ul class=&quot;arter&quot;&gt;
-            &lt;li&gt;&lt;span&gt;作品名称&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 宝贝儿&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;作品类型&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;艺术家&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 张玉瀛&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;风格&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 超现实&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;材质&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 布面油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;题材&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 人物&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;创作时间&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 2011&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;所在位置&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 华东&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;尺寸&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 78x78cm&lt;/li&gt;
-        &lt;/ul&gt;
-        &lt;br /&gt;&lt;br /&gt;
-        &lt;ul class=&quot;arter1&quot;&gt;
-            &lt;li&gt;&lt;span&gt;作品名称&lt;/span&gt;： 宝贝儿&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;作品类型&lt;/span&gt;： 油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;艺术家&lt;/span&gt;： 张玉瀛&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;风格&lt;/span&gt;： 超现实&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;材质&lt;/span&gt;： 布面油画&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;题材&lt;/span&gt;： 人物&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;创作时间&lt;/span&gt;： 2011&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;所在位置&lt;/span&gt;： 华东&lt;/li&gt;
-            &lt;li&gt;&lt;span&gt;尺寸&lt;/span&gt;： 78x78cm&lt;/li&gt;
-        &lt;/ul&gt;
-    &lt;/body&gt;
-
-&lt;/html&gt;
-</code></pre><p>样式：<br><img src="https://pic1.zhimg.com/v2-b92871dee74e80785026c069073206ab_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-b92871dee74e80785026c069073206ab_hd.jpg" alt=""><br>从效果图可以看到，除了要在块级元素加text-align:justify样式外，还需要在里面加一个空的span元素，并应用样式。另外，对于中文还必须用空格隔开汉字，否则也没有两端对齐的效果。英文每个单词都有空格隔开，所以没问题。</p>
-<p>但是加入HTML元素又违反了结构表现分离的原则，我们可以改用after、before伪元素：</p>
-<pre><code>li:after {
-    content: &quot; &quot;;
-    display: inline-block;
-    width: 100%;
-}
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3072,7 +3521,7 @@ text-justify:inter-ideograph;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">104</span>
+                  <span class="site-state-item-count">106</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3085,7 +3534,7 @@ text-justify:inter-ideograph;
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">68</span>
+                  <span class="site-state-item-count">70</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
