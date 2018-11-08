@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="koa," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="什么是koa框架？koa是一个基于node实现的一个新的web框架，它是由express框架的原班人马打造的。它的特点是优雅、简洁、表达力强、自由度高。它更express相比，它是一个更轻量的node框架，因为它所有功能都通过插件实现，这种插拔式的架构设计模式，很符合unix哲学。 koa框架现在更新到了2.x版本，本文从零开始，循序渐进，讲解koa2的框架源码结构和实现原理，展示和详解koa2框">
+<meta name="keywords" content="koa">
+<meta property="og:type" content="article">
+<meta property="og:title" content="KOA2框架原理解析和实现">
+<meta property="og:url" content="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/index.html">
+<meta property="og:site_name" content="LuckDay">
+<meta property="og:description" content="什么是koa框架？koa是一个基于node实现的一个新的web框架，它是由express框架的原班人马打造的。它的特点是优雅、简洁、表达力强、自由度高。它更express相比，它是一个更轻量的node框架，因为它所有功能都通过插件实现，这种插拔式的架构设计模式，很符合unix哲学。 koa框架现在更新到了2.x版本，本文从零开始，循序渐进，讲解koa2的框架源码结构和实现原理，展示和详解koa2框">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/166f12b8563436a3.webp">
+<meta property="og:updated_time" content="2018-11-08T12:15:54.243Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="KOA2框架原理解析和实现">
+<meta name="twitter:description" content="什么是koa框架？koa是一个基于node实现的一个新的web框架，它是由express框架的原班人马打造的。它的特点是优雅、简洁、表达力强、自由度高。它更express相比，它是一个更轻量的node框架，因为它所有功能都通过插件实现，这种插拔式的架构设计模式，很符合unix哲学。 koa框架现在更新到了2.x版本，本文从零开始，循序渐进，讲解koa2的框架源码结构和实现原理，展示和详解koa2框">
+<meta name="twitter:image" content="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/166f12b8563436a3.webp">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/"/>
+
+
+
+
+
+  <title>KOA2框架原理解析和实现 | LuckDay</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+    	<div class="sky">
+	<div class="clouds_one"></div>
+	<div class="clouds_two"></div>
+	<div class="clouds_three"></div>
+</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">LuckDay</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">想要飞得高，那就把地平线忘掉</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">KOA2框架原理解析和实现</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-08T20:08:28+08:00">
+                2018-01-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h3 id="什么是koa框架？"><a href="#什么是koa框架？" class="headerlink" title="什么是koa框架？"></a>什么是koa框架？</h3><p>koa是一个基于node实现的一个新的web框架，它是由express框架的原班人马打造的。它的特点是优雅、简洁、表达力强、自由度高。它更express相比，它是一个更轻量的node框架，因为它所有功能都通过插件实现，这种插拔式的架构设计模式，很符合unix哲学。</p>
+<p>koa框架现在更新到了2.x版本，本文从零开始，循序渐进，讲解koa2的框架源码结构和实现原理，展示和详解koa2框架源码中的几个最重要的概念，然后手把手教大家亲自实现一个简易的koa2框架，帮助大家学习和更深层次的理解koa2，看完本文以后，再去对照koa2的源码进行查看，相信你的思路将会非常的顺畅。</p>
+<p>本文所用的框架是koa2，它跟koa1不同，koa1使用的是generator+co.js的执行方式，而koa2中使用了async/await，因此本文的代码和demo需要运行在node 8版本及其以上，如果读者的node版本较低，建议升级或者安装babel-cli，用其中的babel-node来运行本文涉及到的代码。</p>
+<h3 id="koa源码结构"><a href="#koa源码结构" class="headerlink" title="koa源码结构"></a>koa源码结构</h3><p><img src="/2018/01/08/KOA2框架原理解析和实现/166f12b8563436a3.webp" alt=""><br>上图是koa2的源码目录结构的lib文件夹，lib文件夹下放着四个koa2的核心文件：application.js、context.js、request.js、response.js。</p>
+<h4 id="application-js"><a href="#application-js" class="headerlink" title="application.js"></a>application.js</h4><p>application.js是koa的入口文件，它向外导出了创建class实例的构造函数，它继承了events，这样就会赋予框架事件监听和事件触发的能力。application还暴露了一些常用的api，比如toJSON、listen、use等等。</p>
+<p>listen的实现原理其实就是对http.createServer进行了一个封装，重点是这个函数中传入的callback，它里面包含了中间件的合并，上下文的处理，对res的特殊处理。</p>
+<p>use是收集中间件，将多个中间件放入一个缓存队列中，然后通过koa-compose这个插件进行递归组合调用这一些列的中间件。</p>
+<h4 id="context-js"><a href="#context-js" class="headerlink" title="context.js"></a>context.js</h4><p>这部分就是koa的应用上下文ctx,其实就一个简单的对象暴露，里面的重点在delegate，这个就是代理，这个就是为了开发者方便而设计的，比如我们要访问ctx.repsponse.status但是我们通过delegate，可以直接访问ctx.status访问到它。</p>
+<h4 id="request-js、response-js"><a href="#request-js、response-js" class="headerlink" title="request.js、response.js"></a>request.js、response.js</h4><p>这两部分就是对原生的res、req的一些操作了，大量使用es6的get和set的一些语法，去取headers或者设置headers、还有设置body等等，这些就不详细介绍了，有兴趣的读者可以自行看源码。</p>
+<h3 id="实现koa2的四大模块"><a href="#实现koa2的四大模块" class="headerlink" title="实现koa2的四大模块"></a>实现koa2的四大模块</h3><p>上文简述了koa2源码的大体框架结构，接下来我们来实现一个koa2的框架，笔者认为理解和实现一个koa框架需要实现四个大模块，分别是：</p>
+<ul>
+<li><p>封装node http server、创建Koa类构造函数</p>
+</li>
+<li><p>构造request、response、context对象</p>
+</li>
+<li><p>中间件机制和剥洋葱模型的实现</p>
+</li>
+<li><p>错误捕获和错误处理</p>
+</li>
+</ul>
+<p>下面我们就逐一分析和实现。</p>
+<h4 id="模块一：封装node-http-server和创建Koa类构造函数"><a href="#模块一：封装node-http-server和创建Koa类构造函数" class="headerlink" title="模块一：封装node http server和创建Koa类构造函数"></a>模块一：封装node http server和创建Koa类构造函数</h4><p>阅读koa2的源码得知，实现koa的服务器应用和端口监听，其实就是基于node的原生代码进行了封装，如下图的代码就是通过node原生代码实现的服务器监听。</p>
+<pre><code>let http = require(&apos;http&apos;);
+let server = http.createServer((req, res) =&gt; {
+    res.writeHead(200);
+    res.end(&apos;hello world&apos;);
+});
+server.listen(3000, () =&gt; {    
+    console.log(&apos;listenning on 3000&apos;);
+});
+</code></pre><p>我们需要将上面的node原生代码封装实现成koa的模式：</p>
+<pre><code>const http = require(&apos;http&apos;);
+const Koa = require(&apos;koa&apos;);
+const app = new Koa();
+app.listen(3000);
+</code></pre><p>实现koa的第一步就是对以上的这个过程进行封装，为此我们需要创建application.js实现一个Application类的构造函数：</p>
+<pre><code>let http = require(&apos;http&apos;);
+class Application{    
+    constructor() {        
+        this.callbackFunc;
+    }
+    listen(port) {        
+        let server = http.createServer(this.callback());
+        server.listen(port);
+    }
+    use(fn) {
+        this.callbackFunc = fn;
+    }
+    callback() {
+        return(req, res) =&gt; {
+            this.callbackFunc(req, res);
+        };
+    }
+}
+module.exports = Application;
+</code></pre><p>然后创建example.js，引入application.js，运行服务器实例启动监听代码：</p>
+<pre><code>let Koa = require(&apos;./application&apos;);
+let app = new Koa();
+app.use((req, res) =&gt; {
+    res.writeHead(200);
+    res.end(&apos;hello world&apos;);
+});
+app.listen(3000, () =&gt; {
+    console.log(&apos;listening on 3000&apos;);
+});
+</code></pre><p>现在在浏览器输入localhost:3000即可看到浏览器里显示“hello world”。现在第一步我们已经完成了，对http server进行了简单的封装和创建了一个可以生成koa实例的类class，这个类里还实现了app.use用来注册中间件和注册回调函数，app.listen用来开启服务器实例并传入callback回调函数，第一模块主要是实现典型的koa风格和搭好了一个koa的简单的架子。接下来我们开始编写和讲解第二模块。</p>
+<h5 id="模块二：构造request、response、context对象"><a href="#模块二：构造request、response、context对象" class="headerlink" title="模块二：构造request、response、context对象"></a>模块二：构造request、response、context对象</h5><p>阅读koa2的源码得知，其中context.js、request.js、response.js三个文件分别是request、response、context三个模块的代码文件。context就是我们平时写koa代码时的ctx，它相当于一个全局的koa实例上下文this，它连接了request、response两个功能模块，并且暴露给koa的实例和中间件等回调函数的参数中，起到承上启下的作用。</p>
+<p>request、response两个功能模块分别对node的原生request、response进行了一个功能的封装，使用了getter和setter属性，基于node的对象req/res对象封装koa的request/response对象。我们基于这个原理简单实现一下request.js、response.js，首先创建request.js文件，然后写入以下代码：</p>
+<pre><code>let url = require(&apos;url&apos;);
+module.exports = {
+    get query() {
+        return url.parse(this.req.url, true).query;
+    }
+};
+</code></pre><p>这样当你在koa实例里使用ctx.query的时候，就会返回url.parse(this.req.url, true).query的值。看源码可知，基于getter和setter，在request.js里还封装了header、url、origin、path等方法，都是对原生的request上用getter和setter进行了封装，笔者不再这里一一实现。</p>
+<p>接下来我们实现response.js文件代码模块，它和request原理一样，也是基于getter和setter对原生response进行了封装，那我们接下来通过对常用的ctx.body和ctx.status这个两个语句当做例子简述一下如果实现koa的response的模块，我们首先创建好response.js文件，然后输入下面的代码：</p>
+<pre><code>module.exports = {
+    get body() {
+        returnthis._body;
+    },
+    set body(data) {
+        this._body = data;
+    },
+    get status() {
+        returnthis.res.statusCode;
+    },
+    set status(statusCode) {
+        if (typeof statusCode !== &apos;number&apos;) {
+            thrownewError(&apos;something wrong!&apos;);
+        }
+        this.res.statusCode = statusCode;
+    }
+};
+</code></pre><p>以上代码实现了对koa的status的读取和设置，读取的时候返回的是基于原生的response对象的statusCode属性，而body的读取则是对this._body进行读写和操作。这里对body进行操作并没有使用原生的this.res.end，因为在我们编写koa代码的时候，会对body进行多次的读取和修改，所以真正返回浏览器信息的操作是在application.js里进行封装和操作。</p>
+<p>现在我们已经实现了request.js、response.js，获取到了request、response对象和他们的封装的方法，然后我们开始实现context.js，context的作用就是将request、response对象挂载到ctx的上面，让koa实例和代码能方便的使用到request、response对象中的方法。现在我们创建context.js文件，输入如下代码：</p>
+<pre><code>let proto = {};
+
+function delegateSet(property, name) {
+    proto.__defineSetter__(name, function (val) {
+        this[property][name] = val;
+    });
+}
+
+function delegateGet(property, name) {
+    proto.__defineGetter__(name, function () {
+        returnthis[property][name];
+    });
+}
+
+let requestSet = [];
+let requestGet = [&apos;query&apos;];
+
+let responseSet = [&apos;body&apos;, &apos;status&apos;];
+let responseGet = responseSet;
+
+requestSet.forEach(ele =&gt; {
+    delegateSet(&apos;request&apos;, ele);
+});
+
+requestGet.forEach(ele =&gt; {
+    delegateGet(&apos;request&apos;, ele);
+});
+
+responseSet.forEach(ele =&gt; {
+    delegateSet(&apos;response&apos;, ele);
+});
+
+responseGet.forEach(ele =&gt; {
+    delegateGet(&apos;response&apos;, ele);
+});
+
+module.exports = proto;
+</code></pre><p>context.js文件主要是对常用的request和response方法进行挂载和代理，通过context.query直接代理了context.request.query，context.body和context.status代理了context.response.body与context.response.status。而context.request，context.response则会在application.js中挂载</p>
+<p>本来可以用简单的setter和getter去设置每一个方法，但是由于context对象定义方法比较简单和规范，在koa源码里可以看到，koa源码用的是<strong>defineSetter</strong>和<strong>defineSetter</strong>来代替setter/getter每一个属性的读取设置，这样做主要是方便拓展和精简了写法，当我们需要代理更多的res和req的方法的时候，可以向context.js文件里面的数组对象里面添加对应的方法名和属性名即可。</p>
+<p>目前为止，我们已经得到了request、response、context三个模块对象了，接下来就是将request、response所有方法挂载到context下，让context实现它的承上启下的作用，修改application.js文件，添加如下代码：</p>
+<pre><code>let http = require(&apos;http&apos;);
+let context = require(&apos;./context&apos;);
+let request = require(&apos;./request&apos;);
+let response = require(&apos;./response&apos;);
+
+createContext(req, res) {       
+   let ctx = Object.create(this.context);
+   ctx.request = Object.create(this.request);
+   ctx.response = Object.create(this.response);
+   ctx.req = ctx.request.req = req;
+   ctx.res = ctx.response.res = res; 
+   return ctx;
+}
+</code></pre><p>可以看到，我们添加了createContext这个方法，这个方法是关键，它通过Object.create创建了ctx，并将request和response挂载到了ctx上面，将原生的req和res挂载到了ctx的子属性上，往回看一下context/request/response.js文件，就能知道当时使用的this.res或者this.response之类的是从哪里来的了，原来是在这个createContext方法中挂载到了对应的实例上，构建了运行时上下文ctx之后，我们的app.use回调函数参数就都基于ctx了。</p>
+<h4 id="模块三：中间件机制和剥洋葱模型的实现"><a href="#模块三：中间件机制和剥洋葱模型的实现" class="headerlink" title="模块三：中间件机制和剥洋葱模型的实现"></a>模块三：中间件机制和剥洋葱模型的实现</h4><p>目前为止我们已经成功实现了上下文context对象、 请求request对象和响应response对象模块，还差一个最重要的模块，就是koa的中间件模块，koa的中间件机制是一个剥洋葱式的模型，多个中间件通过use放进一个数组队列然后从外层开始执行，遇到next后进入队列中的下一个中间件，所有中间件执行完后开始回帧，执行队列中之前中间件中未执行的代码部分，这就是剥洋葱模型，koa的中间件机制。</p>
+<p>koa的剥洋葱模型在koa1中使用的是generator + co.js去实现的，koa2则使用了async/await + Promise去实现的，接下来我们基于async/await + Promise去实现koa2中的中间件机制。首先，假设当koa的中间件机制已经做好了，那么它是能成功运行下面代码的：</p>
+<pre><code>let Koa = require(&apos;../src/application&apos;);
+
+let app = new Koa();
+
+app.use(async (ctx, next) =&gt; {
+    console.log(1);
+    await next();
+    console.log(6);
+});
+
+app.use(async (ctx, next) =&gt; {
+    console.log(2);
+    await next();
+    console.log(5);
+});
+
+app.use(async (ctx, next) =&gt; {
+    console.log(3);
+    ctx.body = &quot;hello world&quot;;
+    console.log(4);
+});
+
+app.listen(3000, () =&gt; {
+    console.log(&apos;listenning on 3000&apos;);
+});
+</code></pre><p>运行成功后会在终端输出123456，那就能验证我们的koa的剥洋葱模型是正确的。接下来我们开始实现，修改application.js文件，添加如下代码：</p>
+<pre><code>compose() {
+    return async ctx =&gt; {
+        function createNext(middleware, oldNext) {
+            return async () =&gt; {
+                await middleware(ctx, oldNext);
+            }
+        }
+        let len = this.middlewares.length;
+        let next = async () =&gt; {
+            return Promise.resolve();
+        };
+        for (let i = len - 1; i &gt;= 0; i--) {
+            let currentMiddleware = this.middlewares[i];
+            next = createNext(currentMiddleware, next);
+        }
+        await next();
+    };
+}
+
+callback() {
+    return(req, res) =&gt; {
+        let ctx = this.createContext(req, res);
+        let respond = () =&gt;this.responseBody(ctx);
+        let onerror = (err) =&gt;this.onerror(err, ctx);
+        let fn = this.compose();
+        return fn(ctx);
+    };
+}
+</code></pre><p>koa通过use函数，把所有的中间件push到一个内部数组队列this.middlewares中，剥洋葱模型能让所有的中间件依次执行，每次执行完一个中间件，遇到next()就会将控制权传递到下一个中间件，下一个中间件的next参数，剥洋葱模型的最关键代码是compose这个函数：</p>
+<pre><code>compose() {
+        return async ctx =&gt; {
+            function createNext(middleware, oldNext) {
+                returnasync () =&gt; {
+                    await middleware(ctx, oldNext);
+                }
+            }
+            let len = this.middlewares.length;
+            let next = async () =&gt; {
+                return Promise.resolve();
+            };
+            for (let i = len - 1; i &gt;= 0; i--) {
+                let currentMiddleware = this.middlewares[i];
+                next = createNext(currentMiddleware, next);
+            }
+            await next();
+        };
+    }
+</code></pre><p>createNext函数的作用就是将上一个中间件的next当做参数传给下一个中间件，并且将上下文ctx绑定当前中间件，当中间件执行完，调用next()的时候，其实就是去执行下一个中间件。</p>
+<pre><code>for (let i = len - 1; i &gt;= 0; i--) {
+        let currentMiddleware = this.middlewares[i];
+        next = createNext(currentMiddleware, next);
+ }
+</code></pre><p>上面这段代码其实就是一个链式反向递归模型的实现，i是从最大数开始循环的，将中间件从最后一个开始封装，每一次都是将自己的执行函数封装成next当做上一个中间件的next参数，这样当循环到第一个中间件的时候，只需要执行一次next()，就能链式的递归调用所有中间件，这个就是koa剥洋葱的核心代码机制。</p>
+<p>到这里我们总结一下上面所有剥洋葱模型代码的流程，通过use传进来的中间件是一个回调函数，回调函数的参数是ctx上下文和next，next其实就是控制权的交接棒，next的作用是停止运行当前中间件，将控制权交给下一个中间件，执行下一个中间件的next()之前的代码，当下一个中间件运行的代码遇到了next()，又会将代码执行权交给下下个中间件，当执行到最后一个中间件的时候，控制权发生反转，开始回头去执行之前所有中间件中剩下未执行的代码，这整个流程有点像一个伪递归，当最终所有中间件全部执行完后，会返回一个Promise对象，因为我们的compose函数返回的是一个async的函数，async函数执行完后会返回一个Promise，这样我们就能将所有的中间件异步执行同步化，通过then就可以执行响应函数和错误处理函数。</p>
+<p>当中间件机制代码写好了以后，运行我们的上面的例子，已经能输出123456了，至此，我们的koa的基本框架已经基本做好了，不过一个框架不能只实现功能，为了框架和服务器实例的健壮，还需要加上错误处理机制。</p>
+<h4 id="模块四：错误捕获和错误处理"><a href="#模块四：错误捕获和错误处理" class="headerlink" title="模块四：错误捕获和错误处理"></a>模块四：错误捕获和错误处理</h4><p>要实现一个基础框架，错误处理和捕获必不可少，一个健壮的框架，必须保证在发生错误的时候，能够捕获到错误和抛出的异常，并反馈出来，将错误信息发送到监控系统上进行反馈，目前我们实现的简易koa框架还没有能实现这一点，我们接下加上错误处理和捕获的机制。</p>
+<pre><code>throw new Error(&apos;oooops&apos;);
+</code></pre><p>基于现在的框架，如果中间件代码中出现如上错误异常抛出，是捕获不到错误的，这时候我们看一下application.js中的callback函数的return返回代码，如下：</p>
+<pre><code>return fn(ctx).then(respond);
+</code></pre><p>可以看到，fn是中间件的执行函数，每一个中间件代码都是由async包裹着的，而且中间件的执行函数compose返回的也是一个async函数，我们根据es7的规范知道，async返回的是一个promise的对象实例，我们如果想要捕获promise的错误，只需要使用promise的catch方法，就可以把所有的中间件的异常全部捕获到，修改后callback的返回代码如下：</p>
+<pre><code>return fn(ctx).then(respond).catch(onerror);
+</code></pre><p>现在我们已经实现了中间件的错误异常捕获，但是我们还缺少框架层发生错误的捕获机制，我们希望我们的服务器实例能有错误事件的监听机制，通过on的监听函数就能订阅和监听框架层面上的错误，实现这个机制不难，使用nodejs原生events模块即可，events模块给我们提供了事件监听on函数和事件触发emit行为函数，一个发射事件，一个负责接收事件，我们只需要将koa的构造函数继承events模块即可，构造后的伪代码如下：</p>
+<pre><code>let EventEmitter = require(&apos;events&apos;);
+class Application extends EventEmitter{}
+</code></pre><p>继承了events模块后，当我们创建koa实例的时候，加上on监听函数，代码如下：</p>
+<pre><code>let app = new Koa();
+
+app.on(&apos;error&apos;, err =&gt; {
+    console.log(&apos;error happends: &apos;, err.stack);
+});
+</code></pre><p>这样我们就实现了框架层面上的错误的捕获和监听机制了。总结一下，错误处理和捕获，分中间件的错误处理捕获和框架层的错误处理捕获，中间件的错误处理用promise的catch，框架层面的错误处理用nodejs的原生模块events，这样我们就可以把一个服务器实例上的所有的错误异常全部捕获到了。至此，我们就完整实现了一个轻量版的koa框架了。</p>
+<h3 id="结尾"><a href="#结尾" class="headerlink" title="结尾"></a>结尾</h3><p>前为止，我们已经实现了一个轻量版的koa框架了，我们实现了封装node http server、创建Koa类构造函数、构造request、response、context对象、中间件机制和剥洋葱模型的实现、错误捕获和错误处理这四个大模块，理解了这个轻量版koa的实现原理，再去看koa2的源码，你就会发现一切都豁然开朗，koa2的源码无非就是在这个轻量版基础上加了很多工具函数和细节的处理，限于篇幅笔者就不再一一介绍了。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/koa/" rel="tag"># koa</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/01/07/vue2组件懒加载/" rel="next" title="vue2组件懒加载">
+                <i class="fa fa-chevron-left"></i> vue2组件懒加载
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/03/02/JS-继承/" rel="prev" title="JS 继承">
+                JS 继承 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/images/tx.jpg"
+                alt="李斌" />
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">107</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">76</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="3120217729@qq.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#什么是koa框架？"><span class="nav-number">1.</span> <span class="nav-text">什么是koa框架？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#koa源码结构"><span class="nav-number">2.</span> <span class="nav-text">koa源码结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#application-js"><span class="nav-number">2.1.</span> <span class="nav-text">application.js</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#context-js"><span class="nav-number">2.2.</span> <span class="nav-text">context.js</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#request-js、response-js"><span class="nav-number">2.3.</span> <span class="nav-text">request.js、response.js</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实现koa2的四大模块"><span class="nav-number">3.</span> <span class="nav-text">实现koa2的四大模块</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#模块一：封装node-http-server和创建Koa类构造函数"><span class="nav-number">3.1.</span> <span class="nav-text">模块一：封装node http server和创建Koa类构造函数</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#模块二：构造request、response、context对象"><span class="nav-number">3.1.1.</span> <span class="nav-text">模块二：构造request、response、context对象</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#模块三：中间件机制和剥洋葱模型的实现"><span class="nav-number">3.2.</span> <span class="nav-text">模块三：中间件机制和剥洋葱模型的实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#模块四：错误捕获和错误处理"><span class="nav-number">3.3.</span> <span class="nav-text">模块四：错误捕获和错误处理</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#结尾"><span class="nav-number">4.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
+<script type="text/javascript" src="/js/src/clicklove.js"></script>
+
