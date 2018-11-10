@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="koa,node,express," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 compose 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打">
+<meta name="keywords" content="koa,node,express">
+<meta property="og:type" content="article">
+<meta property="og:title" content="compose-串联中间件实现(洋葱模型)">
+<meta property="og:url" content="http://yoursite.com/2018/10/21/compose-串联中间件实现-洋葱模型/index.html">
+<meta property="og:site_name" content="LuckDay">
+<meta property="og:description" content="前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 compose 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-11-10T02:12:29.573Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="compose-串联中间件实现(洋葱模型)">
+<meta name="twitter:description" content="前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 compose 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2018/10/21/compose-串联中间件实现-洋葱模型/"/>
+
+
+
+
+
+  <title>compose-串联中间件实现(洋葱模型) | LuckDay</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+    	<div class="sky">
+	<div class="clouds_one"></div>
+	<div class="clouds_two"></div>
+	<div class="clouds_three"></div>
+</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">LuckDay</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">想要飞得高，那就把地平线忘掉</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off"
+             placeholder="搜索..." spellcheck="false"
+             type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/21/compose-串联中间件实现-洋葱模型/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">compose-串联中间件实现(洋葱模型)</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-21T12:41:27+08:00">
+                2018-10-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa</code> 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 <code>Express</code> 支持了异步，所以编码时经常使用 <code>async/await</code>，提高了可读性，使代码变得更优雅，上一篇文章 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.pandashen.com%2F2018%2F09%2F02%2F20180902141819%2F" target="_blank" rel="noopener">NodeJS 进阶 —— Koa 源码分析</a>，也对 “洋葱模型” 和实现它的 <code>compose</code> 进行分析，由于个人觉得 <code>compose</code> 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打算用四种方式来实现 <code>compose</code>。</p>
+<h2 id="洋葱模型案例"><a href="#洋葱模型案例" class="headerlink" title="洋葱模型案例"></a>洋葱模型案例</h2><p>如果你已经使用 <code>Koa</code> 对 “洋葱模型” 这个词一定不陌生，它就是 <code>Koa</code> 中间件的一种串行机制，并且是支持异步的，下面是一个表达 “洋葱模型” 的经典案例。</p>
+<pre><code>const Koa = require(&quot;koa&quot;);
+
+const app = new Koa();
+
+app.use(asycn (ctx, next) =&gt; {
+    console.log(1);
+    await next();
+    console.log(2);
+});
+
+app.use(asycn (ctx, next) =&gt; {
+    console.log(3);
+    await next();
+    console.log(4);
+});
+
+app.use(asycn (ctx, next) =&gt; {
+    console.log(5);
+    await next();
+    console.log(6);
+});
+
+app.listen(3000);
+
+// 1
+// 3
+// 5
+// 6
+// 4
+// 2
+</code></pre><p>上面的写法我们按照官方推荐，使用了 <code>async/await</code>，但如果是同步代码不使用也没有关系，这里简单的分析一下执行机制，第一个中间件函数中如果执行了 <code>next</code>，则下一个中间件会被执行，依次类推，就有了我们上面的结果，而在 <code>Koa</code> 源码中，这一功能是靠一个 <code>compose</code> 方法实现的，我们本文四种实现 <code>compose</code> 的方式中实现同步和异步，并附带对应的案例来验证。</p>
+<h2 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h2><p>在真正创建 <code>compose</code> 方法之前应该先做些准备工作，比如创建一个 <code>app</code> 对象来顶替 <code>Koa</code> 创建出的实例对象，并添加 <code>use</code> 方法和管理中间件的数组 <code>middlewares</code>。</p>
+<p>文件：app.js</p>
+<pre><code>// 模拟 Koa 创建的实例
+const app = {
+    middlewares: []
+};
+
+// 创建 use 方法
+app.use = function(fn) {
+    app.middlewares.push(fn);
+};
+
+// app.compose.....
+
+module.exports = app;
+</code></pre><p>上面的模块中导出了 <code>app</code> 对象，并创建了存储中间件函数的 <code>middlewares</code> 和添加中间件的 <code>use</code> 方法，因为无论用哪种方式实现 <code>compose</code> 这些都是需要的，只是 <code>compose</code> 逻辑的不同，所以后面的代码块中会只写 <code>compose</code> 方法。</p>
+<h2 id="Koa-中-compose-的实现方式"><a href="#Koa-中-compose-的实现方式" class="headerlink" title="Koa 中 compose 的实现方式"></a>Koa 中 compose 的实现方式</h2><p>首先介绍的是 <code>Koa</code> 源码中的实现方式，在 <code>Koa</code> 源码中其实是通过 <code>koa-compose</code> 中间件来实现的，我们在这里将这个模块的核心逻辑抽取出来，用我们自己的方式实现，由于重点在于分析 <code>compose</code> 的原理，所以 <code>ctx</code> 参数就被去掉了，因为我们不会使用它，重点是 <code>next</code> 参数。</p>
+<h3 id="1、同步的实现"><a href="#1、同步的实现" class="headerlink" title="1、同步的实现"></a>1、同步的实现</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    // 递归函数
+    function dispatch(index) {
+        // 如果所有中间件都执行完跳出
+        if (index === app.middlewares.length) return;
+
+        // 取出第 index 个中间件并执行
+        const route = app.middlewares[index];
+        return route(() =&gt; dispatch(index + 1));
+    }
+
+    // 取出第一个中间件函数执行
+    dispatch(0);
+};
+</code></pre><p>上面是同步的实现，通过递归函数 <code>dispatch</code> 的执行取出了数组中的第一个中间件函数并执行，在执行时传入了一个函数，并递归执行了 <code>dispatch</code>，传入的参数 <code>+1</code>，这样就执行了下一个中间件函数，依次类推，直到所有中间件都执行完毕，不满足中间件执行条件时，会跳出，这样就按照上面案例中 <code>1 3 5 6 4 2</code> 的情况执行，测试例子如下（同步上、异步下）。</p>
+<p>文件：sync-test.js</p>
+<pre><code>const app = require(&quot;./app&quot;);
+
+app.use(next =&gt; {
+    console.log(1);
+    next();
+    console.log(2);
+});
+
+app.use(next =&gt; {
+    console.log(3);
+    next();
+    console.log(4);
+});
+
+app.use(next =&gt; {
+    console.log(5);
+    next();
+    console.log(6);
+});
+
+app.compose();
+// 1
+// 3
+// 5
+// 6
+// 4
+// 2
+</code></pre><p>文件：async-test.js</p>
+<pre><code>const app = require(&quot;./app&quot;);
+
+// 异步函数
+functionfn() {
+    return new Promise((resolve, reject) =&gt; {
+        setTimeout(() =&gt; {
+            resolve();
+            console.log(&quot;hello&quot;);
+        }, 3000);
+    });
+}
+
+app.use(async next =&gt; {
+    console.log(1);
+    await next();
+    console.log(2);
+});
+
+app.use(async next =&gt; {
+    console.log(3);
+    await fn(); // 调用异步函数
+    await next();
+    console.log(4);
+});
+
+app.use(async next =&gt; {
+    console.log(5);
+    await next();
+    console.log(6);
+});
+
+app.compose();
+</code></pre><p>我们发现如果案例中按照 <code>Koa</code> 的推荐写法，即使用 <code>async</code> 函数，都会通过，但是在给 <code>use</code> 传参时可能会传入普通函数或 <code>async</code> 函数，我们要将所有中间件的返回值都包装成 Promise 来兼容两种情况，其实在 <code>Koa</code> 中 <code>compose</code> 最后返回的也是 Promise，是为了后续的逻辑的编写，但是现在并不支持，下面来解决这两个问题。</p>
+<p>注意：后面 <code>compose</code> 的其他实现方式中，都是使用 <code>sync-test.js</code> 和 <code>async-test.js</code> 验证，所以后面就不再重复了。</p>
+<h3 id="2、升级为支持异步"><a href="#2、升级为支持异步" class="headerlink" title="2、升级为支持异步"></a>2、升级为支持异步</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    // 递归函数
+    function dispatch(index) {
+        // 如果所有中间件都执行完跳出，并返回一个 Promise
+        if (index === app.middlewares.length) return Promise.resolve();
+
+        // 取出第 index 个中间件并执行
+        const route = app.middlewares[index];
+
+        // 执行后返回成功态的 Promise
+        return Promise.resolve(route(() =&gt; dispatch(index + 1)));
+    }
+
+    // 取出第一个中间件函数执行
+    dispatch(0);
+};
+</code></pre><p>我们知道 <code>async</code> 函数中 <code>await</code> 后面执行的异步代码要实现等待，带异步执行后继续向下执行，需要等待 Promise，所以我们将每一个中间件函数在调用时最后都返回了一个成功态的 Promise，使用 <code>async-test.js</code>进行测试，发现结果为 <code>1 3 hello(3s后) 5 6 4 2</code>。</p>
+<h2 id="Redux-旧版本-compose-的实现方式"><a href="#Redux-旧版本-compose-的实现方式" class="headerlink" title="Redux 旧版本 compose 的实现方式"></a>Redux 旧版本 compose 的实现方式</h2><h3 id="1、同步的实现-1"><a href="#1、同步的实现-1" class="headerlink" title="1、同步的实现"></a>1、同步的实现</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return app.middlewares.reduceRight((a, b) =&gt; () =&gt; b(a), () =&gt; {})();
+};
+</code></pre><p>上面的代码看起来不太好理解，我们不妨根据案例把这段代码拆解开，假设 <code>middlewares</code> 中存储的三个中间件函数分别为 <code>fn1</code>、<code>fn2</code> 和 <code>fn3</code>，由于使用的是 <code>reduceRight</code> 方法，所以是逆序归并，第一次 <code>a</code> 代表初始值（空函数），<code>b</code> 代表 <code>fn3</code>，而执行 <code>fn3</code> 返回了一个函数，这个函数再作为下一次归并的 <code>a</code>，而 <code>fn2</code> 作为 <code>b</code>，依次类推，过程如下。</p>
+<pre><code>// 第 1 次 reduceRight 的返回值，下一次将作为 a
+() =&gt; fn3(() =&gt; {});
+
+// 第 2 次 reduceRight 的返回值，下一次将作为 a
+() =&gt; fn2(() =&gt; fn3(() =&gt; {}));
+
+// 第 3 次 reduceRight 的返回值，下一次将作为 a
+() =&gt; fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
+</code></pre><p>由上面的拆解过程可以看出，如果我们调用了这个函数会先执行 <code>fn1</code>，如果调用 <code>next</code> 则会执行 <code>fn2</code>，如果同样调用 <code>next</code> 则会执行 <code>fn3</code>，<code>fn3</code> 已经是最后一个中间件函数了，再次调 <code>next</code> 会执行我们最初传入的空函数，这也是为什么要将 <code>reduceRight</code> 的初始值设置成一个空函数，就是防止最后一个中间件调用 <code>next</code> 而报错。</p>
+<p>经过测试上面的代码不会出现顺序错乱的情况，但是在 <code>compose</code> 执行后，我们希望进行一些后续的操作，所以希望返回的是 Promise，而我们又希望传入给 <code>use</code> 的中间件函数既可以是普通函数，又可以是 <code>async</code> 函数，这就要我们的 <code>compose</code> 完全支持异步。</p>
+<h3 id="2、升级为支持异步-1"><a href="#2、升级为支持异步-1" class="headerlink" title="2、升级为支持异步"></a>2、升级为支持异步</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return Promise.resolve(
+        app.middlewares.reduceRight(
+            (a, b) =&gt; () =&gt; Promise.resolve(b(a)),
+            () =&gt; Promise.resolve();
+        )()
+    );
+};
+</code></pre><p>参考同步的分析过程，由于最后一个中间件执行后执行的空函数内一定没有任何逻辑，但为遇到异步代码可以继续执行（比如执行 <code>next</code> 后又调用了 <code>then</code>），都处理成了 Promise，保证了 <code>reduceRight</code> 每一次归并的时候返回的函数内都返回了一个 Promise，这样就完全兼容了 <code>async</code> 和普通函数，当所有中间件执行完毕，也返回了一个 Promise，这样 <code>compose</code> 就可以调用 <code>then</code> 方法执行后续逻辑。</p>
+<h2 id="Redux-新版本-compose-的实现方式"><a href="#Redux-新版本-compose-的实现方式" class="headerlink" title="Redux 新版本 compose 的实现方式"></a>Redux 新版本 compose 的实现方式</h2><h3 id="1、同步的实现-2"><a href="#1、同步的实现-2" class="headerlink" title="1、同步的实现"></a>1、同步的实现</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return app.middlewares.reduce((a, b) =&gt; arg =&gt; a(() =&gt; b(arg)))(() =&gt; {});
+};
+</code></pre><p><code>Redux</code> 新版本中将 <code>compose</code> 的逻辑做了些改动，将原本的 <code>reduceRight</code> 换成 <code>reduce</code>，也就是说将逆序归并改为了正序，我们不一定和 <code>Redux</code> 源码完全相同，是根据相同的思路来实现串行中间件的需求。</p>
+<p>个人觉得改成正序归并后更难理解，所以还是将上面代码结合案例进行拆分，中间件依然是 <code>fn1</code>、<code>fn2</code> 和 <code>fn3</code>，由于 <code>reduce</code> 并没有传入初始值，所以此时 <code>a</code> 为 <code>fn1</code>，<code>b</code> 为 <code>fn2</code>。</p>
+<pre><code>// 第 1 次 reduce 的返回值，下一次将作为 a
+arg =&gt; fn1(() =&gt; fn2(arg));
+
+// 第 2 次 reduce 的返回值，下一次将作为 a
+arg =&gt; (arg =&gt; fn1(() =&gt; fn2(arg)))(() =&gt; fn3(arg));
+
+// 等价于...
+arg =&gt; fn1(() =&gt; fn2(() =&gt; fn3(arg)));
+
+// 执行最后返回的函数连接中间件，返回值等价于...
+fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
+</code></pre><p>所以在调用 <code>reduce</code> 最后返回的函数时，传入了一个空函数作为参数，其实这个参数最后传递给了 <code>fn3</code>，也就是第三个中间件，这样保证了在最后一个中间件调用 <code>next</code> 时不会报错。</p>
+<h3 id="2、升级为支持异步-2"><a href="#2、升级为支持异步-2" class="headerlink" title="2、升级为支持异步"></a>2、升级为支持异步</h3><p>下面有个更艰巨的任务，就是将上面的代码更改为支持异步，实现如下。</p>
+<p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return Promise.resolve(
+        app.middlewares.reduce((a, b) =&gt; arg =&gt;
+            Promise.resolve(a(() =&gt; b(arg)))
+        )(() =&gt; Promise.resolve())
+    );
+};
+</code></pre><p>实现异步其实与逆序归并是一个套路，就是让每一个中间件函数的返回值都是 Promise，并让 <code>compose</code> 也返回 Promise。</p>
+<h2 id="使用-async-函数实现"><a href="#使用-async-函数实现" class="headerlink" title="使用 async 函数实现"></a>使用 async 函数实现</h2><p>这个版本是我在之前在学习 <code>Koa</code> 源码时偶然在一位大佬的一篇分析 <code>Koa</code> 原理的文章中看到的（翻了半天实在没找到链接），在这里也拿出来和大家分享一下，由于是利用 <code>async</code> 函数实现的，所以默认就是支持异步的，因为 <code>async</code> 函数会返回一个 Promise。</p>
+<p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    // 自执行 async 函数返回 Promise
+    return (async function () {
+        // 定义默认的 next，最后一个中间件内执行的 next
+        let next = async () =&gt; Promise.resolve();
+
+        // middleware 为每一个中间件函数，oldNext 为每个中间件函数中的 next
+        // 函数返回一个 async 作为新的 next，async 执行返回 Promise，解决异步问题
+        function createNext(middleware, oldNext) {
+            return async () =&gt; {
+                await middleware(oldNext);
+            }
+        }
+
+        // 反向遍历中间件数组，先把 next 传给最后一个中间件函数
+        // 将新的中间件函数存入 next 变量
+        // 调用下一个中间件函数，将新生成的 next 传入
+        for (let i = app.middlewares.length - 1; i &gt;= 0; i--) {
+            next = createNext(app.middlewares[i], next);
+        }
+
+        await next();
+    })();
+};
+</code></pre><p>上面代码中的 <code>next</code> 是一个只返回成功态 Promise 的函数，可以理解为其他实现方式中最后一个中间件调用的 <code>next</code>，而数组 <code>middlewares</code> 刚好是反向遍历的，取到的第一个值就是最后一个中间件，而调用 <code>createNext</code>作用是返回一个新的可以执行数组中最后一个中间件的 <code>async</code> 函数，并传入了初始的 <code>next</code>，这个返回的 <code>async</code> 函数作为新的 <code>next</code>，再取到倒数第二个中间件，调用 <code>createNext</code>，又返回了一个 <code>async</code> 函数，函数内依然是倒数第二个中间件的执行，传入的 <code>next</code> 就是上次新生成的 <code>next</code>，这样依次类推到第一个中间件。</p>
+<p>因此执行第一个中间件返回的 <code>next</code> 则会执行传入的上一个生成的 <code>next</code> 函数，就会执行第二个中间件，就会执行第二个中间件中的 <code>next</code>，就这样直到执行完最初定义的的 <code>next</code>，通过案例的验证，执行结果与洋葱模型完全相同。</p>
+<p>至于异步的问题，每次执行的 <code>next</code> 都是 <code>async</code> 函数，执行后返回的都是 Promise，而最外层的自执行 <code>async</code> 函数返回的也是 Promise，也就是说 <code>compose</code> 最后返回的是 Promise，因此完全支持异步。</p>
+<p>这个方式之所放在最后，是因为个人觉得不好理解，我是按照自己对这几种方式理解的难易程度由上至下排序的。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>或许你看完这几种方式会觉得，还是 <code>Koa</code> 对于 <code>compose</code> 的实现方式最容易理解，你也可能和我一样在感慨 <code>Redux</code> 的两种实现方式和 <code>async</code> 函数实现方式是如此的巧妙，恰恰 JavaScript 在被别人诟病 “弱类型”、“不严谨” 的同时，就是如此的具有灵活性和创造性，我们无法判断这是优点还是缺点（仁者见仁，智者见智），但有一点是肯定的，学习 JavaScript 不要被强类型语言的 “墨守成规” 所束缚（个人观点，强类型语言开发者勿喷），就是要吸收这样巧妙的编程思想，写出 <code>compose</code> 这种优雅又高逼格的代码，路漫漫其修远兮，愿你在技术的路上 “一去不复返”。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/koa/" rel="tag"># koa</a>
+          
+            <a href="/tags/node/" rel="tag"># node</a>
+          
+            <a href="/tags/express/" rel="tag"># express</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/10/10/koa-bodyparser中间件模拟/" rel="next" title="koa-bodyparser中间件模拟">
+                <i class="fa fa-chevron-left"></i> koa-bodyparser中间件模拟
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/10/23/Web-安全攻防总结/" rel="prev" title="Web 安全攻防总结">
+                Web 安全攻防总结 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/images/tx.jpg"
+                alt="李斌" />
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">108</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">78</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="3120217729@qq.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#洋葱模型案例"><span class="nav-number">2.</span> <span class="nav-text">洋葱模型案例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#准备工作"><span class="nav-number">3.</span> <span class="nav-text">准备工作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Koa-中-compose-的实现方式"><span class="nav-number">4.</span> <span class="nav-text">Koa 中 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现"><span class="nav-number">4.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步"><span class="nav-number">4.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redux-旧版本-compose-的实现方式"><span class="nav-number">5.</span> <span class="nav-text">Redux 旧版本 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现-1"><span class="nav-number">5.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步-1"><span class="nav-number">5.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redux-新版本-compose-的实现方式"><span class="nav-number">6.</span> <span class="nav-text">Redux 新版本 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现-2"><span class="nav-number">6.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步-2"><span class="nav-number">6.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#使用-async-函数实现"><span class="nav-number">7.</span> <span class="nav-text">使用 async 函数实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
+<script type="text/javascript" src="/js/src/clicklove.js"></script>
+

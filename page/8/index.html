@@ -300,1819 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/07/vue2组件懒加载/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/07/vue2组件懒加载/" itemprop="url">vue2组件懒加载</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-07T20:04:56+08:00">
-                2018-01-07
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="什么是懒加载"><a href="#什么是懒加载" class="headerlink" title="什么是懒加载"></a>什么是懒加载</h3><p>懒加载也叫延迟加载，即在需要的时候进行加载，随用随载。</p>
-<h3 id="为什么需要懒加载"><a href="#为什么需要懒加载" class="headerlink" title="为什么需要懒加载"></a>为什么需要懒加载</h3><p>在单页应用中，如果没有应用懒加载，运用webpack打包后的文件将会异常的大，造成进入首页时，需要加载的内容过多，延时过长，不利于用户体验，而运用懒加载则可以将页面进行划分，需要的时候加载页面，可以有效的分担首页所承担的加载压力，减少首页加载用时</p>
-<h3 id="如何与webpack配合实现组件懒加载"><a href="#如何与webpack配合实现组件懒加载" class="headerlink" title="如何与webpack配合实现组件懒加载"></a>如何与webpack配合实现组件懒加载</h3><p>　　1、在webpack配置文件中的output路径配置chunkFilename属性<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">output: &#123;</span><br><span class="line">        path: resolve(__dirname, &apos;dist&apos;),</span><br><span class="line">        filename: options.dev ? &apos;[name].js&apos; : &apos;[name].js?[chunkhash]&apos;,</span><br><span class="line">        chunkFilename: &apos;chunk[id].js?[chunkhash]&apos;,</span><br><span class="line">        publicPath: options.dev ? &apos;/assets/&apos; : publicPath</span><br><span class="line">    &#125;,</span><br></pre></td></tr></table></figure></p>
-<p>chunkFilename路径将会作为组件懒加载的路径</p>
-<p>2、配合webpack支持的异步加载方法</p>
-<ul>
-<li>resolve =&gt; require([URL], resolve), 支持性好</li>
-<li>() =&gt; system.import(URL) , webpack2官网上已经声明将逐渐废除, 不推荐使用</li>
-<li>() =&gt; import(URL), webpack2官网推荐使用, 属于es7范畴, 需要配合babel的syntax-dynamic-import插件使用, 具体使用方法如下</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">npm install --save-dev babel-core babel-loader babel-plugin-syntax-dynamic-import babel-preset-es2015</span><br><span class="line"></span><br><span class="line">use: [&#123;</span><br><span class="line">        loader: &apos;babel-loader&apos;,</span><br><span class="line">        options: &#123;</span><br><span class="line">          presets: [[&apos;es2015&apos;, &#123;modules: false&#125;]],</span><br><span class="line">          plugins: [&apos;syntax-dynamic-import&apos;]</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;]</span><br></pre></td></tr></table></figure>
-<h3 id="具体实例中实现懒加载"><a href="#具体实例中实现懒加载" class="headerlink" title="具体实例中实现懒加载"></a>具体实例中实现懒加载</h3><h4 id="路由中配置异步组件"><a href="#路由中配置异步组件" class="headerlink" title="路由中配置异步组件"></a>路由中配置异步组件</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">export default new Router(&#123;</span><br><span class="line">    routes: [</span><br><span class="line">        &#123;</span><br><span class="line">            mode: &apos;history&apos;,</span><br><span class="line">            path: &apos;/my&apos;,</span><br><span class="line">            name: &apos;my&apos;,</span><br><span class="line">            component:  resolve =&gt; require([&apos;../page/my/my.vue&apos;], resolve),//懒加载</span><br><span class="line">        &#125;,</span><br><span class="line">    ]</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-<h4 id="实例中配置异步组件"><a href="#实例中配置异步组件" class="headerlink" title="实例中配置异步组件"></a>实例中配置异步组件</h4><blockquote>
-<p>推荐<code>historyTab: () =&gt; import(&#39;../../component/historyTab/historyTab.vue&#39;)</code></p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">components: &#123;</span><br><span class="line">        historyTab: resolve =&gt; &#123;require([&apos;../../component/historyTab/historyTab.vue&apos;], resolve)&#125;,//懒加载</span><br><span class="line">        //historyTab: () =&gt; import(&apos;../../component/historyTab/historyTab.vue&apos;)</span><br><span class="line">    &#125;,</span><br></pre></td></tr></table></figure>
-<h4 id="全局注册异步组件"><a href="#全局注册异步组件" class="headerlink" title="全局注册异步组件"></a>全局注册异步组件</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Vue.component(&apos;mideaHeader&apos;, () =&gt; &#123;</span><br><span class="line">    System.import(&apos;./component/header/header.vue&apos;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/02/Vue大数据渲染虚拟滚动列表/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/02/Vue大数据渲染虚拟滚动列表/" itemprop="url">Vue大数据渲染虚拟滚动列表</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-02T22:59:12+08:00">
-                2018-01-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Github：<a href="https://link.zhihu.com/?target=https%3A//github.com/tangbc/vue-virtual-scroll-list" target="_blank" rel="noopener">tangbc/vue-virtual-scroll-list</a><br><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.gif" alt=""></p>
-<p><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.jpg" alt=""></p>
-<pre><code>;
-(function(root, factory) {
-    var namespace = &apos;VirtualScrollList&apos;
-    if(typeof exports === &apos;object&apos; &amp;&amp; typeof module === &apos;object&apos;) {
-        module.exports = factory(namespace, require(&apos;vue&apos;))
-    } else if(typeof define === &apos;function&apos; &amp;&amp; define.amd) {
-        define([&apos;vue&apos;], factory.bind(root, namespace))
-    } else if(typeof exports === &apos;object&apos;) {
-        exports[namespace] = factory(namespace, require(&apos;vue&apos;))
-    } else {
-        root[namespace] = factory(namespace, root[&apos;Vue&apos;])
-    }
-})(this, function(namespace, Vue2) {
-    if(typeof Vue2 === &apos;object&apos; &amp;&amp; typeof Vue2.default === &apos;function&apos;) {
-        Vue2 = Vue2.default
-    }
-
-    var _debounce = function(func, wait, immediate) {
-        var timeout
-        return function() {
-            var context = this
-            var args = arguments
-            var later = function() {
-                timeout = null
-                if(!immediate) {
-                    func.apply(context, args)
-                }
-            }
-            var callNow = immediate &amp;&amp; !timeout
-            clearTimeout(timeout)
-            timeout = setTimeout(later, wait)
-            if(callNow) {
-                func.apply(context, args)
-            }
-        }
-    }
-
-    return Vue2.component(namespace, {
-        props: {
-            size: {
-                type: Number,
-                required: true
-            },
-            remain: {
-                type: Number,
-                required: true
-            },
-            rtag: {
-                type: String,
-                default: &apos;div&apos;
-            },
-            wtag: {
-                type: String,
-                default: &apos;p&apos;
-            },
-            wclass: {
-                type: String,
-                default: &apos;&apos;
-            },
-            start: {
-                type: Number,
-                default: 0
-            },
-            offset: {
-                type: Number,
-                default: 0
-            },
-            variable: [Function, Boolean],
-            bench: Number,
-            debounce: Number,
-            totop: Function,
-            tobottom: Function,
-            onscroll: Function
-        },
-
-        data(){
-            return {
-                delta:{}
-            }
-        },
-
-        created: function() {   // :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;44&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;
-            var start = this.start &gt;= this.remain ? this.start : 0
-            var keeps = this.remain + (this.bench || this.remain)
-
-            console.log(start)
-            console.log(keeps)
-
-            this.delta = {
-                start: start, // start index.   //起始index
-                end: start + keeps - 1, // end index.   //显示列表last index
-                keeps: keeps, // nums keeping in real dom.      //要显示的列表数据
-                total: 0, // all items count, update in filter.    //总的列表数据
-                offsetAll: 0, // cache all the scrollable offset.
-                paddingTop: 0, // container wrapper real padding-top.
-                paddingBottom: 0, // container wrapper real padding-bottom.
-                varCache: {}, // object to cache variable index height and scroll offset.
-                varAverSize: 0, // average/estimate item height before variable be calculated.
-                varLastCalcIndex: 0 // last calculated variable height/offset index, always increase.
-            }
-
-
-        },
-
-        watch: {
-            size: function() {
-                this.alter = &apos;size&apos;
-            },
-            remain: function() {
-                this.alter = &apos;remain&apos;
-            },
-            bench: function() {
-                this.alter = &apos;bench&apos;
-            },
-            start: function() {
-                this.alter = &apos;start&apos;
-            },
-            offset: function() {
-                this.alter = &apos;offset&apos;
-            }
-        },
-
-        methods: {
-            onScroll: function(e) {
-                var delta = this.delta
-                var offset = this.$refs.vsl.scrollTop
-
-                if(delta.total &gt; delta.keeps) {
-                    this.updateZone(offset)
-                } else {
-                    delta.end = delta.total - 1
-                }
-
-                var offsetAll = delta.offsetAll
-                if(this.onscroll) {
-                    this.onscroll(e, {
-                        offset: offset,
-                        offsetAll: offsetAll,
-                        start: delta.start,
-                        end: delta.end
-                    })
-                }
-
-                if(!offset &amp;&amp; delta.total) {
-                    this.triggerEvent(&apos;totop&apos;)
-                }
-
-                if(offset &gt;= offsetAll) {
-                    this.triggerEvent(&apos;tobottom&apos;)
-                }
-            },
-
-            // update render zone by scroll offset.
-            updateZone: function(offset) {
-                var overs = this.variable ?
-                    this.getVarOvers(offset) :
-                    Math.floor(offset / this.size)
-
-                var delta = this.delta
-                var zone = this.getZone(overs)
-                var bench = this.bench || this.remain
-
-                // for better performance, if scroll pass items within now bench, do not update.
-                if(!zone.isLast &amp;&amp; (overs &gt; delta.start) &amp;&amp; (overs - delta.start &lt;= bench)) {
-                    return
-                }
-
-                delta.end = zone.end
-                delta.start = zone.start
-                this.$forceUpdate()
-            },
-
-            // return the scroll passed items count in variable.
-            getVarOvers: function(offset) {
-                var low = 0
-                var middle = 0
-                var middleOffset = 0
-                var delta = this.delta
-                var high = delta.total
-
-                while(low &lt;= high) {
-                    middle = low + Math.floor((high - low) / 2)
-                    middleOffset = this.getVarOffset(middle)
-
-                    // calculate the average variable height at first binary search.
-                    if(!delta.varAverSize) {
-                        delta.varAverSize = Math.floor(middleOffset / middle)
-                    }
-
-                    if(middleOffset === offset) {
-                        return middle
-                    } else if(middleOffset &lt; offset) {
-                        low = middle + 1
-                    } else if(middleOffset &gt; offset) {
-                        high = middle - 1
-                    }
-                }
-
-                return low &gt; 0 ? --low : 0
-            },
-
-            // return a variable scroll offset from given index.
-            getVarOffset: function(index, nocache) {
-                var delta = this.delta
-                var cache = delta.varCache[index]
-
-                if(!nocache &amp;&amp; cache) {
-                    return cache.offset
-                }
-
-                var offset = 0
-                for(var i = 0; i &lt; index; i++) {
-                    var size = this.getVarSize(i, nocache)
-                    delta.varCache[i] = {
-                        size: size,
-                        offset: offset
-                    }
-                    offset += size
-                }
-
-                delta.varLastCalcIndex = Math.max(delta.varLastCalcIndex, index - 1)
-                delta.varLastCalcIndex = Math.min(delta.varLastCalcIndex, delta.total - 1)
-
-                return offset
-            },
-
-            // return a variable size (height) from given index.
-            getVarSize: function(index, nocache) {
-                var cache = this.delta.varCache[index]
-                if(!nocache &amp;&amp; cache) {
-                    return cache.size
-                }
-
-                if(typeof this.variable === &apos;function&apos;) {
-                    return this.variable(index) || 0
-                } else {
-                    var slot = this.$slots.default[index]
-                    var style = slot &amp;&amp; slot.data &amp;&amp; slot.data.style
-                    if(style &amp;&amp; style.height) {
-                        var shm = style.height.match(/^(.*)px$/)
-                        return(shm &amp;&amp; +shm[1]) || 0
-                    }
-                }
-                return 0
-            },
-
-            // return the variable paddingTop base current zone.
-            // @todo: if set a large `start` before variable was calculated,
-            // here will also case too much offset calculate when list is very large,
-            // consider use estimate paddingTop in this case just like `getVarPaddingBottom`.
-            getVarPaddingTop: function() {
-                return this.getVarOffset(this.delta.start)
-            },
-
-            // return the variable paddingBottom base current zone.
-            getVarPaddingBottom: function() {
-                var delta = this.delta
-                var last = delta.total - 1
-                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === last) {
-                    return this.getVarOffset(last) - this.getVarOffset(delta.end)
-                } else {
-                    // if unreached last zone or uncalculate real behind offset
-                    // return the estimate paddingBottom avoid too much calculate.
-                    return(delta.total - delta.end) * (delta.varAverSize || this.size)
-                }
-            },
-
-            // retun the variable all heights use to judge reach bottom.
-            getVarAllHeight: function() {
-                var delta = this.delta
-                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === delta.total - 1) {
-                    return this.getVarOffset(delta.total)
-                } else {
-                    return this.getVarOffset(delta.start) + (delta.total - delta.end) * (delta.varAverSize || this.size)
-                }
-            },
-
-            // the ONLY ONE public method, allow the parent update variable by index.
-            updateVariable: function(index) {
-                // clear/update all the offfsets and heights ahead of index.
-                this.getVarOffset(index, true)
-            },
-
-            // return the right zone info base on `start/index`.
-            getZone: function(index) {
-                var start, end
-                var delta = this.delta
-
-                index = parseInt(index, 10)
-                index = Math.max(0, index)
-
-                var lastStart = delta.total - delta.keeps
-                var isLast = (index &lt;= delta.total &amp;&amp; index &gt;= lastStart) || (index &gt; delta.total)
-                if(isLast) {
-                    end = delta.total - 1
-                    start = Math.max(0, lastStart)
-                } else {
-                    start = index
-                    end = start + delta.keeps - 1
-                }
-
-                return {
-                    end: end,
-                    start: start,
-                    isLast: isLast
-                }
-            },
-
-            // trigger a props event on parent.
-            triggerEvent: function(event) {
-                if(this[event]) {
-                    this[event]()
-                }
-            },
-
-            // set manual scroll top.
-            setScrollTop: function(scrollTop) {
-                this.$refs.vsl.scrollTop = scrollTop
-            },
-
-            // filter the shown items base on `start` and `end`.
-            filter: function() {
-                var delta = this.delta
-                var slots = this.$slots.default
-
-                if(!slots) {
-                    slots = []
-                    delta.start = 0
-                }
-
-                delta.total = slots.length
-
-                var paddingTop, paddingBottom, allHeight;
-
-
-                var hasPadding = delta.total &gt; delta.keeps
-
-                if(this.variable) {
-                    allHeight = this.getVarAllHeight()
-                    paddingTop = hasPadding ? this.getVarPaddingTop() : 0
-                    paddingBottom = hasPadding ? this.getVarPaddingBottom() : 0
-                } else {
-                    allHeight = this.size * delta.total
-                    paddingTop = this.size * (hasPadding ? delta.start : 0)
-                    paddingBottom = this.size * (hasPadding ? delta.total - delta.keeps : 0) - paddingTop
-                }
-
-                delta.paddingTop = paddingTop
-                delta.paddingBottom = paddingBottom
-                delta.offsetAll = allHeight - this.size * this.remain  //总高度减去窗口的高度
-
-                return slots.filter(function(slot, index) {
-                    return index &gt;= delta.start &amp;&amp; index &lt;= delta.end
-                })
-            }
-        },
-
-        mounted: function() {
-            if(this.start) {
-                var start = this.getZone(this.start).start
-                this.setScrollTop(this.variable ? this.getVarOffset(start) : start * this.size)
-            } else if(this.offset) {
-                this.setScrollTop(this.offset)
-            }
-        },
-
-        // check if delta should update when prorps change.
-        beforeUpdate: function() {
-            var delta = this.delta
-            delta.keeps = this.remain + (this.bench || this.remain)
-
-            var calcstart = this.alter === &apos;start&apos; ? this.start : delta.start
-            var zone = this.getZone(calcstart)
-
-            // if start, size or offset change, update scroll position.
-            if(~[&apos;start&apos;, &apos;size&apos;, &apos;offset&apos;].indexOf(this.alter)) {
-                this.$nextTick(this.setScrollTop.bind(this, this.alter === &apos;offset&apos; ?
-                    this.offset : this.variable ?
-                    this.getVarOffset(zone.isLast ? delta.total : zone.start) :
-                    zone.isLast ? delta.total * this.size : zone.start * this.size))
-            }
-
-            // if points out difference, force update once again.
-            if(calcstart !== zone.start || delta.end !== zone.end || this.alter) {
-                this.alter = &apos;&apos;
-                delta.end = zone.end
-                delta.start = zone.start
-                this.$forceUpdate()
-            }
-        },
-
-        render: function(h) {
-            var list = this.filter()
-            var delta = this.delta
-            var dbc = this.debounce
-            console.log(list)
-            return h(this.rtag, {
-                &apos;ref&apos;: &apos;vsl&apos;,
-                &apos;style&apos;: {
-                    &apos;display&apos;: &apos;block&apos;,
-                    &apos;overflow-y&apos;: &apos;auto&apos;,
-                    &apos;height&apos;: this.size * this.remain + &apos;px&apos;
-                },
-                &apos;on&apos;: {
-                    &apos;scroll&apos;: dbc ? _debounce(this.onScroll.bind(this), dbc) : this.onScroll
-                }
-            }, [
-                h(this.wtag, {
-                    &apos;style&apos;: {
-                        &apos;display&apos;: &apos;block&apos;,
-                        &apos;padding-top&apos;: delta.paddingTop + &apos;px&apos;,
-                        &apos;padding-bottom&apos;: delta.paddingBottom + &apos;px&apos;
-                    },
-                    &apos;class&apos;: this.wclass
-                }, list)
-            ])
-        }
-    })
-})
-
-
-&lt;template&gt;
-    &lt;div class=&quot;appWraper&quot;&gt;
-        &lt;div class=&quot;scrollToIndex&quot;&gt;
-            &lt;span&gt;Scroll to index: &lt;/span&gt;
-            &lt;input type=&quot;text&quot; v-model.number.lazy=&quot;startIndex&quot;&gt;
-            &lt;small&gt;Change and blur to set start index.&lt;/small&gt;
-        &lt;/div&gt;
-        &lt;VirtualList :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;24&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;&gt;
-            &lt;Item v-for=&quot;(udf, index) of items&quot; :index=&quot;index&quot; :key=&quot;index&quot;&gt;&lt;/Item&gt;
-        &lt;/VirtualList&gt;
-
-
-
-
-        &lt;div class=&quot;source&quot;&gt;
-            &lt;a href=&quot;https://github.com/tangbc/vue-virtual-scroll-list/blob/master/examples/finite/finite.vue#L1&quot;&gt;
-                View this demo source code
-            &lt;/a&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/template&gt;
-
-&lt;script&gt;
-    import Item from &apos;./item.vue&apos;
-    import VirtualList from &apos;./VirtualScrollList.js&apos;
-
-    export default {
-        name: &apos;finite-test&apos;,
-
-        components: {
-            Item,
-            VirtualList
-        },
-
-        data() {
-            return {
-                startIndex: 9,
-                items: new Array(100)
-            }
-        }
-    }
-&lt;/script&gt;
-
-&lt;style&gt;
-
-    body {
-        background: #fffaf0;
-    }
-    .appWraper {
-        width: 440px;
-        margin: 0 auto;
-        overflow-y: auto;
-    }
-    .title {
-        font-size: 25px;
-        font-weight: 100;
-        text-align: center;
-    }
-    @media (max-width: 640px) {
-        .appWraper {
-            width: 100%;
-        }
-        .title {
-            font-size: 16px;
-        }
-    }
-
-
-
-
-
-    .scrollToIndex {
-        padding-bottom: 20px;
-    }
-
-    input {
-        outline: none;
-        padding: .4em .5em;
-        width: 55px;
-        height: 16px;
-        border-radius: 3px;
-        border: 1px solid;
-        border-color: #dddddd;
-        font-size: 16px;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-    }
-
-    input:focus {
-        border-color: #6495ed;
-    }
-
-    small {
-        color: #999;
-    }
-
-    .list {
-        background: #fff;
-        border-radius: 3px;
-        border: 1px solid #ddd;
-        -webkit-overflow-scrolling: touch;
-        overflow-scrolling: touch;
-    }
-
-    .source {
-        text-align: center;
-        padding-top: 20px;
-    }
-
-    .source a {
-        color: #999;
-        text-decoration: none;
-        font-weight: 100;
-    }
-
-    @media (max-width: 640px) {
-        small {
-            display: none;
-        }
-    }
-&lt;/style&gt;
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/20/promise的模拟实现/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/12/20/promise的模拟实现/" itemprop="url">promise的模拟实现</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-12-20T13:11:36+08:00">
-                2017-12-20
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1.概述"></a>1.概述</h1><h2 id="1-1-什么是promise"><a href="#1-1-什么是promise" class="headerlink" title="1.1 什么是promise"></a>1.1 什么是promise</h2><p><code>Promise</code> 对象是 <code>JavaScript</code> 的异步操作解决方案，为异步操作提供统一接口。它起到代理作用（proxy），充当异步操作与回调函数之间的中介，使得异步操作具备同步操作的接口。</p>
-<h2 id="1-2-promise解决的问题"><a href="#1-2-promise解决的问题" class="headerlink" title="1.2 promise解决的问题"></a>1.2 promise解决的问题</h2><h3 id="1-2-1-回调地狱"><a href="#1-2-1-回调地狱" class="headerlink" title="1.2.1 回调地狱"></a>1.2.1 回调地狱</h3><p><code>Promise</code> 可以让异步操作写起来，就像在写同步操作的流程，而不必一层层地嵌套回调函数。</p>
-<h3 id="1-2-2-并行结果"><a href="#1-2-2-并行结果" class="headerlink" title="1.2.2 并行结果"></a>1.2.2 并行结果</h3><p>如果几个异步操作之间并没有前后顺序之分,但需要等多个异步操作都完成后才能执行后续的任务，无法实现并行节约时间。</p>
-<h2 id="1-3-promise简介"><a href="#1-3-promise简介" class="headerlink" title="1.3 promise简介"></a>1.3 promise简介</h2><p>在 <code>ES6 Promises</code> 标准中定义的API还不是很多，目前大致有下面三种类型。</p>
-<h3 id="1-3-1-consturctor"><a href="#1-3-1-consturctor" class="headerlink" title="1.3.1 consturctor"></a>1.3.1 <strong>consturctor</strong></h3><p>首先，<code>Promise</code> 是一个对象，也是一个构造函数。</p>
-<pre><code>functionf1(resolve, reject) {
-  // 异步代码...
-}
-
-var promise = newPromise(f1);
-</code></pre><h3 id="1-3-2-Instance-Method"><a href="#1-3-2-Instance-Method" class="headerlink" title="1.3.2 Instance Method"></a>1.3.2 Instance Method</h3><p><code>Promise</code>对象通过自身的状态，来控制异步操作。Promise实例具有三种状态。</p>
-<ul>
-<li>异步操作未完成（pending）</li>
-<li>异步操作成功（fulfilled）</li>
-<li>异步操作失败（rejected）</li>
-</ul>
-<p>这三种的状态的变化途径只有两种。</p>
-<ul>
-<li>从“未完成”到“成功”</li>
-<li>从“未完成”到“失败”</li>
-</ul>
-<p>所以<code>Promise</code>的最终结果只有两个,</p>
-<ul>
-<li>异步操作成功，Promise实例传回一个值（value）,状态变为<code>fulfilled</code>。</li>
-<li><p>异步操作失败，Promise 实例抛出一个错误（error）,状态变为<code>rejected</code>。</p>
-<p>  promise.then(onFulfilled, onRejected)<br>  // resolve(成功)时,onFulfilled 会被调用// reject(失败)时,onRejected 会被调用</p>
-</li>
-</ul>
-<p><img src="https://user-gold-cdn.xitu.io/2018/3/5/161f55d1eecd52cb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
-<h3 id="1-3-3-Static-Method"><a href="#1-3-3-Static-Method" class="headerlink" title="1.3.3 Static Method"></a>1.3.3 Static Method</h3><p>像 <code>Promise</code>这样的全局对象还拥有一些静态方法。包括 <code>Promise.all()</code>还有<code>Promise.resolve()</code> 等在内，主要都是一些对<code>Promise</code>进行操作的辅助方法。</p>
-<h1 id="2-Promise的实现"><a href="#2-Promise的实现" class="headerlink" title="2.Promise的实现"></a>2.<code>Promise</code>的实现</h1><h2 id="2-1-resolve和reject"><a href="#2-1-resolve和reject" class="headerlink" title="2.1 resolve和reject"></a>2.1 resolve和reject</h2><p><code>resolve</code>和<code>reject</code>都是函数</p>
-<pre><code>//构造函数中functionPromise(executor) {
-    let self = this;
-
-    /*初始化status*/
-    self.status = &apos;pending&apos;;
-    /*初始化value*/
-    self.value = undefined;
-    /*订阅事件的数组*/
-    self.onResolvedCallBacks = [];
-    self.onRejectedCallBacks = [];
-
-    /*此函数将Promise实例的状态由pending 转化为 fulfilled*/functionresolve(value) {
-        if (value instanceofPromise) {
-            return value.then(resolve, reject);
-        }
-        setTimeout(function () {
-            if (self.status === &apos;pending&apos;) {
-                self.status = &apos;fulfilled&apos;;
-                self.value = value;
-                /*发布已经订阅过的事件*/
-                self.onResolvedCallBacks.forEach(item =&gt; item(self.value))
-            }
-        }, 0)
-    }
-    /*此函数将Promise实例的状态由pending 转化为 rejected*/functionreject(reason) {
-        setTimeout(function () {
-            if (self.status === &apos;pending&apos;) {
-                self.status = &apos;rejected&apos;;
-                self.value = reason;
-                /*发布已经订阅过的事件*/
-                self.onRejectedCallBacks.forEach(item =&gt; item(self.value))
-            }
-        }, 0)
-    }
-
-    // new Promise 的时候，执行器（executor）的代码会立即执行try {
-        executor(resolve, reject);
-    } catch (e) {
-        reject(e);
-    }
-
-}
-</code></pre><h2 id="2-2-then方法"><a href="#2-2-then方法" class="headerlink" title="2.2 then方法"></a>2.2 then方法</h2><p><code>promise</code>成功后，<code>onFullfilled</code>会被调用。并且把<code>promise</code>的值当做它的第一个参数。<code>promise</code>在成功之前，不会调用它，并且只能被调用一次。<code>reject</code>也一样。</p>
-<pre><code>// 先封装一个方法
-function resolvePromise(promise2,x,resolve,reject){
-//
-  if(promise2 === x){
-    return reject(new TypeError(&apos;循环引用&apos;));
-  }
-  // 为了防止resolve和reject同时调用
-  let called = false;//promise2是否已经resolve 或reject了
-  if(x instanceof Promise){
-    if(x.status == PENDING){
-      x.then(function(y){
-        resolvePromise(promise2,y,resolve,reject);
-      },reject);
-    }else{
-      x.then(resolve,reject);
-    }
-    //x是一个thenable对象或函数，只要有then方法的对象，
-  }elseif(x!= null &amp;&amp;((typeof x==&apos;object&apos;)||(typeof x == &apos;function&apos;))){
-    //当我们的promise和别的promise进行交互，编写这段代码的时候尽量的考虑兼容性，
-    //允许别人瞎写，x可以是对象，也可以是函数
-    try{
-      letthen = x.then;
-      if(typeof then == &apos;function&apos;){
-        //有些promise会同时执行成功和失败的回调
-        then.call(x,function(y){
-          //如果promise2已经成功或失败了，则不会再处理了
-          if(called)return;
-          called = true;
-          resolvePromise(promise2,y,resolve,reject)
-        },function(err){
-          if(called)return;
-          called = true;
-          reject(err);
-        });
-      }else{
-        //到此的话x不是一个thenable对象，那直接把它当成值resolve promise2就可以了
-        // 当返回一个对象 {name:&apos;a&apos;,then:{age:8}},对象里的then不是thenable对象
-        resolve(x);
-      }
-    }catch(e){
-      if(called)return;
-      called = true;
-      reject(e);
-    }
-
-  }else{
-    //如果X是一个普通 的值，则用x的值去resolve promise2
-    resolve(x);
-  }
-}
-
-Promise.prototype.then = function(onFulfilled,onRejected){
-  //如果成功和失败的回调没有传，则表示这个then没有任何逻辑，只会把值往后抛,叫做值的穿透
-  // 例如：promise.then().then().then(function(data){},function(err){})
-
-  onFulfilled = typeof onFulfilled == &apos;function&apos;?onFulfilled:function(value){return  value};
-  onRejected = typeof onRejected == &apos;function&apos;?onRejected:reason=&gt;{throw reason};
-  //如果当前promise状态已经是成功态了，onFulfilled直接取值
-  let self = this;
-  let promise2;
-  if(self.status == FULFILLED){
-    return promise2 = new Promise(function(resolve,reject){
-      setTimeout(function(){
-        try{
-          let x =onFulfilled(self.value);
-          //如果获取到了返回值x,会走解析promise的过程
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          //如果执行成功的回调过程中出错了，用错误原因把promise2 reject
-          reject(e);
-        }
-      })
-
-    });
-  }
-  if(self.status == REJECTED){
-    return promise2 = new Promise(function(resolve,reject){
-      setTimeout(function(){
-        try{
-          let x =onRejected(self.value);
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          reject(e);
-        }
-      })
-    });
-  }
-  if(self.status == PENDING){
-    return promise2 = new Promise(function(resolve,reject){
-      self.onResolvedCallbacks.push(function(){
-        try{
-          let x =onFulfilled(self.value);
-          //如果获取到了返回值x,会走解析promise的过程
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          reject(e);
-        }
-
-      });
-      self.onRejectedCallbacks.push(function(){
-        try{
-          let x =onRejected(self.value);
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          reject(e);
-        }
-      });
-    });
-  }
-
-}
-</code></pre><h2 id="2-2-catch方法"><a href="#2-2-catch方法" class="headerlink" title="2.2 catch方法"></a>2.2 catch方法</h2><pre><code>Promise.prototype.catch=function (callback) {
-  returnthis.then(null,callback);
-}
----------使用-------
-let promise = newPromise(function (resolve, reject) {
-  reject(&apos;错误&apos;);
-})
-promise.then(function(data){console.log(data)}).catch(e=&gt;{console.log(e)});
-</code></pre><h2 id="2-3-all-方法"><a href="#2-3-all-方法" class="headerlink" title="2.3 all 方法"></a>2.3 all 方法</h2><pre><code>Promise.all = function (promises) {
-  returnnewPromise(function (resolve,reject) {
-    let arr =[];//arr是最终返回值的结果的集合。let j =0;
-    functionprocessData(i,data){// 每调用一次此函数，j就会+1；
-      arr[i] = data;// 每次成功的结果都放入数组中if(++j===promises.length){
-        resolve(arr); //只有promises中的最后一个成功，才能调用resolve方法。
-      }
-    }
-    for(let i=0;i&lt;promises.length;i++){
-      promises[i].then(function (data) {
-          processData(i,data);
-      },reject)// 如果有一个失败，整体就会失败
-    }
-  })
-}
-</code></pre><p>使用方法：</p>
-<pre><code>functionread(file) {
-  returnnew Promise1(function (resolve, reject) {
-    require(&apos;fs&apos;).readFile(file,&apos;utf8&apos;,function (err, data) {
-      resolve(data);
-    })
-  })
-}
-
-Promise1.all([read(&apos;./1.txt&apos;),read(&apos;./2.txt&apos;)]).then(function (data) {
-  console.log(data)
-})
-// [&apos;file1&apos;,&apos;file2&apos;]
-</code></pre><h2 id="2-4-race-方法"><a href="#2-4-race-方法" class="headerlink" title="2.4 race 方法"></a>2.4 race 方法</h2><p>只要有一个promise成功，就会执行成功的回调，参数是由promise组成的数组</p>
-<pre><code>Promise.race=function (promises) {
-  return new Promise(function (resolve, reject) {
-    for(let i=0;i&lt;promises.length;i++){
-      promises[i].then(resolve,reject);
-    }
-  })
-}
-</code></pre><h2 id="2-5-resolve方法"><a href="#2-5-resolve方法" class="headerlink" title="2.5 resolve方法"></a>2.5 resolve方法</h2><pre><code>Promise.resolve = function (value) {
-  return new Promise(function (resolve, reject) {
-    resolve(value)
-  })
-}
-</code></pre><h2 id="2-6-reject-方法"><a href="#2-6-reject-方法" class="headerlink" title="2.6 reject 方法"></a>2.6 reject 方法</h2><pre><code>Promise.reject = function (reason) {
-  return new Promise(function (resolve, reject) {
-    reject(reason);
-  })
-}
-</code></pre><h1 id="3-Promise对象的缺点："><a href="#3-Promise对象的缺点：" class="headerlink" title="3.Promise对象的缺点："></a>3.<code>Promise</code>对象的缺点：</h1><ul>
-<li><p>1、无法取消<code>Promise</code>，一旦新建它就会立即执行，无法中途取消。</p>
-</li>
-<li><p>2、如果不设置回调函数，<code>Promise</code>内部抛出的错误，不会反应到外部。</p>
-</li>
-<li><p>3、当处于<code>Pending</code>状态时，无法得知目前进展到哪一个阶段（刚刚开始还是即将完成）。</p>
-</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/11/call和apply的第一个参数是null-undefined时函数内的的this指向window或global/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/11/call和apply的第一个参数是null-undefined时函数内的的this指向window或global/" itemprop="url">call和apply的第一个参数是null/undefined时函数内的的this指向window或global</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-11T23:25:16+08:00">
-                2017-11-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="谁说-JavaScript-很简单了？"><a href="#谁说-JavaScript-很简单了？" class="headerlink" title="谁说 JavaScript 很简单了？"></a><a href="https://link.zhihu.com/?target=https%3A//segmentfault.com/a/1190000009024648" target="_blank" rel="noopener">谁说 JavaScript 很简单了？</a></h2><h2 id="JavaScript系列——数组元素左右移动N位算法实现"><a href="#JavaScript系列——数组元素左右移动N位算法实现" class="headerlink" title="JavaScript系列——数组元素左右移动N位算法实现"></a><a href="https://link.zhihu.com/?target=https%3A//segmentfault.com/a/1190000012882330" target="_blank" rel="noopener">JavaScript系列——数组元素左右移动N位算法实现</a></h2><p>14年的面试题，想不到今天在群里有人还问了这个！<br><img src="https://pic1.zhimg.com/v2-2ba203f9e2e5fd627521c12d5e8f4e91_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-2ba203f9e2e5fd627521c12d5e8f4e91_hd.jpg" alt=""><br>call/apply用来改变函数的执行上下文（this），它们的第一个参数thisArg是个对象，即作为函数内的this。</p>
-<p>多数时候你传啥函数内就是啥。仅以call示例</p>
-<pre><code>function fun() {
-alert(this);
-}
-fun.call(1);
-fun.call(&apos;a&apos;);
-fun.call(true);
-fun.call({name:&apos;jack&apos;});
-</code></pre><p>分别弹出“1”、“a”、“true”、“[object Object]”。</p>
-<p>有两种情况需要注意，传null或undefined时，将是JS执行环境的全局变量。浏览器中是window，其它环境（如node）则是global。</p>
-<pre><code>fun.call(null); // window or global
-fun.call(undefined); // window or global
-</code></pre><p>这在ECMAScript5.1 15.3.4.4中有解释，如下<br><img src="https://pic2.zhimg.com/v2-a55dd237510bbfca06ff1f5ad5c1ac2e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-a55dd237510bbfca06ff1f5ad5c1ac2e_hd.jpg" alt=""><br>严格模式下情况又有所不同，ES3比较宽容尽量去揣测代码意图。ES5严格模式（ie6/7/8/9除外）则不再揣测，给call/apply传入的任何参数不再转换。如下</p>
-<pre><code>&apos;use strict&apos;
-function fun() {
-alert(this);
-}
-fun.call(null)      // null
-fun.call(undefined) // undefined 
-</code></pre><h2 id="几个面试小题："><a href="#几个面试小题：" class="headerlink" title="几个面试小题："></a>几个面试小题：</h2><p><img src="https://pic1.zhimg.com/v2-99d1bfc9bfa325ea383e8e5209a46384_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-99d1bfc9bfa325ea383e8e5209a46384_hd.jpg" alt=""><br>1.alert(alert(1)&amp;&amp;alert(2)):    第一个alert执行没返回undefined【alert 是函数，alert（1）相当调用，但没有返回值，所以是undefined】，alert（2） 直接短路掉。</p>
-<p>2.alert(1&amp;&amp;2)   &amp;&amp;第一个为true，才会执行第二个，如果全部是true返回最后一个值。</p>
-<p>3.<br><img src="https://pic3.zhimg.com/v2-3c568d3cbe2ee035f846917f7907903d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-3c568d3cbe2ee035f846917f7907903d_hd.jpg" alt=""><br>多次bind只保留第一次的。</p>
-<p>4.<br><img src="https://pic3.zhimg.com/v2-99af21478704f737a974a986e9fd41cc_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-99af21478704f737a974a986e9fd41cc_hd.jpg" alt=""><br>5.<br><img src="https://pic4.zhimg.com/v2-eef9d265365a8782e55efa78ad718b01_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-eef9d265365a8782e55efa78ad718b01_hd.jpg" alt=""><img src="https://pic4.zhimg.com/v2-d355491fab6f0917e3b6b141992dac5c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-d355491fab6f0917e3b6b141992dac5c_hd.jpg" alt=""><img src="https://pic4.zhimg.com/v2-698cc4f2c86dccb91268ae9b597089dc_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-698cc4f2c86dccb91268ae9b597089dc_hd.jpg" alt=""><br>6.自定义事件</p>
-<pre><code>var myEvent = new Event(&apos;myEvent&apos;);
-document.addEventListener(&apos;myEvent&apos;, log, false);
-function log() {
-  console.log(&apos;hello event&apos;);
-}
-document.dispatchEvent(myEvent);
-</code></pre><p>7.数组循环移动<br><img src="https://pic4.zhimg.com/v2-c996087a776f590d84df53c1827872d2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-c996087a776f590d84df53c1827872d2_hd.jpg" alt=""><br>需求</p>
-<p>假设有这样一个数组</p>
-<pre><code>[1,2,3,4,5]
-</code></pre><p>现在想要左移或者右移N位，比如移动1位</p>
-<pre><code>//左移1位
-[2,3,4,5,1]
-
-//右移1位
-[5,1,2,3,4]
-</code></pre><p>算法实现</p>
-<p>这样一道题目，你先不要看我下面的代码，自己思考一下如何实现它，不管是复杂的还是简单的方法。<br>可以先告诉你我用了2行代码实现左、右移动元素。</p>
-<p>拆分法</p>
-<p>当我们没有具体思路的时候，就先假设数组移动1位的情况。</p>
-<pre><code>[1,2,3,4,5]
-=&gt;
-[null,1,2,3,4] and [5,null,null,null,null]
-=&gt;
-[5,1,2,3,4]
-</code></pre><p>这里可以看成2个数组，一个是没有到达边界的元素移动[null,1,2,3,4]，一个是到达了边界的元素移动[5,null,null,null,null]，当元素到达边界，就会往数组的初始位置移动，形成了一个循环的过程。</p>
-<p>很明显，如果我们将这2个移动后的数组合并起来，就是需求的结果。</p>
-<p>移动2位</p>
-<p>同样符合2个移动后的数组合并起来为结果的情况</p>
-<pre><code>[1,2,3,4,5]
-=&gt;
-[null,null,1,2,3] and [4,5,null,null,null]
-=&gt;
-[4,5,1,2,3]
-</code></pre><p>刚好移动数组长度</p>
-<pre><code>[1,2,3,4,5]
-=&gt;
-[1,2,3,4,5] and [] //如果没有，就假设为空数组
-</code></pre><p>合并数组</p>
-<p>假设移动1位的情况<br>上面的步骤，我们找到了规律，接下来要做的是找到2个数组，需要用到slice截取数组元素。<br>截取第一个数组</p>
-<pre><code>arr.slice(0,-1)
-// [1,2,3,4]
-</code></pre><p>截取第二个数组</p>
-<pre><code>arr.slice(-1)
-// [5]
-</code></pre><p>合并数组</p>
-<pre><code>arr.slice(-1).concat(arr.slice(0,-1))
-// [5,1,2,3,4]
-</code></pre><p>这样你就实现了移动1位的情况，接着，你继续拿+5和-5范围内的数字进行测试，发现都可以正常移动，当数字大于5或者小于-5的时候，代码就无效了，始终输出[1,2,3,4,5]</p>
-<pre><code>arr.slice(-6).concat(arr.slice(0,-6))
-// [1,2,3,4,5]
-</code></pre><p>我们再加上一个小技巧，求余数，假设是移动6，那么，实际上和移动1是相同的，我们就可以根据公式求余数</p>
-<pre><code>n = n%arr.length
-// n = 6%5 余1
-</code></pre><p>同理，当移动-6时</p>
-<pre><code>n = n%arr.length
-// n = -6%5 余-1
-</code></pre><p>接着带入公式，发现输出全部都正确了！！</p>
-<p>思路分析完了，应该很清晰了吧，源码在下面、</p>
-<p>算法源码</p>
-<p>arr表示原始数组，n表示移动的距离，可以是正数、可以是0、也可以是负数、正数表示右移，负数表示左移，0表示不移动。</p>
-<pre><code>function moveElement(arr, n) {
-  if(Math.abs(n)&gt;arr.length) n = n%arr.length
-  return arr.slice(-n).concat(arr.slice(0,-n))
-}
-
-// moveElement(arr, 9)
-// moveElement(arr, 0)
-// moveElement(arr, -9)
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/04/H5如何唤起APP/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/04/H5如何唤起APP/" itemprop="url">H5如何唤起APP</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-04T19:29:36+08:00">
-                2017-11-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>前一段时间在做电流App H5页面，需求中落地页占比较大，落地页承担的职责就是引流。引流有两种形式，同时也是我们对唤端的定义：引导已下载用户打开APP，引导未下载用户下载APP。</p>
-<p>引导已下载用户打开APP，从数据上说用户停留在APP中的时间更多了，是在提高用户粘性；从体验上说，APP体验是要比H5好的。引导未下载用户下载APP，可以增加我们的用户量。</p>
-<p>上面其实分别解释了 <strong>什么是唤端</strong> 以及 <strong>为什么要唤端</strong>，也就是  <em>3W法则</em> 中的 What 和 Why，那么接下来我们就要聊一聊 How 了，也就是 <strong>如何唤端</strong> 。</p>
-<p>我们先来看看常见的唤端方式以及他们适用的场景：</p>
-<h2 id="唤端媒介"><a href="#唤端媒介" class="headerlink" title="唤端媒介"></a>唤端媒介</h2><h3 id="URL-Scheme"><a href="#URL-Scheme" class="headerlink" title="URL Scheme"></a>URL Scheme</h3><h4 id="来源"><a href="#来源" class="headerlink" title="来源"></a>来源</h4><p>我们的手机上有许多私密信息，联系方式、照片、银行卡信息…我们不希望这些信息可以被手机应用随意获取到，信息泄露的危害甚大。所以，如何保证个人信息在设备所有者知情并允许的情况下被使用，是智能设备的核心安全问题。</p>
-<p>对此，苹果使用了名为 <em>沙盒</em> 的机制：应用只能访问它声明可能访问的资源。但沙盒也阻碍了应用间合理的信息共享，某种程度上限制了应用的能力。</p>
-<p>因此，我们急需要一个辅助工具来帮助我们实现应用通信， URL Scheme 就是这个工具。</p>
-<h4 id="URL-Scheme-是什么"><a href="#URL-Scheme-是什么" class="headerlink" title="URL Scheme 是什么"></a>URL Scheme 是什么</h4><p>我们来看一下 URL 的组成：</p>
-<pre><code>[scheme:][//authority][path][?query][#fragment]
-</code></pre><p>我们拿 <code>https://www.baidu.com</code> 来举例，scheme 自然就是 <code>https</code> 了。</p>
-<p>就像给服务器资源分配一个 URL，以便我们去访问它一样，我们同样也可以给手机APP分配一个特殊格式的 URL，用来访问这个APP或者这个APP中的某个功能(来实现通信)。APP得有一个标识，好让我们可以定位到它，它就是 URL 的 Scheme 部分。</p>
-<h4 id="常用APP的-URL-Scheme"><a href="#常用APP的-URL-Scheme" class="headerlink" title="常用APP的 URL Scheme"></a>常用APP的 URL Scheme</h4><table>
-<thead>
-<tr>
-<th>APP</th>
-<th style="text-align:center">微信</th>
-<th style="text-align:center">支付宝</th>
-<th style="text-align:center">淘宝</th>
-<th style="text-align:center">微博</th>
-<th style="text-align:center">QQ</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>URL Scheme</td>
-<td style="text-align:center">weixin://</td>
-<td style="text-align:center">alipay://</td>
-<td style="text-align:center">taobao://</td>
-<td style="text-align:center">sinaweibo://</td>
-<td style="text-align:center">mqq://</td>
-</tr>
-</tbody>
-</table>
-<h4 id="URL-Scheme-语法"><a href="#URL-Scheme-语法" class="headerlink" title="URL Scheme 语法"></a>URL Scheme 语法</h4><p>上面表格中都是最简单的用于打开 APP 的 URL Scheme，下面才是我们常用的 URL Scheme 格式：</p>
-<pre><code>     行为(应用的某个功能)    
-            |
-scheme://[path][?query]
-   |               |
-应用标识       功能需要的参数
-</code></pre><h3 id="Intent"><a href="#Intent" class="headerlink" title="Intent"></a>Intent</h3><p>安卓的原生谷歌浏览器自从 chrome25 版本开始对于唤端功能做了一些变化，URL Scheme 无法再启动Android应用。 例如，通过 iframe 指向 <code>weixin://</code>，即使用户安装了微信也无法打开。所以，APP需要实现谷歌官方提供的 <code>intent:</code> 语法，或者实现让用户通过自定义手势来打开APP，当然这就是题外话了。</p>
-<h4 id="Intent-语法"><a href="#Intent-语法" class="headerlink" title="Intent 语法"></a>Intent 语法</h4><pre><code>intent:
-   HOST/URI-path // Optional host 
-   #Intent; 
-      package=[string]; 
-      action=[string]; 
-      category=[string]; 
-      component=[string]; 
-      scheme=[string]; 
-   end;
-</code></pre><p>如果用户未安装 APP，则会跳转到系统默认商店。当然，如果你想要指定一个唤起失败的跳转地址，添加下面的字符串在 <code>end;</code> 前就可以了:</p>
-<pre><code>S.browser_fallback_url=[encoded_full_url]
-</code></pre><h4 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h4><p>下面是打开 Zxing 二维码扫描 APP 的 intent。</p>
-<pre><code>intent:
-   //scan/
-   #Intent; 
-      package=com.google.zxing.client.android; 
-      scheme=zxing; 
-   end; 
-</code></pre><p>打开这个 APP ，可以通过如下的方式：</p>
-<pre><code>&lt;ahref=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;S.browser_fallback_url=http%3A%2F%2Fzxing.org;end&quot;&gt; Take a QR code &lt;/a&gt;
-</code></pre><h3 id="Universal-Link"><a href="#Universal-Link" class="headerlink" title="Universal Link"></a>Universal Link</h3><h4 id="Universal-Link-是什么"><a href="#Universal-Link-是什么" class="headerlink" title="Universal Link 是什么"></a>Universal Link 是什么</h4><p>Universal Link 是苹果在 WWDC2015 上为 iOS9 引入的新功能，通过传统的 HTTP 链接即可打开 APP。如果用户未安装 APP，则会跳转到该链接所对应的页面。</p>
-<h4 id="为什么要使用-Universal-Link"><a href="#为什么要使用-Universal-Link" class="headerlink" title="为什么要使用 Universal Link"></a>为什么要使用 Universal Link</h4><p>传统的 Scheme 链接有以下几个痛点：</p>
-<ul>
-<li>在 ios 上会有确认弹窗提示用户是否打开，对于用户来说唤端，多出了一步操作。若用户未安装 APP ，也会有一个提示窗，告知我们 “打不开该网页，因为网址无效”</li>
-<li>传统 Scheme 跳转无法得知唤端是否成功，Universal Link 唤端失败可以直接打开此链接对应的页面</li>
-<li>Scheme 在微信、微博、QQ浏览器、手百中都已经被禁止使用，使用 Universal Link 可以避开它们的屏蔽（ 截止到 18年8月21日，微信和QQ浏览器已经禁止了 Universal Link，其他主流APP未发现有禁止 ）</li>
-</ul>
-<h4 id="如何让-APP-支持-Universal-Link"><a href="#如何让-APP-支持-Universal-Link" class="headerlink" title="如何让 APP 支持 Universal Link"></a>如何让 APP 支持 Universal Link</h4><p>有大量的文章会详细的告诉我们如何配置，你也可以去看<a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.apple.com%2Flibrary%2Farchive%2Fdocumentation%2FGeneral%2FConceptual%2FAppSearch%2FUniversalLinks.html%23%2F%2Fapple_ref%2Fdoc%2Fuid%2FTP40016308-CH12-SW2" target="_blank" rel="noopener">官方文档</a>，我这里简单的写一个12345。</p>
-<ol>
-<li>拥有一个支持 <strong>https</strong> 的域名</li>
-<li>在 <a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.apple.com%2F" target="_blank" rel="noopener">开发者中心</a> ，Identifiers 下 AppIDs 找到自己的 App ID，编辑打开 Associated Domains 服务。</li>
-<li>打开工程配置中的 Associated Domains ，在其中的 Domains 中填入你想支持的域名，必须以 <code>applinks:</code> 为前缀</li>
-<li>配置 <code>apple-app-site-association</code> 文件，文件名必须为 <code>apple-app-site-association</code> ，<strong>不带任何后缀</strong></li>
-<li>上传该文件到你的 HTTPS 服务器的 <strong>根目录</strong> 或者 <code>.well-known</code> 目录下</li>
-</ol>
-<h4 id="Universal-Link-配置中的坑"><a href="#Universal-Link-配置中的坑" class="headerlink" title="Universal Link 配置中的坑"></a>Universal Link 配置中的坑</h4><p>这里放一下我们在配置过程中遇到的坑，当然首先你在配置过程中必须得严格按照上面的要求去做，尤其是加粗的地方。</p>
-<ol>
-<li>域名问题</li>
-</ol>
-<p>Universal Link 支持的域名最多只能支持到二级域名，如果你用到了三级域名，Universal Link 唤端是不会生效的。</p>
-<ol start="2">
-<li>跨域问题</li>
-</ol>
-<p>IOS 9.2 以后，必须要触发跨域才能支持 Universal Link 唤端。</p>
-<p>IOS 那边有这样一个判断，如果你要打开的 Universal Link 和 当前页面是同一域名，ios 尊重用户最可能的意图，直接打开链接所对应的页面。如果不在同一域名下，则在你的 APP 中打开链接，也就是执行具体的唤端操作。</p>
-<ol start="3">
-<li>Universal Link 是空页面</li>
-</ol>
-<p>Universal Link 本质上是个空页面，如果未安装 APP，Universal Link 被当做普通的页面链接，自然会跳到 404 页面，所以我们需要将它绑定到我们的中转页或者下载页。</p>
-<h2 id="如何调用三种唤端媒介"><a href="#如何调用三种唤端媒介" class="headerlink" title="如何调用三种唤端媒介"></a>如何调用三种唤端媒介</h2><p>通过前面的介绍，我们可以发现，无论是 URL Scheme 还是 Intent 或者 Universal Link ，他们都算是 URL ，只是 URL Scheme 和 Intent 算是特殊的 URL。所以我们可以拿使用 URL 的方法来使用它们。</p>
-<h3 id="iframe"><a href="#iframe" class="headerlink" title="iframe"></a>iframe</h3><pre><code>&lt;iframesrc=&quot;sinaweibo://qrcode&quot;&gt;
-</code></pre><p>在只有 URL Scheme 的日子里，iframe 是使用最多的了。因为在未安装 app 的情况下，不会去跳转错误页面。但是 iframe 在各个系统以及各个应用中的兼容问题还是挺多的，不能全部使用 URL Scheme。</p>
-<h3 id="a-标签"><a href="#a-标签" class="headerlink" title="a 标签"></a>a 标签</h3><pre><code>&lt;ahref=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end&quot;&quot;&gt;扫一扫&lt;/a&gt;
-</code></pre><p>前面我们提到 Intent 协议，官方给出的用例使用的就是使用的 a 标签，所以我们跟着一起用就可以了。</p>
-<p>使用过程中，对于动态生成的 a 标签，使用 <code>dispatch</code> 来模拟触发点击事件，发现很多种 event 传递过去都无效；使用 <code>click()</code> 来模拟触发，部分场景下存在这样的情况，第一次点击过后，回到原先页面，再次点击，点击位置和页面所识别位置有不小的偏移，所以 Intent 协议从 a 标签换成了 window.location。</p>
-<h3 id="window-location"><a href="#window-location" class="headerlink" title="window.location"></a>window.location</h3><p>URL Scheme 在 ios 9+ 上诸如 safari、UC、QQ浏览器中， iframe 均无法成功唤起 APP，只能通过 window.location 才能成功唤端。</p>
-<p>当然，如果我们的 app 支持 Universal Link，ios 9+ 就用不到 URL Scheme 了。而 Universal Link 在使用过程中，我发现在 qq 中，无论是 iframe 导航 还是 a 标签打开 又或者 window.location 都无法成功唤端，一开始我以为是 qq 和微信一样禁止了 Universal Link 唤端的功能，其实不然，百般试验下，通过 top.location 唤端成功了。</p>
-<h2 id="判断唤端是否成功"><a href="#判断唤端是否成功" class="headerlink" title="判断唤端是否成功"></a>判断唤端是否成功</h2><p>如果唤端失败（APP 未安装），我们总是要做一些处理的，可以是跳转下载页，可以是 ios 下跳转 App Store… 但是Js 并不能提供给我们获取 APP 唤起状态的能力，Android Intent 以及 Universal Link 倒是不用担心，它们俩的自身机制允许它们唤端失败后直接导航至相应的页面，但是 URL Scheme 并不具备这样的能力，所以我们只能通过一些很 hack 的方式来实现 APP 唤起检测功能。</p>
-<pre><code>const initialTime = newDate();
-let counter = 0;
-let waitTime = 0;
-
-const checkOpen = setInterval(() =&gt; {
-   count++;
-   waitTime = newDate() - initialTime;
-
-   if (waitTime &gt; 2500) {
-      clearInterval(checkOpen);
-      cb();
-   }
-
-   if (counter &lt; 100) return;
-
-   clearInterval(checkOpen);
-
-   const hide = document.hidden || document.webkitHidden;
-
-   if (!hide) {
-      cb(); // 唤端失败的回调函数
-   }
-}, 20);
-</code></pre><p>APP 如果被唤起的话，页面就会进入后台运行，setInterval 在 ios 中不会停止运行，在 android 中停止运行。</p>
-<p>每 20ms 执行一次，执行 100次 在页面中实际耗费与 2000 ms 不会相差多少。</p>
-<p>我们的判断条件比预期时间多设置了 500ms，所以如果安卓中 setInterval 内的函数执行 100 次以内所费时间超过 2500ms，则说明 APP 唤起成功，反之则代表失败。</p>
-<p>我们通过 document.hidden 和 document.webkitHidden 属性来判断 APP 在 ios 中是否被正常唤起，2000ms 内，页面转入后台运行，document.hidden 会返回 true，代表唤端成功，反之则代表失败。</p>
-<h2 id="没有完美的方案"><a href="#没有完美的方案" class="headerlink" title="没有完美的方案"></a>没有完美的方案</h2><p>透过上面的几个点，我们可以发现，无论是 <em>唤端媒介</em> 、 <em>调用唤端媒介</em> 还是 <em>判断唤端结果</em> 都没有一个十全十美的方法，我们在代码层上能做的只是在确保最常用的场景（比如 微信、微博、手百 等）唤端无误的情况下，最大化的兼容剩余的场景。</p>
-<p>好的，我们接下来扯一些代码以外的，让我们的 APP 能够在更多的平台唤起。</p>
-<ul>
-<li>微信、微博、手百、QQ浏览器等。</li>
-</ul>
-<p>这些应用能阻止唤端是因为它们直接屏蔽掉了 URL Scheme 。接下来可能就有看官疑惑了，微信中是可以打开大众点评的呀，微博里面可以打开优酷呀，那是如何实现的呢？</p>
-<p>它们都各自维护着一个白名单，如果你的域名在白名单内，那这个域名下所有的页面发起的 URL Scheme 就都会被允许。就像微信，如果你是腾讯的“家属”，你就可以加入白名单了，微信的白名单一般只包含着“家属”，除此外很难申请到白名单资质。但是微博之类的都是可以联系他们的渠道童鞋进行申请的，只是条件各不相同，比如微博的就是在你的 APP 中添加打开微博的入口，三个月内唤起超过 100w 次，就可以加入白名单了。</p>
-<ul>
-<li>腾讯应用宝直接打开 APP 的某个功能</li>
-</ul>
-<p>刚刚我们说到，如果你不是微信的家属，那你是很难进入白名单的，所以在安卓中我们一般都是直接打开腾讯应用宝，ios 中 直接打开 App Store。点击腾讯应用宝中的“打开”按钮，可以直接唤起我们的 APP，但是无法打开 APP 中的某个功能（就是无法打开指定页面）。</p>
-<p>腾讯应用宝对外开放了一个叫做 APP Link 的申请，只要你申请了 APP Link，就可以通过在打开应用宝的时候在应用宝地址后面添加上 <code>&amp;android_schema={your_scheme}</code> ，来打开指定的页面了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/03/Git-的-4-个阶段的撤销更改/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/03/Git-的-4-个阶段的撤销更改/" itemprop="url">Git 的 4 个阶段的撤销更改</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-03T13:07:36+08:00">
-                2017-11-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>虽然git诞生距今已有12年之久，网上各种关于git的介绍文章数不胜数，但是依然有很多人（包括我自己在内）对于它的功能不能完全掌握。以下的介绍只是基于我个人对于git的理解，并且可能生编硬造了一些不完全符合git说法的词语。目的只是为了让git通俗化，使初学者也能大概了解如何快速上手git。同时，下面所有讨论，我们都假设只使用一个分支，也就是主分支master的情况，虽然这种作法并不符合git规范，但是现实情况中绝大部分用户是直接在master分支上进行工作的，所以在这里我们不去引入更加复杂的各种分支的情况，也不涉及标签tag的操作，只讲在最简单的主分支上如何回退。</p>
-<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a><strong>基本概念</strong></h1><h2 id="3个步骤"><a href="#3个步骤" class="headerlink" title="3个步骤"></a><strong>3个步骤</strong></h2><p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwzsRUe3nJiclZIHpg0Mc2EYjcdSxicXjJSJDs9bOYlNEHbwJZzibibQxKpg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>正常情况下，我们的工作流就是3个步骤，对应上图中的3个箭头线：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  git add .</span><br><span class="line">  </span><br><span class="line">  git commit -m &quot;comment&quot;</span><br><span class="line">  </span><br><span class="line">  git push</span><br><span class="line"></span><br><span class="line">  </span><br><span class="line">git add .把所有文件放入暂存区；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git commit把所有文件从暂存区提交进本地仓库；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git push把所有文件从本地仓库推送进远程仓库。</span><br></pre></td></tr></table></figure></p>
-<h2 id="4个区"><a href="#4个区" class="headerlink" title="4个区"></a><strong>4个区</strong></h2><p>git之所以令人费解，主要是它相比于svn等等传统的版本管理工具，多引入了一个暂存区(Stage)的概念，就因为多了这一个概念，而使很多人疑惑。其实，在初学者来说，每个区具体怎么工作的，我们完全不需要关心，而只要知道有这么4个区就够了：</p>
-<ul>
-<li><p>工作区(Working Area)</p>
-</li>
-<li><p>暂存区(Stage)</p>
-</li>
-<li><p>本地仓库(Local Repository)</p>
-</li>
-<li><p>远程仓库(Remote Repository)</p>
-</li>
-</ul>
-<h2 id="5种状态"><a href="#5种状态" class="headerlink" title="5种状态"></a><strong>5种状态</strong></h2><p>以上4个区，进入每一个区成功之后会产生一个状态，再加上最初始的一个状态，一共是5种状态。以下我们把这5种状态分别命名为：</p>
-<ul>
-<li><p>未修改(Origin)</p>
-</li>
-<li><p>已修改(Modified)</p>
-</li>
-<li><p>已暂存(Staged)</p>
-</li>
-<li><p>已提交(Committed)</p>
-</li>
-<li><p>已推送(Pushed)</p>
-</li>
-</ul>
-<h1 id="检查修改"><a href="#检查修改" class="headerlink" title="检查修改"></a><strong>检查修改</strong></h1><p>了解了基本概念之后，我们来谈一谈犯错误之后如何撤销的问题。首先，我们要了解如何检查这3个步骤当中每一个步骤修改了什么，然后才好判断有没有修改成功。检查修改的二级命令都相同，都是diff，只是参数有所不同。</p>
-<h2 id="已修改，未暂存"><a href="#已修改，未暂存" class="headerlink" title="已修改，未暂存"></a><strong>已修改，未暂存</strong></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff</span><br></pre></td></tr></table></figure>
-<p>首先，我们来看一下，如果我们只是简单地在浏览器里保存了一下文件，但是还没有做git add .之前，我们如何检查有哪些修改。我们先随便拿一个文件来做一下实验：</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwDg9nsy9V0Ra5nMdBquNG1HpYFaOazjo6vl1LPHJpjMia8ibicSXu0Svyw/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>我们在文件开头的第2行胡乱加了4个数字1234，存盘，这时文件进入了已修改状态，但是还没有进入暂存区，我们运行git diff，结果如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">diff --git a/index.md b/index.md</span><br><span class="line"></span><br><span class="line">index 73ff1ba..1066758 100644</span><br><span class="line"></span><br><span class="line">--- a/index.md</span><br><span class="line"></span><br><span class="line">+++ b/index.md</span><br><span class="line"></span><br><span class="line">@@ -1,5 +1,5 @@</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">-layout: main</span><br><span class="line"></span><br><span class="line">+1234layout: main</span><br><span class="line"></span><br><span class="line">color: black</span><br><span class="line"></span><br><span class="line">---</span><br></pre></td></tr></table></figure></p>
-<p>git diff的结果告诉我们哪些文件已经做了哪些修改。</p>
-<p><strong>已暂存，未提交</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff --cached</span><br></pre></td></tr></table></figure></p>
-<p>现在我们把修改放入暂存区看一下。先执行git add .，然后执行git diff，你会发现没有任何结果：</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwXwBzS1lToMWWjy9lEibicoiaibAAAaZa1HCp2j6v52OTN1cjRDia7VTVE6w/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>这说明git diff这个命令只检查我们的工作区和暂存区之间的差异，如果我们想看到暂存区和本地仓库之间的差异，就需要加一个参数git diff –cached：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">diff --git a/index.md b/index.md</span><br><span class="line"></span><br><span class="line">index 73ff1ba..1066758 100644</span><br><span class="line"></span><br><span class="line">--- a/index.md</span><br><span class="line"></span><br><span class="line">+++ b/index.md</span><br><span class="line"></span><br><span class="line">@@ -1,5 +1,5 @@</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">-layout: main</span><br><span class="line"></span><br><span class="line">+1234layout: main</span><br><span class="line"></span><br><span class="line">color: black</span><br><span class="line"></span><br><span class="line">---</span><br></pre></td></tr></table></figure></p>
-<p>这时候我们看到的差异是暂存区和本地仓库之间的差异。</p>
-<p><strong>已提交，未推送</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff master origin/master</span><br></pre></td></tr></table></figure></p>
-<p>现在，我们把修改从暂存区提交到本地仓库，再看一下差异。先执行git commit，然后再执行git diff –cached，没有差异，执行git diff master origin/master，可以看到差异：</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwNSkuZnLBptQUSBddcyOZURahoMau6Rq0cebaYVniaudrh3kXToVj6WA/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>在这里，master就是你的本地仓库，而origin/master就是你的远程仓库，master是主分支的意思，因为我们都在主分支上工作，所以这里两边都是master，而origin就代表远程。</p>
-<h1 id="撤销修改"><a href="#撤销修改" class="headerlink" title="撤销修改"></a><strong>撤销修改</strong></h1><p>了解清楚如何检查各种修改之后，我们开始尝试各种撤销操作。</p>
-<h2 id="已修改，未暂存-1"><a href="#已修改，未暂存-1" class="headerlink" title="已修改，未暂存"></a><strong>已修改，未暂存</strong></h2><p>如果我们只是在编辑器里修改了文件，但还没有执行git add .，这时候我们的文件还在工作区，并没有进入暂存区，我们可以用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"> git checkout .</span><br><span class="line"></span><br><span class="line">或者</span><br><span class="line"></span><br><span class="line">  git reset --hard</span><br></pre></td></tr></table></figure></p>
-<p>来进行撤销操作。</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnw3vn4WgIpIIyGGweDCXuZzlhpOwS62ibmJNjwviaXsCp9bwshpI9KAKBQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<p>可以看到，在执行完git checkout .之后，修改已被撤销，git diff没有任何内容了。</p>
-<blockquote>
-<p>一对反义词 git add .的反义词是git checkout .。做完修改之后，如果你想向前走一步，让修改进入暂存区，就执行git add .，如果你想向后退一步，撤销刚才的修改，就执行git checkout .。</p>
-</blockquote>
-<h2 id="已暂存，未提交"><a href="#已暂存，未提交" class="headerlink" title="已暂存，未提交"></a><strong>已暂存，未提交</strong></h2><p>你已经执行了git add .，但还没有执行git commit -m “comment”。这时候你意识到了错误，想要撤销，你可以执行：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset</span><br><span class="line"></span><br><span class="line">git checkout .</span><br></pre></td></tr></table></figure></p>
-<p>或者<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard</span><br></pre></td></tr></table></figure></p>
-<p>git reset只是把修改退回到了git add .之前的状态，也就是说文件本身还处于已修改未暂存状态，你如果想退回未修改状态，还需要执行git checkout .。</p>
-<p>或许你已经注意到了，以上两个步骤都可以用同一个命令git reset –hard来完成。是的，就是这个强大的命令，可以一步到位地把你的修改完全恢复到未修改的状态。</p>
-<p><strong>已提交，未推送</strong></p>
-<p>你的手太快，你既执行了git add .，又执行了git commit，这时候你的代码已经进入了你的本地仓库，然而你后悔了，怎么办？不要着急，还有办法。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard origin/master</span><br></pre></td></tr></table></figure></p>
-<p>还是这个git reset –hard命令，只不过这次多了一个参数origin/master，正如我们上面讲过的，origin/master代表远程仓库，既然你已经污染了你的本地仓库，那么就从远程仓库把代码取回来吧。</p>
-<p><strong>已推送</strong></p>
-<p>很不幸，你的手实在是太快了，你既git add了，又git commit了，并且还git push了，这时你的代码已经进入远程仓库。如果你想恢复的话，还好，由于你的本地仓库和远程仓库是等价的，你只需要先恢复本地仓库，再强制push到远程仓库就好了：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard HEAD^</span><br><span class="line"></span><br><span class="line">git push -f</span><br></pre></td></tr></table></figure></p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwCtsdla2FrJ4nCjP0tBssNeB7ZqBkQON4Jcxb2ghrAUEibNa2icoiaB3cg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a><strong>总结</strong></h1><p>以上4种状态的撤销我们都用到了同一个命令git reset –hard，前2种状态的用法甚至完全一样，所以只要掌握了git reset –hard这个命令的用法，从此你再也不用担心提交错误了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/29/从Vue-js源码看nextTick机制/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2891,6 +1078,566 @@ export default {
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/22/Vue-js-父子组件通信的十种方式/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/22/Vue-js-父子组件通信的十种方式/" itemprop="url">Vue.js 父子组件通信的十种方式</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-22T19:56:41+08:00">
+                2017-10-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="面试官：Vue-中父子组件通信有哪些方式？"><a href="#面试官：Vue-中父子组件通信有哪些方式？" class="headerlink" title=" 面试官：Vue 中父子组件通信有哪些方式？"></a><strong> 面试官：Vue 中父子组件通信有哪些方式？</strong></h3><h4 id="vue组件通信全揭秘-共7章"><a href="#vue组件通信全揭秘-共7章" class="headerlink" title="  vue组件通信全揭秘(共7章) "></a><font color="#dd0000"> <strong> <a href="https://juejin.im/post/5bd97e7c6fb9a022852a71cf" target="_blank" rel="noopener">vue组件通信全揭秘(共7章)</a> </strong></font><br></h4><blockquote>
+<p>几种通信方式无外乎以下几种：</p>
+</blockquote>
+<ul>
+<li><code>Prop</code>（常用）</li>
+<li><code>$emit</code> (组件封装用的较多)</li>
+<li><code>.sync</code>语法糖 （较少）</li>
+<li><code>$attrs</code> 和 <code>$listeners</code> (组件封装用的较多)</li>
+<li><code>provide</code> 和 <code>inject</code> （高阶组件/组件库用的较多）</li>
+<li>其他方式通信</li>
+</ul>
+<h3 id="Prop"><a href="#Prop" class="headerlink" title="Prop"></a>Prop</h3><p>英式发音：[prɒp]。这个在我们日常开发当中用到的非常多。简单来说，<strong>我们可以通过 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents.html%23%25E9%2580%259A%25E8%25BF%2587-Prop-%25E5%2590%2591%25E5%25AD%2590%25E7%25BB%2584%25E4%25BB%25B6%25E4%25BC%25A0%25E9%2580%2592%25E6%2595%25B0%25E6%258D%25AE" target="_blank" rel="noopener">Prop</a> 向子组件传递数据</strong>。用一个形象的比喻来说，父子组件之间的数据传递相当于自上而下的下水管子，只能从上往下流，不能逆流。这也正是 Vue 的设计理念之<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>。而 Prop 正是管道与管道之间的一个衔接口，这样水（数据）才能往下流。说这么多，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&lt;divid=&quot;app&quot;&gt;</span><br><span class="line">    &lt;child:content=&quot;message&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">let Child = Vue.extend(&#123;</span><br><span class="line">  template: &apos;&lt;h2&gt;&#123;&#123; content &#125;&#125;&lt;/h2&gt;&apos;,</span><br><span class="line">  props: &#123;</span><br><span class="line">    content: &#123;</span><br><span class="line">      type: String,</span><br><span class="line">      default: () =&gt; &#123; return&apos;from child&apos; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    message: &apos;from parent&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  components: &#123;</span><br><span class="line">    Child</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">from parent</span><br></pre></td></tr></table></figure>
+<h3 id="emit"><a href="#emit" class="headerlink" title="$emit"></a>$emit</h3><p>英式发音：[iˈmɪt]。官方说法是<strong>触发当前实例上的事件。附加参数都会传给监听器回调</strong>。按照我的理解不知道能不能给大家说明白，先简单看下代码吧：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;my-button @greet=&quot;sayHi&quot;&gt;&lt;/my-button&gt;
+&lt;/div&gt;
+
+let MyButton = Vue.extend({
+  template: &apos;&lt;button @click=&quot;triggerClick&quot;&gt;click&lt;/button&gt;&apos;,
+  data () {
+    return {
+      greeting: &apos;vue.js!&apos;
+    }
+  },
+  methods: {
+    triggerClick () {
+      this.$emit(&apos;greet&apos;, this.greeting)
+    }
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  components: {
+    MyButton
+  },
+  methods: {
+    sayHi (val) {
+      alert(&apos;Hi, &apos; + val)   // &apos;Hi, vue.js!&apos;
+    }
+  }
+})
+</code></pre><p> 大致逻辑是酱婶儿的：当我在页面上点击按钮时，触发了组件 <code>MyButton</code> 上的监听事件 <code>greet</code>，并且把参数传给了回调函数 <code>sayHi</code> 。说白了，当我们从子组件 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-emit" target="_blank" rel="noopener">Emit</a>（派发） 一个事件之前，其内部都提前在事件队列中 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-on" target="_blank" rel="noopener">On</a>（监听）了这个事件及其监听回调。其实相当于下面这种写法：</p>
+<pre><code>vm.$on(&apos;greet&apos;, functionsayHi (val) {
+  console.log(&apos;Hi, &apos; + val)
+})
+vm.$emit(&apos;greet&apos;, &apos;vue.js&apos;)
+// =&gt; &quot;Hi, vue.js&quot;
+</code></pre><h3 id="sync-修饰符"><a href="#sync-修饰符" class="headerlink" title=".sync 修饰符"></a>.sync 修饰符</h3><p>这个家伙在 <a href="mailto:vue@1.x" target="_blank" rel="noopener">vue@1.x</a> 的时候曾作为双向绑定功能存在，即子组件可以修改父组件中的值。因为它违反了<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>的设计理念，所以在 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 的时候被干掉了。但是在 <a href="mailto:vue@2.3.0" target="_blank" rel="noopener">vue@2.3.0</a>+ 以上版本又重新引入了这个 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-custom-events.html%23sync-%25E4%25BF%25AE%25E9%25A5%25B0%25E7%25AC%25A6" target="_blank" rel="noopener">.sync</a> 修饰符。但是这次它只是作为一个编译时的语法糖存在。它会被扩展为一个自动更新父组件属性的 v-on 监听器。说白了就是让我们手动进行更新父组件中的值了，从而使数据改动来源更加的明显。下面引入自官方的一段话：</p>
+<blockquote>
+<p>在有些情况下，我们可能需要对一个 prop 进行“双向绑定”。不幸的是，真正的双向绑定会带来维护上的问题，因为子组件可以修改父组件，且在父组件和子组件都没有明显的改动来源。</p>
+</blockquote>
+<p>既然作为一个语法糖，肯定是某种写法的简写形式，哪种写法呢，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&lt;text-document</span><br><span class="line">  v-bind:title=&quot;doc.title&quot;</span><br><span class="line">  v-on:update:title=&quot;doc.title = $event&quot;&gt;</span><br><span class="line">&lt;/text-document&gt;</span><br></pre></td></tr></table></figure></p>
+<p>于是我们可以用 <code>.sync</code> 语法糖简写成如下形式：</p>
+<pre><code>&lt;text-document v-bind:title.sync=&quot;doc.title&quot;&gt;&lt;/text-document&gt;
+</code></pre><p>废话这么多，如何做到“双向绑定” 呢？让我们进段广告，广告之后更加精彩！<br>…<br>好的，欢迎回来。假如我们想实现这样一个效果：改变子组件文本框中的值同时改变父组件中的值。怎么做？列位不妨先想想。先看段代码：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;login:name.sync=&quot;userName&quot;&gt;&lt;/login&gt; 
+    {{ userName }}
+&lt;/div&gt;
+
+let Login = Vue.extend({
+  template: `
+    &lt;div class=&quot;input-group&quot;&gt;
+      &lt;label&gt;姓名:&lt;/label&gt;
+      &lt;input v-model=&quot;text&quot;&gt;
+    &lt;/div&gt;
+  `,
+  props: [&apos;name&apos;],
+  data () {
+    return {
+      text: &apos;&apos;
+    }
+  },
+  watch: {
+    text (newVal) {
+      this.$emit(&apos;update:name&apos;, newVal)
+    }
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  data: {
+    userName: &apos;&apos;
+  },
+  components: {
+    Login
+  }
+})
+</code></pre><p>下面划重点，代码里有这一句话：</p>
+<pre><code>this.$emit(&apos;update:name&apos;, newVal)
+</code></pre><p>官方语法是：<code>update:myPropName</code> 其中 <code>myPropName</code> 表示要更新的 prop 值。当然如果你不用 .sync 语法糖使用上面的 .$emit 也能达到同样的效果。仅此而已！</p>
+<h3 id="attrs-和-listeners"><a href="#attrs-和-listeners" class="headerlink" title="$attrs 和 $listeners"></a><code>$attrs</code> 和 <code>$listeners</code></h3><ul>
+<li>官网对 <code>$attrs</code> 的解释如下：</li>
+</ul>
+<blockquote>
+<p>包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (<code>class</code> 和 <code>style</code> 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定 (<code>class</code> 和 <code>style</code> 除外)，并且可以通过 <code>v-bind=&quot;$attrs&quot;</code> 传入内部组件——在创建高级别的组件时非常有用。</p>
+</blockquote>
+<ul>
+<li>官网对 <code>$listeners</code> 的解释如下：</li>
+</ul>
+<blockquote>
+<p>包含了父作用域中的 (不含 <code>.native</code> 修饰器的) <code>v-on</code> 事件监听器。它可以通过 <code>v-on=&quot;$listeners&quot;</code> 传入内部组件——在创建更高层次的组件时非常有用。</p>
+</blockquote>
+<p>我觉得 <code>$attrs</code> 和 <code>$listeners</code> 属性像两个收纳箱，一个负责收纳属性，一个负责收纳事件，都是以对象的形式来保存数据。看下面的代码解释：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;child:foo=&quot;foo&quot;:bar=&quot;bar&quot;
+        @one.native=&quot;triggerOne&quot;
+        @two=&quot;triggerTwo&quot;&gt;
+    &lt;/child&gt;
+&lt;/div&gt;
+</code></pre><p>从 Html 中可以看到，这里有俩属性和俩方法，区别是属性一个是 <code>prop</code> 声明，事件一个是 <code>.native</code> 修饰器。</p>
+<pre><code>let Child = Vue.extend({
+  template: &apos;&lt;h2&gt;{{ foo }}&lt;/h2&gt;&apos;,
+  props: [&apos;foo&apos;],
+  created () {
+    console.log(this.$attrs, this.$listeners)
+    // -&gt; {bar: &quot;parent bar&quot;}
+    // -&gt; {two: fn}
+
+    // 这里我们访问父组件中的 `triggerTwo` 方法
+    this.$listeners.two()
+    // -&gt; &apos;two&apos;
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  data: {
+    foo: &apos;parent foo&apos;,
+    bar: &apos;parent bar&apos;
+  },
+  components: {
+    Child
+  },
+  methods: {
+    triggerOne () {
+      alert(&apos;one&apos;)
+    },
+    triggerTwo () {
+      alert(&apos;two&apos;)
+    }
+  }
+})
+</code></pre><p>可以看到，我们可以通过 <code>$attrs</code> 和 <code>$listeners</code> 进行数据传递，在需要的地方进行调用和处理，还是很方便的。当然，我们还可以通过 <code>v-on=&quot;$listeners&quot;</code> 一级级的往下传递，子子孙孙无穷尽也！</p>
+<p>一个插曲！</p>
+<p>当我们在组件上赋予了一个非Prop 声明时，编译之后的代码会把这些个属性都当成原始属性对待，添加到 html 原生标签上，看上面的代码编译之后的样子：</p>
+<pre><code>&lt;h2 bar=&quot;parent bar&quot;&gt;parent foo&lt;/h2&gt;
+</code></pre><p>这样会很难看，同时也爆了某些东西。如何去掉？这正是 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23inheritAttrs" target="_blank" rel="noopener">inheritAttrs</a> 属性的用武之地！给组件加上这个属性就行了，一般是配合 <code>$attrs</code> 使用。看代码：</p>
+<pre><code>// 源码
+let Child = Vue.extend({
+  ...
+  inheritAttrs: false, // 默认是 true
+  ...
+})
+</code></pre><p>再次编译：</p>
+<pre><code>&lt;h2&gt;parent foo&lt;/h2&gt;
+</code></pre><h3 id="provide-inject"><a href="#provide-inject" class="headerlink" title="provide / inject"></a><code>provide</code> / <code>inject</code></h3><p>他俩是对CP, 感觉挺神秘的。来看下官方对 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23provide-inject" target="_blank" rel="noopener">provide / inject</a> 的描述：</p>
+<blockquote>
+<p><code>provide</code> 和 <code>inject</code> 主要为高阶插件/组件库提供用例。并不推荐直接用于应用程序代码中。并且这对选项需要一起使用，以允许一个祖先组件向其所有子孙后代注入一个依赖，不论组件层次有多深，并在起上下游关系成立的时间里始终生效。</p>
+</blockquote>
+<p>看完描述有点懵懵懂懂！一句话总结就是：小时候你老爸什么东西都先帮你存着等你长大该娶媳妇儿了你要房子给你买要车给你买只要他有的尽量都会满足你。下面是这句话的代码解释：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;son&gt;&lt;/son&gt;
+&lt;/div&gt;
+
+let Son = Vue.extend({
+  template: &apos;&lt;h2&gt;son&lt;/h2&gt;&apos;,
+  inject: {
+    house: {
+      default: &apos;没房&apos;
+    },
+    car: {
+      default: &apos;没车&apos;
+    },
+    money: {
+      // 长大工作了虽然有点钱// 仅供生活费，需要向父母要default: &apos;￥4500&apos;
+    }
+  },
+  created () {
+    console.log(this.house, this.car, this.money)
+    // -&gt; &apos;房子&apos;, &apos;车子&apos;, &apos;￥10000&apos;
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  provide: {
+    house: &apos;房子&apos;,
+    car: &apos;车子&apos;,
+    money: &apos;￥10000&apos;
+  },
+  components: {
+    Son
+  }
+})
+</code></pre><h3 id="其他方式通信"><a href="#其他方式通信" class="headerlink" title="其他方式通信"></a>其他方式通信</h3><p>除了以上五种方式外，其实还有：</p>
+<ul>
+<li><strong>EventBus</strong></li>
+</ul>
+<p>思路就是声明一个全局Vue实例变量 <code>EventBus</code> , 把所有的通信数据，事件监听都存储到这个变量上。这样就达到在组件间数据共享了，有点类似于 <a href="https://link.juejin.im?target=https%3A%2F%2Fvuex.vuejs.org%2Fzh%2Fguide%2F" target="_blank" rel="noopener">Vuex</a>。但这种方式只适用于极小的项目，复杂项目还是推荐 Vuex。下面是实现 EventBus 的简单代码：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+   &lt;child&gt;&lt;/child&gt;
+&lt;/div&gt;
+
+// 全局变量
+let EventBus = new Vue()
+
+// 子组件
+let Child = Vue.extend({
+  template: &apos;&lt;h2&gt;child&lt;/h2&gt;&apos;,
+  created () {
+    console.log(EventBus.message)
+    // -&gt; &apos;hello&apos;
+    EventBus.$emit(&apos;received&apos;, &apos;from child&apos;)
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  components: {
+    Child
+  },
+  created () {
+    // 变量保存
+    EventBus.message = &apos;hello&apos;// 事件监听
+    EventBus.$on(&apos;received&apos;, function (val) {
+      console.log(&apos;received: &apos;+ val)
+      // -&gt; &apos;received: from child&apos;
+    })
+  }
+})
+</code></pre><ul>
+<li><strong>Vuex</strong></li>
+</ul>
+<p>官方推荐的，Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。</p>
+<ul>
+<li><strong>$parent</strong></li>
+</ul>
+<p>父实例，如果当前实例有的话。通过访问父实例也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
+<ul>
+<li><strong>$root</strong></li>
+</ul>
+<p>当前组件树的根 Vue 实例。如果当前实例没有父实例，此实例将会是其自己。通过访问根组件也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
+<ul>
+<li><strong>broadcast / dispatch</strong></li>
+</ul>
+<p>他俩是 <a href="mailto:vue@1.0" target="_blank" rel="noopener">vue@1.0</a> 中的方法，分别是事件广播 和 事件派发。虽然 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 里面删掉了，但可以模拟这两个方法。可以借鉴 <a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FElemeFE%2Felement%2Fblob%2F1.x%2Fsrc%2Fmixins%2Femitter.js%23L14" target="_blank" rel="noopener">Element</a> 实现。有时候还是非常有用的，比如我们在开发树形组件的时候等等。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/21/面试之Vue-nextTick原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/21/面试之Vue-nextTick原理/" itemprop="url">面试之Vue.$nextTick原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-21T14:16:44+08:00">
+                2017-10-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="面试官-Vue的nextTick是怎么监听DOM树更新完毕的？"><a href="#面试官-Vue的nextTick是怎么监听DOM树更新完毕的？" class="headerlink" title="面试官:Vue的nextTick是怎么监听DOM树更新完毕的？"></a>面试官:Vue的nextTick是怎么监听DOM树更新完毕的？</h2><p>nextTick是全局vue的一个函数，在vue系统中，用于处理dom更新的操作。vue里面有一个watcher，用于观察数据的变化，然后更新dom，vue里面并不是每次数据改变都会触发更新dom，而是将这些操作都缓存在一个队列，在一个事件循环结束之后，刷新队列，统一执行dom更新操作。 </p>
+<p>通常情况下，我们不需要关心这个问题，而如果想在DOM状态更新后做点什么，则需要用到nextTick。在vue生命周期的created()钩子函数进行的DOM操作要放在Vue.nextTick()的回调函数中，因为created()钩子函数执行的时候DOM并未进行任何渲染，而此时进行DOM操作是徒劳的，所以此处一定要将DOM操作的JS代码放进Vue.nextTick()的回调函数中。而与之对应的mounted钩子函数，该钩子函数执行时所有的DOM挂载和渲染都已完成，此时该钩子函数进行任何DOM操作都不会有个问题。 </p>
+<p><code>Vue.nextTick(callback)</code>，当数据发生变化，更新后执行回调。</p>
+<p><code>Vue.$nextTick(callback)</code>，当dom发生变化，更新后执行的回调。</p>
+<hr>
+<p>废话少说，来看一个例子<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">&lt;div id=&quot;app&quot;&gt;</span><br><span class="line">  &lt;span id=&apos;name&apos; ref=&apos;name&apos;&gt;&#123;&#123; name &#125;&#125;&lt;/span&gt;</span><br><span class="line">  &lt;button @click=&apos;change&apos;&gt;change name&lt;/button&gt;</span><br><span class="line">  &lt;div id=&apos;content&apos;&gt;&lt;/div&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  new Vue(&#123;</span><br><span class="line">    el: &apos;#app&apos;,</span><br><span class="line">    data() &#123;</span><br><span class="line">      return &#123;</span><br><span class="line">        name: &apos;SHERlocked93&apos;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    methods: &#123;</span><br><span class="line">      change() &#123;</span><br><span class="line">        const $name = this.$refs.name</span><br><span class="line">        this.$nextTick(() =&gt; console.log(&apos;setter前：&apos; + $name.innerHTML))</span><br><span class="line">        this.name = &apos; name改喽 &apos;</span><br><span class="line">        console.log(&apos;同步方式：&apos; + this.$refs.name.innerHTML)</span><br><span class="line">        setTimeout(() =&gt; this.console(&quot;setTimeout方式：&quot; + this.$refs.name.innerHTML))</span><br><span class="line">        this.$nextTick(() =&gt; console.log(&apos;setter后：&apos; + $name.innerHTML))</span><br><span class="line">        this.$nextTick().then(() =&gt; console.log(&apos;Promise方式：&apos; + $name.innerHTML))</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
+<p>执行以下看看结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">同步方式：SHERlocked93 </span><br><span class="line">setter前：SHERlocked93 </span><br><span class="line">setter后：name改喽 </span><br><span class="line">Promise方式：name改喽 </span><br><span class="line">setTimeout方式：name改喽</span><br></pre></td></tr></table></figure></p>
+<hr>
+<p>再看一段代码:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div&gt;</span><br><span class="line">    &lt;div ref=&quot;text&quot;&gt;&#123;&#123;text&#125;&#125;&lt;/div&gt;</span><br><span class="line">    &lt;button @click=&quot;handleClick&quot;&gt;text&lt;/button&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">export default &#123;</span><br><span class="line">    data () &#123;</span><br><span class="line">        return &#123;</span><br><span class="line">            text: &apos;start&apos;</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;,</span><br><span class="line">    methods () &#123;</span><br><span class="line">        handleClick () &#123;</span><br><span class="line">            this.text = &apos;end&apos;;</span><br><span class="line">            console.log(this.$refs.text.innerText);//打印“start”</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>打印的结果是start，为什么明明已经将text设置成了“end”，获取真实DOM节点的innerText却没有得到我们预期中的“end”，而是得到之前的值“start”呢？</p>
+<h2 id="源码解读"><a href="#源码解读" class="headerlink" title="源码解读"></a>源码解读</h2><p>带着这个疑问，我们找到了Vue.js源码的Watch实现。当某个响应式数据发生变化的时候，它的setter函数会通知闭包中的Dep，Dep则会调用它管理的所有Watch对象。触发Watch对象的update实现。我们来看一下update的实现。</p>
+<h3 id="watcher"><a href="#watcher" class="headerlink" title="watcher"></a>watcher</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">/*</span><br><span class="line">      调度者接口，当依赖发生改变的时候进行回调。</span><br><span class="line">   */</span><br><span class="line">  update () &#123;</span><br><span class="line">    /* istanbul ignore else */</span><br><span class="line">    if (this.lazy) &#123;</span><br><span class="line">      this.dirty = true</span><br><span class="line">    &#125; else if (this.sync) &#123;</span><br><span class="line">    /*同步则执行run直接渲染视图*/</span><br><span class="line">      this.run()</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">    /*异步推送到观察者队列中，由调度者调用。*/</span><br><span class="line">      queueWatcher(this)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>我们发现Vue.js默认是使用异步执行DOM更新。<br>当异步执行update的时候，会调用queueWatcher函数。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Push a watcher into the watcher queue.</span><br><span class="line"> * Jobs with duplicate IDs will be skipped unless it&apos;s</span><br><span class="line"> * pushed when the queue is being flushed.</span><br><span class="line"> **/</span><br><span class="line"> /*将一个观察者对象push进观察者队列，在队列中已经存在相同的id则该观察者对象将被跳过，除非它是在队列被刷新时推送*/</span><br><span class="line">export function queueWatcher (watcher: Watcher) &#123;</span><br><span class="line">    /*获取watcher的id*/</span><br><span class="line">  const id = watcher.id</span><br><span class="line">   /*检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验*/</span><br><span class="line">  if (has[id] == null) &#123;</span><br><span class="line">    has[id] = true</span><br><span class="line">    if (!flushing) &#123;</span><br><span class="line">    /*如果没有flush掉，直接push到队列中即可*/</span><br><span class="line">      queue.push(watcher)</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      // if already flushing, splice the watcher based on its id</span><br><span class="line">      // if already past its id, it will be run next immediately.</span><br><span class="line">      let i = queue.length - 1</span><br><span class="line">      while (i &gt; index &amp;&amp; queue[i].id &gt; watcher.id) &#123;</span><br><span class="line">        i--</span><br><span class="line">      &#125;</span><br><span class="line">      queue.splice(i + 1, 0, watcher)</span><br><span class="line">    &#125;</span><br><span class="line">    // queue the flush</span><br><span class="line">    // 刷新队列</span><br><span class="line">    if (!waiting) &#123;</span><br><span class="line">      waiting = true</span><br><span class="line"></span><br><span class="line">      if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; !config.async) &#123;</span><br><span class="line">        flushSchedulerQueue()</span><br><span class="line">        return</span><br><span class="line">      &#125;</span><br><span class="line">      nextTick(flushSchedulerQueue)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>查看queueWatcher的源码我们发现，Watch对象并不是立即更新视图，而是被push进了一个队列queue，此时状态处于waiting的状态，这时候继续会有Watch对象被push进这个队列queue，等待下一个tick时，这些Watch对象才会被遍历取出，更新视图。同时，id重复的Watcher不会被多次加入到queue中去，因为在最终渲染时，我们只需要关心数据的最终结果。</p>
+<h3 id="flushSchedulerQueue"><a href="#flushSchedulerQueue" class="headerlink" title="flushSchedulerQueue"></a>flushSchedulerQueue</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vue/src/core/observer/scheduler.js</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Flush both queues and run the watchers.</span><br><span class="line"> */</span><br><span class="line">  /*nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers*/</span><br><span class="line">function flushSchedulerQueue () &#123;</span><br><span class="line">  flushing = true</span><br><span class="line">  let watcher, id</span><br><span class="line"></span><br><span class="line">  // Sort queue before flush.</span><br><span class="line">  // This ensures that:</span><br><span class="line">  // 1. Components are updated from parent to child. (because parent is always</span><br><span class="line">  //    created before the child)</span><br><span class="line">  // 2. A component&apos;s user watchers are run before its render watcher (because</span><br><span class="line">  //    user watchers are created before the render watcher)</span><br><span class="line">  // 3. If a component is destroyed during a parent component&apos;s watcher run,</span><br><span class="line">  //    its watchers can be skipped.</span><br><span class="line">  /*</span><br><span class="line">    刷新前给queue排序，这样做可以保证：</span><br><span class="line">    1.组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。</span><br><span class="line">    2.一个组件的user watchers比render watcher先运行，因为user watchers往往比render watcher更早创建</span><br><span class="line">    3.如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过。</span><br><span class="line">  */</span><br><span class="line">  queue.sort((a, b) =&gt; a.id - b.id)</span><br><span class="line"></span><br><span class="line">  // do not cache length because more watchers might be pushed</span><br><span class="line">  // as we run existing watchers</span><br><span class="line">  /*这里不用index = queue.length;index &gt; 0; index--的方式写是因为不要将length进行缓存，</span><br><span class="line">  因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue*/</span><br><span class="line">  for (index = 0; index &lt; queue.length; index++) &#123;</span><br><span class="line">    watcher = queue[index]</span><br><span class="line">    if (watcher.before) &#123;</span><br><span class="line">      watcher.before()</span><br><span class="line">    &#125;</span><br><span class="line">    id = watcher.id</span><br><span class="line">     /*将has的标记删除*/</span><br><span class="line">    has[id] = null</span><br><span class="line">     /*执行watcher*/</span><br><span class="line">    watcher.run()</span><br><span class="line">    // in dev build, check and stop circular updates.</span><br><span class="line">    /*</span><br><span class="line">      在测试环境中，检测watch是否在死循环中</span><br><span class="line">      比如这样一种情况</span><br><span class="line">      watch: &#123;</span><br><span class="line">        test () &#123;</span><br><span class="line">          this.test++;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      持续执行了一百次watch代表可能存在死循环</span><br><span class="line">    */</span><br><span class="line">    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) &#123;</span><br><span class="line">      circular[id] = (circular[id] || 0) + 1</span><br><span class="line">      if (circular[id] &gt; MAX_UPDATE_COUNT) &#123;</span><br><span class="line">        warn(</span><br><span class="line">          &apos;You may have an infinite update loop &apos; + (</span><br><span class="line">            watcher.user</span><br><span class="line">              ? `in watcher with expression &quot;$&#123;watcher.expression&#125;&quot;`</span><br><span class="line">              : `in a component render function.`</span><br><span class="line">          ),</span><br><span class="line">          watcher.vm</span><br><span class="line">        )</span><br><span class="line">        break</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  // keep copies of post queues before resetting state</span><br><span class="line">  /*得到队列的拷贝*/</span><br><span class="line">  const activatedQueue = activatedChildren.slice()</span><br><span class="line">  const updatedQueue = queue.slice()</span><br><span class="line">  /*重置调度者的状态*/</span><br><span class="line">  resetSchedulerState()</span><br><span class="line"></span><br><span class="line">  // call component updated and activated hooks</span><br><span class="line">  /*使子组件状态都改编成active同时调用activated钩子*/</span><br><span class="line">  callActivatedHooks(activatedQueue)</span><br><span class="line">  /*调用updated钩子*/</span><br><span class="line">  callUpdatedHooks(updatedQueue)</span><br><span class="line"></span><br><span class="line">  // devtool hook</span><br><span class="line">  /* istanbul ignore if */</span><br><span class="line">  if (devtools &amp;&amp; config.devtools) &#123;</span><br><span class="line">    devtools.emit(&apos;flush&apos;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>flushSchedulerQueue是下一个tick时的回调函数，主要目的是执行Watcher的run函数，用来更新视图</p>
+<h3 id="nextTick"><a href="#nextTick" class="headerlink" title="nextTick"></a>nextTick</h3><p>vue.js提供了一个nextTick函数，其实也就是上面调用的nextTick。</p>
+<p>nextTick的实现比较简单，执行的目的是在microtask或者task中推入一个funtion，在当前栈执行完毕（也行还会有一些排在前面的需要执行的任务）以后执行nextTick传入的funtion。</p>
+<p>网上很多文章讨论的nextTick实现是2.4版本以下的实现，2.5以上版本对于nextTick的内部实现进行了大量的修改，看一下源码：</p>
+<p>首先是从Vue 2.5+开始，抽出来了一个单独的文件next-tick.js来执行它。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vue/src/core/util/next-tick.js</span><br></pre></td></tr></table></figure></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br></pre></td><td class="code"><pre><span class="line"> /*</span><br><span class="line">    延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function</span><br><span class="line">    这个函数的作用是在task或者microtask中推入一个timerFunc，</span><br><span class="line">    在当前调用栈执行完以后以此执行直到执行到timerFunc</span><br><span class="line">    目的是延迟到当前调用栈执行完以后执行</span><br><span class="line">*/</span><br><span class="line">/*存放异步执行的回调*/</span><br><span class="line">const callbacks = []</span><br><span class="line">/*一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送*/</span><br><span class="line">let pending = false</span><br><span class="line"></span><br><span class="line">/*下一个tick时的回调*/</span><br><span class="line">function flushCallbacks () &#123;</span><br><span class="line">/*一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行），这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程*/</span><br><span class="line">  pending = false</span><br><span class="line">  //复制callback</span><br><span class="line">  const copies = callbacks.slice(0)</span><br><span class="line">  //清除callbacks</span><br><span class="line">  callbacks.length = 0</span><br><span class="line">  for (let i = 0; i &lt; copies.length; i++) &#123;</span><br><span class="line">  //触发callback的回调函数</span><br><span class="line">    copies[i]()</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Here we have async deferring wrappers using both microtasks and (macro) tasks.</span><br><span class="line">// In &lt; 2.4 we used microtasks everywhere, but there are some scenarios where</span><br><span class="line">// microtasks have too high a priority and fire in between supposedly</span><br><span class="line">// sequential events (e.g. #4521, #6690) or even between bubbling of the same</span><br><span class="line">// event (#6566). However, using (macro) tasks everywhere also has subtle problems</span><br><span class="line">// when state is changed right before repaint (e.g. #6813, out-in transitions).</span><br><span class="line">// Here we use microtask by default, but expose a way to force (macro) task when</span><br><span class="line">// needed (e.g. in event handlers attached by v-on).</span><br><span class="line">/**</span><br><span class="line">其大概的意思就是：在Vue2.4之前的版本中，nextTick几乎都是基于microTask实现的，</span><br><span class="line">但是由于microTask的执行优先级非常高，在某些场景之下它甚至要比事件冒泡还要快，</span><br><span class="line">就会导致一些诡异的问题；但是如果全部都改成macroTask，对一些有重绘和动画的场</span><br><span class="line">景也会有性能的影响。所以最终nextTick采取的策略是默认走microTask，对于一些DOM</span><br><span class="line">的交互事件，如v-on绑定的事件回调处理函数的处理，会强制走macroTask。</span><br><span class="line">**/</span><br><span class="line"></span><br><span class="line">let microTimerFunc</span><br><span class="line">let macroTimerFunc</span><br><span class="line">let useMacroTask = false</span><br><span class="line"></span><br><span class="line">// Determine (macro) task defer implementation.</span><br><span class="line">// Technically setImmediate should be the ideal choice, but it&apos;s only available</span><br><span class="line">// in IE. The only polyfill that consistently queues the callback after all DOM</span><br><span class="line">// events triggered in the same loop is by using MessageChannel.</span><br><span class="line">/* istanbul ignore if */</span><br><span class="line">/**</span><br><span class="line">而对于macroTask的执行，Vue优先检测是否支持原生setImmediate（高版本IE和Edge支持），</span><br><span class="line">不支持的话再去检测是否支持原生MessageChannel，如果还不支持的话为setTimeout(fn, 0)。</span><br><span class="line">**/</span><br><span class="line"></span><br><span class="line">if (typeof setImmediate !== &apos;undefined&apos; &amp;&amp; isNative(setImmediate)) &#123;</span><br><span class="line">  macroTimerFunc = () =&gt; &#123;</span><br><span class="line">    setImmediate(flushCallbacks)</span><br><span class="line">  &#125;</span><br><span class="line">&#125; else if (typeof MessageChannel !== &apos;undefined&apos; &amp;&amp; ( </span><br><span class="line">// MessageChannel与原先的MutationObserver异曲同工</span><br><span class="line">/**</span><br><span class="line">在Vue 2.4版本以前使用的MutationObserver来模拟异步任务。</span><br><span class="line">而Vue 2.5版本以后，由于兼容性弃用了MutationObserver。</span><br><span class="line">Vue 2.5+版本使用了MessageChannel来模拟macroTask。</span><br><span class="line">除了IE以外，messageChannel的兼容性还是比较可观的。</span><br><span class="line">**/</span><br><span class="line">  isNative(MessageChannel) ||</span><br><span class="line">  // PhantomJS</span><br><span class="line">  MessageChannel.toString() === &apos;[object MessageChannelConstructor]&apos;</span><br><span class="line">)) &#123;</span><br><span class="line">  /**</span><br><span class="line">  可见，新建一个MessageChannel对象，该对象通过port1来检测信息，port2发送信息。</span><br><span class="line">  通过port2的主动postMessage来触发port1的onmessage事件，</span><br><span class="line">  进而把回调函数flushCallbacks作为macroTask参与事件循环。</span><br><span class="line">  **/</span><br><span class="line">  const channel = new MessageChannel()</span><br><span class="line">  const port = channel.port2</span><br><span class="line">  channel.port1.onmessage = flushCallbacks</span><br><span class="line">  macroTimerFunc = () =&gt; &#123;</span><br><span class="line">    port.postMessage(1)</span><br><span class="line">  &#125;</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  /* istanbul ignore next */</span><br><span class="line">   //上面两种都不支持，用setTimeout</span><br><span class="line">  macroTimerFunc = () =&gt; &#123;</span><br><span class="line">    setTimeout(flushCallbacks, 0)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// Determine microtask defer implementation.</span><br><span class="line">/* istanbul ignore next, $flow-disable-line */</span><br><span class="line"></span><br><span class="line">if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) &#123;</span><br><span class="line">/*使用Promise*/</span><br><span class="line">  const p = Promise.resolve()</span><br><span class="line">  microTimerFunc = () =&gt; &#123;</span><br><span class="line">    p.then(flushCallbacks)</span><br><span class="line">    // in problematic UIWebViews, Promise.then doesn&apos;t completely break, but</span><br><span class="line">    // it can get stuck in a weird state where callbacks are pushed into the</span><br><span class="line">    // microtask queue but the queue isn&apos;t being flushed, until the browser</span><br><span class="line">    // needs to do some other work, e.g. handle a timer. Therefore we can</span><br><span class="line">    // &quot;force&quot; the microtask queue to be flushed by adding an empty timer.</span><br><span class="line">    //iOS的webview下，需要强制刷新队列，执行上面的回调函数</span><br><span class="line">    if (isIOS) setTimeout(noop)</span><br><span class="line">  &#125;</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  // fallback to macro</span><br><span class="line">  microTimerFunc = macroTimerFunc</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * Wrap a function so that if any code inside triggers state change,</span><br><span class="line"> * the changes are queued using a (macro) task instead of a microtask.</span><br><span class="line"> */</span><br><span class="line"> /**</span><br><span class="line"> 在Vue执行绑定的DOM事件时，默认会给回调的handler函数调用withMacroTask方法做一层包装，</span><br><span class="line"> 它保证整个回调函数的执行过程中，遇到数据状态的改变，这些改变而导致的视图更新（DOM更新）</span><br><span class="line"> 的任务都会被推到macroTask而不是microtask。</span><br><span class="line"> **/</span><br><span class="line">export function withMacroTask (fn: Function): Function &#123;</span><br><span class="line">  return fn._withTask || (fn._withTask = function () &#123;</span><br><span class="line">    useMacroTask = true</span><br><span class="line">    const res = fn.apply(null, arguments)</span><br><span class="line">    useMacroTask = false</span><br><span class="line">    return res</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"> /*</span><br><span class="line">    推送到队列中下一个tick时执行</span><br><span class="line">    cb 回调函数</span><br><span class="line">    ctx 上下文</span><br><span class="line">  */</span><br><span class="line">export function nextTick (cb?: Function, ctx?: Object) &#123;</span><br><span class="line">  let _resolve</span><br><span class="line">   /*cb存到callbacks中*/</span><br><span class="line">  callbacks.push(() =&gt; &#123;</span><br><span class="line">    if (cb) &#123;</span><br><span class="line">      try &#123;</span><br><span class="line">        cb.call(ctx)</span><br><span class="line">      &#125; catch (e) &#123;</span><br><span class="line">        handleError(e, ctx, &apos;nextTick&apos;)</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; else if (_resolve) &#123;</span><br><span class="line">      _resolve(ctx)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">  </span><br><span class="line">  if (!pending) &#123;</span><br><span class="line">    pending = true</span><br><span class="line">    if (useMacroTask) &#123;</span><br><span class="line">      macroTimerFunc()</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      microTimerFunc()</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  // $flow-disable-line</span><br><span class="line">  if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) &#123;</span><br><span class="line">    return new Promise(resolve =&gt; &#123;</span><br><span class="line">      _resolve = resolve</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="MessageChannel-VS-setTimeout"><a href="#MessageChannel-VS-setTimeout" class="headerlink" title="MessageChannel VS setTimeout"></a>MessageChannel VS setTimeout</h3><p>为什么要优先MessageChannel创建macroTask而不是setTimeout？</p>
+<p><strong> <font color="#dd0000">HTML5中规定setTimeout的最小时间延迟是4ms，也就是说理想环境下异步回调最快也是4ms才能触发。</font> </strong></p>
+<p>Vue使用这么多函数来模拟异步任务，其目的只有一个，就是让回调异步且尽早调用。而MessageChannel的延迟明显是小于setTimeout的。</p>
+<p>说了这么多，到底什么是macrotasks，什么是microtasks呢？</p>
+<h5 id="两者的具体实现"><a href="#两者的具体实现" class="headerlink" title="两者的具体实现"></a>两者的具体实现</h5><p><strong>macrotasks：</strong></p>
+<blockquote>
+<font color="#dd0000">setTimeout ，setInterval， setImmediate，requestAnimationFrame, I/O ，UI渲染</font>
+</blockquote>
+<p><strong>microtasks:</strong></p>
+<blockquote>
+<font color="#dd0000">Promise， process.nextTick， Object.observe， MutationObserver</font>
+</blockquote>
+<p><strong>1.在 macrotask 队列中执行最早的那个 task ，然后移出</strong></p>
+<p><strong>2.再执行 microtask 队列中所有可用的任务，然后移出</strong></p>
+<p><strong>3.下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</strong></p>
+<p>那我们上面提到的任务队列到底是什么呢？跟macrotasks和microtasks有什么联系呢？</p>
+<p>• 一个事件循环有一个或者多个任务队列；</p>
+<p>• 每个事件循环都有一个microtask队列；</p>
+<p>• macrotask队列就是我们常说的任务队列，microtask队列不是任务队列；</p>
+<p>• 一个任务可以被放入到macrotask队列，也可以放入microtask队列；</p>
+<p>• 当一个任务被放入microtask或者macrotask队列后，准备工作就已经结束，这时候可以开始执行任务了。</p>
+<p>可见，setTimeout和Promises不是同一类的任务，处理方式应该会有区别，具体的处理方式有什么不同呢？ </p>
+<p>通俗的解释一下，microtasks的作用是用来调度应在当前执行的脚本执行结束后立即执行的任务。 例如响应事件、或者异步操作，以避免付出额外的一个task的费用。</p>
+<p>microtask会在两种情况下执行：</p>
+<p>任务队列(macrotask = task queue)回调后执行，前提条件是当前没有其他执行中的代码。<br>每个task末尾执行。<br>另外在处理microtask期间，如果有新添加的microtasks，也会被添加到队列的末尾并执行。</p>
+<p>也就是说执行顺序是：</p>
+<p>开始 -&gt; 取task queue第一个task执行 -&gt; 取microtask全部任务依次执行 -&gt; 取task queue下一个任务执行 -&gt; 再次取出microtask全部任务执行 -&gt; … 这样循环往复</p>
+<p>Promise一旦状态置为完成态，便为其回调(.then内的函数)安排一个microtask。</p>
+<p>接下来我们看回我们上面的代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">setTimeout(function()&#123;</span><br><span class="line">    console.log(1)</span><br><span class="line">&#125;,0);</span><br><span class="line">new Promise(function(resolve)&#123;</span><br><span class="line">    console.log(2)</span><br><span class="line">    for( var i=100000 ; i&gt;0 ; i-- )&#123;</span><br><span class="line">        i==1 &amp;&amp; resolve()</span><br><span class="line">    &#125;</span><br><span class="line">    console.log(3)</span><br><span class="line">&#125;).then(function()&#123;</span><br><span class="line">    console.log(4)</span><br><span class="line">&#125;);</span><br><span class="line">console.log(5);</span><br></pre></td></tr></table></figure>
+<p>按照上面的规则重新分析一遍：</p>
+<p>当运行到setTimeout时，会把setTimeout的回调函数console.log(1)放到任务队列里去，然后继续向下执行。</p>
+<p>接下来会遇到一个Promise。首先执行打印console.log(2)，然后执行for循环，即时for循环要累加到10万，也是在执行栈里面，等待for循环执行完毕以后，将Promise的状态从fulfilled切换到resolve，随后把要执行的回调函数，也就是then里面的console.log(4)推到microtask里面去。接下来马上执行马上console.log(3)。</p>
+<p>然后出Promise，还剩一个同步的console.log(5)，直接打印。这样第一轮下来，已经依次打印了2，3，5。</p>
+<p>现在第一轮任务队列已经执行完毕，没有正在执行的代码。符合上面讲的microtask执行条件，因此会将microtask中的任务优先执行，因此执行console.log(4)</p>
+<p>最后还剩macrotask里的setTimeout放入的函数console.log(1)最后执行。</p>
+<p>如此分析输出顺序是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">2</span><br><span class="line">3</span><br><span class="line">5</span><br><span class="line">4</span><br><span class="line">1</span><br></pre></td></tr></table></figure>
+<p>我们再来看一个：</p>
+<p>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：</p>
+<p><strong> 1.先执行 macrotasks：I/O -》 UI渲染 </strong></p>
+<p><strong> 2.再执行 microtasks ：process.nextTick -》 Promise -》MutationObserver -&gt;Object.observe </strong></p>
+<p><strong> 3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次： setTimeout ，setInterval –》setImmediate </strong></p>
+<p>综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">setImmediate(function()&#123;</span><br><span class="line">    console.log(1);</span><br><span class="line">&#125;,0);</span><br><span class="line">setTimeout(function()&#123;</span><br><span class="line">    console.log(2);</span><br><span class="line">&#125;,0);</span><br><span class="line">new Promise(function(resolve)&#123;</span><br><span class="line">    console.log(3);</span><br><span class="line">    resolve();</span><br><span class="line">    console.log(4);</span><br><span class="line">&#125;).then(function()&#123;</span><br><span class="line">    console.log(5);</span><br><span class="line">&#125;);</span><br><span class="line">console.log(6);</span><br><span class="line">process.nextTick(function()&#123;</span><br><span class="line">    console.log(7);</span><br><span class="line">&#125;);</span><br><span class="line">console.log(8);</span><br><span class="line">结果是：3 4 6 8 7 5 2 1</span><br></pre></td></tr></table></figure>
+<h3 id="使用了nextTick异步更新视图有什么好处呢？"><a href="#使用了nextTick异步更新视图有什么好处呢？" class="headerlink" title="使用了nextTick异步更新视图有什么好处呢？"></a>使用了nextTick异步更新视图有什么好处呢？</h3><p>接下来我们看一下一个Demo：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div&gt;</span><br><span class="line">    &lt;div&gt;&#123;&#123;test&#125;&#125;&lt;/div&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">export default &#123;</span><br><span class="line">    data () &#123;</span><br><span class="line">        return &#123;</span><br><span class="line">            test: 0</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;,</span><br><span class="line">    created () &#123;</span><br><span class="line">      for(let i = 0; i &lt; 1000; i++) &#123;</span><br><span class="line">        this.test++;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>现在有这样的一种情况，created的时候test的值会被++循环执行1000次。<br>每次++时，都会根据响应式触发setter-&gt;Dep-&gt;Watcher-&gt;update-&gt;patch。<br>如果这时候没有异步更新视图，那么每次++都会直接操作DOM更新视图，这是非常消耗性能的。<br>所以Vue.js实现了一个queue队列，在下一个tick的时候会统一执行queue中Watcher的run。同时，拥有相同id的Watcher不会被重复加入到该queue中去，所以不会执行1000次Watcher的run。最终更新视图只会直接将test对应的DOM的0变成1000。<br>保证更新视图操作DOM的动作是在当前栈执行完以后下一个tick的时候调用，大大优化了性能。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/11/19-个-JavaScript-有用的简写技术/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3239,6 +1986,1788 @@ console.log(validate(schema, {first:&apos;Bruce&apos;,last:&apos;Wayne&apos;}));
 
 
     
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/04/React高阶组件/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/04/React高阶组件/" itemprop="url">React高阶组件HOC</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-04T19:10:27+08:00">
+                2017-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="什么是高阶组件？"><a href="#什么是高阶组件？" class="headerlink" title="什么是高阶组件？"></a>什么是高阶组件？</h4><blockquote>
+<p>高阶部件是一种用于复用组件逻辑的高级技术，它并不是 React API的一部分，而是从React 演化而来的一种模式。 具体地说，高阶组件就是一个接收一个组件并返回另外一个新组件的函数！</p>
+</blockquote>
+<p>这是官方文档说的，我没有截全，因为后面的解释会造成误解，但简单讲高阶组件（函数）就好比一个加工厂，同样的，屏幕、cpu、扬声器、键盘按键、外壳、电池，小米手机工厂组装完就是小米手机，魅族手机组装完就是魅族手机，基本材料都是相同的，不同工厂（高阶组件）有不同的实现及产出，当然这个工厂（高阶组件）也可能是针对某个基本材料的处理。</p>
+<p>总之产出的结果拥有了输入组件不具备的功能，输入的组件可以是一个组件的实例，也可以是一个组件类，还可以是一个无状态组件的函数。</p>
+<h4 id="解决什么问题？"><a href="#解决什么问题？" class="headerlink" title="解决什么问题？"></a>解决什么问题？</h4><p>随着项目越来越复杂，开发过程中，多个组件需要某个功能，而且这个功能和页面并没有关系，所以也不能简单的抽取成一个新的组件，但是如果让同样的逻辑在各个组件里各自实现，无疑会导致重复的代码。比如页面有三种弹窗一个有title，一个没有，一个又有右上角关闭按钮，除此之外别无它样，你总不能整好几个弹窗组件吧，这里除了tilte,关闭按钮其他的就可以做为上面说的基本材料。</p>
+<hr>
+<h4 id="高阶组件总共分为两大类"><a href="#高阶组件总共分为两大类" class="headerlink" title="高阶组件总共分为两大类"></a>高阶组件总共分为两大类</h4><ul>
+<li><p>代理方式</p>
+<ol>
+<li>操纵prop</li>
+<li>访问ref（不推荐）</li>
+<li>抽取状态</li>
+<li>包装组件</li>
+</ol>
+</li>
+<li><p>继承方式</p>
+<ol>
+<li>操纵生命周期</li>
+<li>操纵prop</li>
+</ol>
+</li>
+</ul>
+<h4 id="代理方式之-操纵prop"><a href="#代理方式之-操纵prop" class="headerlink" title="代理方式之 操纵prop"></a>代理方式之 操纵prop</h4><h6 id="删除prop"><a href="#删除prop" class="headerlink" title="删除prop"></a>删除prop</h6><pre><code>import React from&apos;react&apos;functionHocRemoveProp(WrappedComponent) {
+  returnclassWrappingComPonentextendsReact.Component{
+    render() {
+      const { user, ...otherProps } = this.props;
+      return&lt;WrappedComponent {...otherProps} /&gt;
+    }
+  }
+}
+export default HocRemoveProp;
+</code></pre><h6 id="增加prop"><a href="#增加prop" class="headerlink" title="增加prop"></a>增加prop</h6><p>接下来我把简化了写法，把匿名函数去掉，同时换成箭头函数</p>
+<pre><code>import React from&apos;react&apos;const HocAddProp = (WrappedComponent，uid) =&gt;classextendsReact.Component{
+    render() {
+      const newProps = {
+        uid,
+      };
+      return&lt;WrappedComponent {...this.props}  {...newProps}  /&gt;
+    }
+  }
+
+export default HocAddProp;
+</code></pre><p>上面HocRemoveProp高阶组件中，所做的事情和输入组件WrappedComponent功能一样，只是忽略了名为user的prop。也就是说，如果WrappedComponent能处理名为user的prop,这个高阶组件返回的组件则完全无视这个prop。</p>
+<pre><code>const { user, ...otherProps } = this.props;
+</code></pre><p>这是一个利用es6语法技巧，经过上面的语句，otherProps里面就有this.props中所有的字段除了user.</p>
+<p>假如我们现在不希望某个组件接收user的prop,那么我们就不要直接使用这个组件，而是把这个组件作为参数传递给HocRemoveProp，然后我们把这个函数的返回结果当作组件来使用</p>
+<p>两个高阶组件的使用方法：</p>
+<pre><code>const  newComponent = HocRemoveProp(SampleComponent);
+const  newComponent = HocAddProp(SampleComponent,&apos;1111111&apos;);
+</code></pre><p>也可以利用decorator语法糖这样使用</p>
+<pre><code>import React, { Component } from&apos;React&apos;;
+
+@HocRemoveProp 
+classSampleComponentextendsComponent{
+render() {}
+}
+exportdefault SampleComponent;
+</code></pre><h4 id="代理方式之-抽取状态"><a href="#代理方式之-抽取状态" class="headerlink" title="代理方式之 抽取状态"></a>代理方式之 抽取状态</h4><p>将所有的状态的管理交给外面的容器组件，这个模式就是 抽取状态</p>
+<p>外面的容器就是这个高阶组件</p>
+<pre><code>const HocContainer = (WrappedComponent) =&gt;classextendsReact.Component{
+    constructor(props) {
+      super(props)
+      this.state = {
+        name: &apos;&apos;
+      }
+    }
+    onNameChange = (event) =&gt; {
+      this.setState({
+        name: event.target.value
+      })
+    }
+    render() {
+      const newProps = {
+        name: {
+          value: this.state.name,
+          onChange: this.onNameChange
+        }
+      }
+      return&lt;WrappedComponent {...this.props} {...newProps} /&gt;
+    }
+  }
+
+@HocContainer
+classSampleComponentextendsReact.Component{
+  render() {
+    return&lt;inputname=&quot;name&quot; {...this.props.name}/&gt;
+  }
+}
+</code></pre><p>这样当我们在使用这个已经被包裹的input组件（SampleComponent）时候</p>
+<p>它的值就被放在了HocContainer高阶组件中，当很多这样的input组件都用这个HocContainer高阶组件时，那么它们的值都将保存在这个HocContainer高阶组件中</p>
+<h4 id="代理方式之-包装组件"><a href="#代理方式之-包装组件" class="headerlink" title="代理方式之 包装组件"></a>代理方式之 包装组件</h4><pre><code>const HocStyleComponent = (WrappedComponent, style) =&gt;classextendsReact.Component{
+    render() {
+      return (
+        &lt;divstyle={style}&gt;&lt;WrappedComponent {...this.props} {...newProps} /&gt;&lt;/div&gt;
+      )
+    }
+  }
+</code></pre><p>这样使用</p>
+<pre><code>import HocStyleComponent from&apos;./HocStyleComponent&apos;;
+const colorSytle ={color:&apos;#ff5555&apos;}
+const  newComponent = HocStyleComponent(SampleComponent, colorSytle);
+</code></pre><p>-代理方式的生命周期的过程类似于堆栈调用:</p>
+<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;(HOCs will unmount) 一&gt;HOC will unmount一&gt;unmount</p>
+<h4 id="在说继承方式之前先看一个例子"><a href="#在说继承方式之前先看一个例子" class="headerlink" title="在说继承方式之前先看一个例子"></a>在说继承方式之前先看一个例子</h4><pre><code>const MyContainer = (WrappedComponent) =&gt;classextendsWrappedComponent{
+    render() {
+      returnsuper.render();
+    }
+  }
+</code></pre><p>这个例子很简单，相当于把WrappedComponent组件的render方法，通过super.render()方法吐到了MyContainer 中，可以顺序调用。</p>
+<ul>
+<li>继承方式的生命周期的过程类似于队列调用:</li>
+</ul>
+<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;will unmount一&gt;HOC will unmount一&gt; (HOCs will unmount)</p>
+<ul>
+<li>代理方式下WrappedComponent会经历一个完整的生命周期，产生的新组件和参数组件是两个不同的组件，一次渲染，两个组件都会经历各自的生命周期，</li>
+<li>在继承方式下，产生的新组件和参数组件合二为一，super.render只是生命周期中的函数，变成一个生命周期。</li>
+</ul>
+<p>来看下面的例子你就会明白了。</p>
+<h4 id="继承方式之-操纵生命周期-渲染劫持"><a href="#继承方式之-操纵生命周期-渲染劫持" class="headerlink" title="继承方式之 操纵生命周期(渲染劫持)"></a>继承方式之 操纵生命周期(渲染劫持)</h4><p>首先创建一个高阶，在创建一个使用高阶组件的组件，也就是是输入组件，最后我在改变这个输入组件props</p>
+<pre><code>import * as React from&apos;react&apos;;
+
+const HocComponent = (WrappedComponent) =&gt;classMyContainerextendsWrappedComponent{
+    render() {
+      if (this.props.time &amp;&amp; this.state.success) {
+        returnsuper.render()
+      }
+      return&lt;div&gt;倒计时完成了...&lt;/div&gt;
+    }
+  }
+</code></pre><p>这个高阶组件会直接读取输入组件中的props,state,然后控制了输入组件的render展示</p>
+<p>只有在props.time和state.success同时为真的时候才会展示</p>
+<pre><code>import * as React from&apos;react&apos;;
+import HocComponent from&apos;./HocComponent&apos;
+
+@HocComponent
+
+classDemoComponentextendsReact.Component{
+  constructor(props) {
+    super(props);
+   this.state = {
+    success: true,
+   };
+ }
+  render() {
+    return&lt;div&gt;我是一个组件&lt;/div&gt;
+  }
+} 
+exportdefault DemoComponent;
+</code></pre><p>然后调用，递减time数值直到变为0</p>
+<h6 id="由此可以看出高阶组件也可以控制state"><a href="#由此可以看出高阶组件也可以控制state" class="headerlink" title="由此可以看出高阶组件也可以控制state"></a>由此可以看出高阶组件也可以控制state</h6><p>但是最好要限制这样做，可能会让WrappedComponent组件内部状态变得一团糟。建议可以通过重新命名state，以防止混淆。</p>
+<h4 id="继承方式之-操纵prop"><a href="#继承方式之-操纵prop" class="headerlink" title="继承方式之 操纵prop"></a>继承方式之 操纵prop</h4><pre><code>const HOCPropsComponent = (WrappedComponent) =&gt;classextendsWrappedComponent{
+    render() {
+      const elementsTree = super.render();
+      let newProps = {
+        color: (elementsTree &amp;&amp; elementsTree.type === &apos;div&apos;) ? &apos;#fff&apos; : &apos;#ff5555&apos;
+      };
+
+      const props = Object.assign({}, elementsTree.props, newProps)
+      const newElementsTree = React.cloneElement(elementsTree, props, elementsTree.props.children)
+      return newElementsTree
+    }
+  }
+</code></pre><p>这样就传入了新的props，。</p>
+<p>React.cloneElement( element, [props], […children])</p>
+<p>参数：TYPE（ReactElement），[PROPS（object）]，[CHILDREN（ReactElement）]</p>
+<p>克隆并返回一个新的 ReactElement ，新返回的元素会保留有旧元素的 props、ref、key，也会集成新的 props。</p>
+<h5 id="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"><a href="#还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，" class="headerlink" title="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"></a>还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，</h5><pre><code>classaddPropsextendsReact.Component{
+  render() {
+    const newProps = &apos;uid&apos;returnthis.props.children(newProps)
+  }
+} 
+</code></pre><p>使用方式</p>
+<pre><code>&lt;addProps&gt;
+{
+   (argument) =&gt; &lt;div&gt;{argument}&lt;/div&gt;
+}
+&lt;/addProps&gt;
+</code></pre><p>感觉很方便，但是每次渲染都会重新定义一个新的函数，如果不想的话就不要定义匿名函数，</p>
+<pre><code>showUid(argument) {
+    return&lt;div&gt;{argument}&lt;/div&gt;
+}
+</code></pre><h5 id="彩蛋recompose库"><a href="#彩蛋recompose库" class="headerlink" title="彩蛋recompose库"></a>彩蛋recompose库</h5><p>recompose是一个很流行的库，它提供了很多很有用的高阶组件（小工具），而且也可以优雅的组合它们。</p>
+<h6 id="Step-1-扁平props"><a href="#Step-1-扁平props" class="headerlink" title="Step 1 扁平props."></a>Step 1 扁平props.</h6><p>我们有这样一个组件</p>
+<pre><code>const Profile = ({ user }) =&gt; ( 
+&lt;div&gt;&lt;div&gt;Username: {user.username}&lt;/div&gt;&lt;div&gt;Age: {user.age}&lt;/div&gt;&lt;/div&gt;
+ )
+</code></pre><p>如果想要改变组件接口来接收单个 prop 而不是整个用户对象，可以用 recompose 提供的高 阶组件 flattenProp 来实现。</p>
+<pre><code>const Profile = ({ username，age }) =&gt; ( 
+&lt;div&gt;&lt;div&gt;Username: {username}&lt;/div&gt;&lt;div&gt;Age: {age}&lt;/div&gt;&lt;/div&gt;
+ )
+</code></pre><p>const ProfileWithFlattenUser = flattenProp(‘user’)(Profile)；</p>
+<p>现在我们希望同时使用多个高阶组件：一个用于扁平化处理用户 prop，另一个用于重命名用 户对象的单个 prop，不过串联使用函数的做法似乎不太好。 此时 recompose 库提供的 compose 函数就派上用场了。</p>
+<pre><code>const enhance = compose(
+ flattenProp(&apos;user&apos;),
+ renameProp(&apos;username&apos;, &apos;name&apos;)
+ )
+</code></pre><p>然后按照以下方式将它应用于原有组件：</p>
+<pre><code>const EnhancedProfile = enhance(Profile)
+</code></pre><p>还可以将 compose 函数用 在我们自己的高阶组件上，甚至结合使用都可以：</p>
+<pre><code>const enhance = compose( 
+ flattenProp(&apos;user&apos;), 
+ renameProp(&apos;username&apos;, &apos;name&apos;), 
+ withInnerWidth 
+)
+</code></pre><h6 id="Step-2-提取输入表单的State"><a href="#Step-2-提取输入表单的State" class="headerlink" title="Step 2 提取输入表单的State"></a>Step 2 提取输入表单的State</h6><p>我们将从Recompose库中使用withStateHandlers高阶组件。 它将允许我们将组件状态与组件本身隔离开来。 我们将使用它为电子邮件，密码和确认密码字段添加表单状态，以及上述字段的事件处理程序。</p>
+<pre><code>import { withStateHandlers, compose } from&quot;recompose&quot;;
+
+const initialState = {
+  email: { value: &quot;&quot; },
+  password: { value: &quot;&quot; },
+  confirmPassword: { value: &quot;&quot; }
+};
+
+const onChangeEmail = props =&gt; event =&gt; ({
+  email: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const onChangePassword = props =&gt; event =&gt; ({
+  password: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const onChangeConfirmPassword = props =&gt; event =&gt; ({
+  confirmPassword: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const withTextFieldState = withStateHandlers(initialState, {
+  onChangeEmail,
+  onChangePassword,
+  onChangeConfirmPassword
+});
+
+exportdefault withTextFieldState;
+</code></pre><p>withStateHandlers它接受初始状态和包含状态处理程序的对象。调用时，每个状态处理程序将返回新的状态。</p>
+<p>好了，很辛苦也很感谢你能看到这里，关于recompose介绍到此为止，喜欢的朋友可以深入研究recompose其它的方法和源码。</p>
+<p>不准确的地方欢迎拍砖</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/02/CSS如何实现文字两端对齐/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/02/CSS如何实现文字两端对齐/" itemprop="url">CSS如何实现文字两端对齐</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-02T23:22:03+08:00">
+                2017-10-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>最近在工作项目中接触到Web界面设计的问题，要实现文字两端对齐的效果。在网上搜索了一下，差不多都是互相转帖，用的都是类似的技巧：</p>
+<pre><code>text-align:justify;
+text-justify:inter-ideograph;
+</code></pre><p>但问题是，我怎么就看不到效果呢？无论是英文还是中文，在IE和chrome下都不起作用。后来，终于在StackOverflow上找到解决方法了。</p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;UTF-8&quot;&gt;
+        &lt;title&gt;&lt;/title&gt;
+        &lt;style type=&quot;text/css&quot;&gt;
+            .arter li {
+                font-size: 14px;
+                line-height: 24px;
+                color: #4a4a4a;
+            }
+
+            .arter span {
+                height: 24px;
+                line-height: 24px;
+                width: 65px;
+                text-align: justify;
+                display: inline-block;
+                overflow: hidden;
+                vertical-align: top;
+            }
+
+            .arter i {
+                display: inline-block;
+                width: 100%;
+                height: 0;
+            }
+
+
+
+
+            .arter1 li {
+                font-size: 14px;
+                line-height: 24px;
+                color: #4a4a4a;
+            }
+
+
+
+            .arter1 span {
+                height: 24px;
+                line-height: 24px;
+                width: 65px;
+                text-align: justify;
+                display: inline-block;
+                overflow: hidden;
+                vertical-align: top;
+            }
+            .arter1 span:after {
+                content: &quot; &quot;;
+                display: inline-block;
+                width: 100%;
+                height: 0px;
+            }
+        &lt;/style&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+        &lt;ul class=&quot;arter&quot;&gt;
+            &lt;li&gt;&lt;span&gt;作品名称&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 宝贝儿&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;作品类型&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;艺术家&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 张玉瀛&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;风格&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 超现实&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;材质&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 布面油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;题材&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 人物&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;创作时间&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 2011&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;所在位置&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 华东&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;尺寸&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 78x78cm&lt;/li&gt;
+        &lt;/ul&gt;
+        &lt;br /&gt;&lt;br /&gt;
+        &lt;ul class=&quot;arter1&quot;&gt;
+            &lt;li&gt;&lt;span&gt;作品名称&lt;/span&gt;： 宝贝儿&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;作品类型&lt;/span&gt;： 油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;艺术家&lt;/span&gt;： 张玉瀛&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;风格&lt;/span&gt;： 超现实&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;材质&lt;/span&gt;： 布面油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;题材&lt;/span&gt;： 人物&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;创作时间&lt;/span&gt;： 2011&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;所在位置&lt;/span&gt;： 华东&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;尺寸&lt;/span&gt;： 78x78cm&lt;/li&gt;
+        &lt;/ul&gt;
+    &lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre><p>样式：<br><img src="https://pic1.zhimg.com/v2-b92871dee74e80785026c069073206ab_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-b92871dee74e80785026c069073206ab_hd.jpg" alt=""><br>从效果图可以看到，除了要在块级元素加text-align:justify样式外，还需要在里面加一个空的span元素，并应用样式。另外，对于中文还必须用空格隔开汉字，否则也没有两端对齐的效果。英文每个单词都有空格隔开，所以没问题。</p>
+<p>但是加入HTML元素又违反了结构表现分离的原则，我们可以改用after、before伪元素：</p>
+<pre><code>li:after {
+    content: &quot; &quot;;
+    display: inline-block;
+    width: 100%;
+}
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/11/Git-必知必会/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/09/11/Git-必知必会/" itemprop="url">Git 必知必会</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-11T22:32:36+08:00">
+                2017-09-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>Git是目前世界上最先进的分布式版本控制系统。</p>
+<p>参考文章：</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a54386af265da3e3b7a6317" target="_blank" rel="noopener">如何优雅地使用 Git - 掘金</a></p>
+<h2 id="GIT-常见命令学习整理"><a href="#GIT-常见命令学习整理" class="headerlink" title="GIT 常见命令学习整理"></a><a href="https://link.zhihu.com/?target=https%3A//blog.ihoey.com/posts/Git/2017-04-23-git.html" target="_blank" rel="noopener">GIT 常见命令学习整理</a></h2><h2 id="GIT常用命令备忘"><a href="#GIT常用命令备忘" class="headerlink" title="GIT常用命令备忘"></a><a href="https://link.zhihu.com/?target=http%3A//stormzhang.com/git/2014/01/27/git-common-command/" target="_blank" rel="noopener">GIT常用命令备忘</a></h2><h2 id="Git远程操作详解"><a href="#Git远程操作详解" class="headerlink" title="Git远程操作详解"></a><a href="https://link.zhihu.com/?target=https%3A//microzz.com/2017/05/06/git/" target="_blank" rel="noopener">Git远程操作详解</a></h2><h2 id="一篇文章，教你学会Git"><a href="#一篇文章，教你学会Git" class="headerlink" title="一篇文章，教你学会Git"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/599e14875188251240632702" target="_blank" rel="noopener">一篇文章，教你学会Git</a></h2><h2 id="如何在-Git-中使用撤消操作"><a href="#如何在-Git-中使用撤消操作" class="headerlink" title="如何在 Git 中使用撤消操作"></a><a href="https://link.zhihu.com/?target=https%3A//egoist.moe/2015/10/04/how-to-undo-with-git/" target="_blank" rel="noopener">如何在 Git 中使用撤消操作</a></h2><h2 id="git使用中碰到的问题，持续更新"><a href="#git使用中碰到的问题，持续更新" class="headerlink" title="git使用中碰到的问题，持续更新"></a><a href="https://link.zhihu.com/?target=http%3A//blog.csdn.net/a420344/article/details/51792303" target="_blank" rel="noopener">git使用中碰到的问题，持续更新</a></h2><h2 id="Git-的-4-个阶段的撤销更改"><a href="#Git-的-4-个阶段的撤销更改" class="headerlink" title="Git 的 4 个阶段的撤销更改"></a><a href="https://link.zhihu.com/?target=http%3A//mp.weixin.qq.com/s/akvB2DO_1dpUrf-ol77MwQ" target="_blank" rel="noopener">Git 的 4 个阶段的撤销更改</a></h2><p><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a30c1786fb9a045211eb218" target="_blank" rel="noopener">Git提交历史的修改删除合并 - 掘金</a></p>
+<h2 id="IDEA中分支切换error-The-following-untracked-working-tree-files-would-be-overwritten-by-checkout"><a href="#IDEA中分支切换error-The-following-untracked-working-tree-files-would-be-overwritten-by-checkout" class="headerlink" title="IDEA中分支切换error: The following untracked working tree files would be overwritten by checkout"></a><a href="https://link.zhihu.com/?target=http%3A//blog.csdn.net/tongxinxiao/article/details/43988773" target="_blank" rel="noopener">IDEA中分支切换error: The following untracked working tree files would be overwritten by checkout</a></h2><pre><code>直接执行git clean -d -fx即可。
+
+可能很多人都不明白-d，-fx到底是啥意思，
+其实git clean -d -fx表示：删除 一些 没有 git add 的 文件；
+    git clean 参数 
+
+    -n 显示将要删除的文件和目录；
+
+    -x -----删除忽略文件已经对git来说不识别的文件
+
+    -d -----删除未被添加到git的路径中的文件
+
+    -f -----强制运行
+
+    git clean -n
+
+    git clean -df
+
+    git clean -f
+</code></pre><p><img src="https://pic3.zhimg.com/v2-81f3b33c3cb53387c97135459b92ab3f_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-81f3b33c3cb53387c97135459b92ab3f_hd.jpg" alt=""></p>
+<pre><code>git reflog        //该指令输出详细的操作历史，包括提交，操作，修改等
+修改注释
+git commit --amend 或 git commit --amend -m &quot;Fixes bug #42&quot;
+
+gitk 字符集编码：
+git config --global gui.encoding utf-8    //在git GUI中使用UTF-8编码 
+
+配置
+git config --global user.name &quot;ihoey&quot;           # 设置git用户名
+git config --global user.email &quot;mail@ihoey.com&quot; # 设置git邮箱
+git config --global color.ui true               # 为true是终端着色
+
+git config --global alias.co checkout           # 配置checkout的别名
+git config --global alias.ci commit             # 配置commit的别名
+git config --global alias.cm commit             # 配置commit的别名
+git config --global alias.st status             # 配置status的别名
+git config --global alias.br branch             # 配置branch的别名
+git config --global alias.cp cherry-pick        # 配置cherry-pick的别名
+ git config --global alias.rb rebase            # 配置rebase的别名
+
+git config --global core.editor &quot;mate -w&quot;       # 设置Editor使用textmate
+git config -l                                   # 列举所有配置
+#用户的git配置文件~/.gitconfig
+
+SSH 秘钥
+ssh-keygen -t rsa -C &quot;mail@ihoey.com&quot;
+# 连续3个回车。如果不需要密码的话。
+# 最后得到了两个文件：id_rsa和id_rsa.pub，在~/.ssh/文件夹下面
+# id_rsa为你的私钥，不可以告诉别人
+# id_rsa.pub为你的公钥，一般会放在你的服务器做ssh登录，或者放在github上面
+
+基本命令
+创建git仓库 git init
+添加文件到暂存区 git add fileName / git add .
+提交文件到仓库 git commit -m &quot;版本提交信息&quot;
+查看文件提交状态 git status
+查看文件修改的信息 git diff readme.txt
+
+git help &lt;command&gt;          # 显示command的help
+git show                    # 显示某次提交的内容
+git show $id
+git checkout  -- &lt;file&gt;     # 抛弃工作区修改
+git checkout  .             # 抛弃工作区修改
+git add &lt;file&gt;              # 将工作文件修改提交到本地暂存区
+git add .                   # 将所有修改过的工作文件提交暂存区
+git rm &lt;file&gt;               # 从版本库中删除文件
+git rm &lt;file&gt; --cached      # 从版本库中删除文件，但不删除文件
+git reset &lt;file&gt;            # 从暂存区恢复到工作文件
+git reset -- .              # 从暂存区恢复到工作文件
+git reset --hard            # 恢复最近一次提交过的状态，即放弃上次提交后的所有本次修改
+git reset SHA1 ID           # 恢复指定提交
+git commit -m &quot;some comments&quot;
+git revert &lt;$id&gt;            # 恢复某次提交的状态，恢复动作本身也创建了一次提交对象
+git revert HEAD             # 恢复最后一次提交的状态
+
+查看文件
+git diff &lt;file&gt;                 # 比较当前文件和暂存区文件差异
+git diff
+git diff &lt;$id1&gt; &lt;$id2&gt;          # 比较两次提交之间的差异
+git diff &lt;branch1&gt;..&lt;branch2&gt;   # 在两个分支之间比较
+git diff --staged               # 比较暂存区和版本库差异
+git diff --cached               # 比较暂存区和版本库差异
+git diff --stat                 # 仅仅比较统计信息
+
+查看提交记录
+git log
+git log &lt;file&gt;      # 查看该文件每次提交记录
+git log -p &lt;file&gt;   # 查看每次详细修改内容的diff
+git log -p -2       # 查看最近两次详细修改内容的diff
+git log --stat      # 查看提交统计信息
+
+分支管理
+git branch -l                           # 查看本地分支
+git branch -r                           # 查看远程分支
+git branch &lt;new_branch&gt;                 # 创建新的分支
+git branch -v                           # 查看各个分支最后提交信息
+git branch --merged                     # 查看已经被合并到当前分支的分支
+git branch --no-merged                  # 查看尚未被合并到当前分支的分支
+git checkout &lt;branch&gt;                   # 切换到某个分支
+git checkout -b &lt;new_branch&gt;            # 创建新的分支，并且切换过去
+git checkout -b &lt;new_branch&gt; &lt;branch&gt;   # 基于branch创建新的new_branch
+git checkout $id       # 把某次历史提交记录checkout出来，但无分支信息，切换到其他分支会自动删除
+git checkout $id -b &lt;new_branch&gt;        # 把某次历史提交记录checkout出来，创建成一个分支
+git branch -d &lt;branch&gt;                  # 删除某个分支
+git branch -D &lt;branch&gt;    # 强制删除某个分支 (未被合并的分支被删除的时候需要强制)
+
+强行切换分支
+git checkout -f branch_name
+
+强制checkout分支覆盖本地文件
+git checkout -f branchname
+
+分支合并和rebase
+git merge &lt;branch&gt;               # 将branch分支合并到当前分支
+git merge --no-ff &lt;branch&gt;       # 不要Fast-Foward合并，这样可以生成merge提交
+git rebase master &lt;branch&gt;       # 将master rebase到branch，相当于：
+git checkout &lt;branch&gt; &amp;&amp; git rebase master &amp;&amp; git checkout master &amp;&amp; git merge &lt;branch&gt;
+</code></pre><ul>
+<li>在我们操作过程中。merge操作遇到冲突的时候，当前merge不能继续进行下去。手动修改冲突内容后，add 修改，commit 就可以了。</li>
+<li><p>而rebase 操作的话，会中断rebase,同时会提示去解决冲突。解决冲突后,将修改add后执行git rebase –continue继续操作，或者git rebase –skip忽略冲突。</p>
+<p>  Git暂存管理<br>  git stash                        # 暂存<br>  git stash pop                    # 恢复暂存<br>  git stash list                   # 列所有stash<br>  git stash apply                  # 恢复暂存的内容<br>  git stash drop                   # 删除暂存区</p>
+<p>  git stash(gsta)：将所有暂存区的文件移动到“储藏区”，类似于另一种类型的工作区<br>  git stash list：查看储藏队列(Stash lists)<br>  git stash apply：将最近一次储藏恢复到暂存区(可以用类似 git stash apply stash@{num}(num从0开始计数) 的命令来使用在队列中的任意一个储藏(stashes))<br>  git stash clear：清空储藏队列<br>  git stash save “name of the stash”：为储藏设置命名<br>  git stash pop(gstp)：将最近一次储藏恢复到暂存区并从储藏队列删除此储藏<br>  git stash drop(gstd)：从储藏队列删除最近一次储藏(stash@{0})(git stash drop stash@{num} 从储藏队列删除指定储藏)</p>
+<p>  远程分支管理<br>  git pull                         # 抓取远程仓库所有分支更新并合并到本地<br>  git pull –no-ff                 # 抓取远程仓库所有分支更新并合并到本地，不要快进合并<br>  git fetch origin                 # 抓取远程仓库更新<br>  git merge origin/master          # 将远程主分支合并到本地当前分支<br>  git checkout –track origin/branch     # 跟踪某个远程分支创建相应的本地分支<br>  git checkout -b &lt;local_branch&gt; origin/&lt;remote_branch&gt;  # 基于远程分支创建本地分支，功能同上<br>  git push                         # push所有分支<br>  git push origin master           # 将本地主分支推到远程主分支<br>  git push -u origin master        # 将本地主分支推到远程(如无远程主分支则创建，用于初始化远程仓库)<br>  git push origin &lt;local_branch&gt;   # 创建远程分支， origin是远程仓库名<br>  git push origin &lt;local_branch&gt;:&lt;remote_branch&gt;  # 创建远程分支<br>  git push origin :&lt;remote_branch&gt; #先删除本地分支(git br -d <branch>)，然后再push删除远程分支</branch></p>
+<p>  git删除远程分支<br>  git push origin ：branch-name //origin前面必须有空格，表示push一个空分支到远程分支，即可删除远程分支。注意：这个操作需要拥有force push的权限</p>
+<p>  清空git暂存区<br>  git reset HEAD  //可以清空之前git add 的内容</p>
+<p>  Git远程仓库管理<br>  git remote -v                    # 查看远程服务器地址和仓库名称<br>  git remote show origin           # 查看远程服务器仓库状态<br>  git remote add origin <a href="mailto:git@github.com" target="_blank" rel="noopener">git@github.com</a>:ihoey/blog.git     # 添加远程仓库地址<br>  git remote set-url origin <a href="mailto:git@github.com" target="_blank" rel="noopener">git@github.com</a>:ihoey/blog.git # 设置远程仓库地址(用于修改远程仓库地址)<br>  git remote rm <repository>       # 删除远程仓库</repository></p>
+<p>  创建远程仓库<br>  git clone –bare ihoey.com blog.git     # 用带版本的项目创建纯版本仓库<br>  scp -r my_blog.git <a href="mailto:git@ihoey.com" target="_blank" rel="noopener">git@ihoey.com</a>:~      # 将纯仓库上传到服务器上<br>  mkdir blog.git &amp;&amp; cd blog.git &amp;&amp; git –bare init # 在服务器创建纯仓库<br>  git push -u origin master         # 客户端首次提交<br>  git push -u origin develop        # 首次将本地develop分支提交到远程develop分支，并且track<br>  git remote set-head origin master # 设置远程仓库的HEAD指向master分支</p>
+<p>  设置跟踪远程库和本地库<br>  git branch –set-upstream master origin/master      #master<br>  git branch –set-upstream develop origin/develop    #develop</p>
+<p>  其他命令<br>  mkdir XX    #(创建一个空目录 XX指目录名)<br>  pwd         #显示当前目录的路径。<br>  cat XX      #查看XX文件内容<br>  rm  XX      #删除文件</p>
+</li>
+</ul>
+<p>命令别名设置:</p>
+<pre><code>gitk --all &amp;   //打开git 图形化界面
+git fetch --all  //刷新工作区    
+git remote -v  //查看远端地址
+git checkout -b dbg_master  -t origin/master   //基于远端master分支创建dbg_master分支
+git merge --squash &lt;branch&gt;：将多次提交合并成一个，然后git add .;git commit -m &quot;XXXXX&quot;;git push origin XXXX...
+
+git push                         # push所有分支
+git push origin master           # 将本地主分支推到远程主分支
+git push -u origin master        # 将本地主分支推到远程(如无远程主分支则创建，用于初始化远程仓库)
+git push origin &lt;local_branch&gt;   # 创建远程分支， origin是远程仓库名
+git push origin local-branch     #将当前local-branch 分支推送一个远程local-branch分支，本地分支和远程分支同名
+git push origin &lt;local_branch&gt;:&lt;remote_branch&gt;  # 创建远程分支，将local_branch代码推送到remote_branch分支
+git push origin :&lt;remote_branch&gt;  #先删除本地分支(git br -d &lt;branch&gt;)，然后再push删除远程分支
+
+ 对最近一次commit的进行修改：git commit -a –amend
+
+ Git pull 强制覆盖本地文件
+  git fetch --all  
+  git reset --hard origin/master 
+  git pull
+
+git remote add origin https://git.oschina.net/duandaoke/os.git要求服务已经建立同名仓库
+git remote # 显示远程仓库
+git remote -v # 显示远程仓库详情
+git remote show origin # 显示 origin 远程库的详情
+
+
+
+rebase的冲突解决
+
+   解决完一个补丁应用的冲突后，执行下面命令标记冲突已解决（也就是把修改内容加入缓存） 
+      git add -u   //注：-u 表示把所有已track的文件的新的修改加入缓存，但不加入新的文件。
+   然后执行下面命令继续rebase：
+      git rebase --continue     //有冲突继续解决，重复这这些步骤，直到rebase完成。
+   如果中间遇到某个补丁不需要应用，可以用下面命令忽略：
+      git rebase --skip 
+   如果想回到rebase执行之前的状态，可以执行：
+      git rebase --abort    //放弃rebase  
+   注：rebase之后，不需要执行commit，也不存在新的修改需要提交，都是git自动完成。
+
+
+
+cherry-pick的冲突解决
+
+   解决完一个补丁应用的冲突后，执行下面命令标记冲突已解决（也就是把修改内容加入缓存） 
+      git add -u   //注：-u 表示把所有已track的文件的新的修改加入缓存，但不加入新的文件。
+   然后执行下面命令继续rebase：
+      git cherry-pick --continue     //有冲突继续解决，重复这这些步骤，直到cherry-pick完成。
+   如果中间遇到某个补丁不需要应用，可以用下面命令忽略：
+      git cherry-pick --skip 
+   如果想回到rebase执行之前的状态，可以执行：
+      git cherry-pick  --abort    //放弃cherry-pick
+   注：cherry-pick之后，不需要执行commit，也不存在新的修改需要提交，都是git自动完成。
+
+
+       手动编辑冲突的文件，使其内容和master_mlc分支上的内容一致， 
+       然后git add此文件，最后执行git cherry-pick –continue即可。 
+
+
+1、git删除远程分支
+git push origin ：branch-name //origin前面必须有空格，表示push一个空分支到远程分支，即可删除远程分支。注意：这个操作需要拥有force push的权限
+2、清空git暂存区
+git reset HEAD  //可以清空之前git add 的内容
+
+
+git clean命令用来从你的工作目录中删除所有没有tracked过的文件.
+    git clean经常和git reset --hard一起结合使用. 记住reset只影响被track过的文件, 所以需要clean来删除没有track过的文件. 结合使用这两个命令能让你的工作目录完全回到一个指定的&lt;commit&gt;的状态.
+用法
+
+
+删除当前目录下没有被track过的文件和文件夹.
+    git clean -xf
+
+
+下面的例子要删除所有工作目录下面的修改, 包括新添加的文件. 假设你已经提交了一些快照了, 而且做了一些新的开发.
+git reset --hard
+git clean -df
+运行后, 工作目录和缓存区回到最近一次commit时候一摸一样的状态, git status会告诉你这是一个干净的工作目录, 又是一个新的开始了.
+
+
+git config --global gui.encoding utf-8    //在git GUI中使用UTF-8编码     
+//git 回滚到之前某一commit
+git reset –hard 8ff24a6803173208f3e606e32dfcf82db9ac84d8
+
+
+在使用Git的时候,经过几次提交后,发现需要回退到早些时候的状态.例如: 
+7edb8524a xxxxxxxxxxxxxxxxxx 
+83dae5691 xxxxxxxxxxxxxxxxxx 
+45eadd642 xxxxxxxxxxxxxxxxxx 
+657834ade xxxxxxxxxxxxxxxxxx
+假设现在处于7edb8524a 状态,现在我想回退到657834ade时的状态,此时可以 
+git reset –hard 7edb8524a 
+然后 
+git reset –soft 657834ade 
+会将之间的修改全部进行revert,然后在进行add commit操作就行了.
+另外权限足够的话,可以从657834ade 拉一个分支出来,然后将远程分支 
+删除,再将拉出来的分支push到远程仓库上,成为原来的分支,也可以实现回退到 
+657834ade 的目的.此方法不会保留中间的各种修改信息和状态.
+
+
+根据–soft –mixed –hard，会对working tree和index和HEAD进行重置:
+    git reset –mixed：此为默认方式，不带任何参数的git reset，即时这种方式，它回退到某个版本，只保留源码，回退commit和index信息
+    git reset –soft：回退到某个版本，只回退了commit的信息，不会恢复到index file一级。如果还要提交，直接commit即可
+    git reset –hard：彻底回退到某个版本，本地的源码也会变为上一个版本的内容
+
+已经push
+对于已经把代码push到线上仓库,你回退本地代码其实也想同时回退线上代码,回滚到某个指定的版本,线上,线下代码保持一致.你要用到下面的命令
+
+revert
+git revert用于反转提交,执行evert命令时要求工作树必须是干净的.
+git revert用一个新提交来消除一个历史提交所做的任何修改.
+revert 之后你的本地代码会回滚到指定的历史版本,这时你再 git push 既可以把线上的代码更新.(这里不会像reset造成冲突的问题)
+
+revert 使用,需要先找到你想回滚版本唯一的commit标识代码,可以用 git log 或者在adgit搭建的web环境历史提交记录里查看.
+git revert c011eb3c20ba6fb38cc94fe5a8dda366a3990c61
+通常,前几位即可
+git revert c011eb3
+
+git revert是用一次新的commit来回滚之前的commit，git reset是直接删除指定的commit
+看似达到的效果是一样的,其实完全不同.
+</code></pre><p>合理的命令别名设置可以大大减少输入，有助于提高工作效率，建议遵守下述别名设置：</p>
+<pre><code>git config --global alias.ci commit
+git config --global alias.co checkout
+git config --global alias.st status
+git config --global alias.rb rebase
+git config --global alias.ll “log --oneline --decorate --color”
+git config --global alias.lc “log --graph --color”          
+</code></pre><p>正确的回车换行设置，避免 Unix 和 Windows 下开发的回车换行的转换问题。</p>
+<pre><code>(Windows  下)
+git config --global core.autocrlf true
+git config --global core. safecrlf warn
+
+(Linux  下)
+git config --global core.autocrlf input
+git config --global core. safecrlf warn
+</code></pre><p>基本命令</p>
+<pre><code>git config --global user.name &quot;Your Name&quot;
+git config --global user.email &quot;youremail@example.com&quot;
+git config --global core.editor &lt;your favorite editor here&gt;
+Ex: git config --global core.editor vim
+
+git init：初始化一个repo，初始化本地git仓库（创建新仓库）
+</code></pre><p>Commit 结构</p>
+<pre><code>git status(gst)：查看 repo 状态
+工作区：
+.git 目录
+暂存区
+工作目录
+</code></pre><p><img src="https://pic4.zhimg.com/v2-44aed332eb50ca594deeca86186012a8_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-44aed332eb50ca594deeca86186012a8_hd.jpg" alt=""></p>
+<pre><code>git add &lt;filename&gt;(ga)：添加一个文件到暂存区
+git add .(gaa)：添加所有文件到暂存区
+git add *.js：添加所有后缀为js的文件到暂存区
+git rm --cached &lt;file&gt;：从暂存区删除一个新文件
+git commit -m &quot;My first commit&quot;(gcmsg)：创建一次带 message 的提交
+git commit -v -a(gca)：
+-v是 verbose 的缩写，会在底部显示差异信息和更多有意义的信息
+-a 类似于 git add .，会添加所有被修改和删除的文件，但会忽略新创建的文件
+
+git help &lt;command&gt;：查看对应命令的帮助手册
+git log(glg,glgg,glo, glog)：查看项目的提交历史
+</code></pre><p>暂存区管理</p>
+<pre><code>git reset HEAD &lt;filename&gt;(grh)：从暂存区删除一个被修改的文件
+git reset HEAD(grh)：从暂存区删除所有被修改的文件
+git checkout &lt;filename&gt;(gco)：从暂存区删除一个被修改的文件，并撤销文件的更改     //  git checkout .
+git commit -m &quot;My first commit&quot; --amend：添加文件/更改在暂存区的最后一次提交
+git commit -v -a --amend(gca!)：添加文件/更改在暂存区的最后一次提交
+.gitignore：告诉git，哪些文件不被加入版本跟踪
+可以使用 git add &lt;filename&gt; -f 命令添加一个不被版本跟踪的文件
+
+
+git diff &lt;filename&gt;(gd)：查看基于当前文件的最后一次提交的更改差异
+git diff (gd)：查看基于所有文件的最后一次提交的更改差异
+git reset HEAD~2 --soft：从项目提交历史中删除最近两次提交，但不丢弃文件的更改
+git reset HEAD~2 --hard：从项目提交历史中删除最近两次提交，但会丢弃文件的更改和在(最后两次)提交中创建的新文件
+git reset &lt;commit&gt; --soft --hard：
+--soft：将所有被更改的文件回溯到“待提交”状态
+--hard：commit 之后，对被git追踪的文件的任何更改都被丢弃
+
+
+git reflog：显示包括&quot;被撤销&quot;在内的所有提交
+git merge &lt;commit hash&gt;：重新提交(restore the commit)
+git clean -f：删除工作目录中不被git进行版本追踪的文件
+</code></pre><p>Stashed &amp; BranchesStash</p>
+<pre><code>git stash(gsta)：将所有暂存区的文件移动到“储藏区”，类似于另一种类型的工作区
+git stash list：查看储藏队列(Stash lists)
+git stash apply：将最近一次储藏恢复到暂存区(可以用类似 git stash apply stash@{num}(num从0开始计数) 的命令来使用在队列中的任意一个储藏(stashes))
+git stash clear：清空储藏队列
+git stash save &quot;name of the stash&quot;：为储藏设置命名
+git stash pop(gstp)：将最近一次储藏恢复到暂存区并从储藏队列删除此储藏
+git stash drop(gstd)：从储藏队列删除最近一次储藏(stash@{0})(git stash drop stash@{num} 从储藏队列删除指定储藏)
+</code></pre><p>Branch</p>
+<pre><code>git checkout -b dev(gco)：创建 dev 分支并从当前分支切换到 dev 分支      //  git checkout -b dbg_master  -t origin/master   //基于master分支创建dbg_master分支
+git branch(gb)：查看所有分支
+git checkout master(gcm)：切换到主分支
+git merge &lt;branch&gt;(gm)：合并分支
+git rebase master：先将 master 上的更改合并到当前分支，再添加当前分支的更改。如果有冲突，解决冲突后加 --continue 参数继续合并
+git branch -d &lt;branch&gt;： 删除分支，-D 则强制删除分支
+git merge &lt;branch&gt; --squash：将多次提交合并成一个，其流程如下：
+
+
+
+# Go to the `master` branch
+git checkout master
+# Create a temp branch
+git checkout -b temp
+# Merge the feature/x branch into the temp using --squash
+git merge feature/x --squash
+# See the new modifications/files in the Staging Area
+git status
+# Create the unified commit
+git commit -m &quot;Add feature/x&quot;
+# Delete the feature/x branch
+git branch -D feature/x
+</code></pre><ul>
+<li><p>rebase 和 merge 的区别：</p>
+<p>  rebase:<br>  提交历史(的展示)是线性的<br>  缺点：会删除最近一个 commit，然后创建一次新的 commit<br>  如果已提交到远程，不要使用 rebase</p>
+<p>  merge:<br>  提交历史(的展示)是分叉的<br>  对于两个分支的合并，会创建一个次新的 commit</p>
+</li>
+</ul>
+<p>远程仓库管理</p>
+<pre><code>git remote add &lt;name&gt; &lt;url&gt;：添加一个将被追踪的远程仓库
+git remote rm &lt;name&gt;：移除一个远程仓库
+git push &lt;remote&gt; &lt;remote-branch&gt;(gp,ggp)：将当前分支的本地 commit 推送到远程仓库
+git fetch &lt;remote&gt; &lt;remote-branch&gt;：拉取远程仓库的最新 commit 到当前(本地)分支(&lt;remote&gt;/&lt;branch&gt;)，不会合并
+git pull &lt;remote&gt; &lt;remote-branch&gt;(gl,ggl)：拉取远程仓库的最新 commit 到当前(本地)分支，并自动 merge
+git pull --rebase(gup)：以 rebase 的方式进行合并，而不是 merge
+</code></pre><p>其它有用的命令</p>
+<pre><code>git tag &lt;name&gt;：创建一个 tag(如：v1.3)
+git push --tags：将本地 tags 推送到远程仓库
+git push &lt;tag&gt;：推送指定的本地 tag 到远程
+
+
+展示帮助信息
+git help -g
+
+回到远程仓库的状态
+抛弃本地所有的修改，回到远程仓库的状态。
+git fetch --all &amp;&amp; git reset --hard origin/master
+
+重设第一个commit
+也就是把所有的改动都重新放回工作区，并清空所有的commit，这样就可以重新提交第一个commit了
+git update-ref -d HEAD
+
+展示工作区和暂存区的不同
+输出工作区和暂存区的different(不同)。
+git diff
+
+还可以展示本地仓库中任意两个commit之间的文件变动：
+git diff &lt;commit-id&gt; &lt;commit-id&gt;
+
+展示暂存区和最近版本的不同
+输出暂存区和本地最近的版本(commit)的different(不同)。
+git diff --cached
+
+展示暂存区、工作区和最近版本的不同
+输出工作区、暂存区 和本地最近的版本(commit)的different(不同)。
+git diff HEAD
+
+快速切换分支
+git checkout -
+
+删除已经合并到master的分支
+git branch --merged master | grep -v &apos;^\*\|  master&apos; | xargs -n 1 git branch -d
+
+展示本地分支关联远程仓库的情况
+git branch -vv
+
+关联远程分支
+关联之后，git branch -vv就可以展示关联的远程分支名了，同时推送到远程仓库直接：git push，不需要指定远程仓库了。
+git branch -u origin/mybranch
+
+或者在push时加上-u参数
+git push origin/mybranch -u
+
+列出所有本地分支
+-l参数相当于：local
+git branch -l
+
+列出所有远程分支
+-r参数相当于：remote
+git branch -r
+
+列出本地和远程分支
+-a参数相当于：all
+git branch -a
+
+创建并切换到本地分支
+git checkout -b &lt;branch-name&gt;
+
+创建并切换到远程分支
+git checkout -b &lt;branch-name&gt; -t origin/&lt;branch-name&gt;
+
+删除本地分支
+git branch -d &lt;local-branchname&gt;
+
+删除远程分支
+git push origin --delete &lt;remote-branchname&gt;
+或者
+git push origin :&lt;remote-branchname&gt;
+
+重命名本地分支
+git branch -m &lt;new-branch-name&gt;
+git branch -m &lt;oldbranchname&gt; &lt;newbranchname&gt;：尝试修改
+git branch -M &lt;oldbranchname&gt; &lt;newbranchname&gt;：强制修改
+
+查看标签
+git tag
+
+展示当前分支的最近的tag
+git describe --tags --abbrev=0
+
+本地创建标签
+git tag &lt;version-number&gt;
+
+默认tag是打在最近的一次commit上，如果需要指定commit打tag：
+$ git tag -a &lt;version-number&gt; -m &quot;v1.0 发布(描述)&quot; &lt;commit-id&gt;
+
+推送标签到远程仓库
+首先要保证本地创建好了标签才可以推送标签到远程仓库：
+git push origin &lt;local-version-number&gt;
+
+一次性推送所有标签，同步到远程仓库：
+git push origin --tags
+
+删除本地标签
+git tag -d &lt;tag-name&gt;
+
+删除远程标签
+删除远程标签需要先删除本地标签，再执行下面的命令：
+git push origin :refs/tags/&lt;tag-name&gt;
+
+切回到某个标签
+一般上线之前都会打tag，就是为了防止上线后出现问题，方便快速回退到上一版本。下面的命令是回到某一标签下的状态：
+git checkout -b branch_name tag_name
+
+放弃工作区的修改
+git checkout &lt;file-name&gt;
+
+放弃所有修改：
+git checkout .
+
+恢复删除的文件
+git rev-list -n 1 HEAD -- &lt;file_path&gt; #得到 deleting_commit
+git checkout &lt;deleting_commit&gt;^ -- &lt;file_path&gt; #回到删除文件 deleting_commit 之前的状态
+
+回到某一个commit的状态，并重新增添一个commit  //回退，有记录
+git revert &lt;commit-id&gt;
+
+回到某个commit的状态，并删除后面的commit
+和revert的区别：reset命令会抹去某个commit id之后的所有commit
+git reset &lt;commit-id&gt;
+
+修改上一个commit的描述
+git commit --amend
+
+查看commit历史
+git log
+
+查看某段代码是谁写的
+blame的意思为‘责怪’，你懂的。
+git blame &lt;file-name&gt;
+
+显示本地执行过git命令
+就像shell的history一样
+git reflog
+
+修改作者名
+git commit --amend --author=&apos;Author Name &lt;email@address.com&gt;&apos;
+
+修改远程仓库的url
+git remote set-url origin &lt;URL&gt;
+
+增加远程仓库
+git remote add origin &lt;remote-url&gt;
+
+列出所有远程仓库
+git remote    //  git remote -v
+
+查看两个星期内的改动
+git whatchanged --since=&apos;2 weeks ago&apos;
+
+把A分支的某一个commit，放到B分支上
+这个过程需要cherry-pick命令，参考
+git checkout &lt;branch-name&gt; &amp;&amp; git cherry-pick &lt;commit-id&gt;
+
+给git命令起别名
+简化命令
+git config --global alias.&lt;handle&gt; &lt;command&gt;
+比如：git status 改成 git st，这样可以简化命令
+git config --global alias.st status
+
+存储当前的修改，但不用提交commit
+详解可以参考廖雪峰老师的git教程
+
+git stash
+保存当前状态，包括untracked的文件
+
+untracked文件：新建的文件
+git stash -u
+
+展示所有stashes
+git stash list
+
+回到某个stash的状态
+git stash apply &lt;stash@{n}&gt;
+
+回到最后一个stash的状态，并删除这个stash
+git stash pop
+
+删除所有的stash
+git stash clear
+
+从stash中拿出某个文件的修改
+git checkout &lt;stash@{n}&gt; -- &lt;file-path&gt;
+
+展示所有tracked的文件
+git ls-files -t
+
+展示所有untracked的文件
+git ls-files --others
+
+展示所有忽略的文件
+git ls-files --others -i --exclude-standard
+
+强制删除untracked的文件
+可以用来删除新建的文件。如果不指定文件文件名，则清空所有工作的untracked文件。clean命令，注意两点：
+clean后，删除的文件无法找回
+不会影响tracked的文件的改动，只会删除untracked的文件git clean &lt;file-name&gt; -f
+强制删除untracked的目录
+可以用来删除新建的目录，注意:这个命令也可以用来删除untracked的文件。详情见上一条
+git clean &lt;directory-name&gt; -df
+
+展示简化的commit历史
+git log --pretty=oneline --graph --decorate --all
+把某一个分支到导出成一个文件
+git bundle create &lt;file&gt; &lt;branch-name&gt;
+从包中导入分支
+新建一个分支，分支内容就是上面git bundle create命令导出的内容
+git clone repo.bundle &lt;repo-dir&gt; -b &lt;branch-name&gt;
+执行rebase之前自动stash
+git rebase --autostash
+从远程仓库根据ID，拉下某一状态，到本地分支
+git fetch origin pull/&lt;id&gt;/head:&lt;branch-name&gt;
+详细展示一行中的修改
+git diff --word-diff
+清除gitignore文件中记录的文件
+git clean -X -f
+展示所有alias和configs
+注意： config分为：当前目录（local）和全局（golbal）的config，默认为当前目录的config
+git config --local --list (当前目录)
+git config --global --list (全局)
+展示忽略的文件
+git status --ignored
+commit历史中显示Branch1有的，但是Branch2没有commit
+git log Branch1 ^Branch2
+在commit log中显示GPG签名
+git log --show-signature
+删除全局设置
+git config --global --unset &lt;entry-name&gt;
+新建并切换到新分支上，同时这个分支没有任何commit
+相当于保存修改，但是重写commit历史
+git checkout --orphan &lt;branch-name&gt;
+展示任意分支某一文件的内容
+git show &lt;branch-name&gt;:&lt;file-name&gt;
+clone下来指定的单一分支
+git clone -b &lt;branch-name&gt; --single-branch https://github.com/user/repo.git
+忽略某个文件的改动
+关闭 track 指定文件的改动，也就是 Git 将不会在记录这个文件的改动
+git update-index --assume-unchanged path/to/file
+
+恢复 track 指定文件的改动
+git update-index --no-assume-unchanged path/to/file
+
+忽略文件的权限变化
+不再将文件的权限变化视作改动
+git config core.fileMode false
+展示本地所有的分支的commit
+最新的放在最上面
+git for-each-ref --sort=-committerdate --format=&apos;%(refname:short)&apos; refs/heads/
+在commit log中查找相关内容
+通过grep查找，given-text：所需要查找的字段
+git log --all --grep=&apos;&lt;given-text&gt;&apos;
+把暂存区的指定file放到工作区中
+git reset &lt;file-name&gt;
+
+强制推送
+git push -f &lt;remote-name&gt; &lt;branch-name&gt;列出所有远程分支
+-r参数相当于：remote
+git branch -r
+
+更新到本地
+# 源 + 分支名
+git pull origin master
+</code></pre><p>初始化本地git仓库（创建新仓库）</p>
+<pre><code>git init                                               
+# 初始化 git 项目
+git init
+安装好 Git 之后，配置你的资料:
+# 配置用户名
+git config --global user.name &quot;Your Real Name&quot;
+# 配置邮箱地址
+git config --global user.email you@email.address
+</code></pre><p>配置用户名</p>
+<pre><code>git config --global user.name &quot;xxx&quot;                       
+</code></pre><p>配置邮件</p>
+<pre><code>git config --global user.email &quot;xxx@xxx.com&quot;              
+</code></pre><p>git status等命令自动着色</p>
+<pre><code>git config --global color.ui true                         
+git config --global color.status auto
+git config --global color.diff auto
+git config --global color.branch auto
+git config --global color.interactive auto
+</code></pre><p>clone远程仓库</p>
+<pre><code>git clone git+ssh://git@192.168.53.168/VT.git             
+</code></pre><p>查看当前版本状态（是否修改）</p>
+<pre><code>git status                                                
+</code></pre><p>添加xyz文件至index</p>
+<pre><code>git add xyz                                               
+</code></pre><p>增加当前子目录下所有更改过的文件至index</p>
+<pre><code>git add .                                                 
+</code></pre><p>提交</p>
+<pre><code>git commit -m &apos;xxx&apos;                                       
+</code></pre><p>合并上一次提交（用于反复修改）</p>
+<pre><code>git commit --amend -m &apos;xxx&apos;                               
+</code></pre><p>将add和commit合为一步</p>
+<pre><code>git commit -am &apos;xxx&apos;                                      
+</code></pre><p>删除index中的文件</p>
+<pre><code>git rm xxx                                                
+</code></pre><p>递归删除</p>
+<pre><code>git rm -r *                                               
+</code></pre><p>显示提交日志</p>
+<pre><code>git log                                                   
+</code></pre><p>显示1行日志 -n为n行</p>
+<pre><code>git log -1                                                
+</code></pre><p>git log -5</p>
+<p>显示提交日志及相关变动文件</p>
+<pre><code>git log --stat                                            
+</code></pre><p>git log -p -m</p>
+<p>显示某个提交的详细内容</p>
+<pre><code>git show dfb02e6e4f2f7b573337763e5c0013802e392818         
+</code></pre><p>可只用commitid的前几位</p>
+<pre><code>git show dfb02                                            
+</code></pre><p>显示HEAD提交日志</p>
+<pre><code>git show HEAD                                             
+</code></pre><p>显示HEAD的父（上一个版本）的提交日志 ^^为上两个版本 ^5为上5个版本</p>
+<pre><code>git show HEAD^                                            
+</code></pre><p>显示已存在的tag</p>
+<pre><code>git tag                                                   
+</code></pre><p>增加v2.0的tag</p>
+<pre><code>git tag -a v2.0 -m &apos;xxx&apos;                                  
+</code></pre><p>显示v2.0的日志及详细内容</p>
+<pre><code>git show v2.0                                             
+</code></pre><p>显示v2.0的日志</p>
+<pre><code>git log v2.0                                              
+</code></pre><p>显示所有未添加至index的变更</p>
+<pre><code>git diff                                                  
+</code></pre><p>显示所有已添加index但还未commit的变更</p>
+<pre><code>git diff --cached                                         
+</code></pre><p>比较与上一个版本的差异</p>
+<pre><code>git diff HEAD^                                            
+</code></pre><p>比较与HEAD版本lib目录的差异</p>
+<pre><code>git diff HEAD -- ./lib                                    
+</code></pre><p>比较远程分支master上有本地分支master上没有的</p>
+<pre><code>git diff origin/master..master                            
+</code></pre><p>只显示差异的文件，不显示具体内容</p>
+<pre><code>git diff origin/master..master --stat                     
+</code></pre><p>增加远程定义（用于push/pull/fetch）</p>
+<pre><code>git remote add origin git+ssh://git@192.168.53.168/VT.git 
+</code></pre><p>显示本地分支</p>
+<pre><code>git branch                                                
+</code></pre><p>显示包含提交50089的分支</p>
+<pre><code>git branch --contains 50089                               
+</code></pre><p>显示所有分支</p>
+<pre><code>git branch -a                                             
+</code></pre><p>显示所有原创分支</p>
+<pre><code>git branch -r                                             
+</code></pre><p>显示所有已合并到当前分支的分支</p>
+<pre><code>git branch --merged                                       
+</code></pre><p>显示所有未合并到当前分支的分支</p>
+<pre><code>git branch --no-merged                                    
+</code></pre><p>本地分支改名</p>
+<pre><code>git branch -m master master_copy                          
+</code></pre><p>从当前分支创建新分支master_copy并检出</p>
+<pre><code>git checkout -b master_copy                               
+</code></pre><p>上面的完整版</p>
+<pre><code>git checkout -b master master_copy                        
+</code></pre><p>检出已存在的features/performance分支</p>
+<pre><code>git checkout features/performance                         
+</code></pre><p>检出远程分支hotfixes/BJVEP933并创建本地跟踪分支</p>
+<pre><code>git checkout --track hotfixes/BJVEP933                    
+</code></pre><p>检出版本v2.0</p>
+<pre><code>git checkout v2.0                                         
+</code></pre><p>从远程分支develop创建新本地分支devel并检出</p>
+<pre><code>git checkout -b devel origin/develop                      
+</code></pre><p>检出head版本的README文件（可用于修改错误回退）</p>
+<pre><code>git checkout -- README                                    
+</code></pre><p>合并远程master分支至当前分支</p>
+<pre><code>git merge origin/master                                   
+</code></pre><p>合并提交ff44785404a8e的修改</p>
+<pre><code>git cherry-pick ff44785404a8e                             
+</code></pre><p>将当前分支push到远程master分支</p>
+<pre><code>git push origin master                                    
+</code></pre><p>删除远程仓库的hotfixes/BJVEP933分支</p>
+<pre><code>git push origin :hotfixes/BJVEP933                        
+</code></pre><p>把所有tag推送到远程仓库</p>
+<pre><code>git push --tags                                           
+</code></pre><p>获取所有远程分支（不更新本地分支，另需merge）</p>
+<pre><code>git fetch                                                 
+</code></pre><p>获取所有原创分支并清除服务器上已删掉的分支</p>
+<pre><code>git fetch --prune                                         
+</code></pre><p>获取远程分支master并merge到当前分支</p>
+<pre><code>git pull origin master                                    
+</code></pre><p>重命名文件README为README2</p>
+<pre><code>git mv README README2                                     
+</code></pre><p>将当前版本重置为HEAD（通常用于merge失败回退）</p>
+<pre><code>git reset --hard HEAD                                     
+</code></pre><p>git rebase</p>
+<p>删除分支hotfixes/BJVEP933（本分支修改已合并到其他分支）</p>
+<pre><code>git branch -d hotfixes/BJVEP933                           
+</code></pre><p>强制删除分支hotfixes/BJVEP933</p>
+<pre><code>git branch -D hotfixes/BJVEP933                           
+</code></pre><p>列出git index包含的文件</p>
+<pre><code>git ls-files                                              
+</code></pre><p>图示当前分支历史</p>
+<pre><code>git show-branch                                           
+</code></pre><p>图示所有分支历史</p>
+<pre><code>git show-branch --all                                     
+</code></pre><p>显示提交历史对应的文件修改</p>
+<pre><code>git whatchanged                                           
+</code></pre><p>撤销提交dfb02e6e4f2f7b573337763e5c0013802e392818</p>
+<pre><code>git revert dfb02e6e4f2f7b573337763e5c0013802e392818       
+</code></pre><p>内部命令：显示某个git对象</p>
+<pre><code>git ls-tree HEAD                                          
+</code></pre><p>内部命令：显示某个ref对于的SHA1 HASH</p>
+<pre><code>git rev-parse v2.0                                        
+</code></pre><p>显示所有提交，包括孤立节点</p>
+<pre><code>git reflog                                                
+</code></pre><p>git show HEAD@{5}</p>
+<p>显示master分支昨天的状态</p>
+<pre><code>git show master@{yesterday}                               
+</code></pre><p>图示提交日志</p>
+<pre><code>git log --pretty=format:&apos;%h %s&apos; --graph                   
+git show HEAD~3
+git show -s --pretty=raw 2be7fcb476
+</code></pre><p>暂存当前修改，将所有至为HEAD状态</p>
+<pre><code>git stash                                                 
+</code></pre><p>查看所有暂存</p>
+<pre><code>git stash list                                            
+</code></pre><p>参考第一次暂存</p>
+<pre><code>git stash show -p stash@{0}                               
+</code></pre><p>应用第一次暂存</p>
+<pre><code>git stash apply stash@{0}                                 
+</code></pre><p>文件中搜索文本“delete from”</p>
+<pre><code>git grep &quot;delete from&quot;                                    
+git grep -e &apos;#define&apos; --and -e SORT_DIRENT
+
+git gc
+git fsck
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/08/15/用css让一个容器水平垂直居中/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/08/15/用css让一个容器水平垂直居中/" itemprop="url">用css让一个容器水平垂直居中</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-08-15T23:19:26+08:00">
+                2017-08-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>阅读目录</p>
+<ul>
+<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label0" target="_blank" rel="noopener">方法一：position加margin</a></li>
+<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label1" target="_blank" rel="noopener">方法二： diaplay:table-cell</a></li>
+<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label2" target="_blank" rel="noopener">方法三：position加 transform</a></li>
+<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label3" target="_blank" rel="noopener">方法四：flex;align-items: center;justify-content: center</a></li>
+<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label4" target="_blank" rel="noopener">方法五：display:flex;margin:auto</a></li>
+<li><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_label5" target="_blank" rel="noopener">方法六：纯position</a></li>
+</ul>
+<p>这种css布局平时用的比较多，也是面试题常出的一个题，网上一搜一大丢，不过还是想自己总结一下。</p>
+<p>这种方法比较多，本文只总结其中的几种，以便加深印象。</p>
+<p>效果图都为这个：</p>
+<p><img src="https://pic1.zhimg.com/v2-cf428b1f71583bc3feeeedcdc87d9e6c_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-cf428b1f71583bc3feeeedcdc87d9e6c_hd.jpg" alt=""></p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
+<h2 id="方法一：position加margin"><a href="#方法一：position加margin" class="headerlink" title="方法一：position加margin"></a>方法一：position加margin</h2><pre><code>/**html**/
+&lt;div class=&quot;wrap&quot;&gt;
+    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+/**css**/
+.wrap {
+    width: 200px;
+    height: 200px;
+    background: yellow;
+    position: relative;
+}
+.wrap .center {
+    width: 100px;
+    height: 100px;
+    background: green;
+    margin: auto;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+</code></pre><p>兼容性：主流浏览器均支持，IE6不支持</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
+<h2 id="方法二：-diaplay-table-cell"><a href="#方法二：-diaplay-table-cell" class="headerlink" title="方法二： diaplay:table-cell"></a>方法二： diaplay:table-cell</h2><pre><code>&lt;!-- html --&gt;
+&lt;div class=&quot;wrap&quot;&gt;
+     &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+/*css*/
+.wrap{
+    width: 200px;
+    height: 200px;
+    background: yellow;
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+}
+.center{
+    display: inline-block;
+    vertical-align: middle;
+    width: 100px;
+    height: 100px;
+    background: green;
+}
+</code></pre><p>兼容性：由于display:table-cell的原因，IE6\7不兼容</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
+<h2 id="方法三：position加-transform"><a href="#方法三：position加-transform" class="headerlink" title="方法三：position加 transform"></a>方法三：position加 transform</h2><pre><code>&lt;!-- html --&gt;
+&lt;div class=&quot;wrap&quot;&gt;
+    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+/* css */
+.wrap {
+    position: relative;
+    background: yellow;
+    width: 200px;
+    height: 200px;}
+
+.center {
+    position: absolute;
+    background: green;
+    top:50%;
+    left:50%;
+    -webkit-transform:translate(-50%,-50%);
+    transform:translate(-50%,-50%);
+    width: 100px;
+    height: 100px;
+}
+</code></pre><p>兼容性：ie9以下不支持 transform，手机端表现的比较好。</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
+<h2 id="方法四：flex-align-items-center-justify-content-center"><a href="#方法四：flex-align-items-center-justify-content-center" class="headerlink" title="方法四：flex;align-items: center;justify-content: center"></a>方法四：flex;align-items: center;justify-content: center</h2><pre><code>&lt;!-- html --&gt;
+&lt;div class=&quot;wrap&quot;&gt;
+    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+/* css */
+.wrap {
+    background: yellow;
+    width: 200px;
+    height: 200px;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+}
+
+.center {
+    background: green;
+    width: 100px;
+    height: 100px;
+}
+</code></pre><p>移动端首选</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
+<h2 id="方法五：display-flex-margin-auto"><a href="#方法五：display-flex-margin-auto" class="headerlink" title="方法五：display:flex;margin:auto"></a>方法五：display:flex;margin:auto</h2><pre><code>&lt;!-- html --&gt;
+&lt;div class=&quot;wrap&quot;&gt;
+    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+/* css */
+.wrap {
+    background: yellow;
+    width: 200px;
+    height: 200px;
+    display: flex; 
+}
+
+.center {
+    background: green;
+    width: 100px;
+    height: 100px;
+    margin: auto;
+}
+</code></pre><p>移动端首选</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.cnblogs.com/xianyulaodi/p/5863305.html%23_labelTop" target="_blank" rel="noopener">回到顶部</a></p>
+<h2 id="方法六：纯position"><a href="#方法六：纯position" class="headerlink" title="方法六：纯position"></a>方法六：纯position</h2><pre><code>&lt;!-- html --&gt;
+&lt;div class=&quot;wrap&quot;&gt;
+    &lt;div class=&quot;center&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+
+/* css */
+.wrap {
+    background: yellow;
+    width: 200px;
+    height: 200px;
+    position: relative;
+}
+/**方法一**/
+.center {
+    background: green;
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 50px;
+    top: 50px; 
+　　
+}
+/**方法二**/
+.center {
+    background: green;
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 50%;
+    top: 50%;
+　　margin-left:-50px;
+　　margin-top:-50px;
+}　 
+</code></pre><p>兼容性：适用于所有浏览器</p>
+<p>  方法六中的方法一计算公式如下：</p>
+<p>　　子元素（conter）的left值计算公式：left=(父元素的宽 - 子元素的宽 ) / 2=(200-100) / 2=50px;</p>
+<p>　　子元素（conter）的top值计算公式：top=(父元素的高 - 子元素的高 ) / 2=(200-100) / 2=50px;</p>
+<p>　　方法二计算公式：</p>
+<p>　　left值固定为50%;</p>
+<p>　　子元素的margin-left= -（子元素的宽/2）=-100/2= -50px;</p>
+<p>　　top值也一样，固定为50%</p>
+<pre><code>子元素的margin-top= -（子元素的高/2）=-100/2= -50px;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
   </section>
 
   
@@ -3293,7 +3822,7 @@ console.log(validate(schema, {first:&apos;Bruce&apos;,last:&apos;Wayne&apos;}));
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">107</span>
+                  <span class="site-state-item-count">108</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3306,7 +3835,7 @@ console.log(validate(schema, {first:&apos;Bruce&apos;,last:&apos;Wayne&apos;}));
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">77</span>
+                  <span class="site-state-item-count">78</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
