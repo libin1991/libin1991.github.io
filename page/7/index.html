@@ -300,444 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/JS-继承/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/03/02/JS-继承/" itemprop="url">JS 继承</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-02T22:49:01+08:00">
-                2018-03-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
-<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-function Child(name) {
-    this.name = name;
-}
-
-Child.prototype = new Parent(&apos;father&apos;);
-Child.prototype.constructor = Child;
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();    // child name: son
-</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
-<p>这种方法存在两个缺点：</p>
-<ol>
-<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
-<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
-</ol>
-<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomthing = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      // child name: son
-child.doSomthing();   // TypeError: child.doSomthing is not a function
-</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
-<p>缺点：</p>
-<ol>
-<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
-</ol>
-<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();      
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();       // child name: son
-child.doSomething();   // parent do something!
-</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
-<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
-<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
-<pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);      // 第二次调用
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();         // 第一次调用
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      
-child.doSomething();   
-</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
-<pre><code>Child.prototype = Parent.prototype;
-</code></pre><p>这样写显然是不对的：</p>
-<ol>
-<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
-<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
-</ol>
-<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
-<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function create(proto) {
-    function F(){}
-    F.prototype = proto;
-    F.prototype.construtor = F;
-    return new F();
-}
-
-Child.prototype = create(Parent.prototype);
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-Child.prototype.construtor = Child;
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();    // parent name: father
-
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();     // child name: son
-</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
-<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
-<pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function inheritPrototype(Parent, Child) {
-    Child.prototype = Object.create(Parent.prototype);   //修改
-    Child.prototype.construtor = Child;
-}
-
-inheritPrototype(Parent, Child);
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();      // parent name: father
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();       // child name: son
-</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
-<pre><code>class Parent {
-    constructor(name) {
-    this.name = name;
-    }
-    doSomething() {
-    console.log(&apos;parent do something!&apos;);
-    }
-    sayName() {
-    console.log(&apos;parent name:&apos;, this.name);
-    }
-}
-
-class Child extends Parent {
-    constructor(name, parentName) {
-    super(parentName);
-    this.name = name;
-    }
-    sayName() {
-     console.log(&apos;child name:&apos;, this.name);
-    }
-}
-
-const child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();            // child name: son
-child.doSomething();        // parent do something!
-
-const parent = new Parent(&apos;father&apos;);
-parent.sayName();           // parent name: father
-</code></pre><p>JavaScript前端开发</p>
-<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
-<pre><code>/**
- * JavaScript(ES5)中实现继承的几种方法
- */
-
-// 定义基类Person
-function Person(name, age) {
-  this.name = name;
-  this.age = age;
-}
-
-// 共享数据
-Person.prototype.LEGS_NUM = 2;
-
-// 共享方法
-Person.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
-};
-
-Person.prototype.walk = function () {
-  console.log(this.name + &apos; is walking...&apos;);
-};
-
-// Student子类
-function Student(name, age, className) {
-  // 调用父类
-  Person.call(this, name, age);
-  this.className = className;
-}
-
-// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
-// Student.prototype = Person.prototype;
-
-// 2⃣️ 方法二：Student.prototype为Person的实例
-// Student.prototype = new Person();
-
-// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
-Student.prototype = Object.create(Person.prototype);
-
-Student.prototype.constructor = Student;
-
-// 覆盖父类的info方法
-Student.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
-};
-
-// Student类的共享方法
-Student.prototype.learn = function (subject) {
-  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
-};
-
-// 测试,创建一个Student的实例
-var microzz = new Student(&apos;Microzz&apos;, 22, 5);
-microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
-console.log(microzz.LEGS_NUM); // 2
-microzz.walk(); // Microzz is walking...
-microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
-console.log(microzz.__proto__.__proto__ === Person.prototype); // true
-console.log(microzz.__proto__ === Student.prototype); // true
-console.log(microzz.__proto__.constructor === Student); // true
-</code></pre><p>三种方法比较</p>
-<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>1⃣️这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>2⃣️第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>3⃣️第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
-<pre><code>if (!Object.create) {
-  Object.prototype.create = function (proto) {
-    function F() {}
-    F.prototype = proto;
-    return new F;
-  }
-}
-</code></pre><p>这样在ES5中就完美实现了继承😄</p>
-<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
-<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
-<p>代码</p>
-<pre><code>// 基类 Person
-class Person {
-  // 父类的构造方法
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-    // 共享变量
-    this.LEGS_NUM = 2;
-  }
-  // 父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
-  }
-
-  // 父类的walk方法
-  walk() {
-    console.log(this.name + &apos; is walking...&apos;);
-  }
-
-}
-
-// 子类 Student
-class Student extends Person {
-  constructor(name, age, className) {
-    // 调用基类的构造方法
-    super(name, age);
-    this.className = className;
-  }
-
-  // 覆盖父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
-  }
-}
-
-// 实例化一个Student的实例
-let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
-stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
-stu.walk(); // Zhaohui is walking...
-console.log(stu.LEGS_NUM); // 2
-console.log(stu instanceof Student); // true
-console.log(stu instanceof Person); // true
-</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了😄</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2889,6 +2451,713 @@ export class AbstractHistory extends History {
     })
   }
 </code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/14/Service-Worker-PWA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/14/Service-Worker-PWA/" itemprop="url">Service Worker,PWA</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-14T20:08:28+08:00">
+                2017-11-14
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="什么是Service-Worker"><a href="#什么是Service-Worker" class="headerlink" title="什么是Service Worker"></a>什么是<code>Service Worker</code></h2><p><code>Service Worker</code>本质上充当Web应用程序与浏览器之间的代理服务器，也可以在网络可用时作为浏览器和网络间的代理。它们旨在（除其他之外）使得能够创建有效的离线体验，拦截网络请求并基于网络是否可用以及更新的资源是否驻留在服务器上来采取适当的动作。他们还允许访问推送通知和后台同步<code>API</code>。</p>
+<ul>
+<li><code>Service Worker</code>的本质是一个<code>Web Worker</code>，它独立于<code>JavaScript</code>主线程，因此它不能直接访问<code>DOM</code>，也不能直接访问<code>window</code>对象，但是，<code>Service Worker</code>可以访问<code>navigator</code>对象，也可以通过消息传递的方式（<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Window/postMessage" target="_blank" rel="noopener">postMessage</a>）与<code>JavaScript</code>主线程进行通信。</li>
+<li><code>Service Worker</code>是一个网络代理，它可以控制<code>Web</code>页面的所有网络请求。</li>
+<li><code>Service Worker</code>具有自身的生命周期，使用好<code>Service Worker</code>的关键是灵活控制其生命周期。</li>
+</ul>
+<h2 id="Service-Worker的作用"><a href="#Service-Worker的作用" class="headerlink" title="Service Worker的作用"></a><code>Service Worker</code>的作用</h2><ul>
+<li>用于浏览器缓存</li>
+<li>实现离线<code>Web APP</code></li>
+<li>消息推送</li>
+</ul>
+<h2 id="Service-Worker兼容性"><a href="#Service-Worker兼容性" class="headerlink" title="Service Worker兼容性"></a><code>Service Worker</code>兼容性</h2><p><img src="/2017/11/14/Service-Worker-PWA/1.webp" alt=""></p>
+<p><code>Service Worker</code>是现代浏览器的一个高级特性，它依赖于<code>fetch API</code>、<code>Cache Storage</code>、<code>Promise</code>等，其中，<code>Cache</code>提供了<code>Request / Response</code>对象对的存储机制，<code>Cache Storage</code>存储多个<code>Cache</code>。</p>
+<h2 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h2><p>在了解<code>Service Worker</code>的原理之前，先来看一段<code>Service Worker</code>的示例：</p>
+<pre><code>self.importScripts(&apos;./serviceworker-cache-polyfill.js&apos;);
+
+var urlsToCache = [
+  &apos;/&apos;,
+  &apos;/index.js&apos;,
+  &apos;/style.css&apos;,
+  &apos;/favicon.ico&apos;,
+];
+
+varCACHE_NAME=&apos;counterxing&apos;;
+
+self.addEventListener(&apos;install&apos;, function(event) {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+    .then(function(cache) {
+      returncache.addAll(urlsToCache);
+    })
+  );
+});
+
+self.addEventListener(&apos;fetch&apos;, function(event) {
+  event.respondWith(
+    caches.match(event.request)
+    .then(function(response) {
+      if (response) {
+        return response;
+      }
+      returnfetch(event.request);
+    })
+  );
+});
+
+
+self.addEventListener(&apos;activate&apos;, function(event) {
+  var cacheWhitelist = [&apos;counterxing&apos;];
+
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      returnPromise.all(
+        cacheNames.map(function(cacheName) {
+          if (cacheWhitelist.indexOf(cacheName) ===-1) {
+            returncaches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+</code></pre><p>下面开始逐段逐段地分析，揭开<code>Service Worker</code>的神秘面纱：</p>
+<h2 id="polyfill"><a href="#polyfill" class="headerlink" title="polyfill"></a><code>polyfill</code></h2><p>首先看第一行：<code>self.importScripts(&#39;./serviceworker-cache-polyfill.js&#39;);</code>，这里引入了<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Cache" target="_blank" rel="noopener">Cache API</a>的一个<a href="https://github.com/dominiccooney/cache-polyfill" target="_blank" rel="noopener">polyfill</a>，这个<code>polyfill</code>支持使得在较低版本的浏览器下也可以使用<code>Cache Storage API</code>。想要实现<code>Service Worker</code>的功能，一般都需要搭配<code>Cache API</code>代理网络请求到缓存中。</p>
+<p>在<code>Service Worker</code>线程中，使用<code>importScripts</code>引入<code>polyfill</code>脚本，目的是对低版本浏览器的兼容。</p>
+<h2 id="Cache-Resources-List-And-Cache-Name"><a href="#Cache-Resources-List-And-Cache-Name" class="headerlink" title="Cache Resources List And Cache Name"></a><code>Cache Resources List</code> And <code>Cache Name</code></h2><p>之后，使用一个<code>urlsToCache</code>列表来声明需要缓存的静态资源，再使用一个变量<code>CACHE_NAME</code>来确定当前缓存的<code>Cache Storage Name</code>，这里可以理解成<code>Cache Storage</code>是一个<code>DB</code>，而<code>CACHE_NAME</code>则是<code>DB</code>名：</p>
+<pre><code>var urlsToCache = [
+  &apos;/&apos;,
+  &apos;/index.js&apos;,
+  &apos;/style.css&apos;,
+  &apos;/favicon.ico&apos;,
+];
+
+varCACHE_NAME=&apos;counterxing&apos;;
+</code></pre><h2 id="Lifecycle"><a href="#Lifecycle" class="headerlink" title="Lifecycle"></a><code>Lifecycle</code></h2><p><code>Service Worker</code>独立于浏览器<code>JavaScript</code>主线程，有它自己独立的生命周期。</p>
+<p>如果需要在网站上安装<code>Service Worker</code>，则需要在<code>JavaScript</code>主线程中使用以下代码引入<code>Service Worker</code>。</p>
+<pre><code>if (&apos;serviceWorker&apos;innavigator) {
+  navigator.serviceWorker.register(&apos;/sw.js&apos;).then(function(registration) {
+    console.log(&apos;成功安装&apos;, registration.scope);
+  }).catch(function(err) {
+    console.log(err);
+  });
+}
+</code></pre><p>此处，一定要注意<code>sw.js</code>文件的路径，在我的示例中，处于当前域根目录下，这意味着，<code>Service Worker</code>和网站是同源的，可以为当前网站的所有请求做代理，如果<code>Service Worker</code>被注册到<code>/imaging/sw.js</code>下，那只能代理<code>/imaging</code>下的网络请求。</p>
+<p>可以使用<code>Chrome</code>控制台，查看当前页面的<code>Service Worker</code>情况：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/2.webp" alt=""></p>
+<p>安装完成后，<code>Service Worker</code>会经历以下生命周期：</p>
+<ol>
+<li>下载（<code>download</code>）</li>
+<li>安装（<code>install</code>）</li>
+<li>激活（<code>activate</code>）</li>
+</ol>
+<ul>
+<li><p>用户首次访问<code>Service Worker</code>控制的网站或页面时，<code>Service Worker</code>会立刻被下载。之后至少每<code>24</code>小时它会被下载一次。它可能被更频繁地下载，不过每<code>24</code>小时一定会被下载一次，以避免不良脚本长时间生效。</p>
+</li>
+<li><p>在下载完成后，开始安装<code>Service Worker</code>，在安装阶段，通常需要缓存一些我们预先声明的静态资源，在我们的示例中，通过<code>urlsToCache</code>预先声明。</p>
+</li>
+<li><p>在安装完成后，会开始进行激活，浏览器会尝试下载<code>Service Worker</code>脚本文件，下载成功后，会与前一次已缓存的<code>Service Worker</code>脚本文件做对比，如果与前一次的<code>Service Worker</code>脚本文件不同，证明<code>Service Worker</code>已经更新，会触发<code>activate</code>事件。完成激活。</p>
+</li>
+</ul>
+<p>如图所示，为<code>Service Worker</code>大致的生命周期：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/3.webp" alt=""></p>
+<h3 id="install"><a href="#install" class="headerlink" title="install"></a><code>install</code></h3><p>在安装完成后，尝试缓存一些静态资源：</p>
+<pre><code>self.addEventListener(&apos;install&apos;, function(event) {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+    .then(function(cache) {
+      returncache.addAll(urlsToCache);
+    })
+  );
+});
+</code></pre><p>首先，<code>self.skipWaiting()</code>执行，告知浏览器直接跳过等待阶段，淘汰过期的<code>sw.js</code>的<code>Service Worker</code>脚本，直接开始尝试激活新的<code>Service Worker</code>。</p>
+<p>然后使用<code>caches.open</code>打开一个<code>Cache</code>，打开后，通过<code>cache.addAll</code>尝试缓存我们预先声明的静态文件。</p>
+<h3 id="监听fetch，代理网络请求"><a href="#监听fetch，代理网络请求" class="headerlink" title="监听fetch，代理网络请求"></a>监听<code>fetch</code>，代理网络请求</h3><p>页面的所有网络请求，都会通过<code>Service Worker</code>的<code>fetch</code>事件触发，<code>Service Worker</code>通过<code>caches.match</code>尝试从<code>Cache</code>中查找缓存，缓存如果命中，则直接返回缓存中的<code>response</code>，否则，创建一个真实的网络请求。</p>
+<pre><code>self.addEventListener(&apos;fetch&apos;, function(event) {
+  event.respondWith(
+    caches.match(event.request)
+    .then(function(response) {
+      if (response) {
+        return response;
+      }
+      returnfetch(event.request);
+    })
+  );
+});
+</code></pre><p>如果我们需要在请求过程中，再向<code>Cache Storage</code>中添加新的缓存，可以通过<code>cache.put</code>方法添加，看以下例子：</p>
+<pre><code>self.addEventListener(&apos;fetch&apos;, function(event) {
+  event.respondWith(
+    caches.match(event.request)
+    .then(function(response) {
+      // 缓存命中if (response) {
+        return response;
+      }
+
+      // 注意，这里必须使用clone方法克隆这个请求// 原因是response是一个Stream，为了让浏览器跟缓存都使用这个response// 必须克隆这个response，一份到浏览器，一份到缓存中缓存。// 只能被消费一次，想要再次消费，必须clone一次var fetchRequest =event.request.clone();
+
+      returnfetch(fetchRequest).then(
+        function(response) {
+          // 必须是有效请求，必须是同源响应，第三方的请求，因为不可控，最好不要缓存if (!response ||response.status!==200||response.type!==&apos;basic&apos;) {
+            return response;
+          }
+
+          // 消费过一次，又需要再克隆一次var responseToCache =response.clone();
+          caches.open(CACHE_NAME)
+            .then(function(cache) {
+              cache.put(event.request, responseToCache);
+            });
+          return response;
+        }
+      );
+    })
+  );
+});
+</code></pre><blockquote>
+<p>在项目中，一定要注意控制缓存，接口请求一般是不推荐缓存的。所以在我自己的项目中，并没有在这里做动态的缓存方案。</p>
+</blockquote>
+<h3 id="activate"><a href="#activate" class="headerlink" title="activate"></a><code>activate</code></h3><p><code>Service Worker</code>总有需要更新的一天，随着版本迭代，某一天，我们需要把新版本的功能发布上线，此时需要淘汰掉旧的缓存，旧的<code>Service Worker</code>和<code>Cache Storage</code>如何淘汰呢？</p>
+<pre><code>self.addEventListener(&apos;activate&apos;, function(event) {
+  var cacheWhitelist = [&apos;counterxing&apos;];
+
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      returnPromise.all(
+        cacheNames.map(function(cacheName) {
+          if (cacheWhitelist.indexOf(cacheName) ===-1) {
+            returncaches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+</code></pre><ol>
+<li>首先有一个白名单，白名单中的<code>Cache</code>是不被淘汰的。</li>
+<li>之后通过<code>caches.keys()</code>拿到所有的<code>Cache Storage</code>，把不在白名单中的<code>Cache</code>淘汰。</li>
+<li>淘汰使用<code>caches.delete()</code>方法。它接收<code>cacheName</code>作为参数，删除该<code>cacheName</code>所有缓存。</li>
+</ol>
+<h2 id="sw-precache-webpack-plugin"><a href="#sw-precache-webpack-plugin" class="headerlink" title="sw-precache-webpack-plugin"></a>sw-precache-webpack-plugin</h2><p><a href="https://github.com/goldhand/sw-precache-webpack-plugin" target="_blank" rel="noopener">sw-precache-webpack-plugin</a>是一个<code>webpack plugin</code>，可以通过配置的方式在<code>webpack</code>打包时生成我们想要的<code>sw.js</code>的<code>Service Worker</code>脚本。</p>
+<p>一个最简单的配置如下：</p>
+<pre><code>var path =require(&apos;path&apos;);
+var SWPrecacheWebpackPlugin =require(&apos;sw-precache-webpack-plugin&apos;);
+
+constPUBLIC_PATH=&apos;https://www.my-project-name.com/&apos;;  // webpack needs the trailing slash for output.publicPathmodule.exports= {
+
+  entry: {
+    main:path.resolve(__dirname, &apos;src/index&apos;),
+  },
+
+  output: {
+    path:path.resolve(__dirname, &apos;src/bundles/&apos;),
+    filename:&apos;[name]-[hash].js&apos;,
+    publicPath:PUBLIC_PATH,
+  },
+
+  plugins: [
+    newSWPrecacheWebpackPlugin(
+      {
+        cacheId:&apos;my-project-name&apos;,
+        dontCacheBustUrlsMatching:/\.\w{8}\./,
+        filename:&apos;service-worker.js&apos;,
+        minify:true,
+        navigateFallback:PUBLIC_PATH+&apos;index.html&apos;,
+        staticFileGlobsIgnorePatterns: [/\.map$/,/asset-manifest\.json$/],
+      }
+    ),
+  ],
+}
+</code></pre><p>在执行<code>webpack</code>打包后，会生成一个名为<code>service-worker.js</code>文件，用于缓存<code>webpack</code>打包后的静态文件。</p>
+<p>一个最简单的<a href="https://github.com/goldhand/sw-precache-webpack-plugin/tree/master/examples" target="_blank" rel="noopener">示例</a>。</p>
+<h2 id="Service-Worker-Cache-VS-Http-Cache"><a href="#Service-Worker-Cache-VS-Http-Cache" class="headerlink" title="Service Worker Cache VS Http Cache"></a><code>Service Worker Cache</code> VS <code>Http Cache</code></h2><p>对比起<code>Http Header</code>缓存，<code>Service Worker</code>配合<code>Cache Storage</code>也有自己的优势：</p>
+<ol>
+<li>缓存与更新并存：每次更新版本，借助<code>Service Worker</code>可以立马使用缓存返回，但与此同时可以发起请求，校验是否有新版本更新。</li>
+<li>无侵入式：<code>hash</code>值实在是太难看了。</li>
+<li>不易被冲掉：<code>Http</code>缓存容易被冲掉，也容易过期，而<code>Cache Storage</code>则不容易被冲掉。也没有过期时间的说法。</li>
+<li>离线：借助<code>Service Worker</code>可以实现离线访问应用。</li>
+</ol>
+<p>但是缺点是，由于<code>Service Worker</code>依赖于<code>fetch API</code>、依赖于<code>Promise</code>、<code>Cache Storage</code>等，兼容性不太好。</p>
+<h2 id="后话"><a href="#后话" class="headerlink" title="后话"></a>后话</h2><p>本文只是简单总结了<code>Service Worker</code>的基本使用和使用<code>Service Worker</code>做客户端缓存的简单方式，然而，<code>Service Worker</code>的作用远不止于此，例如：借助<code>Service Worker</code>做离线应用、用于做网络应用的推送（可参考<a href="https://developers.google.com/web/fundamentals/codelabs/push-notifications/" target="_blank" rel="noopener">push-notifications</a>）等。</p>
+<p>甚至可以借助<code>Service Worker</code>，对接口进行缓存，在我所在的项目中，其实并不会做的这么复杂。不过做接口缓存的好处是支持离线访问，对离线状态下也能正常访问我们的<code>Web</code>应用。</p>
+<p><code>Cache Storage</code>和<code>Service Worker</code>总是分不开的。<code>Service Worker</code>的最佳用法其实就是配合<code>Cache Storage</code>做离线缓存。借助于<code>Service Worker</code>，可以轻松实现对网络请求的控制，对于不同的网络请求，采取不同的策略。例如对于<code>Cache</code>的策略，其实也是存在多种情况。例如可以优先使用网络请求，在网络请求失败时再使用缓存、亦可以同时使用缓存和网络请求，一方面检查请求，一方面有检查缓存，然后看两个谁快，就用谁。</p>
+<hr>
+<h2 id="Progressive-Web-Apps（PWA）"><a href="#Progressive-Web-Apps（PWA）" class="headerlink" title="Progressive Web Apps（PWA）"></a>Progressive Web Apps（PWA）</h2><p><code>Progressive Web App</code>, 简称 PWA，是提升<code>Web App</code>的体验的一种新方法，能给用户原生应用的体验。</p>
+<p><code>PWA</code>能做到原生应用的体验不是靠特指某一项技术，而是经过应用一些新技术进行改进，在安全、性能和体验三个方面都有很大提升，<code>PWA</code>本质上是<code>Web App</code>，借助一些新技术也具备了<code>Native App</code>的一些特性，兼具<code>Web App</code>和<code>Native App</code>的优点。</p>
+<p><code>PWA</code>的主要特点包括下面三点：</p>
+<p>可靠 - 即使在不稳定的网络环境下，也能瞬间加载并展现</p>
+<p>体验 - 快速响应，并且有平滑的动画响应用户的操作</p>
+<p>粘性 - 像设备上的原生应用，具有沉浸式的用户体验，用户可以添加到桌面<br><code>PWA</code>本身强调渐进式，并不要求一次性达到安全、性能和体验上的所有要求，开发者可以通过<a href="https://developers.google.cn/web/progressive-web-apps/checklist" target="_blank" rel="noopener">PWA Checklist</a>查看现有的特征。</p>
+<p>通过上面的<code>PWA Checklist</code>，总结起来，<code>PWA</code>大致有以下的优势：</p>
+<ul>
+<li>体验：通过<code>Service Worker</code>配合<code>Cache Storage API</code>，保证了<code>PWA</code>首屏的加载效率，甚至配合本地存储可以支持离线应用；</li>
+<li>粘性：<code>PWA</code>是可以安装的，用户点击安装到桌面后，会在桌面创建一个 PWA 应用，并且不需要从应用商店下载，可以借助<code>Web App Manifest</code>提供给用户和<code>Native App</code>一样的沉浸式体验，可以通过给用户发送离线通知，让用户回流；</li>
+<li>渐进式：适用于大多数现代浏览器，随着浏览器版本的迭代，其功能是渐进增强的；</li>
+<li>无版本问题：如<code>Web</code>应用的优势，更新版本只需要更新应用程序对应的静态文件即可，<code>Service Worker</code>会帮助我们进行更新；</li>
+<li>跨平台：<code>Windows</code>、<code>Mac OSX</code>、<code>Android</code>、<code>IOS</code>，一套代码，多处使用；</li>
+<li>消息推送：即使用户已经关闭应用程序，仍然可以对用户进行消息推送；</li>
+</ul>
+<p>总的说来，只要<code>Web</code>应用支持的功能，对于<code>PWA</code>而言，基本都支持，此外，还提供了原生能力。</p>
+<h3 id="使用PWA-manifest添加桌面入口"><a href="#使用PWA-manifest添加桌面入口" class="headerlink" title="使用PWA manifest添加桌面入口"></a>使用<code>PWA manifest</code>添加桌面入口</h3><p>注意这里说的<code>manifest</code>不是指的<code>manifest</code>缓存，这个<code>manifest</code>是一个<code>JSON</code>文件，开发者可以利用它控制在用户想要看到应用的区域（例如移动设备主屏幕）中如何向用户显示网络应用或网站，指示用户可以启动哪些功能，以及定义其在启动时的外观。</p>
+<p><code>manifest</code>提供了将网站书签保存到设备主屏幕的功能。当网站以这种方式启动时：</p>
+<ul>
+<li>它具有唯一的图标和名称，以便用户将其与其他网站区分开来。</li>
+<li>它会在下载资源或从缓存恢复资源时向用户显示某些信息。</li>
+<li>它会向浏览器提供默认显示特性，以避免网站资源可用时的过渡过于生硬。</li>
+</ul>
+<p>下面是我的博客网站的<code>manifest.json</code>文件，作为桌面入口配置文件的示例：</p>
+<pre><code>{
+  &quot;name&quot;: &quot;Counterxing&quot;,
+  &quot;short_name&quot;: &quot;Counterxing&quot;,
+  &quot;description&quot;: &quot;Why did you encounter me?&quot;,
+  &quot;start_url&quot;: &quot;/index.html&quot;,
+  &quot;display&quot;: &quot;standalone&quot;,
+  &quot;orientation&quot;: &quot;any&quot;,
+  &quot;background_color&quot;: &quot;#ACE&quot;,
+  &quot;theme_color&quot;: &quot;#ACE&quot;,
+  &quot;icons&quot;: [{
+    &quot;src&quot;: &quot;/images/logo/logo072.png&quot;,
+    &quot;sizes&quot;: &quot;72x72&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo152.png&quot;,
+    &quot;sizes&quot;: &quot;152x152&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo192.png&quot;,
+    &quot;sizes&quot;: &quot;192x192&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo256.png&quot;,
+    &quot;sizes&quot;: &quot;256x256&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo512.png&quot;,
+    &quot;sizes&quot;: &quot;512x512&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }]
+}
+</code></pre><p>上面的字段含义也不用多解释了，大致就是启动的<code>icon</code>样式，应用名称、简写名称与描述等，其中必须确保有<code>short_name</code>和<code>name</code>。此外，最好设定好<code>start_url</code>，表示启动的根页面路径，如果不添加，则是使用当前路径。</p>
+<p><code>display</code>为<code>standalone</code>，则会隐藏浏览器的<code>UI</code>界面，如果设置<code>display</code>为<code>browser</code>，则启动时保存浏览器的<code>UI</code>界面。</p>
+<p><code>orientation</code>表示启动时的方向，横屏、竖屏等，具体参数值可参考<a href="https://developer.mozilla.org/en-US/docs/Web/Manifest" target="_blank" rel="noopener">文档</a>。</p>
+<p><code>background_color</code>和<code>theme_color</code>表示应用程序的背景颜色和主题颜色。</p>
+<p>在创建好<code>manifest.json</code>后，将、使用<code>link</code>标签添加到应用程序的所有页面上，<code>&lt;link rel=&quot;manifest&quot; href=&quot;/manifest.json&quot;&gt;</code></p>
+<h3 id="安装到桌面"><a href="#安装到桌面" class="headerlink" title="安装到桌面"></a>安装到桌面</h3><h4 id="桌面端（以Mac-OSX为例）"><a href="#桌面端（以Mac-OSX为例）" class="headerlink" title="桌面端（以Mac OSX为例）"></a>桌面端（以<code>Mac OSX</code>为例）</h4><p>只有注册、激活了<code>Service Worker</code>的网站才能够安装到桌面，在<code>Chrome 70</code>版本之前，需要手动开启实验性功能，步骤如下：</p>
+<ol>
+<li>进入<code>chrome://flags</code></li>
+<li>找到<code>Desktop PWAs</code>，选择<code>Enabled</code></li>
+</ol>
+<p><img src="/2017/11/14/Service-Worker-PWA/4.webp" alt=""><br>此时，进入一个支持<code>PWA</code>的网站（例如<a href="https://events.google.com/io2016/" target="_blank" rel="noopener">Google I/O</a>），在<code>Chrome</code>浏览器右上角，点击安装。即可安装到桌面。这里以我的博客为例：</p>
+<blockquote>
+<p>可以到<a href="https://github.com/hemanth/awesome-pwa" target="_blank" rel="noopener">awesome-pwa</a>查找目前支持<code>PWA</code>的网站列表</p>
+</blockquote>
+<p><img src="/2017/11/14/Service-Worker-PWA/5.webp" alt=""><br>接着点击安装：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/6.webp" alt=""><br>这样，一个<code>PWA</code>应用就安装到你的机器上了，这里我的操作系统为<code>Mac OSX</code>，应用程序可以通过<code>Launchpad</code>打开，在<code>Windows</code>也是同理的，会被安装到桌面上，可通过开始菜单找到应用程序。</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/7.webp" alt=""><br>打开应用程序，发现其与原始应用几乎没有任何差距：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/8.webp" alt=""></p>
+<blockquote>
+<p>Windows与上述方法类似，这里就不做过多阐述</p>
+</blockquote>
+<h4 id="移动端（以IOS为例）"><a href="#移动端（以IOS为例）" class="headerlink" title="移动端（以IOS为例）"></a>移动端（以<code>IOS</code>为例）</h4><p>由于当初苹果推出<code>PWA</code>时，并没有一个统一的<code>manifest</code>的规范，最开始的设计是通过<code>meta</code>和<code>link</code>标签来设定应用的对应参数的，所以，在移动端上的<code>PWA</code>应用，为了兼容<code>Windows Phone</code>和<code>iPhone</code>，需要在所有页面的<code>HTML</code>的<code>head</code>中添加以下的标签：</p>
+<pre><code>&lt;metaname=&quot;msapplication-TileImage&quot;content=&quot;./images/logo/logo152.png&quot;&gt;
+&lt;metaname=&quot;msapplication-TileColor&quot;content=&quot;#2F3BA2&quot;&gt;
+&lt;metaname=&quot;apple-mobile-web-app-capable&quot;content=&quot;yes&quot;&gt;
+&lt;metaname=&quot;apple-mobile-web-app-status-bar-style&quot;content=&quot;black&quot;&gt;
+&lt;metaname=&quot;apple-mobile-web-app-title&quot;content=&quot;Counterxing&quot;&gt;
+&lt;linkrel=&quot;apple-touch-icon&quot;href=&quot;./images/logo/logo152.png&quot;&gt;
+</code></pre><p>添加好后，就可以体验我们的<code>PWA</code>了！</p>
+<p><code>IOS</code>在<code>11.3</code>版本之后也支持<code>PWA</code>了，知道这一消息的我，卸载了手机上很多软件，立刻体验上了<code>PWA</code>。</p>
+<p>这里以<a href="https://m.douban.com" target="_blank" rel="noopener">豆瓣移动端</a>为例使用<code>Safiri</code>浏览器打开一个网站，点击下方分享图标，选择添加到主屏幕。</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/9.webp" alt=""><br><img src="/2017/11/14/Service-Worker-PWA/10.webp" alt=""><br>然后在新弹出的一个浏览器页面，选择添加：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/11.webp" alt=""><br>就以上简短的步骤，移动端上的一个<code>PWA</code>桌面应用就添加好了，赶紧体验吧！</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>本文是笔者写的<code>Service Worker</code>学习与实践系列文章的第二篇，主要讲述的是配合<code>Service Worker</code>使用的<code>PWA</code>的优势，如何配置<code>manifest.json</code>文件来实现将<code>PWA</code>安装到桌面，并通过<code>Mac OSX</code>和<code>IOS</code>如何安装<code>PWA</code>到桌面的详细步骤，阐述了如何配置<code>PWA</code>，使其方便地安装到桌面上。</p>
+<p>下一篇文章中，主要讲述<code>Service Worker</code>在<code>PWA</code>实践中的重要能力：<code>Web Push</code>。</p>
+<hr>
+<h2 id="Notification"><a href="#Notification" class="headerlink" title="Notification"></a>Notification</h2><p>说到底，<code>PWA</code>的消息推送也是服务端推送的一种，常见的服务端推送方法，例如广泛使用的轮询、长轮询、<code>Web Socket</code>等，说到底，都是客户端与服务端之间的通信，在<code>Service Worker</code>中，客户端接收到通知，是基于<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/notification" target="_blank" rel="noopener">Notification</a>来进行推送的。</p>
+<p>那么，我们来看一下，如何直接使用<code>Notification</code>来发送一条推送呢？下面是一段示例代码：</p>
+<pre><code>// 在主线程中使用let notification =newNotification(&apos;您有新消息&apos;, {
+  body:&apos;Hello Service Worker&apos;,
+  icon:&apos;./images/logo/logo152.png&apos;,
+});
+
+notification.onclick=function() {
+  console.log(&apos;点击了&apos;);
+};
+</code></pre><p>在控制台敲下上述代码后，则会弹出以下通知：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/12.webp" alt=""><br>然而，<code>Notification</code>这个<code>API</code>，只推荐在<code>Service Worker</code>中使用，不推荐在主线程中使用，在<code>Service Worker</code>中的使用方法为：</p>
+<pre><code>// 添加notificationclick事件监听器，在点击notification时触发self.addEventListener(&apos;notificationclick&apos;, function(event) {
+  // 关闭当前的弹窗event.notification.close();
+  // 在新窗口打开页面event.waitUntil(
+    clients.openWindow(&apos;https://google.com&apos;)
+  );
+});
+
+// 触发一条通知self.registration.showNotification(&apos;您有新消息&apos;, {
+  body:&apos;Hello Service Worker&apos;,
+  icon:&apos;./images/logo/logo152.png&apos;,
+});
+</code></pre><p>读者可以在<a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/showNotification" target="_blank" rel="noopener">MDN Web Docs</a>关于<code>Notification</code>在<code>Service Worker</code>中的相关用法，在本文就不浪费大量篇幅来进行较为详细的阐述了。</p>
+<h2 id="申请推送的权限"><a href="#申请推送的权限" class="headerlink" title="申请推送的权限"></a>申请推送的权限</h2><p>如果浏览器直接给所有开发者开放向用户推送通知的权限，那么势必用户会受到大量垃圾信息的骚扰，因此这一权限是需要申请的，如果用户禁止了消息推送，开发者是没有权利向用户发起消息推送的。我们可以通过<a href="https://developer.mozilla.org/en-US/docs/Web/API/PushManager" target="_blank" rel="noopener">serviceWorkerRegistration.pushManager.getSubscription</a>方法查看用户是否已经允许推送通知的权限。修改<code>sw-register.js</code>中的代码：</p>
+<pre><code>if (&apos;serviceWorker&apos;innavigator) {
+  navigator.serviceWorker.register(&apos;/sw.js&apos;).then(function (swReg) {
+    swReg.pushManager.getSubscription()
+      .then(function(subscription) {
+        if (subscription) {
+          console.log(JSON.stringify(subscription));
+        } else {
+          console.log(&apos;没有订阅&apos;);
+          subscribeUser(swReg);
+        }
+      });
+  });
+}
+</code></pre><p>上面的代码调用了<code>swReg.pushManager</code>的<code>getSubscription</code>，可以知道用户是否已经允许进行消息推送，如果<code>swReg.pushManager.getSubscription</code>的<code>Promise</code>被<code>reject</code>了，则表示用户还没有订阅我们的消息，调用<code>subscribeUser</code>方法，向用户申请消息推送的权限：</p>
+<pre><code>functionsubscribeUser(swReg) {
+  constapplicationServerKey=urlB64ToUint8Array(applicationServerPublicKey);
+  swReg.pushManager.subscribe({
+    userVisibleOnly:true,
+    applicationServerKey: applicationServerKey
+  })
+  .then(function(subscription) {
+    console.log(JSON.stringify(subscription));
+  })
+  .catch(function(err) {
+    console.log(&apos;订阅失败: &apos;, err);
+  });
+}
+</code></pre><p>上面的代码通过<a href="https://developer.mozilla.org/en-US/docs/Web/API/PushManager" target="_blank" rel="noopener">serviceWorkerRegistration.pushManager.subscribe</a>向用户发起订阅的权限，这个方法返回一个<code>Promise</code>，如果<code>Promise</code>被<code>resolve</code>，则表示用户允许应用程序推送消息，反之，如果被<code>reject</code>，则表示用户拒绝了应用程序的消息推送。如下图所示：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/13.webp" alt=""><br><code>serviceWorkerRegistration.pushManager.subscribe</code>方法通常需要传递两个参数：</p>
+<ul>
+<li><code>userVisibleOnly</code>，这个参数通常被设置为<code>true</code>，用来表示后续信息是否展示给用户。</li>
+<li><p><code>applicationServerKey</code>，这个参数是一个<code>Uint8Array</code>，用于加密服务端的推送信息，防止中间人攻击，会话被攻击者篡改。这一参数是由服务端生成的公钥，通过<code>urlB64ToUint8Array</code>转换的，这一函数通常是固定的，如下所示：</p>
+<p>  functionurlB64ToUint8Array(base64String) {</p>
+<pre><code>constpadding=&apos;=&apos;.repeat((4-base64String.length%4) %4);
+constbase64= (base64String + padding)
+  .replace(/\-/g, &apos;+&apos;)
+  .replace(/_/g, &apos;/&apos;);
+
+constrawData=window.atob(base64);
+constoutputArray=newUint8Array(rawData.length);
+
+for (let i =0; i &lt;rawData.length; ++i) {
+  outputArray[i] =rawData.charCodeAt(i);
+}
+return outputArray;
+</code></pre><p>  }</p>
+</li>
+</ul>
+<p>关于服务端公钥如何获取，在文章后续会有相关阐述。</p>
+<h2 id="处理拒绝的权限"><a href="#处理拒绝的权限" class="headerlink" title="处理拒绝的权限"></a>处理拒绝的权限</h2><p>如果在调用<code>serviceWorkerRegistration.pushManager.subscribe</code>后，用户拒绝了推送权限，同样也可以在应用程序中，通过<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/notification/permission" target="_blank" rel="noopener">Notification.permission</a>获取到这一状态，<code>Notification.permission</code>有以下三个取值，：</p>
+<ul>
+<li><code>granted</code>：用户已经明确的授予了显示通知的权限。</li>
+<li><code>denied</code>：用户已经明确的拒绝了显示通知的权限。</li>
+<li><p><code>default</code>：用户还未被询问是否授权，在应用程序中，这种情况下权限将视为<code>denied</code>。</p>
+<p>  if (Notification.permission===’granted’) {</p>
+<pre><code>// 用户允许消息推送
+</code></pre><p>  } else {</p>
+<pre><code>// 还不允许消息推送，向用户申请消息推送的权限
+</code></pre><p>  }</p>
+</li>
+</ul>
+<h2 id="密钥生成"><a href="#密钥生成" class="headerlink" title="密钥生成"></a>密钥生成</h2><p>上述代码中的<code>applicationServerPublicKey</code>通常情况下是由服务端生成的公钥，在页面初始化的时候就会返回给客户端，服务端会保存每个用户对应的公钥与私钥，以便进行消息推送。</p>
+<p>在我的示例演示中，我们可以使用<code>Google</code>配套的实验网站<a href="https://web-push-codelab.glitch.me/" target="_blank" rel="noopener">web-push-codelab</a>生成公钥与私钥，以便发送消息通知：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/14.webp" alt=""></p>
+<h2 id="发送推送"><a href="#发送推送" class="headerlink" title="发送推送"></a>发送推送</h2><p>在<code>Service Worker</code>中，通过监听<code>push</code>事件来处理消息推送：</p>
+<pre><code>self.addEventListener(&apos;push&apos;, function(event) {
+  consttitle=event.data.text();
+  constoptions= {
+    body:event.data.text(),
+    icon:&apos;./images/logo/logo512.png&apos;,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+</code></pre><p>在上面的代码中，在<code>push</code>事件回调中，通过<code>event.data.text()</code>拿到消息推送的文本，然后调用上面所说的<code>self.registration.showNotification</code>来展示消息推送。</p>
+<h2 id="服务端发送"><a href="#服务端发送" class="headerlink" title="服务端发送"></a>服务端发送</h2><p>那么，如何在服务端识别指定的用户，向其发送对应的消息推送呢？</p>
+<p>在调用<code>swReg.pushManager.subscribe</code>方法后，如果用户是允许消息推送的，那么该函数返回的<code>Promise</code>将会<code>resolve</code>，在<code>then</code>中获取到对应的<code>subscription</code>。</p>
+<p><code>subscription</code>一般是下面的格式：</p>
+<pre><code>{
+  &quot;endpoint&quot;: &quot;https://fcm.googleapis.com/fcm/send/cSEJGmI_x2s:APA91bHzRHllE6tNoEHqjHQSlLpcQHeiGr7X78EIa1QrUPFqDGDM_4RVKNxoLPV3_AaCCejR4uwUawBKYcQLmLpUrCUoZetQ9pVzQCJSomB5BvoFZBzkSnUb-ALm4D1lqwV9w_uP3M0E&quot;,
+  &quot;expirationTime&quot;: null,
+  &quot;keys&quot;: {
+    &quot;p256dh&quot;: &quot;BDOx1ZTtsFL2ncSN17Bu7-Wl_1Z7yIiI-lKhtoJ2dAZMToGz-XtQOe6cuMLMa3I8FoqPfcPy232uAqoISB4Z-UU&quot;,
+    &quot;auth&quot;: &quot;XGWy-wlmrAw3Be818GLZ8Q&quot;
+  }
+}
+</code></pre><p>使用<code>Google</code>配套的实验网站<a href="https://web-push-codelab.glitch.me/" target="_blank" rel="noopener">web-push-codelab</a>，发送消息推送。</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/15.webp" alt=""></p>
+<h2 id="web-push"><a href="#web-push" class="headerlink" title="web-push"></a>web-push</h2><p>在服务端，使用<a href="https://github.com/web-push-libs" target="_blank" rel="noopener">web-push-libs</a>，实现公钥与私钥的生成，消息推送功能，<a href="https://github.com/web-push-libs/web-push" target="_blank" rel="noopener">Node.js版本</a>。</p>
+<pre><code>constwebpush=require(&apos;web-push&apos;);
+
+// VAPID keys should only be generated only once.constvapidKeys=webpush.generateVAPIDKeys();
+
+webpush.setGCMAPIKey(&apos;&lt;Your GCM API Key Here&gt;&apos;);
+webpush.setVapidDetails(
+  &apos;mailto:example@yourdomain.org&apos;,
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
+
+// pushSubscription是前端通过swReg.pushManager.subscribe获取到的subscriptionconstpushSubscription= {
+  endpoint:&apos;.....&apos;,
+  keys: {
+    auth:&apos;.....&apos;,
+    p256dh:&apos;.....&apos;
+  }
+};
+
+webpush.sendNotification(pushSubscription, &apos;Your Push Payload Text&apos;);
+</code></pre><p>上面的代码中，<code>GCM API Key</code>需要在<a href="https://console.firebase.google.com" target="_blank" rel="noopener">Firebase console</a>中申请，申请教程可参考这篇<a href="https://www.pushbots.help/install-pushbots-in-your-app-or-website/android/the-google-part-fcmgcm-api-key-and-sender-id" target="_blank" rel="noopener">博文</a>。</p>
+<p>在这个我写的示例<code>Demo</code>中，我把<code>subscription</code>写死了：</p>
+<pre><code>constwebpush=require(&apos;web-push&apos;);
+
+webpush.setVapidDetails(
+  &apos;mailto:503908971@qq.com&apos;,
+  &apos;BCx1qqSFCJBRGZzPaFa8AbvjxtuJj9zJie_pXom2HI-gisHUUnlAFzrkb-W1_IisYnTcUXHmc5Ie3F58M1uYhZU&apos;,
+  &apos;g5pubRphHZkMQhvgjdnVvq8_4bs7qmCrlX-zWAJE9u8&apos;
+);
+
+constsubscription= {
+  &quot;endpoint&quot;:&quot;https://fcm.googleapis.com/fcm/send/cSEJGmI_x2s:APA91bHzRHllE6tNoEHqjHQSlLpcQHeiGr7X78EIa1QrUPFqDGDM_4RVKNxoLPV3_AaCCejR4uwUawBKYcQLmLpUrCUoZetQ9pVzQCJSomB5BvoFZBzkSnUb-ALm4D1lqwV9w_uP3M0E&quot;,
+  &quot;expirationTime&quot;:null,
+  &quot;keys&quot;: {
+    &quot;p256dh&quot;:&quot;BDOx1ZTtsFL2ncSN17Bu7-Wl_1Z7yIiI-lKhtoJ2dAZMToGz-XtQOe6cuMLMa3I8FoqPfcPy232uAqoISB4Z-UU&quot;,
+    &quot;auth&quot;:&quot;XGWy-wlmrAw3Be818GLZ8Q&quot;
+  }
+};
+
+webpush.sendNotification(subscription, &apos;Counterxing&apos;);
+</code></pre><h2 id="交互响应"><a href="#交互响应" class="headerlink" title="交互响应"></a>交互响应</h2><p>默认情况下，推送的消息点击后是没有对应的交互的，配合<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Clients" target="_blank" rel="noopener">clients API</a>可以实现一些类似于原生应用的交互，这里参考了这篇<a href="https://blog.csdn.net/i10630226/article/details/78888698" target="_blank" rel="noopener">博文</a>的实现：</p>
+<blockquote>
+<p><code>Service Worker</code>中的<code>self.clients</code>对象提供了<code>Client</code>的访问，<code>Client</code>接口表示一个可执行的上下文，如<code>Worker</code>或<code>SharedWorker</code>。<code>Window</code>客户端由更具体的<code>WindowClient</code>表示。 你可以从<code>Clients.matchAll()</code>和<code>Clients.get()</code>等方法获取<code>Client/WindowClient</code>对象。</p>
+</blockquote>
+<h3 id="新窗口打开"><a href="#新窗口打开" class="headerlink" title="新窗口打开"></a>新窗口打开</h3><p>使用<code>clients.openWindow</code>在新窗口打开一个网页：</p>
+<pre><code>self.addEventListener(&apos;notificationclick&apos;, function(event) {
+  event.notification.close();
+  // 新窗口打开event.waitUntil(
+    clients.openWindow(&apos;https://google.com/&apos;)
+  );
+});
+</code></pre><h3 id="聚焦已经打开的页面"><a href="#聚焦已经打开的页面" class="headerlink" title="聚焦已经打开的页面"></a>聚焦已经打开的页面</h3><p>利用<code>cilents</code>提供的相关<code>API</code>获取，当前浏览器已经打开的页面<code>URLs</code>。不过这些<code>URLs</code>只能是和你<code>SW</code>同域的。然后，通过匹配<code>URL</code>，通过<code>matchingClient.focus()</code>进行聚焦。没有的话，则新打开页面即可。</p>
+<pre><code>self.addEventListener(&apos;notificationclick&apos;, function(event) {
+  event.notification.close();
+  consturlToOpen=self.location.origin+&apos;/index.html&apos;;
+
+  constpromiseChain=clients.matchAll({
+      type:&apos;window&apos;,
+      includeUncontrolled:true
+    })
+    .then((windowClients) =&gt; {
+      let matchingClient =null;
+
+      for (let i =0; i &lt;windowClients.length; i++) {
+        constwindowClient= windowClients[i];
+        if (windowClient.url=== urlToOpen) {
+          matchingClient = windowClient;
+          break;
+        }
+      }
+
+      if (matchingClient) {
+        returnmatchingClient.focus();
+      } else {
+        returnclients.openWindow(urlToOpen);
+      }
+    });
+
+  event.waitUntil(promiseChain);
+});
+</code></pre><h3 id="检测是否需要推送"><a href="#检测是否需要推送" class="headerlink" title="检测是否需要推送"></a>检测是否需要推送</h3><p>如果用户已经停留在当前的网页，那我们可能就不需要推送了，那么针对于这种情况，我们应该怎么检测用户是否正在网页上呢？</p>
+<blockquote>
+<p>通过<code>windowClient.focused</code>可以检测到当前的<code>Client</code>是否处于聚焦状态。</p>
+</blockquote>
+<pre><code>self.addEventListener(&apos;push&apos;, function(event) {
+  constpromiseChain=clients.matchAll({
+      type:&apos;window&apos;,
+      includeUncontrolled:true
+    })
+    .then((windowClients) =&gt; {
+      let mustShowNotification =true;
+
+      for (let i =0; i &lt;windowClients.length; i++) {
+        constwindowClient= windowClients[i];
+        if (windowClient.focused) {
+          mustShowNotification =false;
+          break;
+        }
+      }
+
+      return mustShowNotification;
+    })
+    .then((mustShowNotification) =&gt; {
+      if (mustShowNotification) {
+        consttitle=event.data.text();
+        constoptions= {
+          body:event.data.text(),
+          icon:&apos;./images/logo/logo512.png&apos;,
+        };
+        returnself.registration.showNotification(title, options);
+      } else {
+        console.log(&apos;用户已经聚焦于当前页面，不需要推送。&apos;);
+      }
+    });
+});
+</code></pre><h3 id="合并消息"><a href="#合并消息" class="headerlink" title="合并消息"></a>合并消息</h3><p>该场景的主要针对消息的合并。比如，当只有一条消息时，可以直接推送，那如果该用户又发送一个消息呢？ 这时候，比较好的用户体验是直接将推送合并为一个，然后替换即可。 那么，此时我们就需要获得当前已经展示的推送消息，这里主要通过<code>registration.getNotifications() API</code>来进行获取。该<code>API</code>返回的也是一个<code>Promise</code>对象。通过<code>Promise</code>在<code>resolve</code>后拿到的<code>notifications</code>，判断其<code>length</code>，进行消息合并。</p>
+<pre><code>self.addEventListener(&apos;push&apos;, function(event) {
+  // ...
+    .then((mustShowNotification) =&gt; {
+      if (mustShowNotification) {
+        returnregistration.getNotifications()
+          .then(notifications=&gt; {
+            let options = {
+              icon:&apos;./images/logo/logo512.png&apos;,
+              badge:&apos;./images/logo/logo512.png&apos;
+            };
+            let title =event.data.text();
+            if (notifications.length) {
+              options.body=`您有${notifications.length}条新消息`;
+            } else {
+              options.body=event.data.text();
+            }
+            returnself.registration.showNotification(title, options);
+
+          });
+      } else {
+        console.log(&apos;用户已经聚焦于当前页面，不需要推送。&apos;);
+      }
+    });
+  // ...
+});
+</code></pre><p><img src="/2017/11/14/Service-Worker-PWA/16.webp" alt=""></p>
+<h3 id="服务端推送的几种方式"><a href="#服务端推送的几种方式" class="headerlink" title="服务端推送的几种方式"></a>服务端推送的几种方式</h3><p>服务端推送是现今<code>Web</code>开发过程中最常见的需求。例如：</p>
+<ul>
+<li>即时聊天工具</li>
+<li>H5网络游戏</li>
+<li>消息通知</li>
+</ul>
+<p>一般的服务器推送包括：</p>
+<ul>
+<li>最简单的是客户端轮询的方式，在客户端创建一个定时器，每隔一定的时间去请求服务端，每次请求检查状态变化以判断服务端是否有新数据更新。</li>
+<li>基于 AJAX 的长轮询（<code>long-polling</code>）方式，服务器在一段时间后再返回信息；</li>
+<li><code>HTTP Streaming</code>，通过<code>iframe</code>和<code>&lt;script&gt;</code>标签完成数据的传输；</li>
+<li><code>TCP</code>长连接/<code>WebSocket</code>，可以实现服务器主动发送数据至网页端，它和<code>HTTP</code>一样，是一个基于<code>HTTP</code>的应用层协议，跑的是<code>TCP</code>，所以本质上还是个长连接，双向通信，意味着服务器端和客户端可以同时发送并响应请求，而不再像<code>HTTP</code>的请求和响应</li>
+<li><code>SSE: Server-Sent Events</code>，这是通过<code>http</code>协议变通实现的，通过服务端向客户端声明，接下来是要发送的是流信息，本质上就是完成一次耗时长的下载。</li>
+</ul>
+<h2 id="小结-1"><a href="#小结-1" class="headerlink" title="小结"></a>小结</h2><p>本文通过一个简单的例子，讲述了<code>Service Worker</code>中消息推送的原理。<code>Service Worker</code>中的消息推送是基于<code>Notification API</code>的，这一<code>API</code>的使用首先需要用户授权，通过在<code>Service Worker</code>注册时的<code>serviceWorkerRegistration.pushManager.subscribe</code>方法来向用户申请权限，如果用户拒绝了消息推送，应用程序也需要相关处理。</p>
+<p>消息推送是基于谷歌云服务的，因此，在国内，收到<code>GFW</code>的限制，这一功能的支持并不好，<code>Google</code>提供了一系列推送相关的库，例如<code>Node.js</code>中，使用<a href="https://github.com/web-push-libs/web-push" target="_blank" rel="noopener">web-push</a>来实现。一般原理是：在服务端生成公钥和私钥，并针对用户将其公钥和私钥存储到服务端，客户端只存储公钥。<code>Service Worker</code>的<code>swReg.pushManager.subscribe</code>可以获取到<code>subscription</code>，并发送给服务端，服务端利用<code>subscription</code>向指定的用户发起消息推送。</p>
+<p>消息推送功能可以配合<code>clients API</code>做特殊处理。</p>
+<p>如果用户安装了<code>PWA</code>应用，即使用户关闭了应用程序，<code>Service Worker</code>也在运行，即使用户未打开应用程序，也会收到消息通知。</p>
+
           
         
       
