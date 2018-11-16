@@ -300,6 +300,444 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/JS-继承/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/03/02/JS-继承/" itemprop="url">JS 继承</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-02T22:49:01+08:00">
+                2018-03-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
+<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+function Child(name) {
+    this.name = name;
+}
+
+Child.prototype = new Parent(&apos;father&apos;);
+Child.prototype.constructor = Child;
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+var child = new Child(&apos;son&apos;);
+child.sayName();    // child name: son
+</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
+<p>这种方法存在两个缺点：</p>
+<ol>
+<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
+<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
+</ol>
+<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+Parent.prototype.doSomthing = function() {
+    console.log(&apos;parent do something!&apos;);
+}
+function Child(name, parentName) {
+    Parent.call(this, parentName);
+    this.name = name;
+}
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+var child = new Child(&apos;son&apos;);
+child.sayName();      // child name: son
+child.doSomthing();   // TypeError: child.doSomthing is not a function
+</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
+<p>缺点：</p>
+<ol>
+<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
+</ol>
+<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
+    this.name = name;
+}
+
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+Parent.prototype.doSomething = function() {
+    console.log(&apos;parent do something!&apos;);
+}
+function Child(name, parentName) {
+    Parent.call(this, parentName);
+    this.name = name;
+}
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+Child.prototype = new Parent();      
+Child.prototype.construtor = Child;
+
+var child = new Child(&apos;son&apos;);
+child.sayName();       // child name: son
+child.doSomething();   // parent do something!
+</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
+<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
+<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
+<pre><code>function Parent(name) { 
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+Parent.prototype.doSomething = function() {
+    console.log(&apos;parent do something!&apos;);
+}
+function Child(name, parentName) {
+    Parent.call(this, parentName);      // 第二次调用
+    this.name = name;
+}
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+Child.prototype = new Parent();         // 第一次调用
+Child.prototype.construtor = Child;
+
+var child = new Child(&apos;son&apos;);
+child.sayName();      
+child.doSomething();   
+</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
+<pre><code>Child.prototype = Parent.prototype;
+</code></pre><p>这样写显然是不对的：</p>
+<ol>
+<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
+<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
+</ol>
+<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
+<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+
+function Child(name, parentName) {
+    Parent.call(this, parentName);  
+    this.name = name;    
+}
+
+function create(proto) {
+    function F(){}
+    F.prototype = proto;
+    F.prototype.construtor = F;
+    return new F();
+}
+
+Child.prototype = create(Parent.prototype);
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+Child.prototype.construtor = Child;
+
+var parent = new Parent(&apos;father&apos;);
+parent.sayName();    // parent name: father
+
+
+var child = new Child(&apos;son&apos;, &apos;father&apos;);
+child.sayName();     // child name: son
+</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
+<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
+<pre><code>function Parent(name) {
+    this.name = name;
+}
+Parent.prototype.sayName = function() {
+    console.log(&apos;parent name:&apos;, this.name);
+}
+
+function Child(name, parentName) {
+    Parent.call(this, parentName);  
+    this.name = name;    
+}
+
+function inheritPrototype(Parent, Child) {
+    Child.prototype = Object.create(Parent.prototype);   //修改
+    Child.prototype.construtor = Child;
+}
+
+inheritPrototype(Parent, Child);
+
+Child.prototype.sayName = function() {
+    console.log(&apos;child name:&apos;, this.name);
+}
+
+var parent = new Parent(&apos;father&apos;);
+parent.sayName();      // parent name: father
+
+var child = new Child(&apos;son&apos;, &apos;father&apos;);
+child.sayName();       // child name: son
+</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
+<pre><code>class Parent {
+    constructor(name) {
+    this.name = name;
+    }
+    doSomething() {
+    console.log(&apos;parent do something!&apos;);
+    }
+    sayName() {
+    console.log(&apos;parent name:&apos;, this.name);
+    }
+}
+
+class Child extends Parent {
+    constructor(name, parentName) {
+    super(parentName);
+    this.name = name;
+    }
+    sayName() {
+     console.log(&apos;child name:&apos;, this.name);
+    }
+}
+
+const child = new Child(&apos;son&apos;, &apos;father&apos;);
+child.sayName();            // child name: son
+child.doSomething();        // parent do something!
+
+const parent = new Parent(&apos;father&apos;);
+parent.sayName();           // parent name: father
+</code></pre><p>JavaScript前端开发</p>
+<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
+<pre><code>/**
+ * JavaScript(ES5)中实现继承的几种方法
+ */
+
+// 定义基类Person
+function Person(name, age) {
+  this.name = name;
+  this.age = age;
+}
+
+// 共享数据
+Person.prototype.LEGS_NUM = 2;
+
+// 共享方法
+Person.prototype.info = function () {
+  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
+};
+
+Person.prototype.walk = function () {
+  console.log(this.name + &apos; is walking...&apos;);
+};
+
+// Student子类
+function Student(name, age, className) {
+  // 调用父类
+  Person.call(this, name, age);
+  this.className = className;
+}
+
+// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
+// Student.prototype = Person.prototype;
+
+// 2⃣️ 方法二：Student.prototype为Person的实例
+// Student.prototype = new Person();
+
+// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
+Student.prototype = Object.create(Person.prototype);
+
+Student.prototype.constructor = Student;
+
+// 覆盖父类的info方法
+Student.prototype.info = function () {
+  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
+};
+
+// Student类的共享方法
+Student.prototype.learn = function (subject) {
+  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
+};
+
+// 测试,创建一个Student的实例
+var microzz = new Student(&apos;Microzz&apos;, 22, 5);
+microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
+console.log(microzz.LEGS_NUM); // 2
+microzz.walk(); // Microzz is walking...
+microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
+console.log(microzz.__proto__.__proto__ === Person.prototype); // true
+console.log(microzz.__proto__ === Student.prototype); // true
+console.log(microzz.__proto__.constructor === Student); // true
+</code></pre><p>三种方法比较</p>
+<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>1⃣️这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>2⃣️第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>3⃣️第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
+<pre><code>if (!Object.create) {
+  Object.prototype.create = function (proto) {
+    function F() {}
+    F.prototype = proto;
+    return new F;
+  }
+}
+</code></pre><p>这样在ES5中就完美实现了继承😄</p>
+<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
+<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
+<p>代码</p>
+<pre><code>// 基类 Person
+class Person {
+  // 父类的构造方法
+  constructor(name, age) {
+    this.name = name;
+    this.age = age;
+    // 共享变量
+    this.LEGS_NUM = 2;
+  }
+  // 父类的info方法
+  info() {
+    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
+  }
+
+  // 父类的walk方法
+  walk() {
+    console.log(this.name + &apos; is walking...&apos;);
+  }
+
+}
+
+// 子类 Student
+class Student extends Person {
+  constructor(name, age, className) {
+    // 调用基类的构造方法
+    super(name, age);
+    this.className = className;
+  }
+
+  // 覆盖父类的info方法
+  info() {
+    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
+  }
+}
+
+// 实例化一个Student的实例
+let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
+stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
+stu.walk(); // Zhaohui is walking...
+console.log(stu.LEGS_NUM); // 2
+console.log(stu instanceof Student); // true
+console.log(stu instanceof Person); // true
+</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了😄</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3804,545 +4242,6 @@ const checkOpen = setInterval(() =&gt; {
 <p>很不幸，你的手实在是太快了，你既git add了，又git commit了，并且还git push了，这时你的代码已经进入远程仓库。如果你想恢复的话，还好，由于你的本地仓库和远程仓库是等价的，你只需要先恢复本地仓库，再强制push到远程仓库就好了：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard HEAD^</span><br><span class="line"></span><br><span class="line">git push -f</span><br></pre></td></tr></table></figure></p>
 <p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwCtsdla2FrJ4nCjP0tBssNeB7ZqBkQON4Jcxb2ghrAUEibNa2icoiaB3cg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a><strong>总结</strong></h1><p>以上4种状态的撤销我们都用到了同一个命令git reset –hard，前2种状态的用法甚至完全一样，所以只要掌握了git reset –hard这个命令的用法，从此你再也不用担心提交错误了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/29/从Vue-js源码看nextTick机制/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/29/从Vue-js源码看nextTick机制/" itemprop="url">从Vue.js源码看nextTick机制</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-29T22:30:13+08:00">
-                2017-10-29
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><a href="https://link.zhihu.com/?target=https%3A//chuckliu.me/%23%21/posts/58bd08a2b5187d2fb51c04f9" target="_blank" rel="noopener">Vue源码详解之nextTick：MutationObserver只是浮云，microtask才是核心！</a></p>
-<h2 id="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"><a href="#可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。" class="headerlink" title="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"></a>可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。</h2><h2 id="操作DOM"><a href="#操作DOM" class="headerlink" title="操作DOM"></a>操作DOM</h2><p>在使用vue.js的时候，有时候因为一些特定的业务场景，不得不去操作DOM，比如这样：</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
-    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: &apos;begin&apos;
-        };
-    },
-    methods () {
-        handleClick () {
-            this.test = &apos;end&apos;;
-            console.log(this.$refs.test.innerText);//打印“begin”
-        }
-    }
-}
-</code></pre><p>打印的结果是begin，为什么我们明明已经将test设置成了“end”，获取真实DOM节点的innerText却没有得到我们预期中的“end”，而是得到之前的值“begin”呢？</p>
-<h2 id="Watcher队列"><a href="#Watcher队列" class="headerlink" title="Watcher队列"></a>Watcher队列</h2><p>带着疑问，我们找到了Vue.js源码的Watch实现。当某个响应式数据发生变化的时候，它的setter函数会通知闭包中的Dep，Dep则会调用它管理的所有Watch对象。触发Watch对象的update实现。我们来看一下update的实现。</p>
-<pre><code>update () {
-    /* istanbul ignore else */
-    if (this.lazy) {
-        this.dirty = true
-    } else if (this.sync) {
-        /*同步则执行run直接渲染视图*/
-        this.run()
-    } else {
-        /*异步推送到观察者队列中，下一个tick时调用。*/
-        queueWatcher(this)
-    }
-}
-</code></pre><p>我们发现Vue.js默认是使用<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fguide%252Freactivity.html%2523%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0%25E9%2598%259F%25E5%2588%2597" target="_blank" rel="noopener">异步执行DOM更新</a>。<br>当异步执行update的时候，会调用queueWatcher函数。</p>
-<pre><code>/*将一个观察者对象push进观察者队列，在队列中已经存在相同的id则该观察者对象将被跳过，除非它是在队列被刷新时推送*/
-export function queueWatcher (watcher: Watcher) {
-  /*获取watcher的id*/
-  const id = watcher.id
-  /*检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验*/
-  if (has[id] == null) {
-    has[id] = true
-    if (!flushing) {
-      /*如果没有flush掉，直接push到队列中即可*/
-      queue.push(watcher)
-    } else {
-      // if already flushing, splice the watcher based on its id
-      // if already past its id, it will be run next immediately.
-      let i = queue.length - 1
-      while (i &gt;= 0 &amp;&amp; queue[i].id &gt; watcher.id) {
-        i--
-      }
-      queue.splice(Math.max(i, index) + 1, 0, watcher)
-    }
-    // queue the flush
-    if (!waiting) {
-      waiting = true
-      nextTick(flushSchedulerQueue)
-    }
-  }
-}
-</code></pre><p>查看queueWatcher的源码我们发现，Watch对象并不是立即更新视图，而是被push进了一个队列queue，此时状态处于waiting的状态，这时候会继续会有Watch对象被push进这个队列queue，等待下一个tick时，这些Watch对象才会被遍历取出，更新视图。同时，id重复的Watcher不会被多次加入到queue中去，因为在最终渲染时，我们只需要关心数据的最终结果。</p>
-<p>那么，什么是下一个tick？</p>
-<h2 id="nextTick"><a href="#nextTick" class="headerlink" title="nextTick"></a>nextTick</h2><p>vue.js提供了一个<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fapi%252F%2523Vue-nextTick" target="_blank" rel="noopener">nextTick</a>函数，其实也就是上面调用的nextTick。</p>
-<p>nextTick的实现比较简单，执行的目的是在microtask或者task中推入一个funtion，在当前栈执行完毕（也行还会有一些排在前面的需要执行的任务）以后执行nextTick传入的funtion，看一下源码：</p>
-<pre><code>/**
- * Defer a task to execute it asynchronously.
- */
- /*
-    延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function
-    这个函数的作用是在task或者microtask中推入一个timerFunc，
-    在当前调用栈执行完以后以此执行直到执行到timerFunc
-    目的是延迟到当前调用栈执行完以后执行
-*/
-export const nextTick = (function () {
-  /*存放异步执行的回调*/
-  const callbacks = []
-  /*一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送*/
-  let pending = false
-  /*一个函数指针，指向函数将被推送到任务队列中，等到主线程任务执行完时，任务队列中的timerFunc被调用*/
-  let timerFunc
-
-  /*下一个tick时的回调*/
-  function nextTickHandler () {
-    /*一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行），这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程*/
-    pending = false
-    /*执行所有callback*/
-    const copies = callbacks.slice(0)
-    callbacks.length = 0
-    for (let i = 0; i &lt; copies.length; i++) {
-      copies[i]()
-    }
-  }
-
-  // the nextTick behavior leverages the microtask queue, which can be accessed
-  // via either native Promise.then or MutationObserver.
-  // MutationObserver has wider support, however it is seriously bugged in
-  // UIWebView in iOS &gt;= 9.3.3 when triggered in touch event handlers. It
-  // completely stops working after triggering a few times... so, if native
-  // Promise is available, we will use it:
-  /* istanbul ignore if */
-
-  /*
-    这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法
-    优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法都会在microtask中执行，会比setTimeout更早执行，所以优先使用。
-    如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
-    参考：https://www.zhihu.com/question/55364497
-  */
-  if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
-    /*使用Promise*/
-    var p = Promise.resolve()
-    var logError = err =&gt; { console.error(err) }
-    timerFunc = () =&gt; {
-      p.then(nextTickHandler).catch(logError)
-      // in problematic UIWebViews, Promise.then doesn&apos;t completely break, but
-      // it can get stuck in a weird state where callbacks are pushed into the
-      // microtask queue but the queue isn&apos;t being flushed, until the browser
-      // needs to do some other work, e.g. handle a timer. Therefore we can
-      // &quot;force&quot; the microtask queue to be flushed by adding an empty timer.
-      if (isIOS) setTimeout(noop)
-    }
-  } else if (typeof MutationObserver !== &apos;undefined&apos; &amp;&amp; (
-    isNative(MutationObserver) ||
-    // PhantomJS and iOS 7.x
-    MutationObserver.toString() === &apos;[object MutationObserverConstructor]&apos;
-  )) {
-    // use MutationObserver where native Promise is not available,
-    // e.g. PhantomJS IE11, iOS7, Android 4.4
-    /*新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入主线程（比任务队列优先执行），即textNode.data = String(counter)时便会触发回调*/
-    var counter = 1
-    var observer = new MutationObserver(nextTickHandler)
-    var textNode = document.createTextNode(String(counter))
-    observer.observe(textNode, {
-      characterData: true
-    })
-    timerFunc = () =&gt; {
-      counter = (counter + 1) % 2
-      textNode.data = String(counter)
-    }
-  } else {
-    // fallback to setTimeout
-    /* istanbul ignore next */
-    /*使用setTimeout将回调推入任务队列尾部*/
-    timerFunc = () =&gt; {
-      setTimeout(nextTickHandler, 0)
-    }
-  }
-
-  /*
-    推送到队列中下一个tick时执行
-    cb 回调函数
-    ctx 上下文
-  */
-  return function queueNextTick (cb?: Function, ctx?: Object) {
-    let _resolve
-    /*cb存到callbacks中*/
-    callbacks.push(() =&gt; {
-      if (cb) {
-        try {
-          cb.call(ctx)
-        } catch (e) {
-          handleError(e, ctx, &apos;nextTick&apos;)
-        }
-      } else if (_resolve) {
-        _resolve(ctx)
-      }
-    })
-    if (!pending) {
-      pending = true
-      timerFunc()
-    }
-    if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
-      return new Promise((resolve, reject) =&gt; {
-        _resolve = resolve
-      })
-    }
-  }
-})()
-</code></pre><p>它是一个立即执行函数,返回一个queueNextTick接口。</p>
-<p>传入的cb会被push进callbacks中存放起来，然后执行timerFunc（pending是一个状态标记，保证timerFunc在下一个tick之前只执行一次）。</p>
-<p>timerFunc是什么？</p>
-<p>看了源码发现timerFunc会检测当前环境而不同实现，其实就是按照Promise，MutationObserver，setTimeout优先级，哪个存在使用哪个，最不济的环境下使用setTimeout。</p>
-<p>两者的具体实现</p>
-<ul>
-<li>macrotasks: setTimeout ，setInterval， setImmediate，requestAnimationFrame, I/O ，UI渲染</li>
-<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
-</ul>
-<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
-<ol>
-<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
-<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
-<li><p>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</p>
-<p>  这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。</p>
-<pre><code>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。
-如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
-</code></pre></li>
-</ol>
-<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
-<blockquote>
-<p>  JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、   MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>       要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>       实在不行，只能用 setTimeout 创建 task 了。<br>       为啥要用 microtask？<br>       根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>       反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
-</blockquote>
-<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
-<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
-<p>至于 MutationObserver 如何模拟 nextTick 这点，直接看源码，其实就是创建一个 TextNode 并监听内容变化，然后要 nextTick 的时候去改一下这个节点的文本内容：    var counter = 1</p>
-<pre><code>var observer = new MutationObserver(nextTickHandler)
-    var textNode = document.createTextNode(String(counter))
-    observer.observe(textNode, {
-      characterData: true
-    })
-    timerFunc = () =&gt; {
-      counter = (counter + 1) % 2
-      textNode.data = String(counter)
-    }
-</code></pre><p>   setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
-<pre><code>setTimeout(function(){
-    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
-},0);
-</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
-<pre><code>setTimeout(function(){console.log(4)},0);
-new Promise(function(resolve){
-    console.log(1)
-    for( var i=0 ; i&lt;10000 ; i++ ){
-        i==9999 &amp;&amp; resolve()
-    }
-    console.log(2)
-}).then(function(){
-    console.log(5)
-});
-console.log(3);
-结果是：
-1,2,3,5,4
-</code></pre><p>再看这个，两个自执行同时执行：</p>
-<pre><code>&lt;script&gt;
-(function test() {
-  setTimeout(function () {
-    console.log(4)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(1);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(2);
-  }).then(function() {
-    console.log(5);
-  });
-  console.log(3);
-})()
-
-(function test2() {
-  setTimeout(function () {
-    console.log(42)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(12);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(22);
-  }).then(function() {
-    console.log(52);
-  });
-  console.log(32);
-})()
-&lt;/script&gt;
-</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-afcb6fa6fb862818359f757107b769ab_hd.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的 <code>setTimeout</code> 进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
-<pre><code>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：
-</code></pre><p>   1.先执行 macrotasks：I/O -》 UI渲染</p>
-<p>   2.再执行 microtasks ：process.nextTick  -》 Promise  -》MutationObserver -&gt;Object.observe</p>
-<p>   3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
-<p>setTimeout ，setInterval –》setImmediate</p>
-<pre><code>  综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。
-
-setImmediate(function(){
-    console.log(1);
-},0);
-setTimeout(function(){
-    console.log(2);
-},0);
-new Promise(function(resolve){
-    console.log(3);
-    resolve();
-    console.log(4);
-}).then(function(){
-    console.log(5);
-});
-console.log(6);
-process.nextTick(function(){
-    console.log(7);
-});
-console.log(8);
-结果是：3 4 6 8 7 5 2 1
-</code></pre><h2 id="flushSchedulerQueue"><a href="#flushSchedulerQueue" class="headerlink" title="flushSchedulerQueue"></a>flushSchedulerQueue</h2><pre><code>/*Github:https://github.com/answershuto*/
-/**
- * Flush both queues and run the watchers.
- */
- /*nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers*/
-function flushSchedulerQueue () {
-  flushing = true
-  let watcher, id
-
-  // Sort queue before flush.
-  // This ensures that:
-  // 1. Components are updated from parent to child. (because parent is always
-  //    created before the child)
-  // 2. A component&apos;s user watchers are run before its render watcher (because
-  //    user watchers are created before the render watcher)
-  // 3. If a component is destroyed during a parent component&apos;s watcher run,
-  //    its watchers can be skipped.
-  /*
-    给queue排序，这样做可以保证：
-    1.组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。
-    2.一个组件的user watchers比render watcher先运行，因为user watchers往往比render watcher更早创建
-    3.如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过。
-  */
-  queue.sort((a, b) =&gt; a.id - b.id)
-
-  // do not cache length because more watchers might be pushed
-  // as we run existing watchers
-  /*这里不用index = queue.length;index &gt; 0; index--的方式写是因为不要将length进行缓存，因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue*/
-  for (index = 0; index &lt; queue.length; index++) {
-    watcher = queue[index]
-    id = watcher.id
-    /*将has的标记删除*/
-    has[id] = null
-    /*执行watcher*/
-    watcher.run()
-    // in dev build, check and stop circular updates.
-    /*
-      在测试环境中，检测watch是否在死循环中
-      比如这样一种情况
-      watch: {
-        test () {
-          this.test++;
-        }
-      }
-      持续执行了一百次watch代表可能存在死循环
-    */
-    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {
-      circular[id] = (circular[id] || 0) + 1
-      if (circular[id] &gt; MAX_UPDATE_COUNT) {
-        warn(
-          &apos;You may have an infinite update loop &apos; + (
-            watcher.user
-              ? `in watcher with expression &quot;${watcher.expression}&quot;`
-              : `in a component render function.`
-          ),
-          watcher.vm
-        )
-        break
-      }
-    }
-  }
-
-  // keep copies of post queues before resetting state
-  /**/
-  /*得到队列的拷贝*/
-  const activatedQueue = activatedChildren.slice()
-  const updatedQueue = queue.slice()
-
-  /*重置调度者的状态*/
-  resetSchedulerState()
-
-  // call component updated and activated hooks
-  /*使子组件状态都改编成active同时调用activated钩子*/
-  callActivatedHooks(activatedQueue)
-  /*调用updated钩子*/
-  callUpdateHooks(updatedQueue)
-
-  // devtool hook
-  /* istanbul ignore if */
-  if (devtools &amp;&amp; config.devtools) {
-    devtools.emit(&apos;flush&apos;)
-  }
-}
-</code></pre><p>flushSchedulerQueue是下一个tick时的回调函数，主要目的是执行Watcher的run函数，用来更新视图</p>
-<h2 id="为什么要异步更新视图"><a href="#为什么要异步更新视图" class="headerlink" title="为什么要异步更新视图"></a>为什么要异步更新视图</h2><p>来看一下下面这一段代码</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div&gt;{{test}}&lt;/div&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: 0
-        };
-    },
-    created () {
-      for(let i = 0; i &lt; 1000; i++) {
-        this.test++;
-      }
-    }
-}
-</code></pre><p>现在有这样的一种情况，created的时候test的值会被++循环执行1000次。<br>每次++时，都会根据响应式触发setter-&gt;Dep-&gt;Watcher-&gt;update-&gt;patch。<br>如果这时候没有异步更新视图，那么每次++都会直接操作DOM更新视图，这是非常消耗性能的。<br>所以Vue.js实现了一个queue队列，在下一个tick的时候会统一执行queue中Watcher的run。同时，拥有相同id的Watcher不会被重复加入到该queue中去，所以不会执行1000次Watcher的run。最终更新视图只会直接将test对应的DOM的0变成1000。<br>保证更新视图操作DOM的动作是在当前栈执行完以后下一个tick的时候调用，大大优化了性能。</p>
-<h2 id="访问真实DOM节点更新后的数据"><a href="#访问真实DOM节点更新后的数据" class="headerlink" title="访问真实DOM节点更新后的数据"></a>访问真实DOM节点更新后的数据</h2><p>所以我们需要在修改data中的数据后访问真实的DOM节点更新后的数据，只需要这样，我们把文章第一个例子进行修改。</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
-    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: &apos;begin&apos;
-        };
-    },
-    methods () {
-        handleClick () {
-            this.test = &apos;end&apos;;
-            this.$nextTick(() =&gt; {
-                console.log(this.$refs.test.innerText);//打印&quot;end&quot;
-            });
-            console.log(this.$refs.test.innerText);//打印“begin”
-        }
-    }
-}
-</code></pre><p>使用Vue.js的global API的$nextTick方法，即可在回调中获取已经更新好的DOM实例了。</p>
 
           
         
