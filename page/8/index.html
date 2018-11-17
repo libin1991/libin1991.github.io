@@ -300,1156 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/29/从Vue-js源码看nextTick机制/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/29/从Vue-js源码看nextTick机制/" itemprop="url">从Vue.js源码看nextTick机制</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-29T22:30:13+08:00">
-                2017-10-29
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><a href="https://link.zhihu.com/?target=https%3A//chuckliu.me/%23%21/posts/58bd08a2b5187d2fb51c04f9" target="_blank" rel="noopener">Vue源码详解之nextTick：MutationObserver只是浮云，microtask才是核心！</a></p>
-<h2 id="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"><a href="#可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。" class="headerlink" title="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"></a>可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。</h2><h2 id="操作DOM"><a href="#操作DOM" class="headerlink" title="操作DOM"></a>操作DOM</h2><p>在使用vue.js的时候，有时候因为一些特定的业务场景，不得不去操作DOM，比如这样：</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
-    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: &apos;begin&apos;
-        };
-    },
-    methods () {
-        handleClick () {
-            this.test = &apos;end&apos;;
-            console.log(this.$refs.test.innerText);//打印“begin”
-        }
-    }
-}
-</code></pre><p>打印的结果是begin，为什么我们明明已经将test设置成了“end”，获取真实DOM节点的innerText却没有得到我们预期中的“end”，而是得到之前的值“begin”呢？</p>
-<h2 id="Watcher队列"><a href="#Watcher队列" class="headerlink" title="Watcher队列"></a>Watcher队列</h2><p>带着疑问，我们找到了Vue.js源码的Watch实现。当某个响应式数据发生变化的时候，它的setter函数会通知闭包中的Dep，Dep则会调用它管理的所有Watch对象。触发Watch对象的update实现。我们来看一下update的实现。</p>
-<pre><code>update () {
-    /* istanbul ignore else */
-    if (this.lazy) {
-        this.dirty = true
-    } else if (this.sync) {
-        /*同步则执行run直接渲染视图*/
-        this.run()
-    } else {
-        /*异步推送到观察者队列中，下一个tick时调用。*/
-        queueWatcher(this)
-    }
-}
-</code></pre><p>我们发现Vue.js默认是使用<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fguide%252Freactivity.html%2523%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0%25E9%2598%259F%25E5%2588%2597" target="_blank" rel="noopener">异步执行DOM更新</a>。<br>当异步执行update的时候，会调用queueWatcher函数。</p>
-<pre><code>/*将一个观察者对象push进观察者队列，在队列中已经存在相同的id则该观察者对象将被跳过，除非它是在队列被刷新时推送*/
-export function queueWatcher (watcher: Watcher) {
-  /*获取watcher的id*/
-  const id = watcher.id
-  /*检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验*/
-  if (has[id] == null) {
-    has[id] = true
-    if (!flushing) {
-      /*如果没有flush掉，直接push到队列中即可*/
-      queue.push(watcher)
-    } else {
-      // if already flushing, splice the watcher based on its id
-      // if already past its id, it will be run next immediately.
-      let i = queue.length - 1
-      while (i &gt;= 0 &amp;&amp; queue[i].id &gt; watcher.id) {
-        i--
-      }
-      queue.splice(Math.max(i, index) + 1, 0, watcher)
-    }
-    // queue the flush
-    if (!waiting) {
-      waiting = true
-      nextTick(flushSchedulerQueue)
-    }
-  }
-}
-</code></pre><p>查看queueWatcher的源码我们发现，Watch对象并不是立即更新视图，而是被push进了一个队列queue，此时状态处于waiting的状态，这时候会继续会有Watch对象被push进这个队列queue，等待下一个tick时，这些Watch对象才会被遍历取出，更新视图。同时，id重复的Watcher不会被多次加入到queue中去，因为在最终渲染时，我们只需要关心数据的最终结果。</p>
-<p>那么，什么是下一个tick？</p>
-<h2 id="nextTick"><a href="#nextTick" class="headerlink" title="nextTick"></a>nextTick</h2><p>vue.js提供了一个<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fapi%252F%2523Vue-nextTick" target="_blank" rel="noopener">nextTick</a>函数，其实也就是上面调用的nextTick。</p>
-<p>nextTick的实现比较简单，执行的目的是在microtask或者task中推入一个funtion，在当前栈执行完毕（也行还会有一些排在前面的需要执行的任务）以后执行nextTick传入的funtion，看一下源码：</p>
-<pre><code>/**
- * Defer a task to execute it asynchronously.
- */
- /*
-    延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function
-    这个函数的作用是在task或者microtask中推入一个timerFunc，
-    在当前调用栈执行完以后以此执行直到执行到timerFunc
-    目的是延迟到当前调用栈执行完以后执行
-*/
-export const nextTick = (function () {
-  /*存放异步执行的回调*/
-  const callbacks = []
-  /*一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送*/
-  let pending = false
-  /*一个函数指针，指向函数将被推送到任务队列中，等到主线程任务执行完时，任务队列中的timerFunc被调用*/
-  let timerFunc
-
-  /*下一个tick时的回调*/
-  function nextTickHandler () {
-    /*一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行），这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程*/
-    pending = false
-    /*执行所有callback*/
-    const copies = callbacks.slice(0)
-    callbacks.length = 0
-    for (let i = 0; i &lt; copies.length; i++) {
-      copies[i]()
-    }
-  }
-
-  // the nextTick behavior leverages the microtask queue, which can be accessed
-  // via either native Promise.then or MutationObserver.
-  // MutationObserver has wider support, however it is seriously bugged in
-  // UIWebView in iOS &gt;= 9.3.3 when triggered in touch event handlers. It
-  // completely stops working after triggering a few times... so, if native
-  // Promise is available, we will use it:
-  /* istanbul ignore if */
-
-  /*
-    这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法
-    优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法都会在microtask中执行，会比setTimeout更早执行，所以优先使用。
-    如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
-    参考：https://www.zhihu.com/question/55364497
-  */
-  if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
-    /*使用Promise*/
-    var p = Promise.resolve()
-    var logError = err =&gt; { console.error(err) }
-    timerFunc = () =&gt; {
-      p.then(nextTickHandler).catch(logError)
-      // in problematic UIWebViews, Promise.then doesn&apos;t completely break, but
-      // it can get stuck in a weird state where callbacks are pushed into the
-      // microtask queue but the queue isn&apos;t being flushed, until the browser
-      // needs to do some other work, e.g. handle a timer. Therefore we can
-      // &quot;force&quot; the microtask queue to be flushed by adding an empty timer.
-      if (isIOS) setTimeout(noop)
-    }
-  } else if (typeof MutationObserver !== &apos;undefined&apos; &amp;&amp; (
-    isNative(MutationObserver) ||
-    // PhantomJS and iOS 7.x
-    MutationObserver.toString() === &apos;[object MutationObserverConstructor]&apos;
-  )) {
-    // use MutationObserver where native Promise is not available,
-    // e.g. PhantomJS IE11, iOS7, Android 4.4
-    /*新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入主线程（比任务队列优先执行），即textNode.data = String(counter)时便会触发回调*/
-    var counter = 1
-    var observer = new MutationObserver(nextTickHandler)
-    var textNode = document.createTextNode(String(counter))
-    observer.observe(textNode, {
-      characterData: true
-    })
-    timerFunc = () =&gt; {
-      counter = (counter + 1) % 2
-      textNode.data = String(counter)
-    }
-  } else {
-    // fallback to setTimeout
-    /* istanbul ignore next */
-    /*使用setTimeout将回调推入任务队列尾部*/
-    timerFunc = () =&gt; {
-      setTimeout(nextTickHandler, 0)
-    }
-  }
-
-  /*
-    推送到队列中下一个tick时执行
-    cb 回调函数
-    ctx 上下文
-  */
-  return function queueNextTick (cb?: Function, ctx?: Object) {
-    let _resolve
-    /*cb存到callbacks中*/
-    callbacks.push(() =&gt; {
-      if (cb) {
-        try {
-          cb.call(ctx)
-        } catch (e) {
-          handleError(e, ctx, &apos;nextTick&apos;)
-        }
-      } else if (_resolve) {
-        _resolve(ctx)
-      }
-    })
-    if (!pending) {
-      pending = true
-      timerFunc()
-    }
-    if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
-      return new Promise((resolve, reject) =&gt; {
-        _resolve = resolve
-      })
-    }
-  }
-})()
-</code></pre><p>它是一个立即执行函数,返回一个queueNextTick接口。</p>
-<p>传入的cb会被push进callbacks中存放起来，然后执行timerFunc（pending是一个状态标记，保证timerFunc在下一个tick之前只执行一次）。</p>
-<p>timerFunc是什么？</p>
-<p>看了源码发现timerFunc会检测当前环境而不同实现，其实就是按照Promise，MutationObserver，setTimeout优先级，哪个存在使用哪个，最不济的环境下使用setTimeout。</p>
-<p>两者的具体实现</p>
-<ul>
-<li>macrotasks: setTimeout ，setInterval， setImmediate，requestAnimationFrame, I/O ，UI渲染</li>
-<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
-</ul>
-<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
-<ol>
-<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
-<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
-<li><p>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</p>
-<p>  这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。</p>
-<pre><code>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。
-如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
-</code></pre></li>
-</ol>
-<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
-<blockquote>
-<p>  JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、   MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>       要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>       实在不行，只能用 setTimeout 创建 task 了。<br>       为啥要用 microtask？<br>       根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>       反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
-</blockquote>
-<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
-<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
-<p>至于 MutationObserver 如何模拟 nextTick 这点，直接看源码，其实就是创建一个 TextNode 并监听内容变化，然后要 nextTick 的时候去改一下这个节点的文本内容：    var counter = 1</p>
-<pre><code>var observer = new MutationObserver(nextTickHandler)
-    var textNode = document.createTextNode(String(counter))
-    observer.observe(textNode, {
-      characterData: true
-    })
-    timerFunc = () =&gt; {
-      counter = (counter + 1) % 2
-      textNode.data = String(counter)
-    }
-</code></pre><p>   setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
-<pre><code>setTimeout(function(){
-    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
-},0);
-</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
-<pre><code>setTimeout(function(){console.log(4)},0);
-new Promise(function(resolve){
-    console.log(1)
-    for( var i=0 ; i&lt;10000 ; i++ ){
-        i==9999 &amp;&amp; resolve()
-    }
-    console.log(2)
-}).then(function(){
-    console.log(5)
-});
-console.log(3);
-结果是：
-1,2,3,5,4
-</code></pre><p>再看这个，两个自执行同时执行：</p>
-<pre><code>&lt;script&gt;
-(function test() {
-  setTimeout(function () {
-    console.log(4)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(1);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(2);
-  }).then(function() {
-    console.log(5);
-  });
-  console.log(3);
-})()
-
-(function test2() {
-  setTimeout(function () {
-    console.log(42)
-  }, 0);
-  new Promise(function executor (resolve) {
-    console.log(12);
-    for(var i = 0; i &lt; 10000; i++) {
-      i == 9999 &amp;&amp; resolve();
-    }
-    console.log(22);
-  }).then(function() {
-    console.log(52);
-  });
-  console.log(32);
-})()
-&lt;/script&gt;
-</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-afcb6fa6fb862818359f757107b769ab_hd.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的 <code>setTimeout</code> 进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
-<pre><code>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：
-</code></pre><p>   1.先执行 macrotasks：I/O -》 UI渲染</p>
-<p>   2.再执行 microtasks ：process.nextTick  -》 Promise  -》MutationObserver -&gt;Object.observe</p>
-<p>   3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
-<p>setTimeout ，setInterval –》setImmediate</p>
-<pre><code>  综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。
-
-setImmediate(function(){
-    console.log(1);
-},0);
-setTimeout(function(){
-    console.log(2);
-},0);
-new Promise(function(resolve){
-    console.log(3);
-    resolve();
-    console.log(4);
-}).then(function(){
-    console.log(5);
-});
-console.log(6);
-process.nextTick(function(){
-    console.log(7);
-});
-console.log(8);
-结果是：3 4 6 8 7 5 2 1
-</code></pre><h2 id="flushSchedulerQueue"><a href="#flushSchedulerQueue" class="headerlink" title="flushSchedulerQueue"></a>flushSchedulerQueue</h2><pre><code>/*Github:https://github.com/answershuto*/
-/**
- * Flush both queues and run the watchers.
- */
- /*nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers*/
-function flushSchedulerQueue () {
-  flushing = true
-  let watcher, id
-
-  // Sort queue before flush.
-  // This ensures that:
-  // 1. Components are updated from parent to child. (because parent is always
-  //    created before the child)
-  // 2. A component&apos;s user watchers are run before its render watcher (because
-  //    user watchers are created before the render watcher)
-  // 3. If a component is destroyed during a parent component&apos;s watcher run,
-  //    its watchers can be skipped.
-  /*
-    给queue排序，这样做可以保证：
-    1.组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。
-    2.一个组件的user watchers比render watcher先运行，因为user watchers往往比render watcher更早创建
-    3.如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过。
-  */
-  queue.sort((a, b) =&gt; a.id - b.id)
-
-  // do not cache length because more watchers might be pushed
-  // as we run existing watchers
-  /*这里不用index = queue.length;index &gt; 0; index--的方式写是因为不要将length进行缓存，因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue*/
-  for (index = 0; index &lt; queue.length; index++) {
-    watcher = queue[index]
-    id = watcher.id
-    /*将has的标记删除*/
-    has[id] = null
-    /*执行watcher*/
-    watcher.run()
-    // in dev build, check and stop circular updates.
-    /*
-      在测试环境中，检测watch是否在死循环中
-      比如这样一种情况
-      watch: {
-        test () {
-          this.test++;
-        }
-      }
-      持续执行了一百次watch代表可能存在死循环
-    */
-    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {
-      circular[id] = (circular[id] || 0) + 1
-      if (circular[id] &gt; MAX_UPDATE_COUNT) {
-        warn(
-          &apos;You may have an infinite update loop &apos; + (
-            watcher.user
-              ? `in watcher with expression &quot;${watcher.expression}&quot;`
-              : `in a component render function.`
-          ),
-          watcher.vm
-        )
-        break
-      }
-    }
-  }
-
-  // keep copies of post queues before resetting state
-  /**/
-  /*得到队列的拷贝*/
-  const activatedQueue = activatedChildren.slice()
-  const updatedQueue = queue.slice()
-
-  /*重置调度者的状态*/
-  resetSchedulerState()
-
-  // call component updated and activated hooks
-  /*使子组件状态都改编成active同时调用activated钩子*/
-  callActivatedHooks(activatedQueue)
-  /*调用updated钩子*/
-  callUpdateHooks(updatedQueue)
-
-  // devtool hook
-  /* istanbul ignore if */
-  if (devtools &amp;&amp; config.devtools) {
-    devtools.emit(&apos;flush&apos;)
-  }
-}
-</code></pre><p>flushSchedulerQueue是下一个tick时的回调函数，主要目的是执行Watcher的run函数，用来更新视图</p>
-<h2 id="为什么要异步更新视图"><a href="#为什么要异步更新视图" class="headerlink" title="为什么要异步更新视图"></a>为什么要异步更新视图</h2><p>来看一下下面这一段代码</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div&gt;{{test}}&lt;/div&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: 0
-        };
-    },
-    created () {
-      for(let i = 0; i &lt; 1000; i++) {
-        this.test++;
-      }
-    }
-}
-</code></pre><p>现在有这样的一种情况，created的时候test的值会被++循环执行1000次。<br>每次++时，都会根据响应式触发setter-&gt;Dep-&gt;Watcher-&gt;update-&gt;patch。<br>如果这时候没有异步更新视图，那么每次++都会直接操作DOM更新视图，这是非常消耗性能的。<br>所以Vue.js实现了一个queue队列，在下一个tick的时候会统一执行queue中Watcher的run。同时，拥有相同id的Watcher不会被重复加入到该queue中去，所以不会执行1000次Watcher的run。最终更新视图只会直接将test对应的DOM的0变成1000。<br>保证更新视图操作DOM的动作是在当前栈执行完以后下一个tick的时候调用，大大优化了性能。</p>
-<h2 id="访问真实DOM节点更新后的数据"><a href="#访问真实DOM节点更新后的数据" class="headerlink" title="访问真实DOM节点更新后的数据"></a>访问真实DOM节点更新后的数据</h2><p>所以我们需要在修改data中的数据后访问真实的DOM节点更新后的数据，只需要这样，我们把文章第一个例子进行修改。</p>
-<pre><code>&lt;template&gt;
-  &lt;div&gt;
-    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
-    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/template&gt;
-export default {
-    data () {
-        return {
-            test: &apos;begin&apos;
-        };
-    },
-    methods () {
-        handleClick () {
-            this.test = &apos;end&apos;;
-            this.$nextTick(() =&gt; {
-                console.log(this.$refs.test.innerText);//打印&quot;end&quot;
-            });
-            console.log(this.$refs.test.innerText);//打印“begin”
-        }
-    }
-}
-</code></pre><p>使用Vue.js的global API的$nextTick方法，即可在回调中获取已经更新好的DOM实例了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/28/CSS网格布局（Grid）完全教程/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/28/CSS网格布局（Grid）完全教程/" itemprop="url">CSS网格布局（Grid）完全教程</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-28T16:25:32+08:00">
-                2017-10-28
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="CSS网格布局（Grid）完全教程"><a href="#CSS网格布局（Grid）完全教程" class="headerlink" title="CSS网格布局（Grid）完全教程"></a><a href="https://www.zcfy.cc/article/learn-css-grid-a-guide-to-learning-css-grid-jonathan-suh" target="_blank" rel="noopener">CSS网格布局（Grid）完全教程</a></h3>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/22/Vue-js-父子组件通信的十种方式&奇技淫巧/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/22/Vue-js-父子组件通信的十种方式&奇技淫巧/" itemprop="url">Vue.js 父子组件通信的十种方式&奇技淫巧</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-22T19:56:41+08:00">
-                2017-10-22
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="面试官：Vue-中父子组件通信有哪些方式？"><a href="#面试官：Vue-中父子组件通信有哪些方式？" class="headerlink" title=" 面试官：Vue 中父子组件通信有哪些方式？"></a><strong> 面试官：Vue 中父子组件通信有哪些方式？</strong></h3><h4 id="vue组件通信全揭秘-共7章"><a href="#vue组件通信全揭秘-共7章" class="headerlink" title="  vue组件通信全揭秘(共7章) "></a><font color="#dd0000"> <strong> <a href="https://juejin.im/post/5bd97e7c6fb9a022852a71cf" target="_blank" rel="noopener">vue组件通信全揭秘(共7章)</a> </strong></font><br></h4><blockquote>
-<p>几种通信方式无外乎以下几种：</p>
-</blockquote>
-<ul>
-<li><code>Prop</code>（常用）</li>
-<li><code>$emit</code> (组件封装用的较多)</li>
-<li><code>.sync</code>语法糖 （较少）</li>
-<li><code>$attrs</code> 和 <code>$listeners</code> (组件封装用的较多)</li>
-<li><code>provide</code> 和 <code>inject</code> （高阶组件/组件库用的较多）</li>
-<li>其他方式通信</li>
-</ul>
-<h3 id="Prop"><a href="#Prop" class="headerlink" title="Prop"></a>Prop</h3><p>英式发音：[prɒp]。这个在我们日常开发当中用到的非常多。简单来说，<strong>我们可以通过 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents.html%23%25E9%2580%259A%25E8%25BF%2587-Prop-%25E5%2590%2591%25E5%25AD%2590%25E7%25BB%2584%25E4%25BB%25B6%25E4%25BC%25A0%25E9%2580%2592%25E6%2595%25B0%25E6%258D%25AE" target="_blank" rel="noopener">Prop</a> 向子组件传递数据</strong>。用一个形象的比喻来说，父子组件之间的数据传递相当于自上而下的下水管子，只能从上往下流，不能逆流。这也正是 Vue 的设计理念之<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>。而 Prop 正是管道与管道之间的一个衔接口，这样水（数据）才能往下流。说这么多，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&lt;divid=&quot;app&quot;&gt;</span><br><span class="line">    &lt;child:content=&quot;message&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">let Child = Vue.extend(&#123;</span><br><span class="line">  template: &apos;&lt;h2&gt;&#123;&#123; content &#125;&#125;&lt;/h2&gt;&apos;,</span><br><span class="line">  props: &#123;</span><br><span class="line">    content: &#123;</span><br><span class="line">      type: String,</span><br><span class="line">      default: () =&gt; &#123; return&apos;from child&apos; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    message: &apos;from parent&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  components: &#123;</span><br><span class="line">    Child</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">from parent</span><br></pre></td></tr></table></figure>
-<h3 id="emit"><a href="#emit" class="headerlink" title="$emit"></a>$emit</h3><p>英式发音：[iˈmɪt]。官方说法是<strong>触发当前实例上的事件。附加参数都会传给监听器回调</strong>。按照我的理解不知道能不能给大家说明白，先简单看下代码吧：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;my-button @greet=&quot;sayHi&quot;&gt;&lt;/my-button&gt;
-&lt;/div&gt;
-
-let MyButton = Vue.extend({
-  template: &apos;&lt;button @click=&quot;triggerClick&quot;&gt;click&lt;/button&gt;&apos;,
-  data () {
-    return {
-      greeting: &apos;vue.js!&apos;
-    }
-  },
-  methods: {
-    triggerClick () {
-      this.$emit(&apos;greet&apos;, this.greeting)
-    }
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  components: {
-    MyButton
-  },
-  methods: {
-    sayHi (val) {
-      alert(&apos;Hi, &apos; + val)   // &apos;Hi, vue.js!&apos;
-    }
-  }
-})
-</code></pre><p> 大致逻辑是酱婶儿的：当我在页面上点击按钮时，触发了组件 <code>MyButton</code> 上的监听事件 <code>greet</code>，并且把参数传给了回调函数 <code>sayHi</code> 。说白了，当我们从子组件 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-emit" target="_blank" rel="noopener">Emit</a>（派发） 一个事件之前，其内部都提前在事件队列中 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-on" target="_blank" rel="noopener">On</a>（监听）了这个事件及其监听回调。其实相当于下面这种写法：</p>
-<pre><code>vm.$on(&apos;greet&apos;, functionsayHi (val) {
-  console.log(&apos;Hi, &apos; + val)
-})
-vm.$emit(&apos;greet&apos;, &apos;vue.js&apos;)
-// =&gt; &quot;Hi, vue.js&quot;
-</code></pre><h3 id="sync-修饰符"><a href="#sync-修饰符" class="headerlink" title=".sync 修饰符"></a>.sync 修饰符</h3><p>这个家伙在 <a href="mailto:vue@1.x" target="_blank" rel="noopener">vue@1.x</a> 的时候曾作为双向绑定功能存在，即子组件可以修改父组件中的值。因为它违反了<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>的设计理念，所以在 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 的时候被干掉了。但是在 <a href="mailto:vue@2.3.0" target="_blank" rel="noopener">vue@2.3.0</a>+ 以上版本又重新引入了这个 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-custom-events.html%23sync-%25E4%25BF%25AE%25E9%25A5%25B0%25E7%25AC%25A6" target="_blank" rel="noopener">.sync</a> 修饰符。但是这次它只是作为一个编译时的语法糖存在。它会被扩展为一个自动更新父组件属性的 v-on 监听器。说白了就是让我们手动进行更新父组件中的值了，从而使数据改动来源更加的明显。下面引入自官方的一段话：</p>
-<blockquote>
-<p>在有些情况下，我们可能需要对一个 prop 进行“双向绑定”。不幸的是，真正的双向绑定会带来维护上的问题，因为子组件可以修改父组件，且在父组件和子组件都没有明显的改动来源。</p>
-</blockquote>
-<p>既然作为一个语法糖，肯定是某种写法的简写形式，哪种写法呢，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&lt;text-document</span><br><span class="line">  v-bind:title=&quot;doc.title&quot;</span><br><span class="line">  v-on:update:title=&quot;doc.title = $event&quot;&gt;</span><br><span class="line">&lt;/text-document&gt;</span><br></pre></td></tr></table></figure></p>
-<p>于是我们可以用 <code>.sync</code> 语法糖简写成如下形式：</p>
-<pre><code>&lt;text-document v-bind:title.sync=&quot;doc.title&quot;&gt;&lt;/text-document&gt;
-</code></pre><p>废话这么多，如何做到“双向绑定” 呢？让我们进段广告，广告之后更加精彩！<br>…<br>好的，欢迎回来。假如我们想实现这样一个效果：改变子组件文本框中的值同时改变父组件中的值。怎么做？列位不妨先想想。先看段代码：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;login:name.sync=&quot;userName&quot;&gt;&lt;/login&gt; 
-    {{ userName }}
-&lt;/div&gt;
-
-let Login = Vue.extend({
-  template: `
-    &lt;div class=&quot;input-group&quot;&gt;
-      &lt;label&gt;姓名:&lt;/label&gt;
-      &lt;input v-model=&quot;text&quot;&gt;
-    &lt;/div&gt;
-  `,
-  props: [&apos;name&apos;],
-  data () {
-    return {
-      text: &apos;&apos;
-    }
-  },
-  watch: {
-    text (newVal) {
-      this.$emit(&apos;update:name&apos;, newVal)
-    }
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  data: {
-    userName: &apos;&apos;
-  },
-  components: {
-    Login
-  }
-})
-</code></pre><p>下面划重点，代码里有这一句话：</p>
-<pre><code>this.$emit(&apos;update:name&apos;, newVal)
-</code></pre><p>官方语法是：<code>update:myPropName</code> 其中 <code>myPropName</code> 表示要更新的 prop 值。当然如果你不用 .sync 语法糖使用上面的 .$emit 也能达到同样的效果。仅此而已！</p>
-<h3 id="attrs-和-listeners"><a href="#attrs-和-listeners" class="headerlink" title="$attrs 和 $listeners"></a><code>$attrs</code> 和 <code>$listeners</code></h3><ul>
-<li>官网对 <code>$attrs</code> 的解释如下：</li>
-</ul>
-<blockquote>
-<p>包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (<code>class</code> 和 <code>style</code> 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定 (<code>class</code> 和 <code>style</code> 除外)，并且可以通过 <code>v-bind=&quot;$attrs&quot;</code> 传入内部组件——在创建高级别的组件时非常有用。</p>
-</blockquote>
-<ul>
-<li>官网对 <code>$listeners</code> 的解释如下：</li>
-</ul>
-<blockquote>
-<p>包含了父作用域中的 (不含 <code>.native</code> 修饰器的) <code>v-on</code> 事件监听器。它可以通过 <code>v-on=&quot;$listeners&quot;</code> 传入内部组件——在创建更高层次的组件时非常有用。</p>
-</blockquote>
-<p>我觉得 <code>$attrs</code> 和 <code>$listeners</code> 属性像两个收纳箱，一个负责收纳属性，一个负责收纳事件，都是以对象的形式来保存数据。看下面的代码解释：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;child:foo=&quot;foo&quot;:bar=&quot;bar&quot;
-        @one.native=&quot;triggerOne&quot;
-        @two=&quot;triggerTwo&quot;&gt;
-    &lt;/child&gt;
-&lt;/div&gt;
-</code></pre><p>从 Html 中可以看到，这里有俩属性和俩方法，区别是属性一个是 <code>prop</code> 声明，事件一个是 <code>.native</code> 修饰器。</p>
-<pre><code>let Child = Vue.extend({
-  template: &apos;&lt;h2&gt;{{ foo }}&lt;/h2&gt;&apos;,
-  props: [&apos;foo&apos;],
-  created () {
-    console.log(this.$attrs, this.$listeners)
-    // -&gt; {bar: &quot;parent bar&quot;}
-    // -&gt; {two: fn}
-
-    // 这里我们访问父组件中的 `triggerTwo` 方法
-    this.$listeners.two()
-    // -&gt; &apos;two&apos;
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  data: {
-    foo: &apos;parent foo&apos;,
-    bar: &apos;parent bar&apos;
-  },
-  components: {
-    Child
-  },
-  methods: {
-    triggerOne () {
-      alert(&apos;one&apos;)
-    },
-    triggerTwo () {
-      alert(&apos;two&apos;)
-    }
-  }
-})
-</code></pre><p>可以看到，我们可以通过 <code>$attrs</code> 和 <code>$listeners</code> 进行数据传递，在需要的地方进行调用和处理，还是很方便的。当然，我们还可以通过 <code>v-on=&quot;$listeners&quot;</code> 一级级的往下传递，子子孙孙无穷尽也！</p>
-<p>一个插曲！</p>
-<p>当我们在组件上赋予了一个非Prop 声明时，编译之后的代码会把这些个属性都当成原始属性对待，添加到 html 原生标签上，看上面的代码编译之后的样子：</p>
-<pre><code>&lt;h2 bar=&quot;parent bar&quot;&gt;parent foo&lt;/h2&gt;
-</code></pre><p>这样会很难看，同时也爆了某些东西。如何去掉？这正是 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23inheritAttrs" target="_blank" rel="noopener">inheritAttrs</a> 属性的用武之地！给组件加上这个属性就行了，一般是配合 <code>$attrs</code> 使用。看代码：</p>
-<pre><code>// 源码
-let Child = Vue.extend({
-  ...
-  inheritAttrs: false, // 默认是 true
-  ...
-})
-</code></pre><p>再次编译：</p>
-<pre><code>&lt;h2&gt;parent foo&lt;/h2&gt;
-</code></pre><h3 id="provide-inject"><a href="#provide-inject" class="headerlink" title="provide / inject"></a><code>provide</code> / <code>inject</code></h3><p>他俩是对CP, 感觉挺神秘的。来看下官方对 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23provide-inject" target="_blank" rel="noopener">provide / inject</a> 的描述：</p>
-<blockquote>
-<p><code>provide</code> 和 <code>inject</code> 主要为高阶插件/组件库提供用例。并不推荐直接用于应用程序代码中。并且这对选项需要一起使用，以允许一个祖先组件向其所有子孙后代注入一个依赖，不论组件层次有多深，并在起上下游关系成立的时间里始终生效。</p>
-</blockquote>
-<p>看完描述有点懵懵懂懂！一句话总结就是：小时候你老爸什么东西都先帮你存着等你长大该娶媳妇儿了你要房子给你买要车给你买只要他有的尽量都会满足你。下面是这句话的代码解释：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;son&gt;&lt;/son&gt;
-&lt;/div&gt;
-
-let Son = Vue.extend({
-  template: &apos;&lt;h2&gt;son&lt;/h2&gt;&apos;,
-  inject: {
-    house: {
-      default: &apos;没房&apos;
-    },
-    car: {
-      default: &apos;没车&apos;
-    },
-    money: {
-      // 长大工作了虽然有点钱// 仅供生活费，需要向父母要default: &apos;￥4500&apos;
-    }
-  },
-  created () {
-    console.log(this.house, this.car, this.money)
-    // -&gt; &apos;房子&apos;, &apos;车子&apos;, &apos;￥10000&apos;
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  provide: {
-    house: &apos;房子&apos;,
-    car: &apos;车子&apos;,
-    money: &apos;￥10000&apos;
-  },
-  components: {
-    Son
-  }
-})
-</code></pre><h3 id="其他方式通信"><a href="#其他方式通信" class="headerlink" title="其他方式通信"></a>其他方式通信</h3><p>除了以上五种方式外，其实还有：</p>
-<ul>
-<li><strong>EventBus</strong></li>
-</ul>
-<p>思路就是声明一个全局Vue实例变量 <code>EventBus</code> , 把所有的通信数据，事件监听都存储到这个变量上。这样就达到在组件间数据共享了，有点类似于 <a href="https://link.juejin.im?target=https%3A%2F%2Fvuex.vuejs.org%2Fzh%2Fguide%2F" target="_blank" rel="noopener">Vuex</a>。但这种方式只适用于极小的项目，复杂项目还是推荐 Vuex。下面是实现 EventBus 的简单代码：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-   &lt;child&gt;&lt;/child&gt;
-&lt;/div&gt;
-
-// 全局变量
-let EventBus = new Vue()
-
-// 子组件
-let Child = Vue.extend({
-  template: &apos;&lt;h2&gt;child&lt;/h2&gt;&apos;,
-  created () {
-    console.log(EventBus.message)
-    // -&gt; &apos;hello&apos;
-    EventBus.$emit(&apos;received&apos;, &apos;from child&apos;)
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  components: {
-    Child
-  },
-  created () {
-    // 变量保存
-    EventBus.message = &apos;hello&apos;// 事件监听
-    EventBus.$on(&apos;received&apos;, function (val) {
-      console.log(&apos;received: &apos;+ val)
-      // -&gt; &apos;received: from child&apos;
-    })
-  }
-})
-</code></pre><ul>
-<li><strong>Vuex</strong></li>
-</ul>
-<p>官方推荐的，Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。</p>
-<ul>
-<li><strong>$parent</strong></li>
-</ul>
-<p>父实例，如果当前实例有的话。通过访问父实例也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
-<ul>
-<li><strong>$root</strong></li>
-</ul>
-<p>当前组件树的根 Vue 实例。如果当前实例没有父实例，此实例将会是其自己。通过访问根组件也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
-<ul>
-<li><strong>broadcast / dispatch</strong></li>
-</ul>
-<p>他俩是 <a href="mailto:vue@1.0" target="_blank" rel="noopener">vue@1.0</a> 中的方法，分别是事件广播 和 事件派发。虽然 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 里面删掉了，但可以模拟这两个方法。可以借鉴 <a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FElemeFE%2Felement%2Fblob%2F1.x%2Fsrc%2Fmixins%2Femitter.js%23L14" target="_blank" rel="noopener">Element</a> 实现。有时候还是非常有用的，比如我们在开发树形组件的时候等等。</p>
-<hr>
-<h2 id="给-props-属性设置多个类型"><a href="#给-props-属性设置多个类型" class="headerlink" title="给 props 属性设置多个类型"></a>给 props 属性设置多个类型</h2><p>这个技巧在开发组件的时候用的较多，为了更大的容错性考虑。比如一个 <code>&lt;my-button&gt;</code> 上暴露了一个 <code>width</code> 属性：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// my-button.vue</span><br><span class="line">export default &#123;</span><br><span class="line">  props: &#123;</span><br><span class="line">    width: [String, Number],</span><br><span class="line">    default: &apos;100px&apos;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>我们既可以传 <code>100px</code>，也可以传 <code>100</code> 。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- my-button.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;button :style=&quot;computedWidth&quot;&gt;width: &#123;&#123; computedWidth &#125;&#125;&lt;/button&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  export default &#123;</span><br><span class="line">    props: &#123;</span><br><span class="line">      width: [String, Number],</span><br><span class="line">      default: &apos;100px&apos;</span><br><span class="line">    &#125;,</span><br><span class="line">    computed: &#123;</span><br><span class="line">      computedWidth () &#123;</span><br><span class="line">        let o = &#123;&#125;</span><br><span class="line">        if (typeof this.width === &apos;string&apos;) o.width = this.width</span><br><span class="line">        if (typeof this.width === &apos;number&apos;) o.width = this.width + &apos;px&apos;</span><br><span class="line">        return o</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<p>使用：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- 在其他组件中使用 --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;my-button width=&quot;100px&quot;&gt;&lt;/my-button&gt;</span><br><span class="line">  &lt;!-- or --&gt;</span><br><span class="line">  &lt;my-button width=&quot;100&quot;&gt;&lt;/my-button&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<h2 id="data-初始化"><a href="#data-初始化" class="headerlink" title="data 初始化"></a><strong>data</strong> 初始化</h2><p>因为 <code>props</code> 要比 <code>data</code> 先完成初始化，所以我们可以利用这一点给 <code>data</code> 初始化一些数据进去，看代码：</p>
-<pre><code>export default {
-  data () {
-    return {
-      buttonSize: this.size
-    }
-  },
- props: {
-   size: String
- }
-}
-</code></pre><p>除了以上，子组件的 <code>data</code> 函数也可以有参数，且该参数是当前实例对象。所有我们可以利用这一点做一些自己的判断。如，改写上面的代码：</p>
-<pre><code>export default {
-  data (vm) {
-    return {
-      buttonSize: vm.size
-    }
-  },
- props: {
-   size: String
- }
-}
-</code></pre><h2 id="template"><a href="#template" class="headerlink" title="template"></a>template</h2><p>我们在做 <code>v-if</code> 判断的时候，可以把判断条件放在 <code>template</code> 组件上，<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fconditional.html%23%25E5%259C%25A8-lt-template-gt-%25E5%2585%2583%25E7%25B4%25A0%25E4%25B8%258A%25E4%25BD%25BF%25E7%2594%25A8-v-if-%25E6%259D%25A1%25E4%25BB%25B6%25E6%25B8%25B2%25E6%259F%2593%25E5%2588%2586%25E7%25BB%2584" target="_blank" rel="noopener">最终</a>的渲染结果将不包含 <code>&lt;template&gt;</code> 元素。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot;&gt;</span><br><span class="line">    &lt;template v-if=&quot;isVal&quot;&gt;</span><br><span class="line">      &lt;h2&gt;...&lt;/h2&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">    &lt;template v-else&gt;</span><br><span class="line">      &lt;h2&gt;...&lt;/h2&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p><code>v-for</code> 也同样适用。</p>
-<h2 id="Lifecycle-hook"><a href="#Lifecycle-hook" class="headerlink" title="Lifecycle hook"></a>Lifecycle hook</h2><p>生命周期钩子可以是一个数组类型，且数组中的函数会依次执行。</p>
-<pre><code>export default {
- ...
- created: [
-   function one () {
-     console.log(1)
-   },
-   function two () {
-     console.log(2)
-   }
- ]
- ...
-}
-</code></pre><p>没什么用，知道就行了。事实上生命周期钩子还可以作用于 DOM 元素上，利用这一点，我们可以用父组件中的方法来初始化子组件的生命周期钩子：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- Child.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;h3&gt;I&apos;m child!&lt;/h3&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;!-- Parent.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">   &lt;child @hook:created=&quot;handleChildCreated&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">   import Child from &apos;./child.vue&apos;</span><br><span class="line">   export default &#123;</span><br><span class="line">     components: [ Child ],</span><br><span class="line">     methods: &#123;</span><br><span class="line">       handleChildCreated () &#123;</span><br><span class="line">         console.log(&apos;handle child created...&apos;)</span><br><span class="line">       &#125;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>其他钩子雷同，不再赘述。</p>
-<h2 id="v-for-和-v-if-一起使用"><a href="#v-for-和-v-if-一起使用" class="headerlink" title="v-for 和 v-if 一起使用"></a>v-for 和 v-if 一起使用</h2><p>由于 <code>v-for</code> 比 <code>v-if</code> 渲染优先级更高，所以有时候可以一起使用。下面两种常见的情况下会倾向于把 <code>v-for</code> 和 <code>v-if</code> 放在同一个标签上使用：</p>
-<ul>
-<li>筛选一些不想显示的条目</li>
-<li>为了避免渲染本应该被隐藏的列表</li>
-</ul>
-<p>举个栗子：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;ul class=&quot;items&quot;&gt;</span><br><span class="line">    &lt;!-- 只有激活的用户才可以显示 --&gt;</span><br><span class="line">    &lt;li v-for=&quot;(user, index) in users&quot; v-if=&quot;user.isActive&quot; :key=&quot;user.id&quot;&gt;&#123;&#123; user.name &#125;&#125;&lt;/li&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p>关于以上两点不明白的地方可以参见 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fstyle-guide%2F%23%25E9%2581%25BF%25E5%2585%258D-v-if-%25E5%2592%258C-v-for-%25E7%2594%25A8%25E5%259C%25A8%25E4%25B8%2580%25E8%25B5%25B7-%25E5%25BF%2585%25E8%25A6%2581" target="_blank" rel="noopener">Vue 风格指南</a>。</p>
-<h2 id="混合"><a href="#混合" class="headerlink" title="混合"></a>混合</h2><p>如果好多组件都共用到一些像 <code>props</code>、<code>data</code>、<code>methods</code> 等，可以单独抽出来放到 <code>mixins</code> 混合器中。</p>
-<pre><code>// paging-mixin.vue
-export default {
-  props: {
-    pageSize: 1,
-    pageLength: 10,
-    currentPage: 1
-    total: 20
-  },
-  methods: {
-    /**
-     * 上一页
-     */
-    prevPage (page) {
-      ...
-    },
-    /**
-     * 下一页
-     */
-    nextPage (page) {
-      ...
-    }
-    /**
-     * 跳转到当前页
-     */
-    currentPage (page) {
-      ...
-    }
-  }
-}
-</code></pre><p>比如在用户管理列表使用：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- Users.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;user-model&quot;&gt;</span><br><span class="line">    &lt;my-table :data=&quot;users&quot;&gt;&lt;/my-table&gt;</span><br><span class="line">    &lt;my-paging</span><br><span class="line">      :page-length=&quot;pageLength&quot;</span><br><span class="line">      :page-size=&quot;pageSize&quot;</span><br><span class="line">      :current-page=&quot;currentPage&quot;</span><br><span class="line">      :total=&quot;total&quot;&gt;</span><br><span class="line">    &lt;/my-paging&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  import PagingMixin from &apos;../mixins/paging-mixin.vue&apos;</span><br><span class="line">  export default &#123;</span><br><span class="line">    mixins: [PagingMixin],</span><br><span class="line">    data () &#123;</span><br><span class="line">      return &#123;</span><br><span class="line">        users: [],</span><br><span class="line">        pageLength: 10,</span><br><span class="line">        pageSize: 1,</span><br><span class="line">        currentPage: 1,</span><br><span class="line">        total: 20</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>不用每个页面都写一遍 <code>props</code> 和 <code>methods</code> 了。</p>
-<h2 id="render-函数"><a href="#render-函数" class="headerlink" title="render 函数"></a>render 函数</h2><p>下面是一段简单的 template 模板代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot;&gt;</span><br><span class="line">    &lt;h2&gt;title&lt;/h2&gt;</span><br><span class="line">    this is content</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p>我们用<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Frender-function.html" target="_blank" rel="noopener">渲染函数</a>来重写上面的代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">export default &#123;</span><br><span class="line">  render (h) &#123;</span><br><span class="line">    let _c = h</span><br><span class="line">    return _c(&apos;div&apos;, </span><br><span class="line">      &#123; class: &apos;box&apos;&#125;, </span><br><span class="line">      [_c(&apos;h2&apos;, &#123;&#125;, &apos;title&apos;), &apos;this is content&apos;])</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>事实上，Vue 会把模板(template)编译成渲染函数(render) 。上面的 template 模板会被编译成如下渲染函数：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">let render = function () &#123;</span><br><span class="line">  return _c(&apos;div&apos;,</span><br><span class="line">    &#123;staticClass:&quot;box&quot;&#125;,</span><br><span class="line">    [_c(&apos;h2&apos;, [_v(&quot;title&quot;)]), _v(&quot;this is content&quot;)])</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>是不是很像？ 正如官方说的，<strong>渲染函数比 template 更接近编译器</strong>。如果用一个流程图来解释的话，大概是这个样子：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">template</span><br><span class="line">    ↓</span><br><span class="line">预编译工具（vue-loader + vue-template-compile）</span><br><span class="line">    ↓</span><br><span class="line">  render</span><br><span class="line">    ↓</span><br><span class="line">resolve vnode</span><br></pre></td></tr></table></figure></p>
-<p>具体参见 <code>Vue声明周期图示</code> </p>
-<p>渲染函数用处：</p>
-<ul>
-<li>开发组件库，Element 源码用的都是 render</li>
-<li>封装一些高阶组件。组件里面嵌套组件就是高阶组件，前提是要满足组件三要素：<code>props</code>、<code>event</code>、<code>slot</code></li>
-<li>用于处理一些复杂的逻辑判断。如果我们一个组件里面有很多的 <code>v-if</code> 判断的话，用模板就显得不合适了，这个时候可以用渲染函数来轻松处理</li>
-</ul>
-<h2 id="errorCaptured"><a href="#errorCaptured" class="headerlink" title="errorCaptured"></a>errorCaptured</h2><p>捕获一个来自子孙组件的错误时被调用。有时候当我们想收集错误日志，却不想把错误暴露到浏览器控制台的时候很有用。下面是个例子：</p>
-<p><code>Child.vue</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;!-- 省略一些无关代码 --&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  export default &#123;</span><br><span class="line">    mounted () &#123;</span><br><span class="line">      // 故意把 console 写错</span><br><span class="line">      consol.log(&apos;这里会报错！&apos;)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p><code>Parent.vue</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;child&gt;&lt;/child&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  import Child from &apos;./Child.vue&apos;</span><br><span class="line">  export default &#123;</span><br><span class="line">    components: [ Child ],</span><br><span class="line">    /**</span><br><span class="line">     * 收到三个参数：</span><br><span class="line">     * 错误对象、发生错误的组件实例</span><br><span class="line">     * 以及一个包含错误来源信息的字符串。</span><br><span class="line">     * 此钩子可以返回 false 以阻止该错误继续向上传播。</span><br><span class="line">     */</span><br><span class="line">    errorCaptured (err, vm, info) &#123;</span><br><span class="line">      console.log(err)</span><br><span class="line">      // -&gt; ReferenceError: consle is not defined ...</span><br><span class="line">      console.log(vm)</span><br><span class="line">      // -&gt; &#123;_uid: 1, _isVue: true, $options: &#123;…&#125;, _renderProxy: o, _self: o,…&#125;</span><br><span class="line">      console.log(info)</span><br><span class="line">      // -&gt; `mounted hook`</span><br><span class="line">      // 告诉我们这个错误是在 vm 组件中的 mounted 钩子中发生的</span><br><span class="line">      </span><br><span class="line">      // 阻止该错误继续向上传播</span><br><span class="line">      return false</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>关于 errorCaptured 更多说明，请<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23errorCaptured" target="_blank" rel="noopener">移步官网-&gt;</a> 。</p>
-<h2 id="v-once"><a href="#v-once" class="headerlink" title="v-once"></a>v-once</h2><p>通过 <code>v-once</code> 创建低开销的静态组件。渲染普通的 HTML 元素在 Vue 中是非常快速的，但有的时候你可能有一个组件，这个组件包含了大量静态内容。在这种情况下，你可以在根元素上添加 <code>v-once</code> 特性以确保这些内容只计算一次然后缓存起来，就像这样：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot; v-once&gt;</span><br><span class="line">    &lt;h2&gt; 用户协议 &lt;/h2&gt;</span><br><span class="line">    ... a lot of static content ...</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p>只渲染元素和组件一次。随后的重新渲染，元素/组件及其所有的子节点将被视为静态内容并跳过。这可以用于优化更新性能。关于 <code>v-once</code> 更多介绍，请<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23v-once" target="_blank" rel="noopener">移步官网-&gt;</a>。</p>
-<h2 id="slot-scope"><a href="#slot-scope" class="headerlink" title="slot-scope"></a>slot-scope</h2><p>作用域插槽。<a href="mailto:`vue@2.5.0" target="_blank" rel="noopener">`vue@2.5.0</a><code>版本以前叫</code>scope<code>，之后的版本用</code>slot-scope<code>将其代替。除了 scope 只可以用于</code><template><code>元素，其它和</code>slot-scope` 都相同。</template></p>
-<p>用过 Element 组件的同学都知道，当我们在使用 <a href="https://link.juejin.im?target=http%3A%2F%2Felement-cn.eleme.io%2F2.4%2F%23%2Fzh-CN%2Fcomponent%2Ftable%23zi-ding-yi-lie-mo-ban" target="_blank" rel="noopener"><code>&lt;el-table&gt;</code></a> 的时候会看到如下代码：</p>
-<p><a href="mailto:Element@1.4.x" target="_blank" rel="noopener">Element@1.4.x</a> 的版本：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;el-table-column label=&quot;操作&quot;&gt;</span><br><span class="line">  &lt;template scope=&quot;scope&quot;&gt;</span><br><span class="line">  &lt;el-button</span><br><span class="line">    size=&quot;small&quot;</span><br><span class="line">    @click=&quot;handleEdit(scope.$index, scope.row)&quot;&gt;编辑&lt;/el-button&gt;</span><br><span class="line">  &lt;el-button</span><br><span class="line">    size=&quot;small&quot;</span><br><span class="line">    type=&quot;danger&quot;</span><br><span class="line">    @click=&quot;handleDelete(scope.$index, scope.row)&quot;&gt;删除&lt;/el-button&gt;</span><br><span class="line">  &lt;/template&gt;</span><br><span class="line">&lt;/el-table-column&gt;</span><br></pre></td></tr></table></figure>
-<p>但在 2.0 之后的版本替换成了 <code>slot-scope</code>。</p>
-<p><a href="mailto:Element@2.0.11" target="_blank" rel="noopener">Element@2.0.11</a>：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;el-table-column label=&quot;操作&quot;&gt;</span><br><span class="line">  &lt;template slot-scope=&quot;scope&quot;&gt;</span><br><span class="line">    &lt;el-button</span><br><span class="line">      size=&quot;mini&quot;</span><br><span class="line">      @click=&quot;handleEdit(scope.$index, scope.row)&quot;&gt;编辑&lt;/el-button&gt;</span><br><span class="line">    &lt;el-button</span><br><span class="line">      size=&quot;mini&quot;</span><br><span class="line">      type=&quot;danger&quot;</span><br><span class="line">      @click=&quot;handleDelete(scope.$index, scope.row)&quot;&gt;删除&lt;/el-button&gt;</span><br><span class="line">  &lt;/template&gt;</span><br><span class="line">&lt;/el-table-column&gt;</span><br></pre></td></tr></table></figure>
-<p>说白了，<code>slot-scope</code> 相当于函数的回调，我把结果给你，你想怎么处理就怎么处理，一切随你：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">function getUserById (url, data, callback) &#123;</span><br><span class="line">  $.ajax(&#123;</span><br><span class="line">    url,</span><br><span class="line">    data,</span><br><span class="line">    success: function (result) &#123;</span><br><span class="line">      callback(result)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 使用</span><br><span class="line">getUserById(&apos;/users&apos;, &#123; id: 1 &#125;, function (response) &#123;</span><br><span class="line">  // 拿到数据并开始处理自己的页面逻辑</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-<p>下面我们来简单模拟下 <code>&lt;el-table&gt;</code> 组件内部是怎么使用 <code>slot-scope</code> 的，看代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">// 定义模板</span><br><span class="line">let template = `</span><br><span class="line"> &lt;ul class=&quot;table&quot;&gt;</span><br><span class="line">  &lt;li v-for=&quot;(item, index) in data&quot; :key=&quot;index&quot;&gt;</span><br><span class="line">    &lt;!-- 我希望数据由调用者自己处理 --&gt;</span><br><span class="line">    &lt;!-- &apos;row&apos; 相当于变量名，随便起名 --&gt;</span><br><span class="line">    &lt;slot :row=&quot;item&quot;&gt;</span><br><span class="line">      &lt;!-- 当使用者什么都没写的时候，默认值才会显示--&gt;</span><br><span class="line">      &#123;&#123; item.name &#125;&#125;</span><br><span class="line">    &lt;/slot&gt;</span><br><span class="line">  &lt;/li&gt;</span><br><span class="line"> &lt;/ul&gt;</span><br><span class="line">`</span><br><span class="line">// 声明 `el-table` 组件</span><br><span class="line">Vue.component(&apos;el-table&apos;, &#123;</span><br><span class="line">  template,</span><br><span class="line">  props: &#123;</span><br><span class="line">    data: Array,</span><br><span class="line">    default: []</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">// 根组件</span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    userData: [</span><br><span class="line">      &#123;id: 1, name: &apos;张三&apos;, isActived: false&#125;,</span><br><span class="line">      &#123;id: 2, name: &apos;李四&apos;, isActived: false&#125;,</span><br><span class="line">      &#123;id: 1, name: &apos;王五&apos;, isActived: true&#125;,</span><br><span class="line">      &#123;id: 1, name: &apos;赵六&apos;, isActived: false&#125;,</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-<p>组件使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">&lt;div id=&quot;app&quot;&gt;</span><br><span class="line">  &lt;el-table :data=&quot;userData&quot;&gt;</span><br><span class="line">    &lt;!-- 使用的时候可以用 template --&gt;</span><br><span class="line">    &lt;!-- `scope` 只是个形参，随便起名 --&gt;</span><br><span class="line">    &lt;template slot-scope=&quot;scope&quot;&gt;</span><br><span class="line">      &lt;template v-if=&quot;scope.row.isActived&quot;&gt;</span><br><span class="line">        &lt;span class=&quot;red&quot;&gt;&#123;&#123; scope.row.name &#125;&#125;&lt;/span&gt;</span><br><span class="line">      &lt;/template&gt;</span><br><span class="line">      &lt;template v-else&gt;</span><br><span class="line">        &#123;&#123; scope.row.name &#125;&#125;</span><br><span class="line">      &lt;/template&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">  &lt;/el-table&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">CSS：</span><br><span class="line"></span><br><span class="line">.red &#123;</span><br><span class="line">  color: red</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>我们完全可以在 <code>&lt;li&gt;</code> 中进行逻辑判断，为什么还要放到外面进行处理呢？ 因为有时候我们用的不是自己开发的组件，比如上面的 <code>&lt;el-table&gt;</code> ，所以就有必要这么做了。最后，你可以狠狠的<a href="https://link.juejin.im?target=https%3A%2F%2Fcodepen.io%2Fgongph%2Fpen%2FPxbqyP" target="_blank" rel="noopener">戳这里</a>查看效果！</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/21/面试之Vue-nextTick原理/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -4098,6 +2948,688 @@ i++; // 语句执行n次
 
 
     
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/06/04/100-100的-canvas-占多少内存/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/06/04/100-100的-canvas-占多少内存/" itemprop="url">100*100的 canvas 占多少内存</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-04T18:55:12+08:00">
+                2017-06-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h2><p>100*100的 canvas 占多少内存？</p>
+<h2 id="解题思路"><a href="#解题思路" class="headerlink" title="解题思路"></a>解题思路</h2><p>其实真正的答案是多少我并不清楚，面试过程中面试官也不期待一个准确的答案，而是看你的思考过程。</p>
+<p>如果了解过 Canvas 且做过滤镜相关的工作，可能调用过 <code>imageData = ctx.getImageData(sx, sy, sw, sh);</code> 这个 API。我记得这个 API 返回的是一个 ImageData 数组，包含了 sx, sy, sw, sh 表示的矩形的像素数据。</p>
+<p>而且这个数组是 Uint8 类型的，且四位表示一个像素。</p>
+<p>我在面试的时候只能想起来这些信息。猜想一下，我们在定义颜色的时候就是使用 rgba(r,g,b,a) 四个维度来表示，而且每个像素值就是用十六位 00-ff 表示，即每个维度的范围是 0~255，即 2^8 位，即 1 byte, 也就是 Uint8 能表示的范围。</p>
+<font color="#ff0000"><strong> 所以 100 <em> 100 canvas 占的内存是 100 </em> 100 * 4 bytes = 40,000 bytes。</strong></font>
+
+<h2 id="声明"><a href="#声明" class="headerlink" title="声明"></a>声明</h2><p>这里的答案并不一定准确。</p>
+<h2 id="关于-alpha-的争论"><a href="#关于-alpha-的争论" class="headerlink" title="关于 alpha 的争论"></a>关于 alpha 的争论</h2><p>有同学指出，alpha 不是 0-100 么？我起初也有这样的疑问，不过这篇文章中 <a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FCanvas_API%2FTutorial%2FPixel_manipulation_with_canvas" target="_blank" rel="noopener">developer.mozilla.org/en-US/docs/…</a> 说</p>
+<blockquote>
+<p>The data property returns a Uint8ClampedArray which can be accessed to look at the raw pixel data; each pixel is represented by four one-byte values (red, green, blue, and alpha, in that order; that is, “RGBA” format). Each color component is represented by an integer between 0 and 255.</p>
+</blockquote>
+<p>也就是说即便是 alpha 也是 0-255</p>
+<p>那么如何表示 alpha 呢？</p>
+<p>接下来这段代码中<br><img src="/2017/06/04/100-100的-canvas-占多少内存/166de139a0bb874e.webp" alt=""><br>可以看出，只需要用 0-255 表示 0-100 就可以啦~</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/05/01/实现一个-Virtual-DOM-算法/" itemprop="url">实现一个 Virtual DOM 算法[转]</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:04:50+08:00">
+                2017-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"><a href="#virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。" class="headerlink" title=" virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"></a><font color="#dd0000"><strong> virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。</strong></font></h2><h2 id="目录："><a href="#目录：" class="headerlink" title="目录："></a>目录：</h2><ul>
+<li>1 前言</li>
+<li>2 对前端应用状态管理思考</li>
+<li>3 Virtual DOM 算法</li>
+<li>4 算法实现<ul>
+<li>4.1 步骤一：用JS对象模拟DOM树</li>
+<li>4.2 步骤二：比较两棵虚拟DOM树的差异</li>
+<li>4.3 步骤三：把差异应用到真正的DOM树上</li>
+</ul>
+</li>
+<li>5 结语</li>
+<li>6 References</li>
+</ul>
+<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a>1 前言</h2><p>本文会在教你怎么用 300~400 行代码实现一个基本的 Virtual DOM 算法，并且尝试尽量把 Virtual DOM 的算法思路阐述清楚。希望在阅读本文后，能让你深入理解 Virtual DOM 算法，给你现有前端的编程提供一些新的思考。</p>
+<h2 id="2-对前端应用状态管理的思考"><a href="#2-对前端应用状态管理的思考" class="headerlink" title="2 对前端应用状态管理的思考"></a>2 对前端应用状态管理的思考</h2><p>假如现在你需要写一个像下面一样的表格的应用程序，这个表格可以根据不同的字段进行升序或者降序的展示。<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/1.png" alt=""><br>这个应用程序看起来很简单，你可以想出好几种不同的方式来写。最容易想到的可能是，在你的 JavaScript 代码里面存储这样的数据：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var sortKey = &quot;new&quot; // 排序的字段，新增（new）、取消（cancel）、净关注（gain）、累积（cumulate）人数</span><br><span class="line">var sortType = 1 // 升序还是逆序</span><br><span class="line">var data = [&#123;...&#125;, &#123;...&#125;, &#123;..&#125;, ..] // 表格数据</span><br></pre></td></tr></table></figure></p>
+<p>用三个字段分别存储当前排序的字段、排序方向、还有表格数据；然后给表格头部加点击事件：当用户点击特定的字段的时候，根据上面几个字段存储的内容来对内容进行排序，然后用 JS 或者 jQuery 操作 DOM，更新页面的排序状态（表头的那几个箭头表示当前排序状态，也需要更新）和表格内容。</p>
+<p>这样做会导致的后果就是，随着应用程序越来越复杂，需要在JS里面维护的字段也越来越多，需要监听事件和在事件回调用更新页面的DOM操作也越来越多，应用程序会变得非常难维护。后来人们使用了 MVC、MVP 的架构模式，希望能从代码组织方式来降低维护这种复杂应用程序的难度。但是 MVC 架构没办法减少你所维护的状态，也没有降低状态更新你需要对页面的更新操作（前端来说就是DOM操作），你需要操作的DOM还是需要操作，只是换了个地方。</p>
+<p>既然状态改变了要操作相应的DOM元素，为什么不做一个东西可以让视图和状态进行绑定，状态变更了视图自动变更，就不用手动更新页面了。这就是后来人们想出了 MVVM 模式，只要在模版中声明视图组件是和什么状态进行绑定的，双向绑定引擎就会在状态更新的时候自动更新视图（关于MV*模式的内容，可以看<a href="https://github.com/livoras/blog/issues/11" target="_blank" rel="noopener">这篇介绍</a>）。</p>
+<p>MVVM 可以很好的降低我们维护状态 -&gt; 视图的复杂程度（大大减少代码中的视图更新逻辑）。但是这不是唯一的办法，还有一个非常直观的方法，可以大大降低视图更新的操作：一旦状态发生了变化，就用模版引擎重新渲染<strong>整个视图</strong>，然后用新的视图更换掉旧的视图。就像上面的表格，当用户点击的时候，还是在JS里面更新状态，但是页面更新就不用手动操作 DOM 了，直接把整个表格用模版引擎重新渲染一遍，然后设置一下<code>innerHTML</code>就完事了。</p>
+<p>听到这样的做法，经验丰富的你一定第一时间意识这样的做法会导致很多的问题。最大的问题就是这样做会很慢，因为即使一个小小的状态变更都要重新构造整棵 DOM，性价比太低；而且这样做的话，<code>input</code>和<code>textarea</code>的会失去原有的焦点。最后的结论会是：对于局部的小视图的更新，没有问题（Backbone就是这么干的）；但是对于大型视图，如全局应用状态变更的时候，需要更新页面较多局部视图的时候，这样的做法不可取。</p>
+<p><strong>但是这里要明白和记住这种做法</strong>，因为后面你会发现，<strong>其实 Virtual DOM 就是这么做的，只是加了一些特别的步骤来避免了整棵 DOM 树变更</strong>。</p>
+<p>另外一点需要注意的就是，上面提供的几种方法，其实都在解决同一个问题：<strong>维护状态，更新视图</strong>。在一般的应用当中，如果能够很好方案来应对这个问题，那么就几乎降低了大部分复杂性。</p>
+<h2 id="3-Virtual-DOM算法"><a href="#3-Virtual-DOM算法" class="headerlink" title="3 Virtual DOM算法"></a>3 Virtual DOM算法</h2><p>DOM是很慢的。如果我们把一个简单的<code>div</code>元素的属性都打印出来，你会看到：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/2.png" alt=""><br>而这仅仅是第一层。真正的 DOM 元素非常庞大，这是因为标准就是这么设计的。而且操作它们的时候你要小心翼翼，轻微的触碰可能就会导致页面重排，这可是杀死性能的罪魁祸首。</p>
+<p>相对于 DOM 对象，原生的 JavaScript 对象处理起来更快，而且更简单。DOM 树上的结构、属性信息我们都可以很容易地用 JavaScript 对象表示出来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">var element = &#123;</span><br><span class="line">  tagName:&apos;ul&apos;, // 节点标签名</span><br><span class="line">  props: &#123; // DOM的属性，用一个对象存储键值对</span><br><span class="line">    id:&apos;list&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  children: [ // 该节点的子节点</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 1&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 2&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 3&quot;]&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>上面对应的HTML写法是：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
+<p>既然原来 DOM 树的信息都可以用 JavaScript 对象来表示，反过来，你就可以根据这个用 JavaScript 对象表示的树结构来构建一棵真正的DOM树。</p>
+<p>之前的章节所说的，状态变更-&gt;重新渲染整个视图的方式可以稍微修改一下：用 JavaScript 对象表示 DOM 信息和结构，当状态变更的时候，重新渲染这个 JavaScript 的对象结构。当然这样做其实没什么卵用，因为真正的页面其实没有改变。</p>
+<p>但是可以用新渲染的对象树去和旧的树进行对比，记录这两棵树差异。记录下来的不同就是我们需要对页面真正的 DOM 操作，然后把它们应用在真正的 DOM 树上，页面就变更了。这样就可以做到：视图的结构确实是整个全新渲染了，但是最后操作DOM的时候确实只变更有不同的地方。</p>
+<p>这就是所谓的 Virtual DOM 算法。包括几个步骤：</p>
+<ol>
+<li>用 JavaScript 对象结构表示 DOM 树的结构；然后用这个树构建一个真正的 DOM 树，插到文档当中</li>
+<li>当状态变更的时候，重新构造一棵新的对象树。然后用新的树和旧的树进行比较，记录两棵树差异</li>
+<li>把2所记录的差异应用到步骤1所构建的真正的DOM树上，视图就更新了</li>
+</ol>
+<p>Virtual DOM 本质上就是在 JS 和 DOM 之间做了一个缓存。可以类比 CPU 和硬盘，既然硬盘这么慢，我们就在它们之间加个缓存：既然 DOM 这么慢，我们就在它们 JS 和 DOM 之间加个缓存。CPU（JS）只操作内存（Virtual DOM），最后的时候再把变更写入硬盘（DOM）。</p>
+<h2 id="4-算法实现"><a href="#4-算法实现" class="headerlink" title="4 算法实现"></a>4 算法实现</h2><h3 id="4-1-步骤一：用JS对象模拟DOM树"><a href="#4-1-步骤一：用JS对象模拟DOM树" class="headerlink" title="4.1 步骤一：用JS对象模拟DOM树"></a>4.1 步骤一：用JS对象模拟DOM树</h3><p>用 JavaScript 来表示一个 DOM 节点是很简单的事情，你只需要记录它的节点类型、属性，还有子节点：</p>
+<p>element.js<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">functionElement (tagName, props, children) &#123;</span><br><span class="line">  this.tagName= tagName</span><br><span class="line">  this.props= props</span><br><span class="line">  this.children= children</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports=function (tagName, props, children) &#123;</span><br><span class="line">  returnnewElement(tagName, props, children)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>例如上面的 DOM 结构就可以简单的表示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var el =require(&apos;./element&apos;)</span><br><span class="line"></span><br><span class="line">var ul =el(&apos;ul&apos;, &#123;id:&apos;list&apos;&#125;, [</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 1&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 2&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 3&apos;])</span><br><span class="line">])</span><br></pre></td></tr></table></figure></p>
+<p>现在<code>ul</code>只是一个 JavaScript 对象表示的 DOM 结构，页面上并没有这个结构。我们可以根据这个<code>ul</code>构建真正的<code>&lt;ul&gt;</code>：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Element.prototype.render=function () &#123;</span><br><span class="line">  var el =document.createElement(this.tagName) // 根据tagName构建var props =this.propsfor (var propName in props) &#123; // 设置节点的DOM属性var propValue = props[propName]</span><br><span class="line">    el.setAttribute(propName, propValue)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var children =this.children|| []</span><br><span class="line"></span><br><span class="line">  children.forEach(function (child) &#123;</span><br><span class="line">    var childEl = (child instanceofElement)</span><br><span class="line">      ?child.render() // 如果子节点也是虚拟DOM，递归构建DOM节点:document.createTextNode(child) // 如果字符串，只构建文本节点el.appendChild(childEl)</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line">  return el</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>render</code>方法会根据<code>tagName</code>构建一个真正的DOM节点，然后设置这个节点的属性，最后递归地把自己的子节点也构建起来。所以只需要：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">var ulRoot =ul.render()</span><br><span class="line">document.body.appendChild(ulRoot)</span><br></pre></td></tr></table></figure></p>
+<p>上面的<code>ulRoot</code>是真正的DOM节点，把它塞入文档中，这样<code>body</code>里面就有了真正的<code>&lt;ul&gt;</code>的DOM结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
+<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element.js</a>。</p>
+<h3 id="4-2-步骤二：比较两棵虚拟DOM树的差异"><a href="#4-2-步骤二：比较两棵虚拟DOM树的差异" class="headerlink" title="4.2 步骤二：比较两棵虚拟DOM树的差异"></a>4.2 步骤二：比较两棵虚拟DOM树的差异</h3><p>正如你所预料的，比较两棵DOM树的差异是 Virtual DOM 算法最核心的部分，这也是所谓的 Virtual DOM 的 diff 算法。两个树的完全的 diff 算法是一个时间复杂度为 O(n^3) 的问题。但是在前端当中，你很少会跨越层级地移动DOM元素。所以 Virtual DOM 只会对同一个层级的元素进行对比：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/3.png" alt=""><br>上面的<code>div</code>只会和同一层级的<code>div</code>对比，第二层级的只会跟第二层级对比。这样算法复杂度就可以达到 O(n)。</p>
+<h4 id="4-2-1-深度优先遍历，记录差异"><a href="#4-2-1-深度优先遍历，记录差异" class="headerlink" title="4.2.1 深度优先遍历，记录差异"></a>4.2.1 深度优先遍历，记录差异</h4><p>在实际的代码中，会对新旧两棵树进行一个深度优先的遍历，这样每个节点都会有一个唯一的标记：</p>
+<p> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/4.png" alt=""></p>
+<p>在深度优先遍历的时候，每遍历到一个节点就把该节点和新的的树进行对比。如果有差异的话就记录到一个对象里面。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// diff 函数，对比两棵树functiondiff (oldTree, newTree) &#123;</span><br><span class="line">  var index =0// 当前节点的标志var patches = &#123;&#125; // 用来记录每个节点差异的对象dfsWalk(oldTree, newTree, index, patches)</span><br><span class="line">  return patches</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 对两棵树进行深度优先遍历functiondfsWalk (oldNode, newNode, index, patches) &#123;</span><br><span class="line">  // 对比oldNode和newNode的不同，记录下来</span><br><span class="line">  patches[index] = [...]</span><br><span class="line"></span><br><span class="line">  diffChildren(oldNode.children, newNode.children, index, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 遍历子节点functiondiffChildren (oldChildren, newChildren, index, patches) &#123;</span><br><span class="line">  var leftNode =nullvar currentNodeIndex = index</span><br><span class="line">  oldChildren.forEach(function (child, i) &#123;</span><br><span class="line">    var newChild = newChildren[i]</span><br><span class="line">    currentNodeIndex = (leftNode &amp;&amp;leftNode.count) // 计算节点的标识? currentNodeIndex +leftNode.count+1: currentNodeIndex +1dfsWalk(child, newChild, currentNodeIndex, patches) // 深度遍历子节点</span><br><span class="line">    leftNode = child</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>例如，上面的<code>div</code>和新的<code>div</code>有差异，当前的标记是0，那么：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;difference&#125;, &#123;difference&#125;, ...] // 用数组存储新旧节点的不同</span><br></pre></td></tr></table></figure></p>
+<p>同理<code>p</code>是<code>patches[1]</code>，<code>ul</code>是<code>patches[3]</code>，类推。</p>
+<h4 id="4-2-2-差异类型"><a href="#4-2-2-差异类型" class="headerlink" title="4.2.2 差异类型"></a>4.2.2 差异类型</h4><p>上面说的节点的差异指的是什么呢？对 DOM 操作可能会：</p>
+<ol>
+<li>替换掉原来的节点，例如把上面的<code>div</code>换成了<code>section</code></li>
+<li>移动、删除、新增子节点，例如上面<code>div</code>的子节点，把<code>p</code>和<code>ul</code>顺序互换</li>
+<li>修改了节点的属性</li>
+<li>对于文本节点，文本内容可能会改变。例如修改上面的文本节点2内容为<code>Virtual DOM 2</code>。</li>
+</ol>
+<p>所以我们定义了几种差异类型：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var REPLACE = 0</span><br><span class="line">var REORDER = 1</span><br><span class="line">var PROPS = 2</span><br><span class="line">var TEXT = 3</span><br></pre></td></tr></table></figure></p>
+<p>对于节点替换，很简单。判断新旧节点的<code>tagName</code>和是不是一样的，如果不一样的说明需要替换掉。如<code>div</code>换成<code>section</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>如果给<code>div</code>新增了属性<code>id</code>为<code>container</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;, &#123;</span><br><span class="line">  type:PROPS,</span><br><span class="line">  props: &#123;</span><br><span class="line">    id:&quot;container&quot;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>如果是文本节点，如上面的文本节点2，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[2] = [&#123;</span><br><span class="line">  type:TEXT,</span><br><span class="line">  content:&quot;Virtual DOM2&quot;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>那如果把我<code>div</code>的子节点重新排序呢？例如<code>p, ul, div</code>的顺序换成了<code>div, p, ul</code>。这个该怎么对比？如果按照同层级进行顺序对比的话，它们都会被替换掉。如<code>p</code>和<code>div</code>的<code>tagName</code>不同，<code>p</code>会被<code>div</code>所替代。最终，三个节点都会被替换，这样DOM开销就非常大。而实际上是不需要替换节点，而只需要经过节点移动就可以达到，我们只需知道怎么进行移动。</p>
+<p>这牵涉到两个列表的对比算法，需要另外起一个小节来讨论。</p>
+<h4 id="4-2-3-列表对比算法"><a href="#4-2-3-列表对比算法" class="headerlink" title="4.2.3 列表对比算法"></a>4.2.3 列表对比算法</h4><p>假设现在可以英文字母唯一地标识每一个子节点：<br>旧的节点顺序：</p>
+<pre><code>a b c d e f g h i
+</code></pre><p>现在对节点进行了删除、插入、移动的操作。新增<code>j</code>节点，删除<code>e</code>节点，移动<code>h</code>节点：<br>新的节点顺序：</p>
+<pre><code>a b c h d f g i j
+</code></pre><p>现在知道了新旧的顺序，求最小的插入、删除操作（移动可以看成是删除和插入操作的结合）。这个问题抽象出来其实是字符串的最小编辑距离问题（<a href="https://en.wikipedia.org/wiki/Edit_distance" target="_blank" rel="noopener">Edition Distance</a>），最常见的解决算法是 <a href="https://en.wikipedia.org/wiki/Levenshtein_distance" target="_blank" rel="noopener">Levenshtein Distance</a>，通过动态规划求解，时间复杂度为 O(M * N)。但是我们并不需要真的达到最小的操作，我们只需要优化一些比较常见的移动情况，牺牲一定DOM操作，让算法时间复杂度达到线性的（O(max(M, N))。具体算法细节比较多，这里不累述，有兴趣可以参考<a href="https://github.com/livoras/list-diff/blob/master/lib/diff.js" target="_blank" rel="noopener">代码</a>。</p>
+<p>我们能够获取到某个父节点的子节点的操作，就可以记录下来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REORDER,</span><br><span class="line">  moves: [&#123;remove or insert&#125;, &#123;remove or insert&#125;, ...]</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>但是要注意的是，因为<code>tagName</code>是可重复的，不能用这个来进行对比。所以需要给子节点加上唯一标识<code>key</code>，列表对比的时候，使用<code>key</code>进行对比，这样才能复用老的 DOM 树上的节点。</p>
+<p>这样，我们就可以通过深度优先遍历两棵树，每层的节点进行对比，记录下每个节点的差异了。完整 diff 算法代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff.js</a>。</p>
+<h3 id="4-3-步骤三：把差异应用到真正的DOM树上"><a href="#4-3-步骤三：把差异应用到真正的DOM树上" class="headerlink" title="4.3 步骤三：把差异应用到真正的DOM树上"></a>4.3 步骤三：把差异应用到真正的DOM树上</h3><p>因为步骤一所构建的 JavaScript 对象树和<code>render</code>出来真正的DOM树的信息、结构是一样的。所以我们可以对那棵DOM树也进行深度优先的遍历，遍历的时候从步骤二生成的<code>patches</code>对象中找出当前遍历的节点差异，然后进行 DOM 操作。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">functionpatch (node, patches) &#123;</span><br><span class="line">  var walker = &#123;index:0&#125;</span><br><span class="line">  dfsWalk(node, walker, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">functiondfsWalk (node, walker, patches) &#123;</span><br><span class="line">  var currentPatches = patches[walker.index] // 从patches拿出当前节点的差异var len =node.childNodes?node.childNodes.length:0for (var i =0; i &lt; len; i++) &#123; // 深度遍历子节点var child =node.childNodes[i]</span><br><span class="line">    walker.index++dfsWalk(child, walker, patches)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (currentPatches) &#123;</span><br><span class="line">    applyPatches(node, currentPatches) // 对当前节点进行DOM操作</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>applyPatches，根据不同类型的差异对当前节点进行 DOM 操作：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">functionapplyPatches (node, currentPatches) &#123;</span><br><span class="line">  currentPatches.forEach(function (currentPatch) &#123;</span><br><span class="line">    switch (currentPatch.type) &#123;</span><br><span class="line">      caseREPLACE:</span><br><span class="line">        node.parentNode.replaceChild(currentPatch.node.render(), node)</span><br><span class="line">        breakcaseREORDER:</span><br><span class="line">        reorderChildren(node, currentPatch.moves)</span><br><span class="line">        breakcasePROPS:</span><br><span class="line">        setProps(node, currentPatch.props)</span><br><span class="line">        breakcaseTEXT:</span><br><span class="line">        node.textContent=currentPatch.contentbreakdefault:</span><br><span class="line">        thrownewError(&apos;Unknown patch type &apos;+currentPatch.type)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch.js</a>。</p>
+<h2 id="5-结语"><a href="#5-结语" class="headerlink" title="5 结语"></a>5 结语</h2><p>Virtual DOM 算法主要是实现上面步骤的三个函数：<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch</a>。然后就可以实际的进行使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// 1. 构建虚拟DOM</span><br><span class="line">var tree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: blue&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 2. 通过虚拟DOM构建真正的DOM</span><br><span class="line">var root =tree.render()</span><br><span class="line">document.body.appendChild(root)</span><br><span class="line"></span><br><span class="line">// 3. 生成新的虚拟DOMvar newTree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: red&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;), el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 4. 比较两棵虚拟DOM树的不同</span><br><span class="line">var patches =diff(tree, newTree)</span><br><span class="line"></span><br><span class="line">// 5. 在真正的DOM元素上应用变更</span><br><span class="line">patch(root, patches)</span><br></pre></td></tr></table></figure></p>
+<p>当然这是非常粗糙的实践，实际中还需要处理事件监听等；生成虚拟 DOM 的时候也可以加入 JSX 语法。这些事情都做了的话，就可以构造一个简单的ReactJS了。</p>
+<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>，仅供学习。</p>
+<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/18/简化版的vue-router/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/04/18/简化版的vue-router/" itemprop="url">简化版的vue-router</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-18T15:12:24+08:00">
+                2017-04-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>本文旨在介绍<code>vue-router</code>的实现思路，并动手实现一个简化版的<code>vue-router</code>。<br>我们先来看一下一般项目中对<code>vue-router</code>最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根<code>vue</code>实例中注入该<code>router</code>对象就可以使用了.</p>
+<pre><code>import VueRouter from&apos;vue-router&apos;;
+import Home from&apos;@/components/Home&apos;;
+import A from&apos;@/components/A&apos;;
+import B from&apos;@/components/B&apos;import C from&apos;@/components/C&apos;
+
+Vue.use(VueRouter)
+
+export default new VueRouter.Router({
+  // mode: &apos;history&apos;,
+  routes: [
+    {
+      path: &apos;/&apos;,
+      component: Home
+    },
+    {
+      path: &apos;/a&apos;,
+      component: A
+    },
+    {
+      path: &apos;/b&apos;,
+      component: B
+    },
+    {
+      path: &apos;/c&apos;,
+      component: C
+    }
+  ]
+})
+</code></pre><p><code>vue-router</code>提供两个全局组件，<code>router-view</code>和<code>router-link</code>，前者是用于路由组件的占位，后者用于点击时跳转到指定路由。此外组件内部可以通过<code>this.$router.push</code>,<code>this.$rouer.replace</code>等api实现路由跳转。本文将实现上述两个全局组件以及<code>push</code>和<code>replace</code>两个api，调用的时候支持<code>params</code>传参，并且支持<code>hash</code>和<code>history</code>两种模式，忽略其余api、嵌套路由、异步路由、<code>abstract</code>路由以及导航守卫等高级功能的实现，这样有助于理解<code>vue-router</code>的核心原理。本文的最终代码不建议在生产环境使用，只做一个学习用途，下面我们就来一步步实现它。</p>
+<h3 id="install实现"><a href="#install实现" class="headerlink" title="install实现"></a>install实现</h3><p>任何一个<code>vue</code>插件都要实现一个<code>install</code>方法，通过<code>Vue.use</code>调用插件的时候就是在调用插件的<code>install</code>方法，那么路由的<code>install</code>要做哪些事情呢？首先我们知道 我们会用<code>new</code>关键字生成一个<code>router</code>实例，就像前面的代码实例一样，然后将其挂载到根<code>vue</code>实例上，那么作为一个全局路由，我们当然需要在各个组件中都可以拿到这个<code>router</code>实例。另外我们使用了全局组件<code>router-view</code>和<code>router-link</code>，由于<code>install</code>会接收到<code>Vue</code>构造函数作为实参，方便我们调用<code>Vue.component</code>来注册全局组件。因此，在<code>install</code>中主要就做两件事，给各个组件都挂载<code>router</code>实例，以及实现<code>router-view</code>和<code>router-link</code>两个全局组件。下面是代码：</p>
+<pre><code>const install = (Vue) =&gt; {
+
+  if (this._Vue) {
+    return;
+  };
+  Vue.mixin({
+    beforeCreate() {
+      if (this.$options &amp;&amp; this.$options.router) {
+        this._routerRoot = this;
+        this._router = this.$options.router;
+        Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
+      } else {
+        this._routerRoot = (this.$parent &amp;&amp; this.$parent._routerRoot) || this
+      }
+
+      Object.defineProperty(this, &apos;$router&apos;, {
+        get() {
+          returnthis._routerRoot._router;
+        }
+      })
+
+      Object.defineProperty(this, &apos;$route&apos;, {
+        get() {
+          return {
+            current: this._routerRoot._routeHistory.current,
+            ...this._routerRoot._router.route
+          };
+        }
+      })
+    }
+  });
+
+  Vue.component(&apos;router-view&apos;, {
+    render(h) { ... }
+  })
+
+  Vue.component(&apos;router-link&apos;, {    
+    props: {
+      to: String,
+      tag: String,
+    },
+    render(h) { ... }
+  })
+  this._Vue = Vue;
+}
+</code></pre><p>这里的<code>this</code>代表的就是<code>vue-router</code>对象，它有两个属性暴露出来供外界调用，一个是<code>install</code>，一个是<code>Router</code>构造函数，这样可以保证插件的正确安装以及路由实例化。我们先忽略<code>Router</code>构造函数，来看<code>install</code>，上面代码中的<code>this._Vue</code>是个开始没有定义的属性，他的目的是防止多次安装。我们使用<code>Vue.mixin</code>对每个组件的<code>beforeCreate</code>钩子做全局混入，目的是让每个组件实例共享<code>router</code>实例，即通过<code>this.$router</code>拿到路由实例，通过<code>this.$route</code>拿到路由状态。需要重点关注的是这行代码：</p>
+<pre><code>Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
+</code></pre><p>这行代码利用<code>vue</code>的响应式原理，对根<code>vue</code>实例注册了一个<code>_routeHistory</code>属性，指向路由实例的<code>history</code>对象，这样<code>history</code>也变成了响应式的。因此一旦路由的<code>history</code>发生变化，用到这个值的组件就会触发<code>render</code>函数重新渲染，这里的组件就是<code>router-view</code>。从这里可以窥察到<code>vue-router</code>实现的一个基本思路。上述的代码中对于两个全局组件的<code>render</code>函数的实现，因为会依赖于<code>router</code>对象，我们先放一放，稍后再来实现它们，下面我们分析一下<code>Router</code>构造函数。</p>
+<h3 id="Router构造函数"><a href="#Router构造函数" class="headerlink" title="Router构造函数"></a>Router构造函数</h3><p>经过刚才的分析，我们知道<code>router</code>实例需要有一个<code>history</code>对象，需要一个保存当前路由状态的对象<code>route</code>，另外很显然还需要接受路由配置表<code>routes</code>，根据<code>routes</code>需要一个路由映射表<code>routerMap</code>来实现组件搜索，还需要一个变量<code>mode</code>判断是什么模式下的路由，需要实现<code>push</code>和<code>replace</code>两个api，代码如下：</p>
+<pre><code>const Router = function (options) {
+  this.routes = options.routes; // 存放路由配置this.mode = options.mode || &apos;hash&apos;;
+  this.route = Object.create(null), // 生成路由状态this.routerMap = createMap(this.routes) // 生成路由表this.history = new RouterHistory(); // 实例化路由历史对象this.init(); // 初始化
+}
+
+Router.prototype.push = (options) =&gt; { ... }
+
+Router.prototype.replace = (options) =&gt; { ... }
+
+Router.prototype.init = () =&gt; { ... }
+</code></pre><p>我们看一下路由表<code>routerMap</code>的实现，由于不考虑嵌套等其他情况，实现很简单，如下：</p>
+<pre><code>const createMap = (routes) =&gt; {
+  let resMap = Object.create(null);
+  routes.forEach(route =&gt; {
+    resMap[route[&apos;path&apos;]] = route[&apos;component&apos;];
+  })
+  return resMap;
+}
+</code></pre><p><code>RouterHistory</code>的实现也很简单，根据前面分析，我们只需要一个<code>current</code>属性就可以，如下：</p>
+<pre><code>const RouterHistory = function (mode) {
+  this.current = null; 
+}
+</code></pre><p>有了路由表和<code>history</code>，<code>router-view</code>的实现就很容易了，如下：</p>
+<pre><code>Vue.component(&apos;router-view&apos;, {
+    render(h) {
+      let routerMap = this._self.$router.routerMap;
+      return h(routerMap[this._self.$route.current])
+    }
+  })
+</code></pre><p>这里的<code>this</code>是一个<code>renderProxy</code>实例，他有一个属性<code>_self</code>可以拿到当前的组件实例，进而访问到<code>routerMap</code>，可以看到路由实例<code>history</code>的<code>current</code>本质上就是我们配置的路由表中的<code>path</code>。</p>
+<p>接下来我们看一下<code>Router</code>要做哪些初始化工作。对于<code>hash</code>路由而言，url上<code>hash</code>值的改变不会引起页面刷新，但是可以触发一个<code>hashchange</code>事件。由于路由<code>history.current</code>初始为<code>null</code>，因此匹配不到任何一个路由，所以会导致页面刷新加载不出任何路由组件。基于这两点，在<code>init</code>方法中，我们需要实现对页面加载完成的监听，以及<code>hash</code>变化的监听。对于<code>history</code>路由，为了实现浏览器前进后退时准确渲染对应组件，还要监听一个<code>popstate</code>事件。代码如下:</p>
+<pre><code>Router.prototype.init = function () {
+
+  if (this.mode === &apos;hash&apos;) {
+    fixHash()
+    window.addEventListener(&apos;hashchange&apos;, () =&gt; {
+      this.history.current = getHash();
+    })
+    window.addEventListener(&apos;load&apos;, () =&gt; {
+      this.history.current = getHash();
+    })
+  }
+
+  if (this.mode === &apos;history&apos;) {
+    removeHash(this);
+    window.addEventListener(&apos;load&apos;, () =&gt; {
+      this.history.current = location.pathname;
+    })
+    window.addEventListener(&apos;popstate&apos;, (e) =&gt; {
+      if (e.state) {
+        this.history.current = e.state.path;
+      }
+    })
+  }
+
+}
+</code></pre><p>当启用<code>hash</code>模式的时候，我们要检测url上是否存在<code>hash</code>值，没有的话强制赋值一个默认<code>path</code>，<code>hash</code>路由时会根据<code>hash</code>值作为<code>key</code>来查找路由表。<code>fixHash</code>和<code>getHash</code>实现如下：</p>
+<pre><code>const fixHash = () =&gt; {
+  if (!location.hash) {
+    location.hash = &apos;/&apos;;
+  }
+}
+const getHash = () =&gt; {
+  return location.hash.slice(1) || &apos;/&apos;;
+}
+</code></pre><p>这样在刷新页面和<code>hash</code>改变的时候，<code>current</code>可以得到赋值和更新，页面能根据<code>hash</code>值准确渲染路由。<code>history</code>模式也是一样的道理，只是它通过<code>location.pathname</code>作为<code>key</code>搜索路由组件，另外<code>history</code>模式需要去除url上可能存在的<code>hash</code>,<code>removeHash</code>实现如下：</p>
+<pre><code>const removeHash = (route) =&gt; {
+  let url = location.href.split(&apos;#&apos;)[1]
+  if (url) {
+    route.current = url;
+    history.replaceState({}, null, url)
+  }
+}
+</code></pre><p>我们可以看到当浏览器后退的时候，<code>history</code>模式会触发<code>popstate</code>事件，这个时候是通过<code>state</code>状态去获取<code>path</code>的，那么<code>state</code>状态从哪里来呢，答案是从<code>window.history</code>对象的<code>pushState</code>和<code>replaceState</code>而来，这两个方法正好可以用来实现<code>router</code>的<code>push</code>方法和<code>replace</code>方法，我们看一下这里它们的实现：</p>
+<pre><code>Router.prototype.push = (options) =&gt; {
+  this.history.current = options.path;
+  if (this.mode === &apos;history&apos;) {
+    history.pushState({
+      path: options.path
+    }, null, options.path);
+  } elseif (this.mode === &apos;hash&apos;) {
+    location.hash = options.path;
+  }
+  this.route.params = {
+    ...options.params
+  }
+}
+
+Router.prototype.replace = (options) =&gt; {
+  this.history.current = options.path;
+  if (this.mode === &apos;history&apos;) {
+    history.replaceState({
+      path: options.path
+    }, null, options.path);
+  } elseif (this.mode === &apos;hash&apos;) {
+    location.replace(`#${options.path}`)
+  }
+  this.route.params = {
+    ...options.params
+  }
+}
+</code></pre><p><code>pushState</code>和<code>replaceState</code>能够实现改变url的值但不引起页面刷新，从而不会导致新请求发生，<code>pushState</code>会生成一条历史记录而<code>replaceState</code>不会，后者只是替换当前url。在这两个方法执行的时候将<code>path</code>存入<code>state</code>，这就使得<code>popstate</code>触发的时候可以拿到路径从而触发组件渲染了。我们在组件内按照如下方式调用，会将<code>params</code>写入<code>router</code>实例的<code>route</code>属性中，从而在跳转后的组件<code>B</code>内通过<code>this.$route.params</code>可以访问到传参。</p>
+<pre><code>this.$router.push({
+    path: &apos;/b&apos;,
+    params: {
+      id: 55
+    }
+ });
+</code></pre><h3 id="router-link实现"><a href="#router-link实现" class="headerlink" title="router-link实现"></a>router-link实现</h3><p><code>router-view</code>的实现很简单，前面已经说过。最后，我们来看一下<code>router-link</code>的实现,先放上代码：</p>
+<pre><code>Vue.component(&apos;router-link&apos;, {    
+    props: {
+      to: String,
+      tag: String,
+    },
+
+    render(h) {
+      let mode = this._self.$router.mode;
+      let tag = this.tag || &apos;a&apos;;
+      let routerHistory = this._self.$router.history;
+      return h(tag, {
+        attrs: tag === &apos;a&apos; ? {
+          href: mode === &apos;hash&apos; ? &apos;#&apos; + this.to : this.to,
+
+        } : {},
+        on: {
+          click: (e) =&gt; {
+            if (this.to === routerHistory.current) {
+              e.preventDefault();
+              return;
+            }
+            routerHistory.current = this.to;
+            switch (mode) {
+              case&apos;hash&apos;:
+                if (tag === &apos;a&apos;) return;
+                location.hash = this.to;
+                break;
+              case&apos;history&apos;:
+                history.pushState({
+                  path: this.to
+                }, null, this.to);
+                break;
+              default:
+            }
+            e.preventDefault();
+          }
+        },
+        style: {
+          cursor: &apos;pointer&apos;
+        }
+      }, this.$slots.default)
+    }
+  })
+</code></pre><p><code>router-link</code>可以接受两个属性，<code>to</code>表示要跳转的路由路径，<code>tag</code>表示<code>router-link</code>要渲染的标签名，默认<code>a</code>为标签。如果是<code>a</code>标签，我们为其添加一个<code>href</code>属性。我们给标签绑定<code>click</code>事件，如果检测到本次跳转为当前路由的话什么都不做直接返回，并且阻止默认行为，否则根据<code>to</code>更换路由。<code>hash</code>模式下并且是<code>a</code>标签时候可以直接利用浏览器的默认行为完成url上<code>hash</code>的替换，否者重新为<code>location.hash</code>赋值。<code>history</code>模式下则利用<code>pushState</code>去更新url。</p>
+<p>以上实现就是一个简单的vue-router.</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
   </section>
 
   
@@ -4152,7 +3684,7 @@ i++; // 语句执行n次
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">109</span>
+                  <span class="site-state-item-count">107</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

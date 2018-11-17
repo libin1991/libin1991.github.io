@@ -300,812 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/02/JS-继承/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/03/02/JS-继承/" itemprop="url">JS 继承</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-02T22:49:01+08:00">
-                2018-03-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
-<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-function Child(name) {
-    this.name = name;
-}
-
-Child.prototype = new Parent(&apos;father&apos;);
-Child.prototype.constructor = Child;
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();    // child name: son
-</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
-<p>这种方法存在两个缺点：</p>
-<ol>
-<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
-<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
-</ol>
-<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomthing = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      // child name: son
-child.doSomthing();   // TypeError: child.doSomthing is not a function
-</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
-<p>缺点：</p>
-<ol>
-<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
-</ol>
-<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();      
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();       // child name: son
-child.doSomething();   // parent do something!
-</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
-<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
-<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
-<pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);      // 第二次调用
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();         // 第一次调用
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      
-child.doSomething();   
-</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
-<pre><code>Child.prototype = Parent.prototype;
-</code></pre><p>这样写显然是不对的：</p>
-<ol>
-<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
-<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
-</ol>
-<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
-<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function create(proto) {
-    function F(){}
-    F.prototype = proto;
-    F.prototype.construtor = F;
-    return new F();
-}
-
-Child.prototype = create(Parent.prototype);
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-Child.prototype.construtor = Child;
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();    // parent name: father
-
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();     // child name: son
-</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
-<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
-<pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function inheritPrototype(Parent, Child) {
-    Child.prototype = Object.create(Parent.prototype);   //修改
-    Child.prototype.construtor = Child;
-}
-
-inheritPrototype(Parent, Child);
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();      // parent name: father
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();       // child name: son
-</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
-<pre><code>class Parent {
-    constructor(name) {
-    this.name = name;
-    }
-    doSomething() {
-    console.log(&apos;parent do something!&apos;);
-    }
-    sayName() {
-    console.log(&apos;parent name:&apos;, this.name);
-    }
-}
-
-class Child extends Parent {
-    constructor(name, parentName) {
-    super(parentName);
-    this.name = name;
-    }
-    sayName() {
-     console.log(&apos;child name:&apos;, this.name);
-    }
-}
-
-const child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();            // child name: son
-child.doSomething();        // parent do something!
-
-const parent = new Parent(&apos;father&apos;);
-parent.sayName();           // parent name: father
-</code></pre><p>JavaScript前端开发</p>
-<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
-<pre><code>/**
- * JavaScript(ES5)中实现继承的几种方法
- */
-
-// 定义基类Person
-function Person(name, age) {
-  this.name = name;
-  this.age = age;
-}
-
-// 共享数据
-Person.prototype.LEGS_NUM = 2;
-
-// 共享方法
-Person.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
-};
-
-Person.prototype.walk = function () {
-  console.log(this.name + &apos; is walking...&apos;);
-};
-
-// Student子类
-function Student(name, age, className) {
-  // 调用父类
-  Person.call(this, name, age);
-  this.className = className;
-}
-
-// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
-// Student.prototype = Person.prototype;
-
-// 2⃣️ 方法二：Student.prototype为Person的实例
-// Student.prototype = new Person();
-
-// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
-Student.prototype = Object.create(Person.prototype);
-
-Student.prototype.constructor = Student;
-
-// 覆盖父类的info方法
-Student.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
-};
-
-// Student类的共享方法
-Student.prototype.learn = function (subject) {
-  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
-};
-
-// 测试,创建一个Student的实例
-var microzz = new Student(&apos;Microzz&apos;, 22, 5);
-microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
-console.log(microzz.LEGS_NUM); // 2
-microzz.walk(); // Microzz is walking...
-microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
-console.log(microzz.__proto__.__proto__ === Person.prototype); // true
-console.log(microzz.__proto__ === Student.prototype); // true
-console.log(microzz.__proto__.constructor === Student); // true
-</code></pre><p>三种方法比较</p>
-<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>1⃣️这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>2⃣️第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>3⃣️第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
-<pre><code>if (!Object.create) {
-  Object.prototype.create = function (proto) {
-    function F() {}
-    F.prototype = proto;
-    return new F;
-  }
-}
-</code></pre><p>这样在ES5中就完美实现了继承😄</p>
-<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
-<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
-<p>代码</p>
-<pre><code>// 基类 Person
-class Person {
-  // 父类的构造方法
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-    // 共享变量
-    this.LEGS_NUM = 2;
-  }
-  // 父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
-  }
-
-  // 父类的walk方法
-  walk() {
-    console.log(this.name + &apos; is walking...&apos;);
-  }
-
-}
-
-// 子类 Student
-class Student extends Person {
-  constructor(name, age, className) {
-    // 调用基类的构造方法
-    super(name, age);
-    this.className = className;
-  }
-
-  // 覆盖父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
-  }
-}
-
-// 实例化一个Student的实例
-let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
-stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
-stu.walk(); // Zhaohui is walking...
-console.log(stu.LEGS_NUM); // 2
-console.log(stu instanceof Student); // true
-console.log(stu instanceof Person); // true
-</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了😄</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/08/KOA2框架原理解析和实现/" itemprop="url">KOA2框架原理解析和实现</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-08T20:08:28+08:00">
-                2018-01-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="什么是koa框架？"><a href="#什么是koa框架？" class="headerlink" title="什么是koa框架？"></a>什么是koa框架？</h3><p>koa是一个基于node实现的一个新的web框架，它是由express框架的原班人马打造的。它的特点是优雅、简洁、表达力强、自由度高。它更express相比，它是一个更轻量的node框架，因为它所有功能都通过插件实现，这种插拔式的架构设计模式，很符合unix哲学。</p>
-<p>koa框架现在更新到了2.x版本，本文从零开始，循序渐进，讲解koa2的框架源码结构和实现原理，展示和详解koa2框架源码中的几个最重要的概念，然后手把手教大家亲自实现一个简易的koa2框架，帮助大家学习和更深层次的理解koa2，看完本文以后，再去对照koa2的源码进行查看，相信你的思路将会非常的顺畅。</p>
-<p>本文所用的框架是koa2，它跟koa1不同，koa1使用的是generator+co.js的执行方式，而koa2中使用了async/await，因此本文的代码和demo需要运行在node 8版本及其以上，如果读者的node版本较低，建议升级或者安装babel-cli，用其中的babel-node来运行本文涉及到的代码。</p>
-<h3 id="koa源码结构"><a href="#koa源码结构" class="headerlink" title="koa源码结构"></a>koa源码结构</h3><p><img src="/2018/01/08/KOA2框架原理解析和实现/166f12b8563436a3.webp" alt=""><br>上图是koa2的源码目录结构的lib文件夹，lib文件夹下放着四个koa2的核心文件：application.js、context.js、request.js、response.js。</p>
-<h4 id="application-js"><a href="#application-js" class="headerlink" title="application.js"></a>application.js</h4><p>application.js是koa的入口文件，它向外导出了创建class实例的构造函数，它继承了events，这样就会赋予框架事件监听和事件触发的能力。application还暴露了一些常用的api，比如toJSON、listen、use等等。</p>
-<p>listen的实现原理其实就是对http.createServer进行了一个封装，重点是这个函数中传入的callback，它里面包含了中间件的合并，上下文的处理，对res的特殊处理。</p>
-<p>use是收集中间件，将多个中间件放入一个缓存队列中，然后通过koa-compose这个插件进行递归组合调用这一些列的中间件。</p>
-<h4 id="context-js"><a href="#context-js" class="headerlink" title="context.js"></a>context.js</h4><p>这部分就是koa的应用上下文ctx,其实就一个简单的对象暴露，里面的重点在delegate，这个就是代理，这个就是为了开发者方便而设计的，比如我们要访问ctx.repsponse.status但是我们通过delegate，可以直接访问ctx.status访问到它。</p>
-<h4 id="request-js、response-js"><a href="#request-js、response-js" class="headerlink" title="request.js、response.js"></a>request.js、response.js</h4><p>这两部分就是对原生的res、req的一些操作了，大量使用es6的get和set的一些语法，去取headers或者设置headers、还有设置body等等，这些就不详细介绍了，有兴趣的读者可以自行看源码。</p>
-<h3 id="实现koa2的四大模块"><a href="#实现koa2的四大模块" class="headerlink" title="实现koa2的四大模块"></a>实现koa2的四大模块</h3><p>上文简述了koa2源码的大体框架结构，接下来我们来实现一个koa2的框架，笔者认为理解和实现一个koa框架需要实现四个大模块，分别是：</p>
-<ul>
-<li><p>封装node http server、创建Koa类构造函数</p>
-</li>
-<li><p>构造request、response、context对象</p>
-</li>
-<li><p>中间件机制和剥洋葱模型的实现</p>
-</li>
-<li><p>错误捕获和错误处理</p>
-</li>
-</ul>
-<p>下面我们就逐一分析和实现。</p>
-<h4 id="模块一：封装node-http-server和创建Koa类构造函数"><a href="#模块一：封装node-http-server和创建Koa类构造函数" class="headerlink" title="模块一：封装node http server和创建Koa类构造函数"></a>模块一：封装node http server和创建Koa类构造函数</h4><p>阅读koa2的源码得知，实现koa的服务器应用和端口监听，其实就是基于node的原生代码进行了封装，如下图的代码就是通过node原生代码实现的服务器监听。</p>
-<pre><code>let http = require(&apos;http&apos;);
-let server = http.createServer((req, res) =&gt; {
-    res.writeHead(200);
-    res.end(&apos;hello world&apos;);
-});
-server.listen(3000, () =&gt; {    
-    console.log(&apos;listenning on 3000&apos;);
-});
-</code></pre><p>我们需要将上面的node原生代码封装实现成koa的模式：</p>
-<pre><code>const http = require(&apos;http&apos;);
-const Koa = require(&apos;koa&apos;);
-const app = new Koa();
-app.listen(3000);
-</code></pre><p>实现koa的第一步就是对以上的这个过程进行封装，为此我们需要创建application.js实现一个Application类的构造函数：</p>
-<pre><code>let http = require(&apos;http&apos;);
-class Application{    
-    constructor() {        
-        this.callbackFunc;
-    }
-    listen(port) {        
-        let server = http.createServer(this.callback());
-        server.listen(port);
-    }
-    use(fn) {
-        this.callbackFunc = fn;
-    }
-    callback() {
-        return(req, res) =&gt; {
-            this.callbackFunc(req, res);
-        };
-    }
-}
-module.exports = Application;
-</code></pre><p>然后创建example.js，引入application.js，运行服务器实例启动监听代码：</p>
-<pre><code>let Koa = require(&apos;./application&apos;);
-let app = new Koa();
-app.use((req, res) =&gt; {
-    res.writeHead(200);
-    res.end(&apos;hello world&apos;);
-});
-app.listen(3000, () =&gt; {
-    console.log(&apos;listening on 3000&apos;);
-});
-</code></pre><p>现在在浏览器输入localhost:3000即可看到浏览器里显示“hello world”。现在第一步我们已经完成了，对http server进行了简单的封装和创建了一个可以生成koa实例的类class，这个类里还实现了app.use用来注册中间件和注册回调函数，app.listen用来开启服务器实例并传入callback回调函数，第一模块主要是实现典型的koa风格和搭好了一个koa的简单的架子。接下来我们开始编写和讲解第二模块。</p>
-<h5 id="模块二：构造request、response、context对象"><a href="#模块二：构造request、response、context对象" class="headerlink" title="模块二：构造request、response、context对象"></a>模块二：构造request、response、context对象</h5><p>阅读koa2的源码得知，其中context.js、request.js、response.js三个文件分别是request、response、context三个模块的代码文件。context就是我们平时写koa代码时的ctx，它相当于一个全局的koa实例上下文this，它连接了request、response两个功能模块，并且暴露给koa的实例和中间件等回调函数的参数中，起到承上启下的作用。</p>
-<p>request、response两个功能模块分别对node的原生request、response进行了一个功能的封装，使用了getter和setter属性，基于node的对象req/res对象封装koa的request/response对象。我们基于这个原理简单实现一下request.js、response.js，首先创建request.js文件，然后写入以下代码：</p>
-<pre><code>let url = require(&apos;url&apos;);
-module.exports = {
-    get query() {
-        return url.parse(this.req.url, true).query;
-    }
-};
-</code></pre><p>这样当你在koa实例里使用ctx.query的时候，就会返回url.parse(this.req.url, true).query的值。看源码可知，基于getter和setter，在request.js里还封装了header、url、origin、path等方法，都是对原生的request上用getter和setter进行了封装，笔者不再这里一一实现。</p>
-<p>接下来我们实现response.js文件代码模块，它和request原理一样，也是基于getter和setter对原生response进行了封装，那我们接下来通过对常用的ctx.body和ctx.status这个两个语句当做例子简述一下如果实现koa的response的模块，我们首先创建好response.js文件，然后输入下面的代码：</p>
-<pre><code>module.exports = {
-    get body() {
-        returnthis._body;
-    },
-    set body(data) {
-        this._body = data;
-    },
-    get status() {
-        returnthis.res.statusCode;
-    },
-    set status(statusCode) {
-        if (typeof statusCode !== &apos;number&apos;) {
-            thrownewError(&apos;something wrong!&apos;);
-        }
-        this.res.statusCode = statusCode;
-    }
-};
-</code></pre><p>以上代码实现了对koa的status的读取和设置，读取的时候返回的是基于原生的response对象的statusCode属性，而body的读取则是对this._body进行读写和操作。这里对body进行操作并没有使用原生的this.res.end，因为在我们编写koa代码的时候，会对body进行多次的读取和修改，所以真正返回浏览器信息的操作是在application.js里进行封装和操作。</p>
-<p>现在我们已经实现了request.js、response.js，获取到了request、response对象和他们的封装的方法，然后我们开始实现context.js，context的作用就是将request、response对象挂载到ctx的上面，让koa实例和代码能方便的使用到request、response对象中的方法。现在我们创建context.js文件，输入如下代码：</p>
-<pre><code>let proto = {};
-
-function delegateSet(property, name) {
-    proto.__defineSetter__(name, function (val) {
-        this[property][name] = val;
-    });
-}
-
-function delegateGet(property, name) {
-    proto.__defineGetter__(name, function () {
-        returnthis[property][name];
-    });
-}
-
-let requestSet = [];
-let requestGet = [&apos;query&apos;];
-
-let responseSet = [&apos;body&apos;, &apos;status&apos;];
-let responseGet = responseSet;
-
-requestSet.forEach(ele =&gt; {
-    delegateSet(&apos;request&apos;, ele);
-});
-
-requestGet.forEach(ele =&gt; {
-    delegateGet(&apos;request&apos;, ele);
-});
-
-responseSet.forEach(ele =&gt; {
-    delegateSet(&apos;response&apos;, ele);
-});
-
-responseGet.forEach(ele =&gt; {
-    delegateGet(&apos;response&apos;, ele);
-});
-
-module.exports = proto;
-</code></pre><p>context.js文件主要是对常用的request和response方法进行挂载和代理，通过context.query直接代理了context.request.query，context.body和context.status代理了context.response.body与context.response.status。而context.request，context.response则会在application.js中挂载</p>
-<p>本来可以用简单的setter和getter去设置每一个方法，但是由于context对象定义方法比较简单和规范，在koa源码里可以看到，koa源码用的是<strong>defineSetter</strong>和<strong>defineSetter</strong>来代替setter/getter每一个属性的读取设置，这样做主要是方便拓展和精简了写法，当我们需要代理更多的res和req的方法的时候，可以向context.js文件里面的数组对象里面添加对应的方法名和属性名即可。</p>
-<p>目前为止，我们已经得到了request、response、context三个模块对象了，接下来就是将request、response所有方法挂载到context下，让context实现它的承上启下的作用，修改application.js文件，添加如下代码：</p>
-<pre><code>let http = require(&apos;http&apos;);
-let context = require(&apos;./context&apos;);
-let request = require(&apos;./request&apos;);
-let response = require(&apos;./response&apos;);
-
-createContext(req, res) {       
-   let ctx = Object.create(this.context);
-   ctx.request = Object.create(this.request);
-   ctx.response = Object.create(this.response);
-   ctx.req = ctx.request.req = req;
-   ctx.res = ctx.response.res = res; 
-   return ctx;
-}
-</code></pre><p>可以看到，我们添加了createContext这个方法，这个方法是关键，它通过Object.create创建了ctx，并将request和response挂载到了ctx上面，将原生的req和res挂载到了ctx的子属性上，往回看一下context/request/response.js文件，就能知道当时使用的this.res或者this.response之类的是从哪里来的了，原来是在这个createContext方法中挂载到了对应的实例上，构建了运行时上下文ctx之后，我们的app.use回调函数参数就都基于ctx了。</p>
-<h4 id="模块三：中间件机制和剥洋葱模型的实现"><a href="#模块三：中间件机制和剥洋葱模型的实现" class="headerlink" title="模块三：中间件机制和剥洋葱模型的实现"></a>模块三：中间件机制和剥洋葱模型的实现</h4><p>目前为止我们已经成功实现了上下文context对象、 请求request对象和响应response对象模块，还差一个最重要的模块，就是koa的中间件模块，koa的中间件机制是一个剥洋葱式的模型，多个中间件通过use放进一个数组队列然后从外层开始执行，遇到next后进入队列中的下一个中间件，所有中间件执行完后开始回帧，执行队列中之前中间件中未执行的代码部分，这就是剥洋葱模型，koa的中间件机制。</p>
-<p>koa的剥洋葱模型在koa1中使用的是generator + co.js去实现的，koa2则使用了async/await + Promise去实现的，接下来我们基于async/await + Promise去实现koa2中的中间件机制。首先，假设当koa的中间件机制已经做好了，那么它是能成功运行下面代码的：</p>
-<pre><code>let Koa = require(&apos;../src/application&apos;);
-
-let app = new Koa();
-
-app.use(async (ctx, next) =&gt; {
-    console.log(1);
-    await next();
-    console.log(6);
-});
-
-app.use(async (ctx, next) =&gt; {
-    console.log(2);
-    await next();
-    console.log(5);
-});
-
-app.use(async (ctx, next) =&gt; {
-    console.log(3);
-    ctx.body = &quot;hello world&quot;;
-    console.log(4);
-});
-
-app.listen(3000, () =&gt; {
-    console.log(&apos;listenning on 3000&apos;);
-});
-</code></pre><p>运行成功后会在终端输出123456，那就能验证我们的koa的剥洋葱模型是正确的。接下来我们开始实现，修改application.js文件，添加如下代码：</p>
-<pre><code>compose() {
-    return async ctx =&gt; {
-        function createNext(middleware, oldNext) {
-            return async () =&gt; {
-                await middleware(ctx, oldNext);
-            }
-        }
-        let len = this.middlewares.length;
-        let next = async () =&gt; {
-            return Promise.resolve();
-        };
-        for (let i = len - 1; i &gt;= 0; i--) {
-            let currentMiddleware = this.middlewares[i];
-            next = createNext(currentMiddleware, next);
-        }
-        await next();
-    };
-}
-
-callback() {
-    return(req, res) =&gt; {
-        let ctx = this.createContext(req, res);
-        let respond = () =&gt;this.responseBody(ctx);
-        let onerror = (err) =&gt;this.onerror(err, ctx);
-        let fn = this.compose();
-        return fn(ctx);
-    };
-}
-</code></pre><p>koa通过use函数，把所有的中间件push到一个内部数组队列this.middlewares中，剥洋葱模型能让所有的中间件依次执行，每次执行完一个中间件，遇到next()就会将控制权传递到下一个中间件，下一个中间件的next参数，剥洋葱模型的最关键代码是compose这个函数：</p>
-<pre><code>compose() {
-        return async ctx =&gt; {
-            function createNext(middleware, oldNext) {
-                returnasync () =&gt; {
-                    await middleware(ctx, oldNext);
-                }
-            }
-            let len = this.middlewares.length;
-            let next = async () =&gt; {
-                return Promise.resolve();
-            };
-            for (let i = len - 1; i &gt;= 0; i--) {
-                let currentMiddleware = this.middlewares[i];
-                next = createNext(currentMiddleware, next);
-            }
-            await next();
-        };
-    }
-</code></pre><p>createNext函数的作用就是将上一个中间件的next当做参数传给下一个中间件，并且将上下文ctx绑定当前中间件，当中间件执行完，调用next()的时候，其实就是去执行下一个中间件。</p>
-<pre><code>for (let i = len - 1; i &gt;= 0; i--) {
-        let currentMiddleware = this.middlewares[i];
-        next = createNext(currentMiddleware, next);
- }
-</code></pre><p>上面这段代码其实就是一个链式反向递归模型的实现，i是从最大数开始循环的，将中间件从最后一个开始封装，每一次都是将自己的执行函数封装成next当做上一个中间件的next参数，这样当循环到第一个中间件的时候，只需要执行一次next()，就能链式的递归调用所有中间件，这个就是koa剥洋葱的核心代码机制。</p>
-<p>到这里我们总结一下上面所有剥洋葱模型代码的流程，通过use传进来的中间件是一个回调函数，回调函数的参数是ctx上下文和next，next其实就是控制权的交接棒，next的作用是停止运行当前中间件，将控制权交给下一个中间件，执行下一个中间件的next()之前的代码，当下一个中间件运行的代码遇到了next()，又会将代码执行权交给下下个中间件，当执行到最后一个中间件的时候，控制权发生反转，开始回头去执行之前所有中间件中剩下未执行的代码，这整个流程有点像一个伪递归，当最终所有中间件全部执行完后，会返回一个Promise对象，因为我们的compose函数返回的是一个async的函数，async函数执行完后会返回一个Promise，这样我们就能将所有的中间件异步执行同步化，通过then就可以执行响应函数和错误处理函数。</p>
-<p>当中间件机制代码写好了以后，运行我们的上面的例子，已经能输出123456了，至此，我们的koa的基本框架已经基本做好了，不过一个框架不能只实现功能，为了框架和服务器实例的健壮，还需要加上错误处理机制。</p>
-<h4 id="模块四：错误捕获和错误处理"><a href="#模块四：错误捕获和错误处理" class="headerlink" title="模块四：错误捕获和错误处理"></a>模块四：错误捕获和错误处理</h4><p>要实现一个基础框架，错误处理和捕获必不可少，一个健壮的框架，必须保证在发生错误的时候，能够捕获到错误和抛出的异常，并反馈出来，将错误信息发送到监控系统上进行反馈，目前我们实现的简易koa框架还没有能实现这一点，我们接下加上错误处理和捕获的机制。</p>
-<pre><code>throw new Error(&apos;oooops&apos;);
-</code></pre><p>基于现在的框架，如果中间件代码中出现如上错误异常抛出，是捕获不到错误的，这时候我们看一下application.js中的callback函数的return返回代码，如下：</p>
-<pre><code>return fn(ctx).then(respond);
-</code></pre><p>可以看到，fn是中间件的执行函数，每一个中间件代码都是由async包裹着的，而且中间件的执行函数compose返回的也是一个async函数，我们根据es7的规范知道，async返回的是一个promise的对象实例，我们如果想要捕获promise的错误，只需要使用promise的catch方法，就可以把所有的中间件的异常全部捕获到，修改后callback的返回代码如下：</p>
-<pre><code>return fn(ctx).then(respond).catch(onerror);
-</code></pre><p>现在我们已经实现了中间件的错误异常捕获，但是我们还缺少框架层发生错误的捕获机制，我们希望我们的服务器实例能有错误事件的监听机制，通过on的监听函数就能订阅和监听框架层面上的错误，实现这个机制不难，使用nodejs原生events模块即可，events模块给我们提供了事件监听on函数和事件触发emit行为函数，一个发射事件，一个负责接收事件，我们只需要将koa的构造函数继承events模块即可，构造后的伪代码如下：</p>
-<pre><code>let EventEmitter = require(&apos;events&apos;);
-class Application extends EventEmitter{}
-</code></pre><p>继承了events模块后，当我们创建koa实例的时候，加上on监听函数，代码如下：</p>
-<pre><code>let app = new Koa();
-
-app.on(&apos;error&apos;, err =&gt; {
-    console.log(&apos;error happends: &apos;, err.stack);
-});
-</code></pre><p>这样我们就实现了框架层面上的错误的捕获和监听机制了。总结一下，错误处理和捕获，分中间件的错误处理捕获和框架层的错误处理捕获，中间件的错误处理用promise的catch，框架层面的错误处理用nodejs的原生模块events，这样我们就可以把一个服务器实例上的所有的错误异常全部捕获到了。至此，我们就完整实现了一个轻量版的koa框架了。</p>
-<h3 id="结尾"><a href="#结尾" class="headerlink" title="结尾"></a>结尾</h3><p>前为止，我们已经实现了一个轻量版的koa框架了，我们实现了封装node http server、创建Koa类构造函数、构造request、response、context对象、中间件机制和剥洋葱模型的实现、错误捕获和错误处理这四个大模块，理解了这个轻量版koa的实现原理，再去看koa2的源码，你就会发现一切都豁然开朗，koa2的源码无非就是在这个轻量版基础上加了很多工具函数和细节的处理，限于篇幅笔者就不再一一介绍了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/07/vue2组件懒加载/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1195,670 +389,6 @@ app.on(&apos;error&apos;, err =&gt; {
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">components: &#123;</span><br><span class="line">        historyTab: resolve =&gt; &#123;require([&apos;../../component/historyTab/historyTab.vue&apos;], resolve)&#125;,//懒加载</span><br><span class="line">        //historyTab: () =&gt; import(&apos;../../component/historyTab/historyTab.vue&apos;)</span><br><span class="line">    &#125;,</span><br></pre></td></tr></table></figure>
 <h4 id="全局注册异步组件"><a href="#全局注册异步组件" class="headerlink" title="全局注册异步组件"></a>全局注册异步组件</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Vue.component(&apos;mideaHeader&apos;, () =&gt; &#123;</span><br><span class="line">    System.import(&apos;./component/header/header.vue&apos;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
 
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/02/Vue大数据渲染虚拟滚动列表/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/02/Vue大数据渲染虚拟滚动列表/" itemprop="url">Vue大数据渲染虚拟滚动列表</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-02T22:59:12+08:00">
-                2018-01-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Github：<a href="https://link.zhihu.com/?target=https%3A//github.com/tangbc/vue-virtual-scroll-list" target="_blank" rel="noopener">tangbc/vue-virtual-scroll-list</a><br><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.gif" alt=""></p>
-<p><img src="https://pic1.zhimg.com/v2-827fdf77d1a145a6d1d3d56f390a37ff_b.jpg" alt=""></p>
-<pre><code>;
-(function(root, factory) {
-    var namespace = &apos;VirtualScrollList&apos;
-    if(typeof exports === &apos;object&apos; &amp;&amp; typeof module === &apos;object&apos;) {
-        module.exports = factory(namespace, require(&apos;vue&apos;))
-    } else if(typeof define === &apos;function&apos; &amp;&amp; define.amd) {
-        define([&apos;vue&apos;], factory.bind(root, namespace))
-    } else if(typeof exports === &apos;object&apos;) {
-        exports[namespace] = factory(namespace, require(&apos;vue&apos;))
-    } else {
-        root[namespace] = factory(namespace, root[&apos;Vue&apos;])
-    }
-})(this, function(namespace, Vue2) {
-    if(typeof Vue2 === &apos;object&apos; &amp;&amp; typeof Vue2.default === &apos;function&apos;) {
-        Vue2 = Vue2.default
-    }
-
-    var _debounce = function(func, wait, immediate) {
-        var timeout
-        return function() {
-            var context = this
-            var args = arguments
-            var later = function() {
-                timeout = null
-                if(!immediate) {
-                    func.apply(context, args)
-                }
-            }
-            var callNow = immediate &amp;&amp; !timeout
-            clearTimeout(timeout)
-            timeout = setTimeout(later, wait)
-            if(callNow) {
-                func.apply(context, args)
-            }
-        }
-    }
-
-    return Vue2.component(namespace, {
-        props: {
-            size: {
-                type: Number,
-                required: true
-            },
-            remain: {
-                type: Number,
-                required: true
-            },
-            rtag: {
-                type: String,
-                default: &apos;div&apos;
-            },
-            wtag: {
-                type: String,
-                default: &apos;p&apos;
-            },
-            wclass: {
-                type: String,
-                default: &apos;&apos;
-            },
-            start: {
-                type: Number,
-                default: 0
-            },
-            offset: {
-                type: Number,
-                default: 0
-            },
-            variable: [Function, Boolean],
-            bench: Number,
-            debounce: Number,
-            totop: Function,
-            tobottom: Function,
-            onscroll: Function
-        },
-
-        data(){
-            return {
-                delta:{}
-            }
-        },
-
-        created: function() {   // :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;44&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;
-            var start = this.start &gt;= this.remain ? this.start : 0
-            var keeps = this.remain + (this.bench || this.remain)
-
-            console.log(start)
-            console.log(keeps)
-
-            this.delta = {
-                start: start, // start index.   //起始index
-                end: start + keeps - 1, // end index.   //显示列表last index
-                keeps: keeps, // nums keeping in real dom.      //要显示的列表数据
-                total: 0, // all items count, update in filter.    //总的列表数据
-                offsetAll: 0, // cache all the scrollable offset.
-                paddingTop: 0, // container wrapper real padding-top.
-                paddingBottom: 0, // container wrapper real padding-bottom.
-                varCache: {}, // object to cache variable index height and scroll offset.
-                varAverSize: 0, // average/estimate item height before variable be calculated.
-                varLastCalcIndex: 0 // last calculated variable height/offset index, always increase.
-            }
-
-
-        },
-
-        watch: {
-            size: function() {
-                this.alter = &apos;size&apos;
-            },
-            remain: function() {
-                this.alter = &apos;remain&apos;
-            },
-            bench: function() {
-                this.alter = &apos;bench&apos;
-            },
-            start: function() {
-                this.alter = &apos;start&apos;
-            },
-            offset: function() {
-                this.alter = &apos;offset&apos;
-            }
-        },
-
-        methods: {
-            onScroll: function(e) {
-                var delta = this.delta
-                var offset = this.$refs.vsl.scrollTop
-
-                if(delta.total &gt; delta.keeps) {
-                    this.updateZone(offset)
-                } else {
-                    delta.end = delta.total - 1
-                }
-
-                var offsetAll = delta.offsetAll
-                if(this.onscroll) {
-                    this.onscroll(e, {
-                        offset: offset,
-                        offsetAll: offsetAll,
-                        start: delta.start,
-                        end: delta.end
-                    })
-                }
-
-                if(!offset &amp;&amp; delta.total) {
-                    this.triggerEvent(&apos;totop&apos;)
-                }
-
-                if(offset &gt;= offsetAll) {
-                    this.triggerEvent(&apos;tobottom&apos;)
-                }
-            },
-
-            // update render zone by scroll offset.
-            updateZone: function(offset) {
-                var overs = this.variable ?
-                    this.getVarOvers(offset) :
-                    Math.floor(offset / this.size)
-
-                var delta = this.delta
-                var zone = this.getZone(overs)
-                var bench = this.bench || this.remain
-
-                // for better performance, if scroll pass items within now bench, do not update.
-                if(!zone.isLast &amp;&amp; (overs &gt; delta.start) &amp;&amp; (overs - delta.start &lt;= bench)) {
-                    return
-                }
-
-                delta.end = zone.end
-                delta.start = zone.start
-                this.$forceUpdate()
-            },
-
-            // return the scroll passed items count in variable.
-            getVarOvers: function(offset) {
-                var low = 0
-                var middle = 0
-                var middleOffset = 0
-                var delta = this.delta
-                var high = delta.total
-
-                while(low &lt;= high) {
-                    middle = low + Math.floor((high - low) / 2)
-                    middleOffset = this.getVarOffset(middle)
-
-                    // calculate the average variable height at first binary search.
-                    if(!delta.varAverSize) {
-                        delta.varAverSize = Math.floor(middleOffset / middle)
-                    }
-
-                    if(middleOffset === offset) {
-                        return middle
-                    } else if(middleOffset &lt; offset) {
-                        low = middle + 1
-                    } else if(middleOffset &gt; offset) {
-                        high = middle - 1
-                    }
-                }
-
-                return low &gt; 0 ? --low : 0
-            },
-
-            // return a variable scroll offset from given index.
-            getVarOffset: function(index, nocache) {
-                var delta = this.delta
-                var cache = delta.varCache[index]
-
-                if(!nocache &amp;&amp; cache) {
-                    return cache.offset
-                }
-
-                var offset = 0
-                for(var i = 0; i &lt; index; i++) {
-                    var size = this.getVarSize(i, nocache)
-                    delta.varCache[i] = {
-                        size: size,
-                        offset: offset
-                    }
-                    offset += size
-                }
-
-                delta.varLastCalcIndex = Math.max(delta.varLastCalcIndex, index - 1)
-                delta.varLastCalcIndex = Math.min(delta.varLastCalcIndex, delta.total - 1)
-
-                return offset
-            },
-
-            // return a variable size (height) from given index.
-            getVarSize: function(index, nocache) {
-                var cache = this.delta.varCache[index]
-                if(!nocache &amp;&amp; cache) {
-                    return cache.size
-                }
-
-                if(typeof this.variable === &apos;function&apos;) {
-                    return this.variable(index) || 0
-                } else {
-                    var slot = this.$slots.default[index]
-                    var style = slot &amp;&amp; slot.data &amp;&amp; slot.data.style
-                    if(style &amp;&amp; style.height) {
-                        var shm = style.height.match(/^(.*)px$/)
-                        return(shm &amp;&amp; +shm[1]) || 0
-                    }
-                }
-                return 0
-            },
-
-            // return the variable paddingTop base current zone.
-            // @todo: if set a large `start` before variable was calculated,
-            // here will also case too much offset calculate when list is very large,
-            // consider use estimate paddingTop in this case just like `getVarPaddingBottom`.
-            getVarPaddingTop: function() {
-                return this.getVarOffset(this.delta.start)
-            },
-
-            // return the variable paddingBottom base current zone.
-            getVarPaddingBottom: function() {
-                var delta = this.delta
-                var last = delta.total - 1
-                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === last) {
-                    return this.getVarOffset(last) - this.getVarOffset(delta.end)
-                } else {
-                    // if unreached last zone or uncalculate real behind offset
-                    // return the estimate paddingBottom avoid too much calculate.
-                    return(delta.total - delta.end) * (delta.varAverSize || this.size)
-                }
-            },
-
-            // retun the variable all heights use to judge reach bottom.
-            getVarAllHeight: function() {
-                var delta = this.delta
-                if(delta.total - delta.end &lt;= delta.keeps || delta.varLastCalcIndex === delta.total - 1) {
-                    return this.getVarOffset(delta.total)
-                } else {
-                    return this.getVarOffset(delta.start) + (delta.total - delta.end) * (delta.varAverSize || this.size)
-                }
-            },
-
-            // the ONLY ONE public method, allow the parent update variable by index.
-            updateVariable: function(index) {
-                // clear/update all the offfsets and heights ahead of index.
-                this.getVarOffset(index, true)
-            },
-
-            // return the right zone info base on `start/index`.
-            getZone: function(index) {
-                var start, end
-                var delta = this.delta
-
-                index = parseInt(index, 10)
-                index = Math.max(0, index)
-
-                var lastStart = delta.total - delta.keeps
-                var isLast = (index &lt;= delta.total &amp;&amp; index &gt;= lastStart) || (index &gt; delta.total)
-                if(isLast) {
-                    end = delta.total - 1
-                    start = Math.max(0, lastStart)
-                } else {
-                    start = index
-                    end = start + delta.keeps - 1
-                }
-
-                return {
-                    end: end,
-                    start: start,
-                    isLast: isLast
-                }
-            },
-
-            // trigger a props event on parent.
-            triggerEvent: function(event) {
-                if(this[event]) {
-                    this[event]()
-                }
-            },
-
-            // set manual scroll top.
-            setScrollTop: function(scrollTop) {
-                this.$refs.vsl.scrollTop = scrollTop
-            },
-
-            // filter the shown items base on `start` and `end`.
-            filter: function() {
-                var delta = this.delta
-                var slots = this.$slots.default
-
-                if(!slots) {
-                    slots = []
-                    delta.start = 0
-                }
-
-                delta.total = slots.length
-
-                var paddingTop, paddingBottom, allHeight;
-
-
-                var hasPadding = delta.total &gt; delta.keeps
-
-                if(this.variable) {
-                    allHeight = this.getVarAllHeight()
-                    paddingTop = hasPadding ? this.getVarPaddingTop() : 0
-                    paddingBottom = hasPadding ? this.getVarPaddingBottom() : 0
-                } else {
-                    allHeight = this.size * delta.total
-                    paddingTop = this.size * (hasPadding ? delta.start : 0)
-                    paddingBottom = this.size * (hasPadding ? delta.total - delta.keeps : 0) - paddingTop
-                }
-
-                delta.paddingTop = paddingTop
-                delta.paddingBottom = paddingBottom
-                delta.offsetAll = allHeight - this.size * this.remain  //总高度减去窗口的高度
-
-                return slots.filter(function(slot, index) {
-                    return index &gt;= delta.start &amp;&amp; index &lt;= delta.end
-                })
-            }
-        },
-
-        mounted: function() {
-            if(this.start) {
-                var start = this.getZone(this.start).start
-                this.setScrollTop(this.variable ? this.getVarOffset(start) : start * this.size)
-            } else if(this.offset) {
-                this.setScrollTop(this.offset)
-            }
-        },
-
-        // check if delta should update when prorps change.
-        beforeUpdate: function() {
-            var delta = this.delta
-            delta.keeps = this.remain + (this.bench || this.remain)
-
-            var calcstart = this.alter === &apos;start&apos; ? this.start : delta.start
-            var zone = this.getZone(calcstart)
-
-            // if start, size or offset change, update scroll position.
-            if(~[&apos;start&apos;, &apos;size&apos;, &apos;offset&apos;].indexOf(this.alter)) {
-                this.$nextTick(this.setScrollTop.bind(this, this.alter === &apos;offset&apos; ?
-                    this.offset : this.variable ?
-                    this.getVarOffset(zone.isLast ? delta.total : zone.start) :
-                    zone.isLast ? delta.total * this.size : zone.start * this.size))
-            }
-
-            // if points out difference, force update once again.
-            if(calcstart !== zone.start || delta.end !== zone.end || this.alter) {
-                this.alter = &apos;&apos;
-                delta.end = zone.end
-                delta.start = zone.start
-                this.$forceUpdate()
-            }
-        },
-
-        render: function(h) {
-            var list = this.filter()
-            var delta = this.delta
-            var dbc = this.debounce
-            console.log(list)
-            return h(this.rtag, {
-                &apos;ref&apos;: &apos;vsl&apos;,
-                &apos;style&apos;: {
-                    &apos;display&apos;: &apos;block&apos;,
-                    &apos;overflow-y&apos;: &apos;auto&apos;,
-                    &apos;height&apos;: this.size * this.remain + &apos;px&apos;
-                },
-                &apos;on&apos;: {
-                    &apos;scroll&apos;: dbc ? _debounce(this.onScroll.bind(this), dbc) : this.onScroll
-                }
-            }, [
-                h(this.wtag, {
-                    &apos;style&apos;: {
-                        &apos;display&apos;: &apos;block&apos;,
-                        &apos;padding-top&apos;: delta.paddingTop + &apos;px&apos;,
-                        &apos;padding-bottom&apos;: delta.paddingBottom + &apos;px&apos;
-                    },
-                    &apos;class&apos;: this.wclass
-                }, list)
-            ])
-        }
-    })
-})
-
-
-&lt;template&gt;
-    &lt;div class=&quot;appWraper&quot;&gt;
-        &lt;div class=&quot;scrollToIndex&quot;&gt;
-            &lt;span&gt;Scroll to index: &lt;/span&gt;
-            &lt;input type=&quot;text&quot; v-model.number.lazy=&quot;startIndex&quot;&gt;
-            &lt;small&gt;Change and blur to set start index.&lt;/small&gt;
-        &lt;/div&gt;
-        &lt;VirtualList :size=&quot;60&quot; :remain=&quot;6&quot; :bench=&quot;24&quot; class=&quot;list&quot; :start=&quot;startIndex&quot;&gt;
-            &lt;Item v-for=&quot;(udf, index) of items&quot; :index=&quot;index&quot; :key=&quot;index&quot;&gt;&lt;/Item&gt;
-        &lt;/VirtualList&gt;
-
-
-
-
-        &lt;div class=&quot;source&quot;&gt;
-            &lt;a href=&quot;https://github.com/tangbc/vue-virtual-scroll-list/blob/master/examples/finite/finite.vue#L1&quot;&gt;
-                View this demo source code
-            &lt;/a&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
-&lt;/template&gt;
-
-&lt;script&gt;
-    import Item from &apos;./item.vue&apos;
-    import VirtualList from &apos;./VirtualScrollList.js&apos;
-
-    export default {
-        name: &apos;finite-test&apos;,
-
-        components: {
-            Item,
-            VirtualList
-        },
-
-        data() {
-            return {
-                startIndex: 9,
-                items: new Array(100)
-            }
-        }
-    }
-&lt;/script&gt;
-
-&lt;style&gt;
-
-    body {
-        background: #fffaf0;
-    }
-    .appWraper {
-        width: 440px;
-        margin: 0 auto;
-        overflow-y: auto;
-    }
-    .title {
-        font-size: 25px;
-        font-weight: 100;
-        text-align: center;
-    }
-    @media (max-width: 640px) {
-        .appWraper {
-            width: 100%;
-        }
-        .title {
-            font-size: 16px;
-        }
-    }
-
-
-
-
-
-    .scrollToIndex {
-        padding-bottom: 20px;
-    }
-
-    input {
-        outline: none;
-        padding: .4em .5em;
-        width: 55px;
-        height: 16px;
-        border-radius: 3px;
-        border: 1px solid;
-        border-color: #dddddd;
-        font-size: 16px;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-    }
-
-    input:focus {
-        border-color: #6495ed;
-    }
-
-    small {
-        color: #999;
-    }
-
-    .list {
-        background: #fff;
-        border-radius: 3px;
-        border: 1px solid #ddd;
-        -webkit-overflow-scrolling: touch;
-        overflow-scrolling: touch;
-    }
-
-    .source {
-        text-align: center;
-        padding-top: 20px;
-    }
-
-    .source a {
-        color: #999;
-        text-decoration: none;
-        font-weight: 100;
-    }
-
-    @media (max-width: 640px) {
-        small {
-            display: none;
-        }
-    }
-&lt;/style&gt;
-</code></pre>
           
         
       
@@ -4181,7 +2711,7 @@ const checkOpen = setInterval(() =&gt; {
       
         
           
-            <p>虽然git诞生距今已有12年之久，网上各种关于git的介绍文章数不胜数，但是依然有很多人（包括我自己在内）对于它的功能不能完全掌握。以下的介绍只是基于我个人对于git的理解，并且可能生编硬造了一些不完全符合git说法的词语。目的只是为了让git通俗化，使初学者也能大概了解如何快速上手git。同时，下面所有讨论，我们都假设只使用一个分支，也就是主分支master的情况，虽然这种作法并不符合git规范，但是现实情况中绝大部分用户是直接在master分支上进行工作的，所以在这里我们不去引入更加复杂的各种分支的情况，也不涉及标签tag的操作，只讲在最简单的主分支上如何回退。</p>
+            <h2 id="Git-误操作救命篇一：-如何将改动撤销？"><a href="#Git-误操作救命篇一：-如何将改动撤销？" class="headerlink" title="Git 误操作救命篇一： 如何将改动撤销？"></a><a href="https://zhuanlan.zhihu.com/p/42929114" target="_blank" rel="noopener">Git 误操作救命篇一： 如何将改动撤销？</a></h2><p>虽然git诞生距今已有12年之久，网上各种关于git的介绍文章数不胜数，但是依然有很多人（包括我自己在内）对于它的功能不能完全掌握。以下的介绍只是基于我个人对于git的理解，并且可能生编硬造了一些不完全符合git说法的词语。目的只是为了让git通俗化，使初学者也能大概了解如何快速上手git。同时，下面所有讨论，我们都假设只使用一个分支，也就是主分支master的情况，虽然这种作法并不符合git规范，但是现实情况中绝大部分用户是直接在master分支上进行工作的，所以在这里我们不去引入更加复杂的各种分支的情况，也不涉及标签tag的操作，只讲在最简单的主分支上如何回退。</p>
 <h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a><strong>基本概念</strong></h1><h2 id="3个步骤"><a href="#3个步骤" class="headerlink" title="3个步骤"></a><strong>3个步骤</strong></h2><p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwzsRUe3nJiclZIHpg0Mc2EYjcdSxicXjJSJDs9bOYlNEHbwJZzibibQxKpg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
 <p>正常情况下，我们的工作流就是3个步骤，对应上图中的3个箭头线：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  git add .</span><br><span class="line">  </span><br><span class="line">  git commit -m &quot;comment&quot;</span><br><span class="line">  </span><br><span class="line">  git push</span><br><span class="line"></span><br><span class="line">  </span><br><span class="line">git add .把所有文件放入暂存区；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git commit把所有文件从暂存区提交进本地仓库；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git push把所有文件从本地仓库推送进远程仓库。</span><br></pre></td></tr></table></figure></p>
 <h2 id="4个区"><a href="#4个区" class="headerlink" title="4个区"></a><strong>4个区</strong></h2><p>git之所以令人费解，主要是它相比于svn等等传统的版本管理工具，多引入了一个暂存区(Stage)的概念，就因为多了这一个概念，而使很多人疑惑。其实，在初学者来说，每个区具体怎么工作的，我们完全不需要关心，而只要知道有这么4个区就够了：</p>
@@ -4277,6 +2807,1156 @@ const checkOpen = setInterval(() =&gt; {
 
 
     
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/29/从Vue-js源码看nextTick机制/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/29/从Vue-js源码看nextTick机制/" itemprop="url">从Vue.js源码看nextTick机制</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-29T22:30:13+08:00">
+                2017-10-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><a href="https://link.zhihu.com/?target=https%3A//chuckliu.me/%23%21/posts/58bd08a2b5187d2fb51c04f9" target="_blank" rel="noopener">Vue源码详解之nextTick：MutationObserver只是浮云，microtask才是核心！</a></p>
+<h2 id="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"><a href="#可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。" class="headerlink" title="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"></a>可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。</h2><h2 id="操作DOM"><a href="#操作DOM" class="headerlink" title="操作DOM"></a>操作DOM</h2><p>在使用vue.js的时候，有时候因为一些特定的业务场景，不得不去操作DOM，比如这样：</p>
+<pre><code>&lt;template&gt;
+  &lt;div&gt;
+    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
+    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+export default {
+    data () {
+        return {
+            test: &apos;begin&apos;
+        };
+    },
+    methods () {
+        handleClick () {
+            this.test = &apos;end&apos;;
+            console.log(this.$refs.test.innerText);//打印“begin”
+        }
+    }
+}
+</code></pre><p>打印的结果是begin，为什么我们明明已经将test设置成了“end”，获取真实DOM节点的innerText却没有得到我们预期中的“end”，而是得到之前的值“begin”呢？</p>
+<h2 id="Watcher队列"><a href="#Watcher队列" class="headerlink" title="Watcher队列"></a>Watcher队列</h2><p>带着疑问，我们找到了Vue.js源码的Watch实现。当某个响应式数据发生变化的时候，它的setter函数会通知闭包中的Dep，Dep则会调用它管理的所有Watch对象。触发Watch对象的update实现。我们来看一下update的实现。</p>
+<pre><code>update () {
+    /* istanbul ignore else */
+    if (this.lazy) {
+        this.dirty = true
+    } else if (this.sync) {
+        /*同步则执行run直接渲染视图*/
+        this.run()
+    } else {
+        /*异步推送到观察者队列中，下一个tick时调用。*/
+        queueWatcher(this)
+    }
+}
+</code></pre><p>我们发现Vue.js默认是使用<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fguide%252Freactivity.html%2523%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0%25E9%2598%259F%25E5%2588%2597" target="_blank" rel="noopener">异步执行DOM更新</a>。<br>当异步执行update的时候，会调用queueWatcher函数。</p>
+<pre><code>/*将一个观察者对象push进观察者队列，在队列中已经存在相同的id则该观察者对象将被跳过，除非它是在队列被刷新时推送*/
+export function queueWatcher (watcher: Watcher) {
+  /*获取watcher的id*/
+  const id = watcher.id
+  /*检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验*/
+  if (has[id] == null) {
+    has[id] = true
+    if (!flushing) {
+      /*如果没有flush掉，直接push到队列中即可*/
+      queue.push(watcher)
+    } else {
+      // if already flushing, splice the watcher based on its id
+      // if already past its id, it will be run next immediately.
+      let i = queue.length - 1
+      while (i &gt;= 0 &amp;&amp; queue[i].id &gt; watcher.id) {
+        i--
+      }
+      queue.splice(Math.max(i, index) + 1, 0, watcher)
+    }
+    // queue the flush
+    if (!waiting) {
+      waiting = true
+      nextTick(flushSchedulerQueue)
+    }
+  }
+}
+</code></pre><p>查看queueWatcher的源码我们发现，Watch对象并不是立即更新视图，而是被push进了一个队列queue，此时状态处于waiting的状态，这时候会继续会有Watch对象被push进这个队列queue，等待下一个tick时，这些Watch对象才会被遍历取出，更新视图。同时，id重复的Watcher不会被多次加入到queue中去，因为在最终渲染时，我们只需要关心数据的最终结果。</p>
+<p>那么，什么是下一个tick？</p>
+<h2 id="nextTick"><a href="#nextTick" class="headerlink" title="nextTick"></a>nextTick</h2><p>vue.js提供了一个<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fapi%252F%2523Vue-nextTick" target="_blank" rel="noopener">nextTick</a>函数，其实也就是上面调用的nextTick。</p>
+<p>nextTick的实现比较简单，执行的目的是在microtask或者task中推入一个funtion，在当前栈执行完毕（也行还会有一些排在前面的需要执行的任务）以后执行nextTick传入的funtion，看一下源码：</p>
+<pre><code>/**
+ * Defer a task to execute it asynchronously.
+ */
+ /*
+    延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function
+    这个函数的作用是在task或者microtask中推入一个timerFunc，
+    在当前调用栈执行完以后以此执行直到执行到timerFunc
+    目的是延迟到当前调用栈执行完以后执行
+*/
+export const nextTick = (function () {
+  /*存放异步执行的回调*/
+  const callbacks = []
+  /*一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送*/
+  let pending = false
+  /*一个函数指针，指向函数将被推送到任务队列中，等到主线程任务执行完时，任务队列中的timerFunc被调用*/
+  let timerFunc
+
+  /*下一个tick时的回调*/
+  function nextTickHandler () {
+    /*一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行），这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程*/
+    pending = false
+    /*执行所有callback*/
+    const copies = callbacks.slice(0)
+    callbacks.length = 0
+    for (let i = 0; i &lt; copies.length; i++) {
+      copies[i]()
+    }
+  }
+
+  // the nextTick behavior leverages the microtask queue, which can be accessed
+  // via either native Promise.then or MutationObserver.
+  // MutationObserver has wider support, however it is seriously bugged in
+  // UIWebView in iOS &gt;= 9.3.3 when triggered in touch event handlers. It
+  // completely stops working after triggering a few times... so, if native
+  // Promise is available, we will use it:
+  /* istanbul ignore if */
+
+  /*
+    这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法
+    优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法都会在microtask中执行，会比setTimeout更早执行，所以优先使用。
+    如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
+    参考：https://www.zhihu.com/question/55364497
+  */
+  if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
+    /*使用Promise*/
+    var p = Promise.resolve()
+    var logError = err =&gt; { console.error(err) }
+    timerFunc = () =&gt; {
+      p.then(nextTickHandler).catch(logError)
+      // in problematic UIWebViews, Promise.then doesn&apos;t completely break, but
+      // it can get stuck in a weird state where callbacks are pushed into the
+      // microtask queue but the queue isn&apos;t being flushed, until the browser
+      // needs to do some other work, e.g. handle a timer. Therefore we can
+      // &quot;force&quot; the microtask queue to be flushed by adding an empty timer.
+      if (isIOS) setTimeout(noop)
+    }
+  } else if (typeof MutationObserver !== &apos;undefined&apos; &amp;&amp; (
+    isNative(MutationObserver) ||
+    // PhantomJS and iOS 7.x
+    MutationObserver.toString() === &apos;[object MutationObserverConstructor]&apos;
+  )) {
+    // use MutationObserver where native Promise is not available,
+    // e.g. PhantomJS IE11, iOS7, Android 4.4
+    /*新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入主线程（比任务队列优先执行），即textNode.data = String(counter)时便会触发回调*/
+    var counter = 1
+    var observer = new MutationObserver(nextTickHandler)
+    var textNode = document.createTextNode(String(counter))
+    observer.observe(textNode, {
+      characterData: true
+    })
+    timerFunc = () =&gt; {
+      counter = (counter + 1) % 2
+      textNode.data = String(counter)
+    }
+  } else {
+    // fallback to setTimeout
+    /* istanbul ignore next */
+    /*使用setTimeout将回调推入任务队列尾部*/
+    timerFunc = () =&gt; {
+      setTimeout(nextTickHandler, 0)
+    }
+  }
+
+  /*
+    推送到队列中下一个tick时执行
+    cb 回调函数
+    ctx 上下文
+  */
+  return function queueNextTick (cb?: Function, ctx?: Object) {
+    let _resolve
+    /*cb存到callbacks中*/
+    callbacks.push(() =&gt; {
+      if (cb) {
+        try {
+          cb.call(ctx)
+        } catch (e) {
+          handleError(e, ctx, &apos;nextTick&apos;)
+        }
+      } else if (_resolve) {
+        _resolve(ctx)
+      }
+    })
+    if (!pending) {
+      pending = true
+      timerFunc()
+    }
+    if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
+      return new Promise((resolve, reject) =&gt; {
+        _resolve = resolve
+      })
+    }
+  }
+})()
+</code></pre><p>它是一个立即执行函数,返回一个queueNextTick接口。</p>
+<p>传入的cb会被push进callbacks中存放起来，然后执行timerFunc（pending是一个状态标记，保证timerFunc在下一个tick之前只执行一次）。</p>
+<p>timerFunc是什么？</p>
+<p>看了源码发现timerFunc会检测当前环境而不同实现，其实就是按照Promise，MutationObserver，setTimeout优先级，哪个存在使用哪个，最不济的环境下使用setTimeout。</p>
+<p>两者的具体实现</p>
+<ul>
+<li>macrotasks: setTimeout ，setInterval， setImmediate，requestAnimationFrame, I/O ，UI渲染</li>
+<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
+</ul>
+<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
+<ol>
+<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
+<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
+<li><p>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</p>
+<p>  这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。</p>
+<pre><code>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。
+如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
+</code></pre></li>
+</ol>
+<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
+<blockquote>
+<p>  JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、   MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>       要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>       实在不行，只能用 setTimeout 创建 task 了。<br>       为啥要用 microtask？<br>       根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>       反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
+</blockquote>
+<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
+<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
+<p>至于 MutationObserver 如何模拟 nextTick 这点，直接看源码，其实就是创建一个 TextNode 并监听内容变化，然后要 nextTick 的时候去改一下这个节点的文本内容：    var counter = 1</p>
+<pre><code>var observer = new MutationObserver(nextTickHandler)
+    var textNode = document.createTextNode(String(counter))
+    observer.observe(textNode, {
+      characterData: true
+    })
+    timerFunc = () =&gt; {
+      counter = (counter + 1) % 2
+      textNode.data = String(counter)
+    }
+</code></pre><p>   setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
+<pre><code>setTimeout(function(){
+    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
+},0);
+</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
+<pre><code>setTimeout(function(){console.log(4)},0);
+new Promise(function(resolve){
+    console.log(1)
+    for( var i=0 ; i&lt;10000 ; i++ ){
+        i==9999 &amp;&amp; resolve()
+    }
+    console.log(2)
+}).then(function(){
+    console.log(5)
+});
+console.log(3);
+结果是：
+1,2,3,5,4
+</code></pre><p>再看这个，两个自执行同时执行：</p>
+<pre><code>&lt;script&gt;
+(function test() {
+  setTimeout(function () {
+    console.log(4)
+  }, 0);
+  new Promise(function executor (resolve) {
+    console.log(1);
+    for(var i = 0; i &lt; 10000; i++) {
+      i == 9999 &amp;&amp; resolve();
+    }
+    console.log(2);
+  }).then(function() {
+    console.log(5);
+  });
+  console.log(3);
+})()
+
+(function test2() {
+  setTimeout(function () {
+    console.log(42)
+  }, 0);
+  new Promise(function executor (resolve) {
+    console.log(12);
+    for(var i = 0; i &lt; 10000; i++) {
+      i == 9999 &amp;&amp; resolve();
+    }
+    console.log(22);
+  }).then(function() {
+    console.log(52);
+  });
+  console.log(32);
+})()
+&lt;/script&gt;
+</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-afcb6fa6fb862818359f757107b769ab_hd.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的 <code>setTimeout</code> 进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
+<pre><code>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：
+</code></pre><p>   1.先执行 macrotasks：I/O -》 UI渲染</p>
+<p>   2.再执行 microtasks ：process.nextTick  -》 Promise  -》MutationObserver -&gt;Object.observe</p>
+<p>   3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
+<p>setTimeout ，setInterval –》setImmediate</p>
+<pre><code>  综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。
+
+setImmediate(function(){
+    console.log(1);
+},0);
+setTimeout(function(){
+    console.log(2);
+},0);
+new Promise(function(resolve){
+    console.log(3);
+    resolve();
+    console.log(4);
+}).then(function(){
+    console.log(5);
+});
+console.log(6);
+process.nextTick(function(){
+    console.log(7);
+});
+console.log(8);
+结果是：3 4 6 8 7 5 2 1
+</code></pre><h2 id="flushSchedulerQueue"><a href="#flushSchedulerQueue" class="headerlink" title="flushSchedulerQueue"></a>flushSchedulerQueue</h2><pre><code>/*Github:https://github.com/answershuto*/
+/**
+ * Flush both queues and run the watchers.
+ */
+ /*nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers*/
+function flushSchedulerQueue () {
+  flushing = true
+  let watcher, id
+
+  // Sort queue before flush.
+  // This ensures that:
+  // 1. Components are updated from parent to child. (because parent is always
+  //    created before the child)
+  // 2. A component&apos;s user watchers are run before its render watcher (because
+  //    user watchers are created before the render watcher)
+  // 3. If a component is destroyed during a parent component&apos;s watcher run,
+  //    its watchers can be skipped.
+  /*
+    给queue排序，这样做可以保证：
+    1.组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。
+    2.一个组件的user watchers比render watcher先运行，因为user watchers往往比render watcher更早创建
+    3.如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过。
+  */
+  queue.sort((a, b) =&gt; a.id - b.id)
+
+  // do not cache length because more watchers might be pushed
+  // as we run existing watchers
+  /*这里不用index = queue.length;index &gt; 0; index--的方式写是因为不要将length进行缓存，因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue*/
+  for (index = 0; index &lt; queue.length; index++) {
+    watcher = queue[index]
+    id = watcher.id
+    /*将has的标记删除*/
+    has[id] = null
+    /*执行watcher*/
+    watcher.run()
+    // in dev build, check and stop circular updates.
+    /*
+      在测试环境中，检测watch是否在死循环中
+      比如这样一种情况
+      watch: {
+        test () {
+          this.test++;
+        }
+      }
+      持续执行了一百次watch代表可能存在死循环
+    */
+    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {
+      circular[id] = (circular[id] || 0) + 1
+      if (circular[id] &gt; MAX_UPDATE_COUNT) {
+        warn(
+          &apos;You may have an infinite update loop &apos; + (
+            watcher.user
+              ? `in watcher with expression &quot;${watcher.expression}&quot;`
+              : `in a component render function.`
+          ),
+          watcher.vm
+        )
+        break
+      }
+    }
+  }
+
+  // keep copies of post queues before resetting state
+  /**/
+  /*得到队列的拷贝*/
+  const activatedQueue = activatedChildren.slice()
+  const updatedQueue = queue.slice()
+
+  /*重置调度者的状态*/
+  resetSchedulerState()
+
+  // call component updated and activated hooks
+  /*使子组件状态都改编成active同时调用activated钩子*/
+  callActivatedHooks(activatedQueue)
+  /*调用updated钩子*/
+  callUpdateHooks(updatedQueue)
+
+  // devtool hook
+  /* istanbul ignore if */
+  if (devtools &amp;&amp; config.devtools) {
+    devtools.emit(&apos;flush&apos;)
+  }
+}
+</code></pre><p>flushSchedulerQueue是下一个tick时的回调函数，主要目的是执行Watcher的run函数，用来更新视图</p>
+<h2 id="为什么要异步更新视图"><a href="#为什么要异步更新视图" class="headerlink" title="为什么要异步更新视图"></a>为什么要异步更新视图</h2><p>来看一下下面这一段代码</p>
+<pre><code>&lt;template&gt;
+  &lt;div&gt;
+    &lt;div&gt;{{test}}&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+export default {
+    data () {
+        return {
+            test: 0
+        };
+    },
+    created () {
+      for(let i = 0; i &lt; 1000; i++) {
+        this.test++;
+      }
+    }
+}
+</code></pre><p>现在有这样的一种情况，created的时候test的值会被++循环执行1000次。<br>每次++时，都会根据响应式触发setter-&gt;Dep-&gt;Watcher-&gt;update-&gt;patch。<br>如果这时候没有异步更新视图，那么每次++都会直接操作DOM更新视图，这是非常消耗性能的。<br>所以Vue.js实现了一个queue队列，在下一个tick的时候会统一执行queue中Watcher的run。同时，拥有相同id的Watcher不会被重复加入到该queue中去，所以不会执行1000次Watcher的run。最终更新视图只会直接将test对应的DOM的0变成1000。<br>保证更新视图操作DOM的动作是在当前栈执行完以后下一个tick的时候调用，大大优化了性能。</p>
+<h2 id="访问真实DOM节点更新后的数据"><a href="#访问真实DOM节点更新后的数据" class="headerlink" title="访问真实DOM节点更新后的数据"></a>访问真实DOM节点更新后的数据</h2><p>所以我们需要在修改data中的数据后访问真实的DOM节点更新后的数据，只需要这样，我们把文章第一个例子进行修改。</p>
+<pre><code>&lt;template&gt;
+  &lt;div&gt;
+    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
+    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+export default {
+    data () {
+        return {
+            test: &apos;begin&apos;
+        };
+    },
+    methods () {
+        handleClick () {
+            this.test = &apos;end&apos;;
+            this.$nextTick(() =&gt; {
+                console.log(this.$refs.test.innerText);//打印&quot;end&quot;
+            });
+            console.log(this.$refs.test.innerText);//打印“begin”
+        }
+    }
+}
+</code></pre><p>使用Vue.js的global API的$nextTick方法，即可在回调中获取已经更新好的DOM实例了。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/28/CSS网格布局（Grid）完全教程/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/28/CSS网格布局（Grid）完全教程/" itemprop="url">CSS网格布局（Grid）完全教程</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-28T16:25:32+08:00">
+                2017-10-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="CSS网格布局（Grid）完全教程"><a href="#CSS网格布局（Grid）完全教程" class="headerlink" title="CSS网格布局（Grid）完全教程"></a><a href="https://www.zcfy.cc/article/learn-css-grid-a-guide-to-learning-css-grid-jonathan-suh" target="_blank" rel="noopener">CSS网格布局（Grid）完全教程</a></h3>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/22/Vue-js-父子组件通信的十种方式&奇技淫巧/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/22/Vue-js-父子组件通信的十种方式&奇技淫巧/" itemprop="url">Vue.js 父子组件通信的十种方式&奇技淫巧</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-22T19:56:41+08:00">
+                2017-10-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="面试官：Vue-中父子组件通信有哪些方式？"><a href="#面试官：Vue-中父子组件通信有哪些方式？" class="headerlink" title=" 面试官：Vue 中父子组件通信有哪些方式？"></a><strong> 面试官：Vue 中父子组件通信有哪些方式？</strong></h3><h4 id="vue组件通信全揭秘-共7章"><a href="#vue组件通信全揭秘-共7章" class="headerlink" title="  vue组件通信全揭秘(共7章) "></a><font color="#dd0000"> <strong> <a href="https://juejin.im/post/5bd97e7c6fb9a022852a71cf" target="_blank" rel="noopener">vue组件通信全揭秘(共7章)</a> </strong></font><br></h4><blockquote>
+<p>几种通信方式无外乎以下几种：</p>
+</blockquote>
+<ul>
+<li><code>Prop</code>（常用）</li>
+<li><code>$emit</code> (组件封装用的较多)</li>
+<li><code>.sync</code>语法糖 （较少）</li>
+<li><code>$attrs</code> 和 <code>$listeners</code> (组件封装用的较多)</li>
+<li><code>provide</code> 和 <code>inject</code> （高阶组件/组件库用的较多）</li>
+<li>其他方式通信</li>
+</ul>
+<h3 id="Prop"><a href="#Prop" class="headerlink" title="Prop"></a>Prop</h3><p>英式发音：[prɒp]。这个在我们日常开发当中用到的非常多。简单来说，<strong>我们可以通过 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents.html%23%25E9%2580%259A%25E8%25BF%2587-Prop-%25E5%2590%2591%25E5%25AD%2590%25E7%25BB%2584%25E4%25BB%25B6%25E4%25BC%25A0%25E9%2580%2592%25E6%2595%25B0%25E6%258D%25AE" target="_blank" rel="noopener">Prop</a> 向子组件传递数据</strong>。用一个形象的比喻来说，父子组件之间的数据传递相当于自上而下的下水管子，只能从上往下流，不能逆流。这也正是 Vue 的设计理念之<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>。而 Prop 正是管道与管道之间的一个衔接口，这样水（数据）才能往下流。说这么多，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&lt;divid=&quot;app&quot;&gt;</span><br><span class="line">    &lt;child:content=&quot;message&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">let Child = Vue.extend(&#123;</span><br><span class="line">  template: &apos;&lt;h2&gt;&#123;&#123; content &#125;&#125;&lt;/h2&gt;&apos;,</span><br><span class="line">  props: &#123;</span><br><span class="line">    content: &#123;</span><br><span class="line">      type: String,</span><br><span class="line">      default: () =&gt; &#123; return&apos;from child&apos; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    message: &apos;from parent&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  components: &#123;</span><br><span class="line">    Child</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">from parent</span><br></pre></td></tr></table></figure>
+<h3 id="emit"><a href="#emit" class="headerlink" title="$emit"></a>$emit</h3><p>英式发音：[iˈmɪt]。官方说法是<strong>触发当前实例上的事件。附加参数都会传给监听器回调</strong>。按照我的理解不知道能不能给大家说明白，先简单看下代码吧：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;my-button @greet=&quot;sayHi&quot;&gt;&lt;/my-button&gt;
+&lt;/div&gt;
+
+let MyButton = Vue.extend({
+  template: &apos;&lt;button @click=&quot;triggerClick&quot;&gt;click&lt;/button&gt;&apos;,
+  data () {
+    return {
+      greeting: &apos;vue.js!&apos;
+    }
+  },
+  methods: {
+    triggerClick () {
+      this.$emit(&apos;greet&apos;, this.greeting)
+    }
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  components: {
+    MyButton
+  },
+  methods: {
+    sayHi (val) {
+      alert(&apos;Hi, &apos; + val)   // &apos;Hi, vue.js!&apos;
+    }
+  }
+})
+</code></pre><p> 大致逻辑是酱婶儿的：当我在页面上点击按钮时，触发了组件 <code>MyButton</code> 上的监听事件 <code>greet</code>，并且把参数传给了回调函数 <code>sayHi</code> 。说白了，当我们从子组件 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-emit" target="_blank" rel="noopener">Emit</a>（派发） 一个事件之前，其内部都提前在事件队列中 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-on" target="_blank" rel="noopener">On</a>（监听）了这个事件及其监听回调。其实相当于下面这种写法：</p>
+<pre><code>vm.$on(&apos;greet&apos;, functionsayHi (val) {
+  console.log(&apos;Hi, &apos; + val)
+})
+vm.$emit(&apos;greet&apos;, &apos;vue.js&apos;)
+// =&gt; &quot;Hi, vue.js&quot;
+</code></pre><h3 id="sync-修饰符"><a href="#sync-修饰符" class="headerlink" title=".sync 修饰符"></a>.sync 修饰符</h3><p>这个家伙在 <a href="mailto:vue@1.x" target="_blank" rel="noopener">vue@1.x</a> 的时候曾作为双向绑定功能存在，即子组件可以修改父组件中的值。因为它违反了<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>的设计理念，所以在 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 的时候被干掉了。但是在 <a href="mailto:vue@2.3.0" target="_blank" rel="noopener">vue@2.3.0</a>+ 以上版本又重新引入了这个 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-custom-events.html%23sync-%25E4%25BF%25AE%25E9%25A5%25B0%25E7%25AC%25A6" target="_blank" rel="noopener">.sync</a> 修饰符。但是这次它只是作为一个编译时的语法糖存在。它会被扩展为一个自动更新父组件属性的 v-on 监听器。说白了就是让我们手动进行更新父组件中的值了，从而使数据改动来源更加的明显。下面引入自官方的一段话：</p>
+<blockquote>
+<p>在有些情况下，我们可能需要对一个 prop 进行“双向绑定”。不幸的是，真正的双向绑定会带来维护上的问题，因为子组件可以修改父组件，且在父组件和子组件都没有明显的改动来源。</p>
+</blockquote>
+<p>既然作为一个语法糖，肯定是某种写法的简写形式，哪种写法呢，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&lt;text-document</span><br><span class="line">  v-bind:title=&quot;doc.title&quot;</span><br><span class="line">  v-on:update:title=&quot;doc.title = $event&quot;&gt;</span><br><span class="line">&lt;/text-document&gt;</span><br></pre></td></tr></table></figure></p>
+<p>于是我们可以用 <code>.sync</code> 语法糖简写成如下形式：</p>
+<pre><code>&lt;text-document v-bind:title.sync=&quot;doc.title&quot;&gt;&lt;/text-document&gt;
+</code></pre><p>废话这么多，如何做到“双向绑定” 呢？让我们进段广告，广告之后更加精彩！<br>…<br>好的，欢迎回来。假如我们想实现这样一个效果：改变子组件文本框中的值同时改变父组件中的值。怎么做？列位不妨先想想。先看段代码：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;login:name.sync=&quot;userName&quot;&gt;&lt;/login&gt; 
+    {{ userName }}
+&lt;/div&gt;
+
+let Login = Vue.extend({
+  template: `
+    &lt;div class=&quot;input-group&quot;&gt;
+      &lt;label&gt;姓名:&lt;/label&gt;
+      &lt;input v-model=&quot;text&quot;&gt;
+    &lt;/div&gt;
+  `,
+  props: [&apos;name&apos;],
+  data () {
+    return {
+      text: &apos;&apos;
+    }
+  },
+  watch: {
+    text (newVal) {
+      this.$emit(&apos;update:name&apos;, newVal)
+    }
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  data: {
+    userName: &apos;&apos;
+  },
+  components: {
+    Login
+  }
+})
+</code></pre><p>下面划重点，代码里有这一句话：</p>
+<pre><code>this.$emit(&apos;update:name&apos;, newVal)
+</code></pre><p>官方语法是：<code>update:myPropName</code> 其中 <code>myPropName</code> 表示要更新的 prop 值。当然如果你不用 .sync 语法糖使用上面的 .$emit 也能达到同样的效果。仅此而已！</p>
+<h3 id="attrs-和-listeners"><a href="#attrs-和-listeners" class="headerlink" title="$attrs 和 $listeners"></a><code>$attrs</code> 和 <code>$listeners</code></h3><ul>
+<li>官网对 <code>$attrs</code> 的解释如下：</li>
+</ul>
+<blockquote>
+<p>包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (<code>class</code> 和 <code>style</code> 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定 (<code>class</code> 和 <code>style</code> 除外)，并且可以通过 <code>v-bind=&quot;$attrs&quot;</code> 传入内部组件——在创建高级别的组件时非常有用。</p>
+</blockquote>
+<ul>
+<li>官网对 <code>$listeners</code> 的解释如下：</li>
+</ul>
+<blockquote>
+<p>包含了父作用域中的 (不含 <code>.native</code> 修饰器的) <code>v-on</code> 事件监听器。它可以通过 <code>v-on=&quot;$listeners&quot;</code> 传入内部组件——在创建更高层次的组件时非常有用。</p>
+</blockquote>
+<p>我觉得 <code>$attrs</code> 和 <code>$listeners</code> 属性像两个收纳箱，一个负责收纳属性，一个负责收纳事件，都是以对象的形式来保存数据。看下面的代码解释：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;child:foo=&quot;foo&quot;:bar=&quot;bar&quot;
+        @one.native=&quot;triggerOne&quot;
+        @two=&quot;triggerTwo&quot;&gt;
+    &lt;/child&gt;
+&lt;/div&gt;
+</code></pre><p>从 Html 中可以看到，这里有俩属性和俩方法，区别是属性一个是 <code>prop</code> 声明，事件一个是 <code>.native</code> 修饰器。</p>
+<pre><code>let Child = Vue.extend({
+  template: &apos;&lt;h2&gt;{{ foo }}&lt;/h2&gt;&apos;,
+  props: [&apos;foo&apos;],
+  created () {
+    console.log(this.$attrs, this.$listeners)
+    // -&gt; {bar: &quot;parent bar&quot;}
+    // -&gt; {two: fn}
+
+    // 这里我们访问父组件中的 `triggerTwo` 方法
+    this.$listeners.two()
+    // -&gt; &apos;two&apos;
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  data: {
+    foo: &apos;parent foo&apos;,
+    bar: &apos;parent bar&apos;
+  },
+  components: {
+    Child
+  },
+  methods: {
+    triggerOne () {
+      alert(&apos;one&apos;)
+    },
+    triggerTwo () {
+      alert(&apos;two&apos;)
+    }
+  }
+})
+</code></pre><p>可以看到，我们可以通过 <code>$attrs</code> 和 <code>$listeners</code> 进行数据传递，在需要的地方进行调用和处理，还是很方便的。当然，我们还可以通过 <code>v-on=&quot;$listeners&quot;</code> 一级级的往下传递，子子孙孙无穷尽也！</p>
+<p>一个插曲！</p>
+<p>当我们在组件上赋予了一个非Prop 声明时，编译之后的代码会把这些个属性都当成原始属性对待，添加到 html 原生标签上，看上面的代码编译之后的样子：</p>
+<pre><code>&lt;h2 bar=&quot;parent bar&quot;&gt;parent foo&lt;/h2&gt;
+</code></pre><p>这样会很难看，同时也爆了某些东西。如何去掉？这正是 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23inheritAttrs" target="_blank" rel="noopener">inheritAttrs</a> 属性的用武之地！给组件加上这个属性就行了，一般是配合 <code>$attrs</code> 使用。看代码：</p>
+<pre><code>// 源码
+let Child = Vue.extend({
+  ...
+  inheritAttrs: false, // 默认是 true
+  ...
+})
+</code></pre><p>再次编译：</p>
+<pre><code>&lt;h2&gt;parent foo&lt;/h2&gt;
+</code></pre><h3 id="provide-inject"><a href="#provide-inject" class="headerlink" title="provide / inject"></a><code>provide</code> / <code>inject</code></h3><p>他俩是对CP, 感觉挺神秘的。来看下官方对 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23provide-inject" target="_blank" rel="noopener">provide / inject</a> 的描述：</p>
+<blockquote>
+<p><code>provide</code> 和 <code>inject</code> 主要为高阶插件/组件库提供用例。并不推荐直接用于应用程序代码中。并且这对选项需要一起使用，以允许一个祖先组件向其所有子孙后代注入一个依赖，不论组件层次有多深，并在起上下游关系成立的时间里始终生效。</p>
+</blockquote>
+<p>看完描述有点懵懵懂懂！一句话总结就是：小时候你老爸什么东西都先帮你存着等你长大该娶媳妇儿了你要房子给你买要车给你买只要他有的尽量都会满足你。下面是这句话的代码解释：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+    &lt;son&gt;&lt;/son&gt;
+&lt;/div&gt;
+
+let Son = Vue.extend({
+  template: &apos;&lt;h2&gt;son&lt;/h2&gt;&apos;,
+  inject: {
+    house: {
+      default: &apos;没房&apos;
+    },
+    car: {
+      default: &apos;没车&apos;
+    },
+    money: {
+      // 长大工作了虽然有点钱// 仅供生活费，需要向父母要default: &apos;￥4500&apos;
+    }
+  },
+  created () {
+    console.log(this.house, this.car, this.money)
+    // -&gt; &apos;房子&apos;, &apos;车子&apos;, &apos;￥10000&apos;
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  provide: {
+    house: &apos;房子&apos;,
+    car: &apos;车子&apos;,
+    money: &apos;￥10000&apos;
+  },
+  components: {
+    Son
+  }
+})
+</code></pre><h3 id="其他方式通信"><a href="#其他方式通信" class="headerlink" title="其他方式通信"></a>其他方式通信</h3><p>除了以上五种方式外，其实还有：</p>
+<ul>
+<li><strong>EventBus</strong></li>
+</ul>
+<p>思路就是声明一个全局Vue实例变量 <code>EventBus</code> , 把所有的通信数据，事件监听都存储到这个变量上。这样就达到在组件间数据共享了，有点类似于 <a href="https://link.juejin.im?target=https%3A%2F%2Fvuex.vuejs.org%2Fzh%2Fguide%2F" target="_blank" rel="noopener">Vuex</a>。但这种方式只适用于极小的项目，复杂项目还是推荐 Vuex。下面是实现 EventBus 的简单代码：</p>
+<pre><code>&lt;divid=&quot;app&quot;&gt;
+   &lt;child&gt;&lt;/child&gt;
+&lt;/div&gt;
+
+// 全局变量
+let EventBus = new Vue()
+
+// 子组件
+let Child = Vue.extend({
+  template: &apos;&lt;h2&gt;child&lt;/h2&gt;&apos;,
+  created () {
+    console.log(EventBus.message)
+    // -&gt; &apos;hello&apos;
+    EventBus.$emit(&apos;received&apos;, &apos;from child&apos;)
+  }
+})
+
+new Vue({
+  el: &apos;#app&apos;,
+  components: {
+    Child
+  },
+  created () {
+    // 变量保存
+    EventBus.message = &apos;hello&apos;// 事件监听
+    EventBus.$on(&apos;received&apos;, function (val) {
+      console.log(&apos;received: &apos;+ val)
+      // -&gt; &apos;received: from child&apos;
+    })
+  }
+})
+</code></pre><ul>
+<li><strong>Vuex</strong></li>
+</ul>
+<p>官方推荐的，Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。</p>
+<ul>
+<li><strong>$parent</strong></li>
+</ul>
+<p>父实例，如果当前实例有的话。通过访问父实例也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
+<ul>
+<li><strong>$root</strong></li>
+</ul>
+<p>当前组件树的根 Vue 实例。如果当前实例没有父实例，此实例将会是其自己。通过访问根组件也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
+<ul>
+<li><strong>broadcast / dispatch</strong></li>
+</ul>
+<p>他俩是 <a href="mailto:vue@1.0" target="_blank" rel="noopener">vue@1.0</a> 中的方法，分别是事件广播 和 事件派发。虽然 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 里面删掉了，但可以模拟这两个方法。可以借鉴 <a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FElemeFE%2Felement%2Fblob%2F1.x%2Fsrc%2Fmixins%2Femitter.js%23L14" target="_blank" rel="noopener">Element</a> 实现。有时候还是非常有用的，比如我们在开发树形组件的时候等等。</p>
+<hr>
+<h2 id="给-props-属性设置多个类型"><a href="#给-props-属性设置多个类型" class="headerlink" title="给 props 属性设置多个类型"></a>给 props 属性设置多个类型</h2><p>这个技巧在开发组件的时候用的较多，为了更大的容错性考虑。比如一个 <code>&lt;my-button&gt;</code> 上暴露了一个 <code>width</code> 属性：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// my-button.vue</span><br><span class="line">export default &#123;</span><br><span class="line">  props: &#123;</span><br><span class="line">    width: [String, Number],</span><br><span class="line">    default: &apos;100px&apos;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们既可以传 <code>100px</code>，也可以传 <code>100</code> 。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- my-button.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;button :style=&quot;computedWidth&quot;&gt;width: &#123;&#123; computedWidth &#125;&#125;&lt;/button&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  export default &#123;</span><br><span class="line">    props: &#123;</span><br><span class="line">      width: [String, Number],</span><br><span class="line">      default: &apos;100px&apos;</span><br><span class="line">    &#125;,</span><br><span class="line">    computed: &#123;</span><br><span class="line">      computedWidth () &#123;</span><br><span class="line">        let o = &#123;&#125;</span><br><span class="line">        if (typeof this.width === &apos;string&apos;) o.width = this.width</span><br><span class="line">        if (typeof this.width === &apos;number&apos;) o.width = this.width + &apos;px&apos;</span><br><span class="line">        return o</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
+<p>使用：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- 在其他组件中使用 --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;my-button width=&quot;100px&quot;&gt;&lt;/my-button&gt;</span><br><span class="line">  &lt;!-- or --&gt;</span><br><span class="line">  &lt;my-button width=&quot;100&quot;&gt;&lt;/my-button&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+<h2 id="data-初始化"><a href="#data-初始化" class="headerlink" title="data 初始化"></a><strong>data</strong> 初始化</h2><p>因为 <code>props</code> 要比 <code>data</code> 先完成初始化，所以我们可以利用这一点给 <code>data</code> 初始化一些数据进去，看代码：</p>
+<pre><code>export default {
+  data () {
+    return {
+      buttonSize: this.size
+    }
+  },
+ props: {
+   size: String
+ }
+}
+</code></pre><p>除了以上，子组件的 <code>data</code> 函数也可以有参数，且该参数是当前实例对象。所有我们可以利用这一点做一些自己的判断。如，改写上面的代码：</p>
+<pre><code>export default {
+  data (vm) {
+    return {
+      buttonSize: vm.size
+    }
+  },
+ props: {
+   size: String
+ }
+}
+</code></pre><h2 id="template"><a href="#template" class="headerlink" title="template"></a>template</h2><p>我们在做 <code>v-if</code> 判断的时候，可以把判断条件放在 <code>template</code> 组件上，<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fconditional.html%23%25E5%259C%25A8-lt-template-gt-%25E5%2585%2583%25E7%25B4%25A0%25E4%25B8%258A%25E4%25BD%25BF%25E7%2594%25A8-v-if-%25E6%259D%25A1%25E4%25BB%25B6%25E6%25B8%25B2%25E6%259F%2593%25E5%2588%2586%25E7%25BB%2584" target="_blank" rel="noopener">最终</a>的渲染结果将不包含 <code>&lt;template&gt;</code> 元素。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot;&gt;</span><br><span class="line">    &lt;template v-if=&quot;isVal&quot;&gt;</span><br><span class="line">      &lt;h2&gt;...&lt;/h2&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">    &lt;template v-else&gt;</span><br><span class="line">      &lt;h2&gt;...&lt;/h2&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+<p><code>v-for</code> 也同样适用。</p>
+<h2 id="Lifecycle-hook"><a href="#Lifecycle-hook" class="headerlink" title="Lifecycle hook"></a>Lifecycle hook</h2><p>生命周期钩子可以是一个数组类型，且数组中的函数会依次执行。</p>
+<pre><code>export default {
+ ...
+ created: [
+   function one () {
+     console.log(1)
+   },
+   function two () {
+     console.log(2)
+   }
+ ]
+ ...
+}
+</code></pre><p>没什么用，知道就行了。事实上生命周期钩子还可以作用于 DOM 元素上，利用这一点，我们可以用父组件中的方法来初始化子组件的生命周期钩子：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- Child.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;h3&gt;I&apos;m child!&lt;/h3&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;!-- Parent.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">   &lt;child @hook:created=&quot;handleChildCreated&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">   import Child from &apos;./child.vue&apos;</span><br><span class="line">   export default &#123;</span><br><span class="line">     components: [ Child ],</span><br><span class="line">     methods: &#123;</span><br><span class="line">       handleChildCreated () &#123;</span><br><span class="line">         console.log(&apos;handle child created...&apos;)</span><br><span class="line">       &#125;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>其他钩子雷同，不再赘述。</p>
+<h2 id="v-for-和-v-if-一起使用"><a href="#v-for-和-v-if-一起使用" class="headerlink" title="v-for 和 v-if 一起使用"></a>v-for 和 v-if 一起使用</h2><p>由于 <code>v-for</code> 比 <code>v-if</code> 渲染优先级更高，所以有时候可以一起使用。下面两种常见的情况下会倾向于把 <code>v-for</code> 和 <code>v-if</code> 放在同一个标签上使用：</p>
+<ul>
+<li>筛选一些不想显示的条目</li>
+<li>为了避免渲染本应该被隐藏的列表</li>
+</ul>
+<p>举个栗子：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;ul class=&quot;items&quot;&gt;</span><br><span class="line">    &lt;!-- 只有激活的用户才可以显示 --&gt;</span><br><span class="line">    &lt;li v-for=&quot;(user, index) in users&quot; v-if=&quot;user.isActive&quot; :key=&quot;user.id&quot;&gt;&#123;&#123; user.name &#125;&#125;&lt;/li&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+<p>关于以上两点不明白的地方可以参见 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fstyle-guide%2F%23%25E9%2581%25BF%25E5%2585%258D-v-if-%25E5%2592%258C-v-for-%25E7%2594%25A8%25E5%259C%25A8%25E4%25B8%2580%25E8%25B5%25B7-%25E5%25BF%2585%25E8%25A6%2581" target="_blank" rel="noopener">Vue 风格指南</a>。</p>
+<h2 id="混合"><a href="#混合" class="headerlink" title="混合"></a>混合</h2><p>如果好多组件都共用到一些像 <code>props</code>、<code>data</code>、<code>methods</code> 等，可以单独抽出来放到 <code>mixins</code> 混合器中。</p>
+<pre><code>// paging-mixin.vue
+export default {
+  props: {
+    pageSize: 1,
+    pageLength: 10,
+    currentPage: 1
+    total: 20
+  },
+  methods: {
+    /**
+     * 上一页
+     */
+    prevPage (page) {
+      ...
+    },
+    /**
+     * 下一页
+     */
+    nextPage (page) {
+      ...
+    }
+    /**
+     * 跳转到当前页
+     */
+    currentPage (page) {
+      ...
+    }
+  }
+}
+</code></pre><p>比如在用户管理列表使用：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- Users.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;user-model&quot;&gt;</span><br><span class="line">    &lt;my-table :data=&quot;users&quot;&gt;&lt;/my-table&gt;</span><br><span class="line">    &lt;my-paging</span><br><span class="line">      :page-length=&quot;pageLength&quot;</span><br><span class="line">      :page-size=&quot;pageSize&quot;</span><br><span class="line">      :current-page=&quot;currentPage&quot;</span><br><span class="line">      :total=&quot;total&quot;&gt;</span><br><span class="line">    &lt;/my-paging&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  import PagingMixin from &apos;../mixins/paging-mixin.vue&apos;</span><br><span class="line">  export default &#123;</span><br><span class="line">    mixins: [PagingMixin],</span><br><span class="line">    data () &#123;</span><br><span class="line">      return &#123;</span><br><span class="line">        users: [],</span><br><span class="line">        pageLength: 10,</span><br><span class="line">        pageSize: 1,</span><br><span class="line">        currentPage: 1,</span><br><span class="line">        total: 20</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>不用每个页面都写一遍 <code>props</code> 和 <code>methods</code> 了。</p>
+<h2 id="render-函数"><a href="#render-函数" class="headerlink" title="render 函数"></a>render 函数</h2><p>下面是一段简单的 template 模板代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot;&gt;</span><br><span class="line">    &lt;h2&gt;title&lt;/h2&gt;</span><br><span class="line">    this is content</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+<p>我们用<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Frender-function.html" target="_blank" rel="noopener">渲染函数</a>来重写上面的代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">export default &#123;</span><br><span class="line">  render (h) &#123;</span><br><span class="line">    let _c = h</span><br><span class="line">    return _c(&apos;div&apos;, </span><br><span class="line">      &#123; class: &apos;box&apos;&#125;, </span><br><span class="line">      [_c(&apos;h2&apos;, &#123;&#125;, &apos;title&apos;), &apos;this is content&apos;])</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>事实上，Vue 会把模板(template)编译成渲染函数(render) 。上面的 template 模板会被编译成如下渲染函数：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">let render = function () &#123;</span><br><span class="line">  return _c(&apos;div&apos;,</span><br><span class="line">    &#123;staticClass:&quot;box&quot;&#125;,</span><br><span class="line">    [_c(&apos;h2&apos;, [_v(&quot;title&quot;)]), _v(&quot;this is content&quot;)])</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>是不是很像？ 正如官方说的，<strong>渲染函数比 template 更接近编译器</strong>。如果用一个流程图来解释的话，大概是这个样子：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">template</span><br><span class="line">    ↓</span><br><span class="line">预编译工具（vue-loader + vue-template-compile）</span><br><span class="line">    ↓</span><br><span class="line">  render</span><br><span class="line">    ↓</span><br><span class="line">resolve vnode</span><br></pre></td></tr></table></figure></p>
+<p>具体参见 <code>Vue声明周期图示</code> </p>
+<p>渲染函数用处：</p>
+<ul>
+<li>开发组件库，Element 源码用的都是 render</li>
+<li>封装一些高阶组件。组件里面嵌套组件就是高阶组件，前提是要满足组件三要素：<code>props</code>、<code>event</code>、<code>slot</code></li>
+<li>用于处理一些复杂的逻辑判断。如果我们一个组件里面有很多的 <code>v-if</code> 判断的话，用模板就显得不合适了，这个时候可以用渲染函数来轻松处理</li>
+</ul>
+<h2 id="errorCaptured"><a href="#errorCaptured" class="headerlink" title="errorCaptured"></a>errorCaptured</h2><p>捕获一个来自子孙组件的错误时被调用。有时候当我们想收集错误日志，却不想把错误暴露到浏览器控制台的时候很有用。下面是个例子：</p>
+<p><code>Child.vue</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;!-- 省略一些无关代码 --&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  export default &#123;</span><br><span class="line">    mounted () &#123;</span><br><span class="line">      // 故意把 console 写错</span><br><span class="line">      consol.log(&apos;这里会报错！&apos;)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p><code>Parent.vue</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;child&gt;&lt;/child&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  import Child from &apos;./Child.vue&apos;</span><br><span class="line">  export default &#123;</span><br><span class="line">    components: [ Child ],</span><br><span class="line">    /**</span><br><span class="line">     * 收到三个参数：</span><br><span class="line">     * 错误对象、发生错误的组件实例</span><br><span class="line">     * 以及一个包含错误来源信息的字符串。</span><br><span class="line">     * 此钩子可以返回 false 以阻止该错误继续向上传播。</span><br><span class="line">     */</span><br><span class="line">    errorCaptured (err, vm, info) &#123;</span><br><span class="line">      console.log(err)</span><br><span class="line">      // -&gt; ReferenceError: consle is not defined ...</span><br><span class="line">      console.log(vm)</span><br><span class="line">      // -&gt; &#123;_uid: 1, _isVue: true, $options: &#123;…&#125;, _renderProxy: o, _self: o,…&#125;</span><br><span class="line">      console.log(info)</span><br><span class="line">      // -&gt; `mounted hook`</span><br><span class="line">      // 告诉我们这个错误是在 vm 组件中的 mounted 钩子中发生的</span><br><span class="line">      </span><br><span class="line">      // 阻止该错误继续向上传播</span><br><span class="line">      return false</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>关于 errorCaptured 更多说明，请<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23errorCaptured" target="_blank" rel="noopener">移步官网-&gt;</a> 。</p>
+<h2 id="v-once"><a href="#v-once" class="headerlink" title="v-once"></a>v-once</h2><p>通过 <code>v-once</code> 创建低开销的静态组件。渲染普通的 HTML 元素在 Vue 中是非常快速的，但有的时候你可能有一个组件，这个组件包含了大量静态内容。在这种情况下，你可以在根元素上添加 <code>v-once</code> 特性以确保这些内容只计算一次然后缓存起来，就像这样：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot; v-once&gt;</span><br><span class="line">    &lt;h2&gt; 用户协议 &lt;/h2&gt;</span><br><span class="line">    ... a lot of static content ...</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
+<p>只渲染元素和组件一次。随后的重新渲染，元素/组件及其所有的子节点将被视为静态内容并跳过。这可以用于优化更新性能。关于 <code>v-once</code> 更多介绍，请<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23v-once" target="_blank" rel="noopener">移步官网-&gt;</a>。</p>
+<h2 id="slot-scope"><a href="#slot-scope" class="headerlink" title="slot-scope"></a>slot-scope</h2><p>作用域插槽。<a href="mailto:`vue@2.5.0" target="_blank" rel="noopener">`vue@2.5.0</a><code>版本以前叫</code>scope<code>，之后的版本用</code>slot-scope<code>将其代替。除了 scope 只可以用于</code><template><code>元素，其它和</code>slot-scope` 都相同。</template></p>
+<p>用过 Element 组件的同学都知道，当我们在使用 <a href="https://link.juejin.im?target=http%3A%2F%2Felement-cn.eleme.io%2F2.4%2F%23%2Fzh-CN%2Fcomponent%2Ftable%23zi-ding-yi-lie-mo-ban" target="_blank" rel="noopener"><code>&lt;el-table&gt;</code></a> 的时候会看到如下代码：</p>
+<p><a href="mailto:Element@1.4.x" target="_blank" rel="noopener">Element@1.4.x</a> 的版本：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;el-table-column label=&quot;操作&quot;&gt;</span><br><span class="line">  &lt;template scope=&quot;scope&quot;&gt;</span><br><span class="line">  &lt;el-button</span><br><span class="line">    size=&quot;small&quot;</span><br><span class="line">    @click=&quot;handleEdit(scope.$index, scope.row)&quot;&gt;编辑&lt;/el-button&gt;</span><br><span class="line">  &lt;el-button</span><br><span class="line">    size=&quot;small&quot;</span><br><span class="line">    type=&quot;danger&quot;</span><br><span class="line">    @click=&quot;handleDelete(scope.$index, scope.row)&quot;&gt;删除&lt;/el-button&gt;</span><br><span class="line">  &lt;/template&gt;</span><br><span class="line">&lt;/el-table-column&gt;</span><br></pre></td></tr></table></figure>
+<p>但在 2.0 之后的版本替换成了 <code>slot-scope</code>。</p>
+<p><a href="mailto:Element@2.0.11" target="_blank" rel="noopener">Element@2.0.11</a>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;el-table-column label=&quot;操作&quot;&gt;</span><br><span class="line">  &lt;template slot-scope=&quot;scope&quot;&gt;</span><br><span class="line">    &lt;el-button</span><br><span class="line">      size=&quot;mini&quot;</span><br><span class="line">      @click=&quot;handleEdit(scope.$index, scope.row)&quot;&gt;编辑&lt;/el-button&gt;</span><br><span class="line">    &lt;el-button</span><br><span class="line">      size=&quot;mini&quot;</span><br><span class="line">      type=&quot;danger&quot;</span><br><span class="line">      @click=&quot;handleDelete(scope.$index, scope.row)&quot;&gt;删除&lt;/el-button&gt;</span><br><span class="line">  &lt;/template&gt;</span><br><span class="line">&lt;/el-table-column&gt;</span><br></pre></td></tr></table></figure>
+<p>说白了，<code>slot-scope</code> 相当于函数的回调，我把结果给你，你想怎么处理就怎么处理，一切随你：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">function getUserById (url, data, callback) &#123;</span><br><span class="line">  $.ajax(&#123;</span><br><span class="line">    url,</span><br><span class="line">    data,</span><br><span class="line">    success: function (result) &#123;</span><br><span class="line">      callback(result)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 使用</span><br><span class="line">getUserById(&apos;/users&apos;, &#123; id: 1 &#125;, function (response) &#123;</span><br><span class="line">  // 拿到数据并开始处理自己的页面逻辑</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p>下面我们来简单模拟下 <code>&lt;el-table&gt;</code> 组件内部是怎么使用 <code>slot-scope</code> 的，看代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">// 定义模板</span><br><span class="line">let template = `</span><br><span class="line"> &lt;ul class=&quot;table&quot;&gt;</span><br><span class="line">  &lt;li v-for=&quot;(item, index) in data&quot; :key=&quot;index&quot;&gt;</span><br><span class="line">    &lt;!-- 我希望数据由调用者自己处理 --&gt;</span><br><span class="line">    &lt;!-- &apos;row&apos; 相当于变量名，随便起名 --&gt;</span><br><span class="line">    &lt;slot :row=&quot;item&quot;&gt;</span><br><span class="line">      &lt;!-- 当使用者什么都没写的时候，默认值才会显示--&gt;</span><br><span class="line">      &#123;&#123; item.name &#125;&#125;</span><br><span class="line">    &lt;/slot&gt;</span><br><span class="line">  &lt;/li&gt;</span><br><span class="line"> &lt;/ul&gt;</span><br><span class="line">`</span><br><span class="line">// 声明 `el-table` 组件</span><br><span class="line">Vue.component(&apos;el-table&apos;, &#123;</span><br><span class="line">  template,</span><br><span class="line">  props: &#123;</span><br><span class="line">    data: Array,</span><br><span class="line">    default: []</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">// 根组件</span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    userData: [</span><br><span class="line">      &#123;id: 1, name: &apos;张三&apos;, isActived: false&#125;,</span><br><span class="line">      &#123;id: 2, name: &apos;李四&apos;, isActived: false&#125;,</span><br><span class="line">      &#123;id: 1, name: &apos;王五&apos;, isActived: true&#125;,</span><br><span class="line">      &#123;id: 1, name: &apos;赵六&apos;, isActived: false&#125;,</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p>组件使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">&lt;div id=&quot;app&quot;&gt;</span><br><span class="line">  &lt;el-table :data=&quot;userData&quot;&gt;</span><br><span class="line">    &lt;!-- 使用的时候可以用 template --&gt;</span><br><span class="line">    &lt;!-- `scope` 只是个形参，随便起名 --&gt;</span><br><span class="line">    &lt;template slot-scope=&quot;scope&quot;&gt;</span><br><span class="line">      &lt;template v-if=&quot;scope.row.isActived&quot;&gt;</span><br><span class="line">        &lt;span class=&quot;red&quot;&gt;&#123;&#123; scope.row.name &#125;&#125;&lt;/span&gt;</span><br><span class="line">      &lt;/template&gt;</span><br><span class="line">      &lt;template v-else&gt;</span><br><span class="line">        &#123;&#123; scope.row.name &#125;&#125;</span><br><span class="line">      &lt;/template&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">  &lt;/el-table&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">CSS：</span><br><span class="line"></span><br><span class="line">.red &#123;</span><br><span class="line">  color: red</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们完全可以在 <code>&lt;li&gt;</code> 中进行逻辑判断，为什么还要放到外面进行处理呢？ 因为有时候我们用的不是自己开发的组件，比如上面的 <code>&lt;el-table&gt;</code> ，所以就有必要这么做了。最后，你可以狠狠的<a href="https://link.juejin.im?target=https%3A%2F%2Fcodepen.io%2Fgongph%2Fpen%2FPxbqyP" target="_blank" rel="noopener">戳这里</a>查看效果！</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
   </section>
 
   
@@ -4331,7 +4011,7 @@ const checkOpen = setInterval(() =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">109</span>
+                  <span class="site-state-item-count">107</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
