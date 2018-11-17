@@ -300,223 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/10/koa-bodyparser中间件模拟/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/10/10/koa-bodyparser中间件模拟/" itemprop="url">koa-bodyparser中间件模拟</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-10T23:05:34+08:00">
-                2018-10-10
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa 2.x</code> 版本是当下最流行的 NodeJS 框架，<code>Koa 2.0</code> 的源码特别精简，不像 <code>Express</code> 封装的功能那么多，所以大部分的功能都是由 <code>Koa</code> 开发团队（同 <code>Express</code> 是一家出品）和社区贡献者针对 <code>Koa</code> 对 NodeJS 的封装特性实现的中间件来提供的，用法非常简单，就是引入中间件，并调用 <code>Koa</code> 的 <code>use</code> 方法使用在对应的位置，这样就可以通过在内部操作 <code>ctx</code> 实现一些功能，我们接下来就讨论常用中间件的实现原理以及我们应该如何开发一个 <code>Koa</code> 中间件供自己和别人使用。</p>
-<h2 id="Koa-的洋葱模型介绍"><a href="#Koa-的洋葱模型介绍" class="headerlink" title="Koa 的洋葱模型介绍"></a>Koa 的洋葱模型介绍</h2><p>我们本次不对洋葱模型的实现原理进行过多的刨析，主要根据 API 的使用方式及洋葱模型分析中间件是如何工作的。</p>
-<pre><code>// 洋葱模型特点// 引入 Koa
-const Koa = require(&quot;koa&quot;);
-
-// 创建服务
-const app = new Koa();
-
-app.use(async (ctx, next) =&gt; {
-    console.log(1);
-    await next();
-    console.log(2);
-});
-
-app.use(async (ctx, next) =&gt; {
-    console.log(3);
-    await next();
-    console.log(4);
-});
-
-app.use(async (ctx, next) =&gt; {
-    console.log(5);
-    await next();
-    console.log(6);
-});
-
-// 监听服务
-app.listen(3000);
-
-// 1
-// 3
-// 5
-// 6
-// 4
-// 2
-</code></pre><p>我们知道 <code>Koa</code> 的 <code>use</code> 方法是支持异步的，所以为了保证正常的按照洋葱模型的执行顺序执行代码，需要在调用 <code>next</code> 的时候让代码等待，等待异步结束后再继续向下执行，所以我们在 <code>Koa</code> 中都是建议使用 <code>async/await</code> 的，引入的中间件都是在 <code>use</code> 方法中调用，由此我们可以分析出每一个 <code>Koa</code> 的中间件都是返回一个 <code>async</code> 函数的。</p>
-<h2 id="koa-bodyparser-中间件模拟"><a href="#koa-bodyparser-中间件模拟" class="headerlink" title="koa-bodyparser 中间件模拟"></a>koa-bodyparser 中间件模拟</h2><p>想要分析 <code>koa-bodyparser</code> 的原理首先需要知道用法和作用，<code>koa-bodyparser</code> 中间件是将我们的 <code>post</code> 请求和表单提交的查询字符串转换成对象，并挂在 <code>ctx.request.body</code> 上，方便我们在其他中间件或接口处取值，使用前需提前安装。</p>
-<blockquote>
-<p>npm install koa koa-bodyparser</p>
-</blockquote>
-<p><strong>koa-bodyparser 具体用法如下：</strong></p>
-<pre><code>// koa-bodyparser 的用法
-const Koa = require(&quot;koa&quot;);
-const bodyParser = require(&quot;koa-bodyparser&quot;);
-
-const app = new Koa();
-
-// 使用中间件
-app.use(bodyParser());
-
-app.use(async (ctx, next) =&gt; {
-    if (ctx.path === &quot;/&quot; &amp;&amp; ctx.method === &quot;POST&quot;) {
-        // 使用中间件后 ctx.request.body 属性自动加上了 post 请求的数据
-        console.log(ctx.request.body);
-    }
-});
-
-app.listen(3000);
-</code></pre><p>根据用法我们可以看出 <code>koa-bodyparser</code> 中间件引入的其实是一个函数，我们把它放在了 <code>use</code> 中执行，根据 <code>Koa</code> 的特点，我们推断出 <code>koa-bodyparser</code> 的函数执行后应该给我们返回了一个 <code>async</code> 函数，下面是我们模拟实现的代码。</p>
-<pre><code>// 文件：my-koa-bodyparser.js
-const querystring = require(&quot;querystring&quot;);
-
-module.exports = functionbodyParser() {
-    returnasync (ctx, next) =&gt; {
-        await new Promise((resolve, reject) =&gt; {
-            // 存储数据的数组
-            let dataArr = [];
-
-            // 接收数据
-            ctx.req.on(&quot;data&quot;, data =&gt; dataArr.push(data));
-
-            // 整合数据并使用 Promise 成功
-            ctx.req.on(&quot;end&quot;, () =&gt; {
-                // 获取请求数据的类型 json 或表单
-                let contentType = ctx.get(&quot;Content-Type&quot;);
-
-                // 获取数据 Buffer 格式
-                let data = Buffer.concat(dataArr).toString();
-
-                if (contentType === &quot;application/x-www-form-urlencoded&quot;) {
-                    // 如果是表单提交，则将查询字符串转换成对象赋值给 ctx.request.body
-                    ctx.request.body = querystring.parse(data);
-                } elseif (contentType === &quot;applaction/json&quot;) {
-                    // 如果是 json，则将字符串格式的对象转换成对象赋值给 ctx.request.body
-                    ctx.request.body = JSON.parse(data);
-                }
-
-                // 执行成功的回调
-                resolve();
-            });
-        });
-
-        // 继续向下执行
-        await next();
-    };
-};
-</code></pre><p>在上面代码中由几点是需要我们注意的，即 <code>next</code> 的调用以及为什么通过流接收数据、处理数据和将数据挂在 <code>ctx.request.body</code> 要在 Promise 中进行。</p>
-<p><strong>首先是 <code>next</code> 的调用，我们知道 <code>Koa</code> 的 <code>next</code> 执行，其实就是在执行下一个中间件的函数，即下一个 <code>use</code> 中的 <code>async</code> 函数，为了保证后面的异步代码执行完毕后再继续执行当前的代码，所以我们需要使用 <code>await</code> 进行等待，其次就是数据从接收到挂在 <code>ctx.request.body</code> 都在 Promise 中执行，是因为在接收数据的操作是异步的，整个处理数据的过程需要等待异步完成后，再把数据挂在 <code>ctx.request.body</code> 上，可以保证我们在下一个 <code>use</code> 的 <code>async</code> 函数中可以在 <code>ctx.request.body</code> 上拿到数据，所以我们使用 <code>await</code> 等待一个 Promise 成功后再执行 <code>next</code>。</strong></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/10/基于IntersectionObserver的图片懒加载实现/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2317,7 +2100,7 @@ main()
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/Event-Loop-必知必会（六道题）/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/我也来实现一把MVVM/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -2336,7 +2119,7 @@ main()
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2018/10/03/Event-Loop-必知必会（六道题）/" itemprop="url">Event Loop 必知必会（六道题）</a></h1>
+                <a class="post-title-link" href="/2018/10/03/我也来实现一把MVVM/" itemprop="url">我也来实现一把MVVM</a></h1>
         
 
         <div class="post-meta">
@@ -2348,7 +2131,7 @@ main()
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T11:48:09+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-03T00:20:32+08:00">
                 2018-10-03
               </time>
             
@@ -2388,115 +2171,530 @@ main()
       
         
           
-            <p>一直想写一篇关于 Event Loop 的文章，前不久发现 CNode 上有位同学写了一篇原理分析的<a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/5a9108d78d6e16e56bb80882%235a98d9a2ce1c90bc44c445af" target="_blank" rel="noopener">文章</a>很详细，这里我就不献丑了。本文就拿出六道题来补充一下，放出一张我认为非常直观的图。<br><img src="https://pic4.zhimg.com/v2-3a59c624e6ff95a7e8c5a23c979f5abe_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3a59c624e6ff95a7e8c5a23c979f5abe_hd.jpg" alt=""><br>绿色小块是 macrotask（宏任务），macrotask 中间的粉红箭头是 microtask（微任务）。</p>
-<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})
-</code></pre><p>运行结果：</p>
-<pre><code>setImmediate
-setTimeout
-</code></pre><p>或者：</p>
-<pre><code>setTimeout
-setImmediate
-</code></pre><p>为什么结果不确定呢？</p>
-<p>解释：setTimeout/setInterval 的第二个参数取值范围是：[1, 2^31 - 1]，如果超过这个范围则会初始化为 1，即 setTimeout(fn, 0) === setTimeout(fn, 1)。我们知道 setTimeout 的回调函数在 timer 阶段执行，setImmediate 的回调函数在 check 阶段执行，event loop 的开始会先检查 timer 阶段，但是在开始之前到 timer 阶段会消耗一定时间，所以就会出现两种情况：</p>
-<ol>
-<li>timer 前的准备时间超过 1ms，满足  loop-&gt;time &gt;= 1，则执行 timer 阶段（setTimeout）的回调函数</li>
-<li>timer 前的准备时间小于 1ms，则先执行 check 阶段（setImmediate）的回调函数，下一次 event loop 执行 timer 阶段（setTimeout）的回调函数</li>
-</ol>
-<p>再看个例子：</p>
-<pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})conststart=Date.now()while(Date.now()-start&lt;10);
-</code></pre><p>运行结果一定是：</p>
-<pre><code>setTimeout
-setImmediate
-</code></pre><h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>constfs=require(&apos;fs&apos;)fs.readFile(__filename,()=&gt;{setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})})
-</code></pre><p>运行结果：</p>
-<pre><code>setImmediate
-setTimeout
-</code></pre><p>解释：fs.readFile 的回调函数执行完后：</p>
-<ol>
-<li>注册 setTimeout 的回调函数到 timer 阶段</li>
-<li>注册 setImmediate 的回调函数到 check 阶段</li>
-<li>event loop 从 pool 阶段出来继续往下一个阶段执行，恰好是 check 阶段，所以 setImmediate 的回调函数先执行</li>
-<li>本次 event loop 结束后，进入下一次 event loop，执行 setTimeout 的回调函数</li>
-</ol>
-<p>所以，在 I/O Callbacks 中注册的 setTimeout 和 setImmediate，永远都是 setImmediate 先执行。</p>
-<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)process.nextTick(functiontick(){process.nextTick(tick)})
-</code></pre><p>运行结果：setInterval 永远不会打印出来。</p>
-<p>解释：process.nextTick 会无限循环，将 event loop 阻塞在 microtask 阶段，导致 event loop 上其他 macrotask 阶段的回调函数没有机会执行。</p>
-<p>解决方法通常是用 setImmediate 替代 process.nextTick，如下：</p>
-<pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)setImmediate(functionimmediate(){setImmediate(immediate)})
-</code></pre><p>运行结果：每 100ms 打印一次 setInterval。</p>
-<p>解释：process.nextTick 内执行 process.nextTick 仍然将 tick 函数注册到当前 microtask 的尾部，所以导致 microtask 永远执行不完； setImmediate 内执行 setImmediate 会将 immediate 函数注册到下一次 event loop 的 check 阶段，而不是当前正在执行的 check 阶段，所以给了 event loop 上其他 macrotask 执行的机会。</p>
-<p>再看个例子：</p>
-<pre><code>setImmediate(()=&gt;{console.log(&apos;setImmediate1&apos;)setImmediate(()=&gt;{console.log(&apos;setImmediate2&apos;)})process.nextTick(()=&gt;{console.log(&apos;nextTick&apos;)})})setImmediate(()=&gt;{console.log(&apos;setImmediate3&apos;)})
-</code></pre><p>运行结果：</p>
-<pre><code>setImmediate1
-setImmediate3
-nextTick
-setImmediate2
-</code></pre><p>注意：并不是说 setImmediate 可以完全替代 process.nextTick，process.nextTick 在特定场景下还是无法被替代的，比如我们就想将一些操作放到最近的 microtask 里执行。</p>
-<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>constpromise=Promise.resolve().then(()=&gt;{returnpromise})promise.catch(console.error)
-</code></pre><p>运行结果：</p>
-<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
-    at &lt;anonymous&gt;
-    at process._tickCallback (internal/process/next_tick.js:188:7)
-    at Function.Module.runMain (module.js:667:11)
-    at startup (bootstrap_node.js:187:16)
-    at bootstrap_node.js:607:3
-</code></pre><p>解释：promise.then 类似于 process.nextTick，都会将回调函数注册到 microtask 阶段。上面代码会导致死循环，类似前面提到的：</p>
-<pre><code>process.nextTick(functiontick(){process.nextTick(tick)})
-</code></pre><p>再看个例子：</p>
-<pre><code>constpromise=Promise.resolve()
-promise.then(()=&gt;{
-  console.log(&apos;promise&apos;)})
-  process.nextTick(()=&gt;{
-      console.log(&apos;nextTick&apos;)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>nextTick
-promise
-</code></pre><p>解释：promise.then 虽然和 process.nextTick 一样，都将回调函数注册到 microtask，但优先级不一样。process.nextTick 的 microtask queue 总是优先于 promise 的 microtask queue 执行。</p>
-<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>setTimeout(()=&gt;{
-    console.log(1)
-},0)
-newPromise((resolve,reject)=&gt;{
-   console.log(2)
-   for(leti=0;i&lt;10000;i++){
-     i===9999&amp;&amp;resolve()
-   }
-   console.log(3)
-}).then(()=&gt;{
-   console.log(4)
-})
-console.log(5)
-</code></pre><p>运行结果：</p>
-<p>解释：Promise 构造函数是同步执行的，所以先打印 2、3，然后打印 5，接下来 event loop 进入执行 microtask 阶段，执行 promise.then 的回调函数打印出 4，然后执行下一个 macrotask，恰好是 timer 阶段的 setTimeout 的回调函数，打印出 1。</p>
-<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>setImmediate(()=&gt;{
-    console.log(1)
-    setTimeout(()=&gt;{
-       console.log(2)
-    },100)
-    setImmediate(()=&gt;{
-       console.log(3)
-    })
-    process.nextTick(
-       ()=&gt;{console.log(4)})
-     })
-     process.nextTick(()=&gt;{
-       console.log(5)
-       setTimeout(()=&gt;{
-        console.log(6)},100)
-        setImmediate(()=&gt;{
-        console.log(7)})
-        process.nextTick(
-        ()=&gt;{console.log(8)})
-        })console.log(9)
-</code></pre><p>运行结果：</p>
-<p>process.nextTick、setTimeout 和 setImmediate 的组合，请读者自己推理吧。</p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a href="https://link.zhihu.com/?target=https%3A//medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c" target="_blank" rel="noopener">https://medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c</a></li>
-<li><a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/57d68794cb6f605d360105bf" target="_blank" rel="noopener">https://cnodejs.org/topic/57d68794cb6f605d360105bf</a></li>
-</ul>
+            <p>大家都知道，vue是个MVVM框架，能够实现view和model的双向绑定，不像backbone那样，model改变需要手动去通知view更新，而vue实现的原理就是通过Object.defineProperty实现数据挟持，定义setter，然后数据改变的时候通知视图更新。</p>
+<p>下面是网上vue的实现原理图：</p>
+<p> <img src="https://user-gold-cdn.xitu.io/2018/4/10/162ad3d5be3e5105?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="image"></p>
+<h3 id="实现效果"><a href="#实现效果" class="headerlink" title="实现效果"></a>实现效果</h3><p><img src="https://user-gold-cdn.xitu.io/2018/8/15/1653b294cd1b80e3?imageslim" alt=""></p>
+<h4 id="1、MVVM"><a href="#1、MVVM" class="headerlink" title="1、MVVM"></a>1、MVVM</h4><p>入口文件，在这里对vue当中的$el、methods、$data进行初始化，调用observer遍历$data的数据并进行挟持，调用compile遍历$el下的所有节点，解析指令和取值操作。遍历$data的数据，通过Object.defineProperty的getter和setter实现对$data的代理。</p>
+<h4 id="2、Observer"><a href="#2、Observer" class="headerlink" title="2、Observer"></a>2、Observer</h4><p>遍历data，通过Object.defineProperty设置getter和setter，在setter知道数据发生了改变，然后通知Wacher去更新view。</p>
+<h4 id="3、Compile"><a href="#3、Compile" class="headerlink" title="3、Compile"></a>3、Compile</h4><p>遍历$el下的所有节点，解析指令和取值操作等，为每个节点绑定更新函数（为什么在compile这里绑定呢？因为这里刚好是遍历的节点☺），绑定事件和method的关系，同时也添加订阅者，当接受到视图更新的订阅消息后，调用更新函数，实现视图更新。同时在添加订阅者的时候，初始化渲染视图。</p>
+<h4 id="4、Watcher"><a href="#4、Watcher" class="headerlink" title="4、Watcher"></a>4、Watcher</h4><p>Watcher作为订阅者，充当Observer和Compile的中间桥梁，包含update方法，update方法调用Compile中绑定的事件更新函数，实现对视图的初始化和更新操作。</p>
+<h3 id="MVVM的实现"><a href="#MVVM的实现" class="headerlink" title="MVVM的实现"></a>MVVM的实现</h3><p>MVVM完成初始化操作，并且调用observer和compile。对$data进行代理，如此便可以通过this.attribute来代理this.$data.attribute。因为一个属性可能对应多个指令，所以需要一个_binding属性来存放属性对应的所有订阅者，这样属性一改变，就可以取出所有的订阅者去更新视图。</p>
+<pre><code>function MVVM(options) {
+  // 初始化
+  this.$data = options.data;
+  this.$methods = options.methods;
+  this.$el = options.el;
+  // 保存data的每个属性对应的所有watcher
+  this._binding  = {};
+  // 调用observer和compile
+  this._observer(options.data);
+  this._compile();
+  // this.xxx 代理this.$data.xxx
+  this.proxyAttribute();
+}
+</code></pre><h3 id="Observer的实现"><a href="#Observer的实现" class="headerlink" title="Observer的实现"></a>Observer的实现</h3><p>Observer遍历$data，通过Object.defineProperty的setter的挟持数据改变，监听到数据改变后取出所有该属性对应的订阅者，然后通知更新函数更新视图。</p>
+<p>注意：这里有循环，且闭包（getter和setter）里面需要依赖循环项（value和key），所以用立即执行函数解决循环项获取不对的问题。</p>
+<pre><code>MVVM.prototype._observer = function(data) {
+  var self = this;
+  for(var key in this.$data) {
+    if (this.$data.hasOwnProperty(key)) {
+      // 初始化属性对应的订阅者容器（数组）
+      this._binding[key] = {
+        _directives: [],
+        _texts: []
+      };
 
+      if(typeof this.$data[key] === &quot;object&quot;) {
+        return this._observer(this.$data[key]);
+      }
+      var val = data[key];
+      // 立即执行函数获取正确的循环项
+      (function(value, key) {
+        Object.defineProperty(self.$data, key, {
+          enumerable: true,
+          configurable: true,
+          get: function() {
+            return value;
+          },
+          set(newval) {
+            if(newval === value) {
+              return;
+            }
+            value = newval;
+            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-属性
+            if(self._binding[key]._directives) {
+              self._binding[key]._directives.forEach(function(watcher) {
+                watcher.update();
+              }, self);
+            }
+            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-文本
+            if(self._binding[key]._texts) {
+              self._binding[key]._texts.forEach(function(watcher) {
+                watcher.update();
+              }, self);
+            }
+          }
+        });
+      })(val, key);
+    }
+  }
+}
+</code></pre><h3 id="Compile的实现"><a href="#Compile的实现" class="headerlink" title="Compile的实现"></a>Compile的实现</h3><p>Compile遍历所有的节点，解析指令，为每个节点绑定更新函数，且添加订阅者，当订阅者通知view更新的时候，调用更新函数，实现对视图的更新。</p>
+<p>这里同样需要使用立即执行函数来解决闭包依赖的循环项问题。</p>
+<p>还有一点需要解决的是，如果节点的innerText依赖多个属性的话，如何做到只替换改变属性对应的文本问题。</p>
+<p>比如：已经被编译解析成“欢迎： 鸣人”，如果message改变为“你好”，怎么让使得“欢迎：鸣人”改为“你好：鸣人”。</p>
+<pre><code>MVVM.prototype._compile = function() {
+  var dom = document.querySelector(this.$el);
+  var children = dom.children;
+  var self = this;
+  var i = 0, j = 0;
+  // 更新函数，但observer中model的数据改变的时候，通过Watcher的update调用更新函数，从而更新dom
+  var updater = null;
+  for(; i &lt; children.length; i++) {
+    var node = children[i];
+    (function(node) {
+      // 解析{{}}里面的内容
+      // 保存指令原始内容，不然数据更新时无法完成替换
+      var text = node.innerText;
+      var matches = text.match(/{{([^{}]+)}}/g);
+      if(matches &amp;&amp; matches.length &gt; 0) {
+        // 保存和node绑定的所有属性
+        node.bindingAttributes = [];
+        for(j = 0; j &lt; matches.length; j++) {
+          // data某个属性
+          var attr = matches[j].match(/{{([^{}]+)}}/)[1];
+          // 将和该node绑定的data属性保存起来
+          node.bindingAttributes.push(attr);
+          (function(attr) {
+            updater = function() {
+              // 改变的属性值对应的文本进行替换
+              var innerText = text.replace(new RegExp(&quot;{{" + attr + "}}&quot;, &quot;g&quot;), self.$data[attr]);
+              // 如果该node绑定多个属性 eg:&lt;div&gt;{{title}}{{description}}&lt;/div&gt;
+              for(var k = 0; k &lt; node.bindingAttributes.length; k++) {
+                if(node.bindingAttributes[k] !== attr) {
+                  // 恢复原来没改变的属性对应的文本
+                  innerText = innerText.replace(&quot;{{" + node.bindingAttributes[k] + "}}&quot;, self.$data[node.bindingAttributes[k]]);
+                }
+              }
+              node.innerText = innerText;
+            }
+            self._binding[attr]._texts.push(new Watcher(self, attr, updater));
+          })(attr);
+        }
+      }
+
+      // 解析vue指令
+      var attributes = node.getAttributeNames();
+      for(j = 0; j &lt; attributes.length; j++) {
+        // vue指令
+        var attribute = attributes[j];
+        // DOM attribute
+        var domAttr = null;
+        // 绑定的data属性
+        var vmDataAttr = node.getAttribute(attribute);
+
+        if(/v-bind:([^=]+)/.test(attribute)) {
+          // 解析v-bind
+          domAttr = RegExp.$1;
+          // 更新函数
+          updater = function(val) {
+            node[domAttr] = val;
+          }
+          // data属性绑定多个watcher
+          self._binding[vmDataAttr]._directives.push(
+            new Watcher(self, vmDataAttr, updater)
+          )
+        } elseif(attribute === &quot;v-model&quot; &amp;&amp; (node.tagName = &apos;INPUT&apos; || node.tagName == &apos;TEXTAREA&apos;)) {
+          // 解析v-model
+          // 更新函数
+          updater = function(val) {
+            node.value = val;
+          }
+          // data属性绑定多个watcher
+          self._binding[vmDataAttr]._directives.push(
+            new Watcher(self, vmDataAttr, updater)
+          )
+          // 监听input/textarea的数据变化，同步到model去，实现双向绑定
+          node.addEventListener(&quot;input&quot;, function(evt) {
+            var $el = evt.currentTarget;
+            self.$data[vmDataAttr] = $el.value;
+          });
+        } elseif(/v-on:([^=]+)/.test(attribute)) {
+          // 解析v-on
+          var event = RegExp.$1;
+          var method = vmDataAttr;
+          node.addEventListener(event, function(evt) {
+            self.$methods[method] &amp;&amp; self.$methods[method].call(self, evt);
+          });
+        }
+      }
+    })(node);
+  }
+
+}
+</code></pre><h3 id="Watcher的实现"><a href="#Watcher的实现" class="headerlink" title="Watcher的实现"></a>Watcher的实现</h3><p>Watcher充当订阅者的角色，架起了Observer和Compile的桥梁，Observer监听到数据变化后，通知Wathcer更新视图(调用Wathcer的update方法)，Watcher再告诉Compile去调用更新函数，实现dom的更新。同时页面的初始化渲染也交给了Watcher（当然也可以放到Compile进行）。</p>
+<pre><code>function Watcher(vm, attr, cb) {
+  this.vm = vm; // viewmodel
+  this.attr = attr; // data的属性，一个watcher订阅一个data属性
+  this.cb = cb; // 更新函数，在compile那边定义
+  // 初始化渲染视图
+  this.update();
+}
+
+Watcher.prototype.update = function() {
+  // 通知comile中的更新函数更新dom 
+  this.cb(this.vm.$data[this.attr]);
+}
+</code></pre><h3 id="全部代码"><a href="#全部代码" class="headerlink" title="全部代码"></a>全部代码</h3><p>git地址：<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FVikiLee%2FMVVM.git" target="_blank" rel="noopener">github.com/VikiLee/MVV…</a></p>
+<p>鸣谢：<a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F5acc17cb51882555745a03f8" target="_blank" rel="noopener">juejin.im/post/5acc17…</a></p>
+<h3 id="使用例子"><a href="#使用例子" class="headerlink" title="使用例子"></a>使用例子</h3><pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;
+  &lt;title&gt;Document&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id=&quot;view&quot;&gt;
+    &lt;div v-bind:id=&quot;id&quot;&gt;
+      {{message}}:{{name}}
+    &lt;/div&gt;
+    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;
+    &lt;button v-on:click=&quot;handleClick&quot;&gt;获取输入值&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;script src=&quot;js/MVVM.js&quot;type=&quot;text/javascript&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+  var vue = new MVVM({
+    el: &quot;#view&quot;,
+    data: {
+      message: &quot;欢迎光临&quot;,
+      name: &quot;鸣人&quot;,
+      id: &quot;id&quot;
+    },
+    methods: {
+      handleClick: function() {
+        alert(this.message + &quot;:&quot; + this.name + &quot;, 点击确定路飞会出来&quot;);
+        this.name = &apos;路飞&apos;;
+      }
+    }
+  })
+
+  setTimeout(function() {
+    vue.message = &quot;你好&quot;;
+  }, 1000);
+&lt;/script&gt;
+&lt;/html&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/01/模拟实现call和apply/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/01/模拟实现call和apply/" itemprop="url">模拟实现call和apply</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-01T20:39:27+08:00">
+                2018-10-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h4><p>JS 函数 call 和 apply 用来手动改变 this 的指向，call 和 apply  唯一的区别就在于函数参数的传递方式不同，call 是以逗号的形式，apply 是以数组的形式：</p>
+<pre><code>let person1 = {
+    name: &quot;person1&quot;,
+    say: function(age, sex) {
+        console.log(this.name + &apos; age: &apos; + age + &apos; sex: &apos; + sex);
+    }
+}
+
+let person2 = {
+    name: &quot;person&quot;
+}
+
+person1.say.call(person2, 20, &quot;男&quot;);
+
+person1.say.apply(person2, [20, &quot;男&quot;]);
+</code></pre><p>本文就尝试用其他方式来模拟实现 call 和 apply。</p>
+<p>首先观察 call 和 apply 有什么特点？</p>
+<ol>
+<li>被函数调用（函数也是对象），相当于 call 和 apply 是函数的属性</li>
+<li>如果没有传入需要 this 指向对象，那么 this 指向全局对象</li>
+<li>函数执行了</li>
+<li>最后都改变了 this 的指向</li>
+</ol>
+<h4 id="一、初步实现"><a href="#一、初步实现" class="headerlink" title="一、初步实现"></a>一、初步实现</h4><p>基于 call 函数是调用函数的属性的特点，call 的 this 指向调用函数，我们可以尝试把调用函数的作为传入的新对象的一个属性，执行后，再删除这个属性就好了。</p>
+<pre><code>Function.prototype.newCall = function (context) {
+    context.fn = this;  // this 指的是 say 函数
+    context.fn();
+    delete context.fn;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+var say = function() {
+    console.log(this.name);
+}
+
+say.newCall(person);  // jayChou
+</code></pre><p>是不是就初步模拟实现了 call 函数呢，由于 call 还涉及到传参的问题，所以我们进入到下一环节。</p>
+<h4 id="二、eval-方式"><a href="#二、eval-方式" class="headerlink" title="二、eval 方式"></a>二、eval 方式</h4><p>在给对象临时一个函数，并执行时，传入的参数是除了 context 其余的参数。那么我们可以截取 arguments 参数数组的第一个后，将剩余的参数传入临时数组。</p>
+<p>在前面我有讲过函数 arguments 类数组对象的特点，arguments 是不支持数组的大多数方法, 但是支持for 循环来遍历数组。</p>
+<pre><code>Function.prototype.newCall = function (context) {
+    context.fn = this;
+
+    let args = [];
+
+    for(let i=1; i&lt; arguments.length; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+    // args =&gt; [arguments[1], arguments[2], arguments[3], ...]
+
+    context.fn(args.join(&apos;,&apos;));  // ？？？delete context.fn;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+var say = function(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+}
+
+say.newCall(person);
+</code></pre><p>上面传递参数的方式最后肯定是失败的，我们可以尝试 eval 的方式，将参数添加子函数的作用域中。</p>
+<blockquote>
+<p>eval() 函数可计算某个字符串，并执行其中的的 JavaScript 代码</p>
+</blockquote>
+<pre><code>Function.prototype.newCall = function (context) {
+    context.fn = this;
+
+    let args = [];
+
+    for(var i=1; i&lt; arguments.length; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+
+    // args =&gt; [arguments[1], arguments[2], arguments[3], ...]eval(&apos;context.fn(&apos; + args + &apos;)&apos;);
+    delete context.fn;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+functionsay(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+}
+
+say.newCall(person, 18, &apos;男&apos;);  // name: jayChou,age: 18, sex: 男
+</code></pre><p>成功啦！</p>
+<p>实现了函数参数的传递，那么函数返回值怎么处理呢。而且，如果传入的对象是 null，又该如何处理？所以还需要再做一些工作：</p>
+<pre><code>Function.prototype.newCall = function (context) {
+    if (typeof context === &apos;object&apos;) {
+        context = context || window
+    } else {
+        context = Object.create(null);
+    }
+
+    context.fn = this;
+
+    let args = [];
+
+    for(var i=1; i&lt; arguments.length; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+
+    // args =&gt; [arguments[1], arguments[2], arguments[3], ...]var result = eval(&apos;context.fn(&apos; + args + &apos;)&apos;);  // 处理返回值delete context.fn;
+    return result;  // 返回返回值
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+functionsay(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+    return age + sex;
+}
+
+var check = say.newCall(person, 18, &apos;男&apos;);
+console.log(check); // 18男
+</code></pre><p>判断传入对象的类型，如果为 null 就指向 window 对象。利用 eval 来执行字符串代码，并返回字符串代码执行的结果，就完成了模拟 call。<br>大功告成！</p>
+<h4 id="三、ES-6-实现"><a href="#三、ES-6-实现" class="headerlink" title="三、ES 6 实现"></a>三、ES 6 实现</h4><p>前面我们用的 eval 方式可以用 ES6 的解决还存在的一些问题，有没有注意到，这段代码是有问题的。</p>
+<pre><code>context.fn = this;
+</code></pre><p>假如对象在被 call 调用前，已经有 fn 属性怎么办？</p>
+<p>ES6 中提供了一种新的基本数据类型，Symbol，表示独一无二的值，另外，Symbol 作为属性的时候，不能使用点运算符。所以再加上 ES 的 rest 剩余参数替代 arguments 遍历的工作就有：</p>
+<pre><code>Function.prototype.newCall = function (context,...params) {
+    if (typeof context === &apos;object&apos;) {
+        context = context || window
+    } else {
+        context = Object.create(null);
+    }
+    let fn = Symbol();
+    context[fn] = thisvar result = context[fn](...params);
+
+    delete context.fn;
+    return result;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+functionsay(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+    return age + sex;
+}
+
+var check = say.newCall(person, 18, &apos;男&apos;);
+console.log(check); // 18男
+</code></pre><h4 id="四、apply"><a href="#四、apply" class="headerlink" title="四、apply"></a>四、apply</h4><p>apply 和 call 的实现原理，基本类似，区别在于 apply 的参数是以数组的形式传入。</p>
+<pre><code>Function.prototype.newApply = function (context, arr) {
+    if (typeof context === &apos;object&apos;) {
+        context = context || window
+    } else {
+        context = Object.create(null);
+    }
+    context.fn = this;
+
+    var result;
+    if (!arr) {  // 判断函数参数是否为空
+        result = context.fn();
+    }
+    else {
+        var args = [];
+        for (var i = 0; i &lt; arr.length; i++) {
+            args.push(&apos;arr[&apos; + i + &apos;]&apos;);
+        }
+        result = eval(&apos;context.fn(&apos; + args + &apos;)&apos;);
+    }
+
+    delete context.fn;
+    return result;
+}
+</code></pre><p><strong>es6 实现</strong></p>
+<pre><code>Function.prototype.newApply = function(context, parameter) {
+  if (typeof context === &apos;object&apos;) {
+    context = context || window
+  } else {
+    context = Object.create(null)
+  }
+  let fn = Symbol()
+  context[fn] = this;
+  var result = context[fn](...parameter);
+  delete context[fn];
+  return result;
+}
+</code></pre>
           
         
       
@@ -2585,7 +2783,7 @@ console.log(5)
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">107</span>
+                  <span class="site-state-item-count">106</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
