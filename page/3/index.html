@@ -300,6 +300,320 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/03/redux中间件/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/03/redux中间件/" itemprop="url">redux中间件</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-03T00:11:00+08:00">
+                2018-08-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到中间件，你可能会想到<code>Express</code>和<code>Koa</code>等服务端框架，没想到也没关系，这句话是我装逼用的。</p>
+<p>那么redux中的中间件到底干嘛用的？</p>
+<p>有这样一个问题？我们之前用的<code>Redux</code>都是在<code>Action</code>发出之后立即执行<code>Reducer</code>,计算出<code>state</code>,这是同步操作。如果想异步操作呢？即过一段时间再执行<code>Reducer</code>怎么办？这里就需要用到中间件<code>middleware</code>。</p>
+<p>先放一张图看看：<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dcb142c194bfb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
+<h2 id="一、中间件的概念"><a href="#一、中间件的概念" class="headerlink" title="一、中间件的概念"></a>一、中间件的概念</h2><p><code>redux</code>是有流程的，那么，我们该把这个异步操作放在哪个环节比较合适呢？</p>
+<ul>
+<li><code>Reducer</code>?纯函数只承担计算<code>State</code>功能，不适合其它功能。</li>
+<li><code>View</code>?与<code>State</code>一一对应，可以看做是<code>State</code>的视觉层，也不适合承担其它功能。</li>
+<li><code>Action</code>？它是一个对象，即存储动作的载体，只能被操作。</li>
+</ul>
+<p>其实，也只有<code>dispatch</code>能胜任此重任了。那么怎么在<code>dispatch</code>中添加其它操作呢？</p>
+<pre><code>let next = store.dispatch;
+store.dispatch = function(action){
+   console.log(&apos;老状态 &apos;,store.getState());
+   next(action);
+   console.log(&apos;新状态 &apos;,store.getState());
+}
+复制代码
+</code></pre><p>示例中可以看出，我们对<code>store.dispatch</code>重新进行了定义，在发送<code>action</code>的前后，做了打印。</p>
+<p>这是中间件的大致雏形，真实的中间件要比这么复杂多了</p>
+<h2 id="二、中间件的用法"><a href="#二、中间件的用法" class="headerlink" title="二、中间件的用法"></a>二、中间件的用法</h2><p>我们在这里先看看中间件是怎么使用，下面我们一步步剖析每个细节。</p>
+<pre><code>import {applyMiddleware,createStore} from &apos;redux&apos;;
+import reduxLogger form &apos;redux-logger&apos;;
+
+const store = createStore(reducer,inital_state,applyMiddleware(thunk, promise,reduxLogger));
+
+复制代码
+</code></pre><p>代码中有两点需要注意：</p>
+<ul>
+<li><p>1、<code>createStore</code>方法可以整个应用的初始状态作为参数<br>内部是这么处理的</p>
+<p>  let state = inital_state;<br>  复制代码</p>
+</li>
+<li><p>2、中间件的参数次序有讲究。下面我会把这个问题讲明白。</p>
+</li>
+</ul>
+<h2 id="三、applyMiddleware"><a href="#三、applyMiddleware" class="headerlink" title="三、applyMiddleware"></a>三、applyMiddleware</h2><p>Middleware可以让你包装<code>store</code>的<code>dispatch</code>方法来达到你想要的目的。同时，<code>middleWare</code>还拥有“可组合”这一关键特性。多个<code>middleWare</code>可以被组合到一起使用，形成<code>middleWare</code>链，依次执行。其中每个<code>middleware</code>不需要关心链前后的的<code>middleWare</code>的任何信息。</p>
+<pre><code>function applyMiddleware(...middlewares){
+    returnfunction(createStore){
+        returnfunction(reducer){
+            //引入store
+            let store = createStore(reducer);
+            let dispatch = store.dispatch;
+            let middlewareAPI = {
+                getState:store.getState,
+                // 对dispatch进行包装
+                dispatch:action=&gt;dispatch(action)
+            }
+            //每个中间件都是这种模型  ({ getState, dispatch }) =&gt; next =&gt; action
+            chain = middlewares.map(middleware=&gt;middleware(middleAPI));
+            dispatch = compose(...chain)(store.dispatch);
+            // dispatch被改装后，返回store
+            return{...store,dispatch};
+        }
+    }
+}
+复制代码
+</code></pre><p>上面代码中，所有中间件都被放进了一个数组<code>chain</code>,然后嵌套执行，最后执行<code>store.dispatch</code>。中间件内部<code>middlewaAPI</code>可以拿到<code>getState</code>和<code>dispatch</code>这两个方法。</p>
+<p><code>...middleware</code>：遵循<code>Redux middleware API</code>的函数。每个<code>middleware</code>接受<code>Store</code>的<code>dispatch</code>和<code>getState</code>函数作为命名参数，并返回一个函数。该函数会被传入成为<code>next</code>的下一个middleWare 的dispatch方法，并返回一个接收action的新函数，这个函数可以直接调用next(action)，或者在其他需要的时刻调用，甚至根本不去调用它。</p>
+<p>所以，接下来，我们就能看到middleware的函数签名是<code>({ getState, dispatch }) =&gt; next =&gt; action</code></p>
+<p>其实，它的本质就是包装sotre中的<code>dispatch</code>。</p>
+<p>上面代码中，还用到了<code>compose</code>方法，我们来看看compose是怎么是实现的？</p>
+<h3 id="compose"><a href="#compose" class="headerlink" title="compose"></a>compose</h3><p>先看下面一个栗子：</p>
+<pre><code>function add1(str){
+   return str+1;
+}
+function add2(str){
+    return str+2;
+ }
+ function add3(str){
+    return str+3;
+ }
+ let result = add3(add2(add1(&apos;好吃&apos;)));// 好吃123;
+
+复制代码
+</code></pre><p>这中写法调用起来，一层套一层，是不是看着很不爽，我们简化一下：</p>
+<pre><code>function compose(...fns){
+    if(fns.length==1)
+     return fns[0];
+   returnfunction(...args){
+    let last = fns.pop();
+    return fns.reduceRight((prev,next)=&gt;{
+         return  next(prev);  
+    },last(...args));
+   }
+ }
+ let add = compose(add3,add2,add1);//
+ let result = add(&apos;好吃&apos;);// 好吃123
+ // 上面的代码其实就是redux3.6.0版本中compose的实现方式
+复制代码
+</code></pre><p>看看这个代码是不是用起来，很干练一些。其实还可以简化</p>
+<pre><code>function compose(...fns){
+  if(fns.length==1)
+     return fns[0];
+   return fns.reduce((a,b)=&gt;(...args)=&gt;a(b(...args)));//add3(add2(add1(&apos;好吃&apos;)))
+ }
+ let add = compose(add3,add2,add1);//
+ let result = add(&apos;好吃&apos;);// 好吃123
+ // 这是redux3.6.0版本之后的compose实现方式，一直沿用至今。
+复制代码
+</code></pre><p>至于为什么<code>applyMiddleWare</code>的参数有顺序，这里给出了答案。</p>
+<h2 id="四、Applymiddleware的三个常用参数"><a href="#四、Applymiddleware的三个常用参数" class="headerlink" title="四、Applymiddleware的三个常用参数"></a>四、Applymiddleware的三个常用参数</h2><h3 id="4-1、日志记录"><a href="#4-1、日志记录" class="headerlink" title="4.1、日志记录"></a>4.1、日志记录</h3><p>使用 Redux 的一个益处就是它让 state 的变化过程变的可预知和透明。每当一个 action 发起完成后，新的 state 就会被计算并保存下来。State 不能被自身修改，只能由特定的 action 引起变化。</p>
+<p>试想一下，当我们的应用中每一个 action 被发起以及每次新的 state 被计算完成时都将它们记录下来，岂不是很好？当程序出现问题时，我们可以通过查阅日志找出是哪个 action 导致了 state 不正确。<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dd052d2e07b77?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>图片的效果是不是很期待啊！！！</p>
+<p>我们先来手动实现一版。</p>
+<pre><code>// 记录所有被发起的action和新的statelet next = store.dispatch;
+store.dispatch = function(action){
+   console.log(&apos;老状态 &apos;,store.getState());
+   next(action);
+   console.log(&apos;新状态 &apos;,store.getState());
+}
+复制代码
+</code></pre><p>还是上面的示例，我们来做个修改</p>
+<pre><code>let logger = function({ getState, dispatch }){
+   returnfunction(next){// 这里的next可以理解为store.dispath,本质上就是调用 middleware 链中下一个 middleware 的 dispatch。returnfunction(action){
+        console.log(&apos;老状态1 &apos;,getState());
+        next(action);//派发动作console.log(&apos;新状态1 &apos;,getState());
+    }
+    }
+}
+// 高逼格写法let logger = ({ getState, dispatch }) =&gt; next =&gt; action =&gt; {
+  console.log(&apos;老状态1 &apos;,getState());
+  next(action)
+  console.log(&apos;新状态1 &apos;,getState());
+}
+复制代码
+</code></pre><h3 id="4-2、redux-thunk-中间件"><a href="#4-2、redux-thunk-中间件" class="headerlink" title="4.2、redux-thunk 中间件"></a>4.2、redux-thunk 中间件</h3><p><code>redux-thunk</code> 是<code>redux</code>官方文档中用到的异步组件，实质就是一个<code>redux</code>中间件，一个封装表达式的函数，封装的目的就是延迟执行表达式。</p>
+<p><code>redux-thunk</code>是一个通用的解决方案，其核心思想是让<code>action</code>可以变成一个<code>thunk</code>，这样的话，同步情况：<code>dispatch(action)</code>,异步情况：<code>dispatch(thunk)</code>。</p>
+<p>下面是<code>redux-thunk</code>的实现：</p>
+<pre><code>let thunk = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
+    if(typeof action == &apos;function&apos;){
+        action(dispatch,getState);
+    }else{
+        next(action);//这里可以理解为dispatch(action),本质上就是调用 middleware 链中下一个 middleware 的 dispatch。
+    }
+}
+复制代码
+</code></pre><p>使用redux-thunk</p>
+<pre><code>const store = createStore(  
+  reducer,
+  applyMiddleware(thunk)
+);
+复制代码
+</code></pre><p>然后我们实现一个thunkActionCreator</p>
+<pre><code>    //过一秒加1
+    exportfunction thunkActionCreator(payload){
+        returnfunction(dispatch,getState){
+            setTimeout(function(){
+                dispatch({type:types.INCREMENT,payload:payload});
+            },1000);
+        }
+    },
+复制代码
+</code></pre><p>最后，在组件中dispatch thunk</p>
+<pre><code>this.dispatch(thunkActionCreator(payload));
+复制代码
+</code></pre><h3 id="4-3、redux-promise"><a href="#4-3、redux-promise" class="headerlink" title="4.3、redux-promise"></a>4.3、redux-promise</h3><p><code>redux-promise</code>也是延迟执行的表达式，它是解决异步的另外一种方案。</p>
+<p><code>redux-thunk</code>和核心思想是把<code>action</code>变成<code>thunk</code>，而<code>redux-promise</code>的核心思想是让<code>action</code>返回一个promise对象。</p>
+<p>这个中间件使得<code>store.dispatch</code>方法可以接收Promise对象作为参数。这时 ，action 有两种写法:</p>
+<p>写法一、返回值是一个Promise对象。</p>
+<pre><code>functionpromiseIncrement(payload){
+ //  return {type:types.INCREMENT,payload:payload}  以前是这种写法returnnewPromise(function(resolve,reject){
+      setTimeout(function(){
+        resolve({type:types.INCREMENT,payload:payload});
+      },1000);
+    });
+ },
+复制代码
+</code></pre><p>写法二，action 对象的payload属性是一个Promise对象，这需要从</p>
+<pre><code>functionpayloadIncrement(){
+    return {
+        type:types.INCREMENT,
+        payload: newPromise(function(resolve,reject){
+            setTimeout(function(){
+                if(Math.random()&gt;.5){
+                    resolve(100);
+                }else{
+                    reject(-100);
+                }
+            },1000)
+        })
+    }
+}
+复制代码
+</code></pre><p>下面我们来看看 <code>redux-promise</code>是怎么实现的，就会明白它内部是怎么操作的.</p>
+<pre><code>let promise = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
+    if(action.then &amp;&amp; typeof action.then == &apos;function&apos;){
+        action.then(dispatch);
+        // 这里的dispatch就是一个函数，dispatch(action){state:reducer(state,action)};
+    }elseif(action.payload&amp;&amp; action.payload.then&amp;&amp; typeof action.payload.then == &apos;function&apos;){
+        action.payload.then(payload=&gt;dispatch({...action,payload}),payload=&gt;dispatch({...action,payload}));
+    }else{
+        next(action);
+    }
+}
+复制代码
+</code></pre><p>上面的代码可以看出，如果Action本身就是一个Promise，它resolve以后的值应该是一个Action对象，会被dispatch方法送出action.then(dispatch)；如果<code>Action</code>对象的 <code>payload</code>属性是一个<code>Promise</code>对象，那么无论<code>resolve</code>和<code>reject</code>,dispatch 方法都会发出<code>Action</code>。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/30/关于-ES6-中-Promise-的面试题/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3549,176 +3863,6 @@ h2[data-text]::after {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/Vue源码必知必会/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/02/Vue源码必知必会/" itemprop="url">Vue源码必知必会</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T16:24:04+08:00">
-                2018-05-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>Vue.js源码分析，记录了个人学习Vue.js源码的过程中的一些心得以及收获。以及对于Vue框架，周边库的一些学习心得和个人见解。</p>
-<p>在学习的过程中我分别为Vue.js、Vuex、Vue-router加上了注释，分别在文件夹<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-src" target="_blank" rel="noopener">vue-src</a>、<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vuex-src" target="_blank" rel="noopener">vuex-src</a>以及<a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/vue-router-src" target="_blank" rel="noopener">vue-router-src</a>中，希望可以帮助有需要的同学更好地学习理解Vue.js及周边库的源码。</p>
-<p>感谢尤大提高生产力。</p>
-<p>当前Vue.js源码版本2.3.0，Vuex版本为2.4.0，Vue-router版本为3.0.1。</p>
-<p>本项目希望对Vue.js做更进一步的探索与学习，Vue.js基础内容请参考Vue.js官网，<a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/guide/" target="_blank" rel="noopener">https://cn.vuejs.org/v2/guide/</a>。 可能会有理解存在偏差的地方，欢迎提issue指出，共同学习，共同进步。</p>
-<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><h2 id="源码相关"><a href="#源码相关" class="headerlink" title="源码相关"></a>源码相关</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E5%2593%258D%25E5%25BA%2594%25E5%25BC%258F%25E5%258E%259F%25E7%2590%2586.MarkDown" target="_blank" rel="noopener">Vue.js响应式原理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BE%259D%25E8%25B5%2596%25E6%2594%25B6%25E9%259B%2586.MarkDown" target="_blank" rel="noopener">Vue.js依赖收集</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258E%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E5%2586%258D%25E7%259C%258B%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.MarkDown" target="_blank" rel="noopener">从Vue.js源码角度再看数据绑定</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E4%25BA%258B%25E4%25BB%25B6%25E6%259C%25BA%25E5%2588%25B6.MarkDown" target="_blank" rel="noopener">Vue.js事件机制</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VNode%25E8%258A%2582%25E7%2582%25B9.MarkDown" target="_blank" rel="noopener">VNode节点(Vue.js实现)</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/VirtualDOM%25E4%25B8%258Ediff%28Vue%25E5%25AE%259E%25E7%258E%25B0%29.MarkDown" target="_blank" rel="noopener">Virtual DOM与diff(Vue.js实现)</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%2581%258A%25E8%2581%258AVue%25E7%259A%2584template%25E7%25BC%2596%25E8%25AF%2591.MarkDown" target="_blank" rel="noopener">聊聊Vue.js的template编译</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue.js%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0DOM%25E7%25AD%2596%25E7%2595%25A5%25E5%258F%258AnextTick.MarkDown" target="_blank" rel="noopener">Vue.js异步更新DOM策略及nextTick</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E4%25BB%258Etemplate%25E5%2588%25B0DOM%28Vue.js%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%2592%25E5%25BA%25A6%25E7%259C%258B%25E5%2586%2585%25E9%2583%25A8%25E8%25BF%2590%25E8%25A1%258C%25E6%259C%25BA%25E5%2588%25B6%29.MarkDown" target="_blank" rel="noopener">从template到DOM（Vue.js源码角度看内部运行机制）</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vuex%25E6%25BA%2590%25E7%25A0%2581%25E8%25A7%25A3%25E6%259E%2590.MarkDown" target="_blank" rel="noopener">Vuex源码解析</a></p>
-<h2 id="随笔杂谈"><a href="#随笔杂谈" class="headerlink" title="随笔杂谈"></a>随笔杂谈</h2><p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/Vue%25E7%25BB%2584%25E4%25BB%25B6%25E9%2597%25B4%25E9%2580%259A%25E4%25BF%25A1.MarkDown" target="_blank" rel="noopener">Vue组件间通信</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/answershuto/learnVue/blob/master/docs/%25E8%25AF%25B4%25E8%25AF%25B4element%25E7%25BB%2584%25E4%25BB%25B6%25E5%25BA%2593broadcast%25E4%25B8%258Edispatch.MarkDown" target="_blank" rel="noopener">说说element组件库broadcast与dispatch</a></p>
-<p>该源码分析，会带着大家一起学习<code>Vue</code>的大部分代码，而不是简单的讲一下它的原理，我会尽可能的多解释每一行主要的代码含义，另外一些辅助方法什么的，大家可以在学习的过程中，自己看一眼就知道了。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E6%25BA%2590%25E7%25A0%2581%25E7%259B%25AE%25E5%25BD%2595%25E7%25BB%2593%25E6%259E%2584%25E6%2595%25B4%25E7%2590%2586.md" target="_blank" rel="noopener">Vue源码目录结构整理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E5%2585%25A5%25E5%258F%25A3%25E6%2596%2587%25E4%25BB%25B6%25E6%259F%25A5%25E7%259C%258BVue%25E6%25BA%2590%25E7%25A0%2581.md" target="_blank" rel="noopener">从入口文件查看Vue源码</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BB%258E%25E4%25B8%2580%25E4%25B8%25AA%25E5%25B0%258F%25E6%25A0%2597%25E5%25AD%2590%25E6%259F%25A5%25E7%259C%258BVue%25E7%259A%2584%25E7%2594%259F%25E5%2591%25BD%25E5%2591%25A8%25E6%259C%259F.md" target="_blank" rel="noopener">从小栗子查看Vue的生命周期</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E5%258F%258C%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E7%25BB%2591%25E5%25AE%259A.md" target="_blank" rel="noopener">双向数据绑定</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">compile概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590ast.md" target="_blank" rel="noopener">compile——生成ast</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E4%25BC%2598%25E5%258C%2596%25E9%259D%2599%25E6%2580%2581%25E5%2586%2585%25E5%25AE%25B9.md" target="_blank" rel="noopener">compile——优化静态内容</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/compile%25E2%2580%2594%25E2%2580%2594%25E7%2594%259F%25E6%2588%2590render%25E5%25AD%2597%25E7%25AC%25A6%25E4%25B8%25B2.md" target="_blank" rel="noopener">compile——生成render字符串</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">vdom概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue.extend.md" target="_blank" rel="noopener">Vue.extend</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/vdom%25E2%2580%2594%25E2%2580%2594VNode.md" target="_blank" rel="noopener">vdom——VNode</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/children%25E7%259A%2584%25E5%25BD%2592%25E4%25B8%2580%25E5%258C%2596%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">children的归一化处理</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E5%2588%259B%25E5%25BB%25BAdom.md" target="_blank" rel="noopener">patch——创建dom</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594diff.md" target="_blank" rel="noopener">patch——diff</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/patch%25E2%2580%2594%25E2%2580%2594%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E7%25BB%2584%25E4%25BB%25B6%25E7%259A%2584%25E5%25A4%2584%25E7%2590%2586%25E6%25B5%2581%25E7%25A8%258B.md" target="_blank" rel="noopener">patch——自定义组件的处理流程</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E4%25BA%258B%25E4%25BB%25B6%25E5%25A4%2584%25E7%2590%2586.md" target="_blank" rel="noopener">事件处理</a></p>
-<p>指令的处理</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/directives%25E6%25A6%2582%25E8%25BF%25B0.md" target="_blank" rel="noopener">directives概述</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/%25E8%2587%25AA%25E5%25AE%259A%25E4%25B9%2589%25E6%258C%2587%25E4%25BB%25A4.md" target="_blank" rel="noopener">自定义指令</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-for.md" target="_blank" rel="noopener">v-for</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-if.md" target="_blank" rel="noopener">v-if</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-once.md" target="_blank" rel="noopener">v-once</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-show.md" target="_blank" rel="noopener">v-show</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-text%25E3%2580%2581v-html%25E3%2580%2581v-cloak%25E3%2580%2581v-pre.md" target="_blank" rel="noopener">v-text、v-html、v-cloak、v-pre</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/v-model.md" target="_blank" rel="noopener">v-model</a></p>
-<p>内置组件和标签</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/slot%25E5%2592%258C%25E4%25BD%259C%25E7%2594%25A8%25E5%259F%259F%25E6%258F%2592%25E6%25A7%25BD.md" target="_blank" rel="noopener">slot和作用域插槽</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/keep-alive.md" target="_blank" rel="noopener">keep-alive</a></p>
-<p>以下是整理一些比较零散的数据，主要是记录结构中每个数据表示什么意思，会不断完善更新：</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue-globals.md" target="_blank" rel="noopener">Vue全局属性</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/Vue%25E5%25AE%259E%25E4%25BE%258B%25E5%25B1%259E%25E6%2580%25A7.md" target="_blank" rel="noopener">Vue实例属性</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/AstElement.md" target="_blank" rel="noopener">AstElement</a></p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/liutao/vue2.0-source/blob/master/VNode.md" target="_blank" rel="noopener">VNode</a></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3773,7 +3917,7 @@ h2[data-text]::after {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">108</span>
+                  <span class="site-state-item-count">109</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3786,7 +3930,7 @@ h2[data-text]::after {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">82</span>
+                  <span class="site-state-item-count">83</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

@@ -300,6 +300,147 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/简单理解async、await语法实现原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/04/简单理解async、await语法实现原理/" itemprop="url">简单理解async、await语法实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-04T23:57:27+08:00">
+                2018-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>现在最新的前端框架生态都开始用上了Generator和yield，<br>有的甚至已经开始使用最新的async、await语法了，<br><strong>这两样都是基于Generator自动执行的原理。</strong></p>
+<h2 id="阮一峰-async-函数的实现原理"><a href="#阮一峰-async-函数的实现原理" class="headerlink" title="阮一峰 async-函数的实现原理"></a>阮一峰 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fasync%23async-%25E5%2587%25BD%25E6%2595%25B0%25E7%259A%2584%25E5%25AE%259E%25E7%258E%25B0%25E5%258E%259F%25E7%2590%2586" target="_blank" rel="noopener">async-函数的实现原理</a></h2><h4 id="async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><a href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。" class="headerlink" title="async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。"></a>async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">async function fn(args) &#123;</span><br><span class="line">  // ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 等同于</span><br><span class="line">function fn(args) &#123;</span><br><span class="line">  return spawn(function* () &#123;</span><br><span class="line">    // ...</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>所有的async函数都可以写成上面的第二种形式，其中的spawn函数就是自动执行器。</p>
+<p>下面给出spawn函数的实现，基本就是前文自动执行器的翻版。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function spawn(genF) &#123;</span><br><span class="line">  return new Promise(function(resolve, reject) &#123;</span><br><span class="line">    const gen = genF();</span><br><span class="line">    function step(nextF) &#123;</span><br><span class="line">      let next;</span><br><span class="line">      try &#123;</span><br><span class="line">        next = nextF();</span><br><span class="line">      &#125; catch(e) &#123;</span><br><span class="line">        return reject(e);</span><br><span class="line">      &#125;</span><br><span class="line">      if(next.done) &#123;</span><br><span class="line">        return resolve(next.value);</span><br><span class="line">      &#125;</span><br><span class="line">      Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">        step(function() &#123; return gen.next(v); &#125;);</span><br><span class="line">      &#125;, function(e) &#123;</span><br><span class="line">        step(function() &#123; return gen.throw(e); &#125;);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    step(function() &#123; return gen.next(undefined); &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function timeout(ms) &#123;</span><br><span class="line">				return &#123;</span><br><span class="line">					text: &apos;done&apos;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function* start() &#123;</span><br><span class="line">				const res = yield timeout(1000);</span><br><span class="line">				return res;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">		 </span><br><span class="line">             </span><br><span class="line"></span><br><span class="line">			function fn(args) &#123;</span><br><span class="line">				return spawn(start);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function spawn(genF) &#123;</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					const gen = genF();</span><br><span class="line">					function step(nextF) &#123;</span><br><span class="line">						let next;</span><br><span class="line">						try &#123;</span><br><span class="line">							next = nextF();</span><br><span class="line">						&#125; catch(e) &#123;</span><br><span class="line">							return reject(e);</span><br><span class="line">						&#125;</span><br><span class="line">						if(next.done) &#123;</span><br><span class="line">							return resolve(next.value);</span><br><span class="line">						&#125;</span><br><span class="line">						</span><br><span class="line">					</span><br><span class="line">						Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.next(v);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;, function(e) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.throw(e);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;);</span><br><span class="line">					&#125;</span><br><span class="line">					step(function() &#123;</span><br><span class="line">						return gen.next();</span><br><span class="line">					&#125;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			 fn().then((data)=&gt;&#123;</span><br><span class="line">				console.log(data)</span><br><span class="line">			&#125;)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h3 id="看下babel转换后的"><a href="#看下babel转换后的" class="headerlink" title="看下babel转换后的"></a>看下babel转换后的</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">async function fns(args) &#123;</span><br><span class="line">				const res = await fetch(&apos;google.com&apos;);</span><br><span class="line">				return res.text();</span><br><span class="line">			&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">&apos;use strict&apos;;</span><br><span class="line">    </span><br><span class="line">		var fns = function() &#123;</span><br><span class="line">			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(args) &#123;</span><br><span class="line">				var res;</span><br><span class="line">				return regeneratorRuntime.wrap(function _callee$(_context) &#123;</span><br><span class="line">					while(1) &#123;</span><br><span class="line">						switch(_context.prev = _context.next) &#123;</span><br><span class="line">							case 0:</span><br><span class="line">								_context.next = 2;</span><br><span class="line">								return fetch(&apos;google.com&apos;);</span><br><span class="line">    </span><br><span class="line">							case 2:</span><br><span class="line">								res = _context.sent;</span><br><span class="line">								return _context.abrupt(&apos;return&apos;, res.text());</span><br><span class="line">    </span><br><span class="line">							case 4:</span><br><span class="line">							case&apos;end&apos;:</span><br><span class="line">								return _context.stop();</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;, _callee, this);</span><br><span class="line">			&#125;));</span><br><span class="line">    </span><br><span class="line">			returnfunction fns(_x) &#123;</span><br><span class="line">				return _ref.apply(this, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;();</span><br><span class="line">    </span><br><span class="line">		function _asyncToGenerator(fn) &#123;  //Generator函数自动执行</span><br><span class="line">			returnfunction() &#123;</span><br><span class="line">				var gen = fn.apply(this, arguments);</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					function step(key, arg) &#123;</span><br><span class="line">						try &#123;</span><br><span class="line">							var info = gen[key](arg);</span><br><span class="line">							var value = info.value;</span><br><span class="line">						&#125; catch(error) &#123;</span><br><span class="line">							reject(error);</span><br><span class="line">							return;</span><br><span class="line">						&#125;</span><br><span class="line">						if(info.done) &#123;</span><br><span class="line">							resolve(value);</span><br><span class="line">						&#125; else &#123;</span><br><span class="line">							return Promise.resolve(value).then(function(value) &#123;</span><br><span class="line">								step(&quot;next&quot;, value);</span><br><span class="line">							&#125;, function(err) &#123;</span><br><span class="line">								step(&quot;throw&quot;, err);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">					return step(&quot;next&quot;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br></pre></td></tr></table></figure>
+<p>一、thunk函数<br>thunk函数指的是能将执行结果传入回调函数，并将该回调函数返回的函数。<br>是不是有点抽象，举个例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var readFile = function (fileName) &#123;</span><br><span class="line">    returnfunction (callback) &#123;</span><br><span class="line">        return fs.readFile(fileName, callback)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>下面我们来看下thunk函数怎样执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readFile(&apos;./package.json&apos;)((err, str) =&gt; &#123;</span><br><span class="line">    console.log(str.toString())</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>问: thunk的执行比普通函数要麻烦不少，那么它有什么优势呢？</p>
+<h3 id="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><a href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，" class="headerlink" title="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"></a>thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</h3><p>而不是将异步操作结果传入thunk函数本身的作用域内，这点很重要，<br>因为它能结合Generator语法让Generator函数自动执行</p>
+<p>二、Generator<br>es6的Generator函数，具体语法这里就不介绍了，</p>
+<p>我们来编写一个基于thunk函数的Generator：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们来手动执行一下这个Generator:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">let g = gen()</span><br><span class="line">let r1 = g.next()</span><br><span class="line">r1.value(function (err, data) &#123;</span><br><span class="line">    if (err) &#123;</span><br><span class="line">        throw err</span><br><span class="line">    &#125;</span><br><span class="line">    let r2 = g.next(data)</span><br><span class="line">    r2.value(function (err, data) &#123;</span><br><span class="line">        if (err) &#123;</span><br><span class="line">            throw err</span><br><span class="line">        &#125;</span><br><span class="line">        g.next(data)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>可以注意到，在我们手动执行基于thunk函数的Generator时，<br>有很多代码是可以复用的，<br>没错，所谓的Generator自动执行就是把这些可复用的部分封装成函数，<br>然后让它们递归执行，直到执行完所有的yield。</p>
+<p>三、Generator自动执行器<br>下面就是Generator自动执行的核心代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">function run(fn) &#123;</span><br><span class="line">    let gen = fn()</span><br><span class="line">    function next(err, data) &#123;</span><br><span class="line">        let result = gen.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return</span><br><span class="line">        &#125;</span><br><span class="line">        result.value(next)</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到无非就是把可复用的部分封装成next函数，然后让其<strong>递归</strong>执行，<br>直到执行完所有的yield</p>
+<p>其调用代码为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
+<p>这样就将原本繁杂的异步操作封装的十分简单了</p>
+<p>基于Promise的Generator的自动执行<br>上面的例子是基于thunk函数的，而即将出现的es7的async、await语法是基于Promise的</p>
+<p>这里再上一个基于Promise的Generator的自动执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">//包装返回Promise对象的函数</span><br><span class="line">functionreadFile(fileName) &#123;</span><br><span class="line">    return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">        fs.readFile(fileName, (error, data) =&gt; &#123;</span><br><span class="line">            if (error) &#123;</span><br><span class="line">                reject(error)</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                resolve(data)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">// 编写Generator</span><br><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 编写Generator执行器</span><br><span class="line">function run(gen) &#123;</span><br><span class="line">    let g = gen()</span><br><span class="line">    function next(data) &#123;</span><br><span class="line">        let result = g.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return result.value</span><br><span class="line">        &#125;</span><br><span class="line">        result.value.then((data) =&gt; next(data))</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//用Generator执行器自动执行</span><br><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
+<p>这个和基于thunk函数的大同小异，只是把函数返回值的获取权以Promise的方式交出</p>
+<h4 id="参考-简单理解Generator自执行及async、await语法原理"><a href="#参考-简单理解Generator自执行及async、await语法原理" class="headerlink" title="参考 简单理解Generator自执行及async、await语法原理"></a>参考 <a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000008254704" target="_blank" rel="noopener">简单理解Generator自执行及async、await语法原理</a></h4>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/ES6之-Generator-的惰性执行/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2900,320 +3041,6 @@ export const asyncComponent = loadComponent =&gt; (
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/03/redux中间件/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/03/redux中间件/" itemprop="url">redux中间件</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-03T00:11:00+08:00">
-                2018-08-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到中间件，你可能会想到<code>Express</code>和<code>Koa</code>等服务端框架，没想到也没关系，这句话是我装逼用的。</p>
-<p>那么redux中的中间件到底干嘛用的？</p>
-<p>有这样一个问题？我们之前用的<code>Redux</code>都是在<code>Action</code>发出之后立即执行<code>Reducer</code>,计算出<code>state</code>,这是同步操作。如果想异步操作呢？即过一段时间再执行<code>Reducer</code>怎么办？这里就需要用到中间件<code>middleware</code>。</p>
-<p>先放一张图看看：<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dcb142c194bfb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
-<h2 id="一、中间件的概念"><a href="#一、中间件的概念" class="headerlink" title="一、中间件的概念"></a>一、中间件的概念</h2><p><code>redux</code>是有流程的，那么，我们该把这个异步操作放在哪个环节比较合适呢？</p>
-<ul>
-<li><code>Reducer</code>?纯函数只承担计算<code>State</code>功能，不适合其它功能。</li>
-<li><code>View</code>?与<code>State</code>一一对应，可以看做是<code>State</code>的视觉层，也不适合承担其它功能。</li>
-<li><code>Action</code>？它是一个对象，即存储动作的载体，只能被操作。</li>
-</ul>
-<p>其实，也只有<code>dispatch</code>能胜任此重任了。那么怎么在<code>dispatch</code>中添加其它操作呢？</p>
-<pre><code>let next = store.dispatch;
-store.dispatch = function(action){
-   console.log(&apos;老状态 &apos;,store.getState());
-   next(action);
-   console.log(&apos;新状态 &apos;,store.getState());
-}
-复制代码
-</code></pre><p>示例中可以看出，我们对<code>store.dispatch</code>重新进行了定义，在发送<code>action</code>的前后，做了打印。</p>
-<p>这是中间件的大致雏形，真实的中间件要比这么复杂多了</p>
-<h2 id="二、中间件的用法"><a href="#二、中间件的用法" class="headerlink" title="二、中间件的用法"></a>二、中间件的用法</h2><p>我们在这里先看看中间件是怎么使用，下面我们一步步剖析每个细节。</p>
-<pre><code>import {applyMiddleware,createStore} from &apos;redux&apos;;
-import reduxLogger form &apos;redux-logger&apos;;
-
-const store = createStore(reducer,inital_state,applyMiddleware(thunk, promise,reduxLogger));
-
-复制代码
-</code></pre><p>代码中有两点需要注意：</p>
-<ul>
-<li><p>1、<code>createStore</code>方法可以整个应用的初始状态作为参数<br>内部是这么处理的</p>
-<p>  let state = inital_state;<br>  复制代码</p>
-</li>
-<li><p>2、中间件的参数次序有讲究。下面我会把这个问题讲明白。</p>
-</li>
-</ul>
-<h2 id="三、applyMiddleware"><a href="#三、applyMiddleware" class="headerlink" title="三、applyMiddleware"></a>三、applyMiddleware</h2><p>Middleware可以让你包装<code>store</code>的<code>dispatch</code>方法来达到你想要的目的。同时，<code>middleWare</code>还拥有“可组合”这一关键特性。多个<code>middleWare</code>可以被组合到一起使用，形成<code>middleWare</code>链，依次执行。其中每个<code>middleware</code>不需要关心链前后的的<code>middleWare</code>的任何信息。</p>
-<pre><code>function applyMiddleware(...middlewares){
-    returnfunction(createStore){
-        returnfunction(reducer){
-            //引入store
-            let store = createStore(reducer);
-            let dispatch = store.dispatch;
-            let middlewareAPI = {
-                getState:store.getState,
-                // 对dispatch进行包装
-                dispatch:action=&gt;dispatch(action)
-            }
-            //每个中间件都是这种模型  ({ getState, dispatch }) =&gt; next =&gt; action
-            chain = middlewares.map(middleware=&gt;middleware(middleAPI));
-            dispatch = compose(...chain)(store.dispatch);
-            // dispatch被改装后，返回store
-            return{...store,dispatch};
-        }
-    }
-}
-复制代码
-</code></pre><p>上面代码中，所有中间件都被放进了一个数组<code>chain</code>,然后嵌套执行，最后执行<code>store.dispatch</code>。中间件内部<code>middlewaAPI</code>可以拿到<code>getState</code>和<code>dispatch</code>这两个方法。</p>
-<p><code>...middleware</code>：遵循<code>Redux middleware API</code>的函数。每个<code>middleware</code>接受<code>Store</code>的<code>dispatch</code>和<code>getState</code>函数作为命名参数，并返回一个函数。该函数会被传入成为<code>next</code>的下一个middleWare 的dispatch方法，并返回一个接收action的新函数，这个函数可以直接调用next(action)，或者在其他需要的时刻调用，甚至根本不去调用它。</p>
-<p>所以，接下来，我们就能看到middleware的函数签名是<code>({ getState, dispatch }) =&gt; next =&gt; action</code></p>
-<p>其实，它的本质就是包装sotre中的<code>dispatch</code>。</p>
-<p>上面代码中，还用到了<code>compose</code>方法，我们来看看compose是怎么是实现的？</p>
-<h3 id="compose"><a href="#compose" class="headerlink" title="compose"></a>compose</h3><p>先看下面一个栗子：</p>
-<pre><code>function add1(str){
-   return str+1;
-}
-function add2(str){
-    return str+2;
- }
- function add3(str){
-    return str+3;
- }
- let result = add3(add2(add1(&apos;好吃&apos;)));// 好吃123;
-
-复制代码
-</code></pre><p>这中写法调用起来，一层套一层，是不是看着很不爽，我们简化一下：</p>
-<pre><code>function compose(...fns){
-    if(fns.length==1)
-     return fns[0];
-   returnfunction(...args){
-    let last = fns.pop();
-    return fns.reduceRight((prev,next)=&gt;{
-         return  next(prev);  
-    },last(...args));
-   }
- }
- let add = compose(add3,add2,add1);//
- let result = add(&apos;好吃&apos;);// 好吃123
- // 上面的代码其实就是redux3.6.0版本中compose的实现方式
-复制代码
-</code></pre><p>看看这个代码是不是用起来，很干练一些。其实还可以简化</p>
-<pre><code>function compose(...fns){
-  if(fns.length==1)
-     return fns[0];
-   return fns.reduce((a,b)=&gt;(...args)=&gt;a(b(...args)));//add3(add2(add1(&apos;好吃&apos;)))
- }
- let add = compose(add3,add2,add1);//
- let result = add(&apos;好吃&apos;);// 好吃123
- // 这是redux3.6.0版本之后的compose实现方式，一直沿用至今。
-复制代码
-</code></pre><p>至于为什么<code>applyMiddleWare</code>的参数有顺序，这里给出了答案。</p>
-<h2 id="四、Applymiddleware的三个常用参数"><a href="#四、Applymiddleware的三个常用参数" class="headerlink" title="四、Applymiddleware的三个常用参数"></a>四、Applymiddleware的三个常用参数</h2><h3 id="4-1、日志记录"><a href="#4-1、日志记录" class="headerlink" title="4.1、日志记录"></a>4.1、日志记录</h3><p>使用 Redux 的一个益处就是它让 state 的变化过程变的可预知和透明。每当一个 action 发起完成后，新的 state 就会被计算并保存下来。State 不能被自身修改，只能由特定的 action 引起变化。</p>
-<p>试想一下，当我们的应用中每一个 action 被发起以及每次新的 state 被计算完成时都将它们记录下来，岂不是很好？当程序出现问题时，我们可以通过查阅日志找出是哪个 action 导致了 state 不正确。<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dd052d2e07b77?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>图片的效果是不是很期待啊！！！</p>
-<p>我们先来手动实现一版。</p>
-<pre><code>// 记录所有被发起的action和新的statelet next = store.dispatch;
-store.dispatch = function(action){
-   console.log(&apos;老状态 &apos;,store.getState());
-   next(action);
-   console.log(&apos;新状态 &apos;,store.getState());
-}
-复制代码
-</code></pre><p>还是上面的示例，我们来做个修改</p>
-<pre><code>let logger = function({ getState, dispatch }){
-   returnfunction(next){// 这里的next可以理解为store.dispath,本质上就是调用 middleware 链中下一个 middleware 的 dispatch。returnfunction(action){
-        console.log(&apos;老状态1 &apos;,getState());
-        next(action);//派发动作console.log(&apos;新状态1 &apos;,getState());
-    }
-    }
-}
-// 高逼格写法let logger = ({ getState, dispatch }) =&gt; next =&gt; action =&gt; {
-  console.log(&apos;老状态1 &apos;,getState());
-  next(action)
-  console.log(&apos;新状态1 &apos;,getState());
-}
-复制代码
-</code></pre><h3 id="4-2、redux-thunk-中间件"><a href="#4-2、redux-thunk-中间件" class="headerlink" title="4.2、redux-thunk 中间件"></a>4.2、redux-thunk 中间件</h3><p><code>redux-thunk</code> 是<code>redux</code>官方文档中用到的异步组件，实质就是一个<code>redux</code>中间件，一个封装表达式的函数，封装的目的就是延迟执行表达式。</p>
-<p><code>redux-thunk</code>是一个通用的解决方案，其核心思想是让<code>action</code>可以变成一个<code>thunk</code>，这样的话，同步情况：<code>dispatch(action)</code>,异步情况：<code>dispatch(thunk)</code>。</p>
-<p>下面是<code>redux-thunk</code>的实现：</p>
-<pre><code>let thunk = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
-    if(typeof action == &apos;function&apos;){
-        action(dispatch,getState);
-    }else{
-        next(action);//这里可以理解为dispatch(action),本质上就是调用 middleware 链中下一个 middleware 的 dispatch。
-    }
-}
-复制代码
-</code></pre><p>使用redux-thunk</p>
-<pre><code>const store = createStore(  
-  reducer,
-  applyMiddleware(thunk)
-);
-复制代码
-</code></pre><p>然后我们实现一个thunkActionCreator</p>
-<pre><code>    //过一秒加1
-    exportfunction thunkActionCreator(payload){
-        returnfunction(dispatch,getState){
-            setTimeout(function(){
-                dispatch({type:types.INCREMENT,payload:payload});
-            },1000);
-        }
-    },
-复制代码
-</code></pre><p>最后，在组件中dispatch thunk</p>
-<pre><code>this.dispatch(thunkActionCreator(payload));
-复制代码
-</code></pre><h3 id="4-3、redux-promise"><a href="#4-3、redux-promise" class="headerlink" title="4.3、redux-promise"></a>4.3、redux-promise</h3><p><code>redux-promise</code>也是延迟执行的表达式，它是解决异步的另外一种方案。</p>
-<p><code>redux-thunk</code>和核心思想是把<code>action</code>变成<code>thunk</code>，而<code>redux-promise</code>的核心思想是让<code>action</code>返回一个promise对象。</p>
-<p>这个中间件使得<code>store.dispatch</code>方法可以接收Promise对象作为参数。这时 ，action 有两种写法:</p>
-<p>写法一、返回值是一个Promise对象。</p>
-<pre><code>functionpromiseIncrement(payload){
- //  return {type:types.INCREMENT,payload:payload}  以前是这种写法returnnewPromise(function(resolve,reject){
-      setTimeout(function(){
-        resolve({type:types.INCREMENT,payload:payload});
-      },1000);
-    });
- },
-复制代码
-</code></pre><p>写法二，action 对象的payload属性是一个Promise对象，这需要从</p>
-<pre><code>functionpayloadIncrement(){
-    return {
-        type:types.INCREMENT,
-        payload: newPromise(function(resolve,reject){
-            setTimeout(function(){
-                if(Math.random()&gt;.5){
-                    resolve(100);
-                }else{
-                    reject(-100);
-                }
-            },1000)
-        })
-    }
-}
-复制代码
-</code></pre><p>下面我们来看看 <code>redux-promise</code>是怎么实现的，就会明白它内部是怎么操作的.</p>
-<pre><code>let promise = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
-    if(action.then &amp;&amp; typeof action.then == &apos;function&apos;){
-        action.then(dispatch);
-        // 这里的dispatch就是一个函数，dispatch(action){state:reducer(state,action)};
-    }elseif(action.payload&amp;&amp; action.payload.then&amp;&amp; typeof action.payload.then == &apos;function&apos;){
-        action.payload.then(payload=&gt;dispatch({...action,payload}),payload=&gt;dispatch({...action,payload}));
-    }else{
-        next(action);
-    }
-}
-复制代码
-</code></pre><p>上面的代码可以看出，如果Action本身就是一个Promise，它resolve以后的值应该是一个Action对象，会被dispatch方法送出action.then(dispatch)；如果<code>Action</code>对象的 <code>payload</code>属性是一个<code>Promise</code>对象，那么无论<code>resolve</code>和<code>reject</code>,dispatch 方法都会发出<code>Action</code>。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3268,7 +3095,7 @@ store.dispatch = function(action){
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">108</span>
+                  <span class="site-state-item-count">109</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3281,7 +3108,7 @@ store.dispatch = function(action){
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">82</span>
+                  <span class="site-state-item-count">83</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

@@ -300,6 +300,190 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/21/Vue-Proxy观察者机制探索/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/11/21/Vue-Proxy观察者机制探索/" itemprop="url">Vue Proxy观察者机制探索</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-21T20:23:22+08:00">
+                2018-11-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="/2018/11/21/Vue-Proxy观察者机制探索/1.png" alt=""></p>
+<p>Vue 3 以下方面值得我们期待 ：</p>
+<ul>
+<li>更快</li>
+<li>更小</li>
+<li>更易于维护</li>
+<li>更多的原生支持</li>
+<li>更易于开发使用</li>
+</ul>
+<p>学不动的同学还可以缓缓 ^_^</p>
+<h3 id="为什么要取代Object-defineProperty"><a href="#为什么要取代Object-defineProperty" class="headerlink" title="为什么要取代Object.defineProperty"></a>为什么要取代Object.defineProperty</h3><p>既然要取代Object.defineProperty，那它肯定是有一些明显的缺点，总结起来大概是下面两个：</p>
+<blockquote>
+<p>Object.defineProperty无法监控到数组下标的变化，导致直接通过数组的下标给数组设置值，不能实时响应。 为了解决这个问题，经过vue内部处理后可以使用以下几种方法来监听数组</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">push()</span><br><span class="line">pop()</span><br><span class="line">shift()</span><br><span class="line">unshift()</span><br><span class="line">splice()</span><br><span class="line">sort()</span><br><span class="line">reverse()</span><br></pre></td></tr></table></figure>
+<p>由于只针对了以上八种方法进行了hack处理,所以其他数组的属性也是检测不到的，还是具有一定的局限性。</p>
+<blockquote>
+<p>Object.defineProperty只能劫持对象的属性,因此我们需要对每个对象的每个属性进行遍历。Vue 2.x里，是通过 递归 + 遍历 data 对象来实现对数据的监控的，如果属性值也是对象那么需要深度遍历,显然如果能劫持一个完整的对象是才是更好的选择。</p>
+</blockquote>
+<p>而要取代它的Proxy有以下两个优点;</p>
+<ul>
+<li>可以劫持整个对象，并返回一个新对象</li>
+<li>有13种劫持操作</li>
+</ul>
+<p>看到这可能有同学要问了，既然Proxy能解决以上两个问题，而且Proxy作为es6的新属性在vue2.x之前就有了，为什么vue2.x不使用Proxy呢？一个很重要的原因就是：</p>
+<blockquote>
+<p>Proxy是es6提供的新特性，兼容性不好，最主要的是这个属性无法用polyfill来兼容</p>
+</blockquote>
+<p>关于Object.defineProperty来实现观察者机制，可以参照<a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000006599500" target="_blank" rel="noopener">剖析Vue原理&amp;实现双向绑定MVVM</a>这篇文章，下面的内容主要介绍如何基于 Proxy来实现vue观察者机制。</p>
+<h3 id="什么是Proxy-ECMAScript-6-入门"><a href="#什么是Proxy-ECMAScript-6-入门" class="headerlink" title="什么是Proxy , ECMAScript 6 入门"></a>什么是Proxy , <a href="http://es6.ruanyifeng.com/#docs/proxy" target="_blank" rel="noopener">ECMAScript 6 入门</a></h3><p>1.含义：</p>
+<ul>
+<li>Proxy是 ES6 中新增的一个特性，翻译过来意思是”代理”，用在这里表示由它来“代理”某些操作。</li>
+<li>Proxy 让我们能够以简洁易懂的方式控制外部对对象的访问。其功能非常类似于设计模式中的代理模式。</li>
+<li>Proxy 可以理解成，在目标对象之前架设一层“拦截”，外界对该对象的访问，都必须先通过这层拦截，因此提供了一种机制，可以对外界的访问进行过滤和改写。</li>
+<li>使用 Proxy 的核心优点是可以交由它来处理一些非核心逻辑（如：读取或设置对象的某些属性前记录日志；设置对象的某些属性值前，需要验证；某些属性的访问控制等）。 从而可以让对象只需关注于核心逻辑，达到关注点分离，降低对象复杂度等目的。</li>
+</ul>
+<p>Proxy 可以理解成，在目标对象之前架设一层“拦截”，外界对该对象的访问，都必须先通过这层拦截，因此提供了一种机制，可以对外界的访问进行过滤和改写。Proxy 这个词的原意是代理，用在这里表示由它来“代理”某些操作，可以译为“代理器”。</p>
+<p>2.基本用法：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let p = new Proxy(target, handler);</span><br></pre></td></tr></table></figure></p>
+<p>参数：</p>
+<ul>
+<li><code>target</code> 是用Proxy包装的被代理对象（可以是任何类型的对象，包括原生数组，函数，甚至另一个代理）。</li>
+<li><code>handler</code> 是一个对象，其声明了代理target 的一些操作，其属性是当执行一个操作时定义代理的行为的函数。</li>
+<li><code>p</code> 是代理后的对象。当外界每次对 p 进行操作时，就会执行 handler 对象上的一些方法。Proxy共有13种劫持操作，handler代理的一些常用的方法有如下几个：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">get：读取</span><br><span class="line">set：修改</span><br><span class="line">has：判断对象是否有该属性</span><br><span class="line">construct：构造函数</span><br></pre></td></tr></table></figure>
+<p>3.示例：</p>
+<p>下面就用Proxy来定义一个对象的get和set，作为一个基础demo<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">let obj = &#123;&#125;;</span><br><span class="line"> let handler = &#123;</span><br><span class="line">   get(target, property) &#123;</span><br><span class="line">    console.log(`$&#123;property&#125; 被读取`);</span><br><span class="line">    return property in target ? target[property] : 3;</span><br><span class="line">   &#125;,</span><br><span class="line">   set(target, property, value) &#123;</span><br><span class="line">    console.log(`$&#123;property&#125; 被设置为 $&#123;value&#125;`);</span><br><span class="line">    target[property] = value;</span><br><span class="line">   &#125;</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line"> let p = new Proxy(obj, handler);</span><br><span class="line"> p.name = &apos;tom&apos; //name 被设置为 tom</span><br><span class="line"> p.age; //age 被读取 3</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>p 读取属性的值时，实际上执行的是 handler.get() ：在控制台输出信息，并且读取被代理对象 obj 的属性。</li>
+<li>p 设置属性值时，实际上执行的是 handler.set() ：在控制台输出信息，并且设置被代理对象 obj 的属性的值。</li>
+</ul>
+<p>以上介绍了Proxy基本用法，实际上这个属性还有许多内容，具体可参考<a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.mozilla.org%2Fzh-CN%2Fdocs%2FWeb%2FJavaScript%2FReference%2FGlobal_Objects%2FProxy" target="_blank" rel="noopener">Proxy文档</a></p>
+<h3 id="基于Proxy来实现双向绑定"><a href="#基于Proxy来实现双向绑定" class="headerlink" title="基于Proxy来实现双向绑定"></a>基于Proxy来实现双向绑定</h3><p>话不多说，接下来我们就来用Proxy来实现一个经典的双向绑定todolist，首先简单的写一点html结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;div id=&quot;app&quot;&gt;</span><br><span class="line">     &lt;input type=&quot;text&quot; id=&quot;input&quot; /&gt;</span><br><span class="line">     &lt;div&gt;您输入的是： &lt;span id=&quot;title&quot;&gt;&lt;/span&gt;&lt;/div&gt;</span><br><span class="line">     &lt;button type=&quot;button&quot; name=&quot;button&quot; id=&quot;btn&quot;&gt;添加到todolist&lt;/button&gt;</span><br><span class="line">     &lt;ul id=&quot;list&quot;&gt;&lt;/ul&gt;</span><br><span class="line">&lt;/div&gt;</span><br></pre></td></tr></table></figure></p>
+<p>先来一个Proxy，实现输入框的双向绑定显示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">const obj = &#123;&#125;;</span><br><span class="line">const input = document.getElementById(&quot;input&quot;);</span><br><span class="line">const title = document.getElementById(&quot;title&quot;);</span><br><span class="line"></span><br><span class="line">const newObj = new Proxy(obj, &#123;</span><br><span class="line">  get: function(target, key, receiver) &#123;</span><br><span class="line">    console.log(`getting $&#123;key&#125;!`);</span><br><span class="line">    return Reflect.get(target, key, receiver);</span><br><span class="line">  &#125;,</span><br><span class="line">  set: function(target, key, value, receiver) &#123;</span><br><span class="line">    console.log(target, key, value, receiver);</span><br><span class="line">    if (key === &quot;text&quot;) &#123;</span><br><span class="line">      input.value = value;</span><br><span class="line">      title.innerHTML = value;</span><br><span class="line">    &#125;</span><br><span class="line">    return Reflect.set(target, key, value, receiver);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line">    </span><br><span class="line">input.addEventListener(&quot;keyup&quot;, function(e) &#123;</span><br><span class="line">  newObj.text = e.target.value;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
+<p>这里代码涉及到<code>Reflect</code>属性，这也是一个es6的新特性，还不太了解的同学可以参考<a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.mozilla.org%2Fzh-CN%2Fdocs%2FWeb%2FJavaScript%2FReference%2FGlobal_Objects%2FReflect" target="_blank" rel="noopener">Reflect文档</a>.<br>接下来就是添加todolist列表，先把数组渲染到页面上去：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"> // 渲染todolist列表</span><br><span class="line">const Render = &#123;</span><br><span class="line">  // 初始化</span><br><span class="line">  init: function(arr) &#123;</span><br><span class="line">    const fragment = document.createDocumentFragment();</span><br><span class="line">    for (let i = 0; i &lt; arr.length; i++) &#123;</span><br><span class="line">      const li = document.createElement(&quot;li&quot;);</span><br><span class="line">      li.textContent = arr[i];</span><br><span class="line">      fragment.appendChild(li);</span><br><span class="line">    &#125;</span><br><span class="line">    list.appendChild(fragment);</span><br><span class="line">  &#125;,</span><br><span class="line">  addList: function(val) &#123;</span><br><span class="line">    const li = document.createElement(&quot;li&quot;);</span><br><span class="line">    li.textContent = val;</span><br><span class="line">    list.appendChild(li);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>再来一个Proxy，实现Todolist的添加：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">const arr = [];</span><br><span class="line">// 监听数组</span><br><span class="line">const newArr = new Proxy(arr, &#123;</span><br><span class="line">  get: function(target, key, receiver) &#123;</span><br><span class="line">    return Reflect.get(target, key, receiver);</span><br><span class="line">  &#125;,</span><br><span class="line">  set: function(target, key, value, receiver) &#123;</span><br><span class="line">    console.log(target, key, value, receiver);</span><br><span class="line">    if (key !== &quot;length&quot;) &#123;</span><br><span class="line">      Render.addList(value);</span><br><span class="line">    &#125;</span><br><span class="line">    return Reflect.set(target, key, value, receiver);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line">    </span><br><span class="line">// 初始化</span><br><span class="line">window.onload = function() &#123;</span><br><span class="line">  Render.init(arr);</span><br><span class="line">&#125;;</span><br><span class="line">    </span><br><span class="line">btn.addEventListener(&quot;click&quot;, function() &#123;</span><br><span class="line">  newArr.push(parseInt(newObj.text));</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
+<p>这样就用 Proxy实现了一个简单的双向绑定Todolist,具体代码可参考<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2Fnightzing%2Fvue3-Proxy%2Fblob%2Fmaster%2Fproxy.html" target="_blank" rel="noopener">proxy.html</a></p>
+<h3 id="基于Proxy来实现vue的观察者机制"><a href="#基于Proxy来实现vue的观察者机制" class="headerlink" title="基于Proxy来实现vue的观察者机制"></a>基于Proxy来实现vue的观察者机制</h3><p>1.Proxy实现observe<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">observe(data) &#123;</span><br><span class="line">    const that = this;</span><br><span class="line">    let handler = &#123;</span><br><span class="line">     get(target, property) &#123;</span><br><span class="line">        return target[property];</span><br><span class="line">      &#125;,</span><br><span class="line">      set(target, key, value) &#123;</span><br><span class="line">        let res = Reflect.set(target, key, value);</span><br><span class="line">        that.subscribe[key].map(item =&gt; &#123;</span><br><span class="line">          item.update();</span><br><span class="line">        &#125;);</span><br><span class="line">        return res;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    this.$data = new Proxy(data, handler);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这段代码里把代理器返回的对象代理到<code>this.$data</code>，即<code>this.$data</code>是代理后的对象，外部每次对<code>this.$data</code>进行操作时，实际上执行的是这段代码里handler对象上的方法。</p>
+<p>2.compile和watcher</p>
+<ul>
+<li>比较熟悉vue的同学都很清楚，vue2.x在 new Vue() 之后。 Vue 会调用 _init 函数进行初始化，它会初始化生命周期、事件、 props、 methods、 data、 computed 与 watch 等。其中最重要的是通过 Object.defineProperty 设置 setter 与 getter 函数，用来实现「响应式」以及「依赖收集」。类似于下面这个内部流程图：<br><img src="/2018/11/21/Vue-Proxy观察者机制探索/2.png" alt=""></li>
+<li>而我们上面已经用Proxy取代了Object.defineProperty这部分观察者机制，而要实现整个基本mvvm双向绑定流程，除了observe还需要compile和watche等一系列机制，我们这里像模板编译的工作就不展开描述了，为了实现基于Proxy的vue添加Totolist,这里只写了</li>
+<li>compile和watcher来支持observe的工作，具体代码参考<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2Fnightzing%2Fvue3-Proxy%2Fblob%2Fmaster%2FproxyVue.html" target="_blank" rel="noopener">proxyVue</a>,这个代码相当于一个基于Proxy的一个简化版vue，主要是实现双向绑定这个功能，为了方便这里把js放到了html页面中，大家本地运行后可以发现，现在的效果和第三章的效果达到一致了，等到明年vue3发布，它源码里基于 Proxy实现的的观察者机制可能和这里的实现会有很多不同，这篇文章主要是对 Proxy这个特性做了一些介绍以及它的一些应用，而作者本人也通过对Proxy 的观察者机制探索学到了不少东西，所以整合资源，总结出了这篇文章，希望能和大家共勉之，以上，我们下次有缘再见。</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/16/实现一个回到顶部/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3577,147 +3761,6 @@ console.log(hw.next());
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/简单理解async、await语法实现原理/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/10/04/简单理解async、await语法实现原理/" itemprop="url">简单理解async、await语法实现原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-04T23:57:27+08:00">
-                2018-10-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>现在最新的前端框架生态都开始用上了Generator和yield，<br>有的甚至已经开始使用最新的async、await语法了，<br><strong>这两样都是基于Generator自动执行的原理。</strong></p>
-<h2 id="阮一峰-async-函数的实现原理"><a href="#阮一峰-async-函数的实现原理" class="headerlink" title="阮一峰 async-函数的实现原理"></a>阮一峰 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fasync%23async-%25E5%2587%25BD%25E6%2595%25B0%25E7%259A%2584%25E5%25AE%259E%25E7%258E%25B0%25E5%258E%259F%25E7%2590%2586" target="_blank" rel="noopener">async-函数的实现原理</a></h2><h4 id="async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><a href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。" class="headerlink" title="async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。"></a>async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">async function fn(args) &#123;</span><br><span class="line">  // ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 等同于</span><br><span class="line">function fn(args) &#123;</span><br><span class="line">  return spawn(function* () &#123;</span><br><span class="line">    // ...</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>所有的async函数都可以写成上面的第二种形式，其中的spawn函数就是自动执行器。</p>
-<p>下面给出spawn函数的实现，基本就是前文自动执行器的翻版。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function spawn(genF) &#123;</span><br><span class="line">  return new Promise(function(resolve, reject) &#123;</span><br><span class="line">    const gen = genF();</span><br><span class="line">    function step(nextF) &#123;</span><br><span class="line">      let next;</span><br><span class="line">      try &#123;</span><br><span class="line">        next = nextF();</span><br><span class="line">      &#125; catch(e) &#123;</span><br><span class="line">        return reject(e);</span><br><span class="line">      &#125;</span><br><span class="line">      if(next.done) &#123;</span><br><span class="line">        return resolve(next.value);</span><br><span class="line">      &#125;</span><br><span class="line">      Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">        step(function() &#123; return gen.next(v); &#125;);</span><br><span class="line">      &#125;, function(e) &#123;</span><br><span class="line">        step(function() &#123; return gen.throw(e); &#125;);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    step(function() &#123; return gen.next(undefined); &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function timeout(ms) &#123;</span><br><span class="line">				return &#123;</span><br><span class="line">					text: &apos;done&apos;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function* start() &#123;</span><br><span class="line">				const res = yield timeout(1000);</span><br><span class="line">				return res;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">		 </span><br><span class="line">             </span><br><span class="line"></span><br><span class="line">			function fn(args) &#123;</span><br><span class="line">				return spawn(start);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function spawn(genF) &#123;</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					const gen = genF();</span><br><span class="line">					function step(nextF) &#123;</span><br><span class="line">						let next;</span><br><span class="line">						try &#123;</span><br><span class="line">							next = nextF();</span><br><span class="line">						&#125; catch(e) &#123;</span><br><span class="line">							return reject(e);</span><br><span class="line">						&#125;</span><br><span class="line">						if(next.done) &#123;</span><br><span class="line">							return resolve(next.value);</span><br><span class="line">						&#125;</span><br><span class="line">						</span><br><span class="line">					</span><br><span class="line">						Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.next(v);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;, function(e) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.throw(e);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;);</span><br><span class="line">					&#125;</span><br><span class="line">					step(function() &#123;</span><br><span class="line">						return gen.next();</span><br><span class="line">					&#125;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			 fn().then((data)=&gt;&#123;</span><br><span class="line">				console.log(data)</span><br><span class="line">			&#125;)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<h3 id="看下babel转换后的"><a href="#看下babel转换后的" class="headerlink" title="看下babel转换后的"></a>看下babel转换后的</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">async function fns(args) &#123;</span><br><span class="line">				const res = await fetch(&apos;google.com&apos;);</span><br><span class="line">				return res.text();</span><br><span class="line">			&#125;</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">&apos;use strict&apos;;</span><br><span class="line">    </span><br><span class="line">		var fns = function() &#123;</span><br><span class="line">			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(args) &#123;</span><br><span class="line">				var res;</span><br><span class="line">				return regeneratorRuntime.wrap(function _callee$(_context) &#123;</span><br><span class="line">					while(1) &#123;</span><br><span class="line">						switch(_context.prev = _context.next) &#123;</span><br><span class="line">							case 0:</span><br><span class="line">								_context.next = 2;</span><br><span class="line">								return fetch(&apos;google.com&apos;);</span><br><span class="line">    </span><br><span class="line">							case 2:</span><br><span class="line">								res = _context.sent;</span><br><span class="line">								return _context.abrupt(&apos;return&apos;, res.text());</span><br><span class="line">    </span><br><span class="line">							case 4:</span><br><span class="line">							case&apos;end&apos;:</span><br><span class="line">								return _context.stop();</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;, _callee, this);</span><br><span class="line">			&#125;));</span><br><span class="line">    </span><br><span class="line">			returnfunction fns(_x) &#123;</span><br><span class="line">				return _ref.apply(this, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;();</span><br><span class="line">    </span><br><span class="line">		function _asyncToGenerator(fn) &#123;  //Generator函数自动执行</span><br><span class="line">			returnfunction() &#123;</span><br><span class="line">				var gen = fn.apply(this, arguments);</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					function step(key, arg) &#123;</span><br><span class="line">						try &#123;</span><br><span class="line">							var info = gen[key](arg);</span><br><span class="line">							var value = info.value;</span><br><span class="line">						&#125; catch(error) &#123;</span><br><span class="line">							reject(error);</span><br><span class="line">							return;</span><br><span class="line">						&#125;</span><br><span class="line">						if(info.done) &#123;</span><br><span class="line">							resolve(value);</span><br><span class="line">						&#125; else &#123;</span><br><span class="line">							return Promise.resolve(value).then(function(value) &#123;</span><br><span class="line">								step(&quot;next&quot;, value);</span><br><span class="line">							&#125;, function(err) &#123;</span><br><span class="line">								step(&quot;throw&quot;, err);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">					return step(&quot;next&quot;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br></pre></td></tr></table></figure>
-<p>一、thunk函数<br>thunk函数指的是能将执行结果传入回调函数，并将该回调函数返回的函数。<br>是不是有点抽象，举个例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var readFile = function (fileName) &#123;</span><br><span class="line">    returnfunction (callback) &#123;</span><br><span class="line">        return fs.readFile(fileName, callback)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>下面我们来看下thunk函数怎样执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readFile(&apos;./package.json&apos;)((err, str) =&gt; &#123;</span><br><span class="line">    console.log(str.toString())</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
-<p>问: thunk的执行比普通函数要麻烦不少，那么它有什么优势呢？</p>
-<h3 id="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><a href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，" class="headerlink" title="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"></a>thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</h3><p>而不是将异步操作结果传入thunk函数本身的作用域内，这点很重要，<br>因为它能结合Generator语法让Generator函数自动执行</p>
-<p>二、Generator<br>es6的Generator函数，具体语法这里就不介绍了，</p>
-<p>我们来编写一个基于thunk函数的Generator：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>我们来手动执行一下这个Generator:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">let g = gen()</span><br><span class="line">let r1 = g.next()</span><br><span class="line">r1.value(function (err, data) &#123;</span><br><span class="line">    if (err) &#123;</span><br><span class="line">        throw err</span><br><span class="line">    &#125;</span><br><span class="line">    let r2 = g.next(data)</span><br><span class="line">    r2.value(function (err, data) &#123;</span><br><span class="line">        if (err) &#123;</span><br><span class="line">            throw err</span><br><span class="line">        &#125;</span><br><span class="line">        g.next(data)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
-<p>可以注意到，在我们手动执行基于thunk函数的Generator时，<br>有很多代码是可以复用的，<br>没错，所谓的Generator自动执行就是把这些可复用的部分封装成函数，<br>然后让它们递归执行，直到执行完所有的yield。</p>
-<p>三、Generator自动执行器<br>下面就是Generator自动执行的核心代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">function run(fn) &#123;</span><br><span class="line">    let gen = fn()</span><br><span class="line">    function next(err, data) &#123;</span><br><span class="line">        let result = gen.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return</span><br><span class="line">        &#125;</span><br><span class="line">        result.value(next)</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>可以看到无非就是把可复用的部分封装成next函数，然后让其<strong>递归</strong>执行，<br>直到执行完所有的yield</p>
-<p>其调用代码为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
-<p>这样就将原本繁杂的异步操作封装的十分简单了</p>
-<p>基于Promise的Generator的自动执行<br>上面的例子是基于thunk函数的，而即将出现的es7的async、await语法是基于Promise的</p>
-<p>这里再上一个基于Promise的Generator的自动执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">//包装返回Promise对象的函数</span><br><span class="line">functionreadFile(fileName) &#123;</span><br><span class="line">    return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">        fs.readFile(fileName, (error, data) =&gt; &#123;</span><br><span class="line">            if (error) &#123;</span><br><span class="line">                reject(error)</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                resolve(data)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">// 编写Generator</span><br><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 编写Generator执行器</span><br><span class="line">function run(gen) &#123;</span><br><span class="line">    let g = gen()</span><br><span class="line">    function next(data) &#123;</span><br><span class="line">        let result = g.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return result.value</span><br><span class="line">        &#125;</span><br><span class="line">        result.value.then((data) =&gt; next(data))</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//用Generator执行器自动执行</span><br><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
-<p>这个和基于thunk函数的大同小异，只是把函数返回值的获取权以Promise的方式交出</p>
-<h4 id="参考-简单理解Generator自执行及async、await语法原理"><a href="#参考-简单理解Generator自执行及async、await语法原理" class="headerlink" title="参考 简单理解Generator自执行及async、await语法原理"></a>参考 <a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000008254704" target="_blank" rel="noopener">简单理解Generator自执行及async、await语法原理</a></h4>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3772,7 +3815,7 @@ console.log(hw.next());
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">108</span>
+                  <span class="site-state-item-count">109</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3785,7 +3828,7 @@ console.log(hw.next());
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">82</span>
+                  <span class="site-state-item-count">83</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
