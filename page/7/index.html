@@ -300,6 +300,163 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/21/React-setState/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/09/21/React-setState/" itemprop="url">React setState</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-21T20:16:49+08:00">
+                2017-09-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="/2017/09/21/React-setState/1.webp" alt=""></p>
+<blockquote>
+<p>面试官：“react中<code>setState</code>是同步的还是异步？”</p>
+</blockquote>
+<blockquote>
+<p>我：“异步的，<code>setState</code>不能立马拿到结果。”</p>
+</blockquote>
+<blockquote>
+<p>面试官：“那什么场景下是异步的，可不可能是同步，什么场景下又是同步的？”</p>
+</blockquote>
+<blockquote>
+<p>我：“……”</p>
+</blockquote>
+<h3 id="setState真的是异步的吗？"><a href="#setState真的是异步的吗？" class="headerlink" title="setState真的是异步的吗？"></a><code>setState</code>真的是异步的吗？</h3><p>这两天自己简单的看了下 <code>setState</code> 的部分实现代码，在这边给到大家一个自己个人的见解，可能文字或图片较多，没耐心的同学可以直接跳过看总结(<strong>源码版本是16.4.1</strong>)。</p>
+<p><strong>看之前，为了方便理解和简化流程，我们默认react内部代码执行到<code>performWork</code><br>、<code>performWorkOnRoot</code>、<code>performSyncWork</code>、<code>performAsyncWork</code>这四个方法的时候，就是react去update更新并且作用到UI上。</strong></p>
+<h3 id="一、合成事件中的setState"><a href="#一、合成事件中的setState" class="headerlink" title="一、合成事件中的setState"></a>一、合成事件中的<code>setState</code></h3><p>首先得了解一下什么是合成事件，react为了解决跨平台，兼容性问题，自己封装了一套事件机制，代理了原生的事件，像在<code>jsx</code>中常见的<code>onClick</code>、<code>onChange</code>这些都是合成事件。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  increment = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新前的val --&gt; 0</span><br><span class="line">  &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.increment&#125;&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>合成事件中的<code>setState</code>写法比较常见，点击事件里去改变 <code>this.state.val</code> 的状态值，在 <code>increment</code> 事件中打个断点可以看到调用栈，这里我贴一张自己画的流程图：<br><img src="/2017/09/21/React-setState/2.webp" alt=""><br>从 <code>dispatchInteractiveEvent</code> 到 <code>callCallBack</code> 为止，都是对合成事件的处理和执行，从 <code>setState</code> 到 <code>requestWork</code> 是调用 <code>this.setState</code> 的逻辑，这边主要看下  <code>requestWork</code> 这个函数（从 <code>dispatchEvent</code> 到 <code>requestWork</code> 的调用栈是属于 <code>interactiveUpdates$1</code> 的 <code>try</code> 代码块，下文会提到）。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">function requestWork(root, expirationTime) &#123;</span><br><span class="line">  addRootToSchedule(root, expirationTime);</span><br><span class="line"></span><br><span class="line">  if (isRendering) &#123;</span><br><span class="line">    // Prevent reentrancy. Remaining work will be scheduled at the end of</span><br><span class="line">    // the currently rendering batch.</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (isBatchingUpdates) &#123;</span><br><span class="line">    // Flush work at the end of the batch.</span><br><span class="line">    if (isUnbatchingUpdates) &#123;</span><br><span class="line">      // ...unless we&apos;re inside unbatchedUpdates, in which case we should</span><br><span class="line">      // flush it now.</span><br><span class="line">      nextFlushedRoot = root;</span><br><span class="line">      nextFlushedExpirationTime = Sync;</span><br><span class="line">      performWorkOnRoot(root, Sync, false);</span><br><span class="line">    &#125;</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // TODO: Get rid of Sync and use current time?</span><br><span class="line">  if (expirationTime === Sync) &#123;</span><br><span class="line">    performSyncWork();</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    scheduleCallbackWithExpiration(expirationTime);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在 <code>requestWork</code> 中有三个if分支，三个分支中有两个方法 <code>performWorkOnRoot</code> 和 <code>performSyncWork</code> ，就是我们默认的update函数，但是在合成事件中，走的是第二个if分支，第二个分支中有两个标识 <code>isBatchingUpdates</code> 和 <code>isUnbatchingUpdates</code> 两个初始值都为  <code>false</code> ，但是在 <code>interactiveUpdates$1</code> 中会把 <code>isBatchingUpdates</code> 设为 <code>true</code> ，下面就是 <code>interactiveUpdates$1</code> 的代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">function interactiveUpdates$1(fn, a, b) &#123;</span><br><span class="line">  if (isBatchingInteractiveUpdates) &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125;</span><br><span class="line">  // If there are any pending interactive updates, synchronously flush them.</span><br><span class="line">  // This needs to happen before we read any handlers, because the effect of</span><br><span class="line">  // the previous event may influence which handlers are called during</span><br><span class="line">  // this event.</span><br><span class="line">  if (!isBatchingUpdates &amp;&amp; !isRendering &amp;&amp; lowestPendingInteractiveExpirationTime !== NoWork) &#123;</span><br><span class="line">    // Synchronously flush pending interactive updates.</span><br><span class="line">    performWork(lowestPendingInteractiveExpirationTime, false, null);</span><br><span class="line">    lowestPendingInteractiveExpirationTime = NoWork;</span><br><span class="line">  &#125;</span><br><span class="line">  var previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates;</span><br><span class="line">  var previousIsBatchingUpdates = isBatchingUpdates;</span><br><span class="line">  isBatchingInteractiveUpdates = true;</span><br><span class="line">  isBatchingUpdates = true;  // 把requestWork中的isBatchingUpdates标识改为true</span><br><span class="line">  try &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125; finally &#123;</span><br><span class="line">    isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates;</span><br><span class="line">    isBatchingUpdates = previousIsBatchingUpdates;</span><br><span class="line">    if (!isBatchingUpdates &amp;&amp; !isRendering) &#123;</span><br><span class="line">      performSyncWork();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这个方法中把 <code>isBatchingUpdates</code> 设为了 <code>true</code> ,导致在 <code>requestWork</code> 方法中， <code>isBatchingUpdates</code> 为 <code>true</code> ，但是 <code>isUnbatchingUpdates</code> 是 <code>false</code> ，而被直接return了。</p>
+<p>那return完的逻辑回到哪里呢，最终正是回到了 <code>interactiveUpdates</code> 这个方法，仔细看一眼，这个方法里面有个<a href="https://link.juejin.im?target=http%3A%2F%2Fjavascript.ruanyifeng.com%2Fgrammar%2Ferror.html%23toc12" target="_blank" rel="noopener">try finally</a>语法，前端同学这个其实是用的比较少的，简单的说就是会先执行 <code>try</code> 代码块中的语句，然后再执行 <code>finally</code> 中的代码，而 <code>fn(a, b)</code> 是在try代码块中，刚才说到在 <code>requestWork</code> 中被return掉的也就是这个fn（上文提到的 <code>从dispatchEvent</code> 到 <code>requestWork</code> 的一整个调用栈）。</p>
+<p>所以当你在 <code>increment</code> 中调用 <code>setState</code> 之后去console.log的时候，是属于 <code>try</code> 代码块中的执行，但是由于是合成事件，try代码块执行完state并没有更新，所以你输入的结果是更新前的 <code>state</code> 值，这就导致了所谓的”异步”，但是当你的try代码块执行完的时候（也就是你的increment合成事件），这个时候会去执行 <code>finally</code> 里的代码，在 <code>finally</code> 中执行了 <code>performSyncWork</code> 方法，这个时候才会去更新你的 <code>state</code> 并且渲染到UI上。</p>
+<h3 id="二、生命周期函数中的setState"><a href="#二、生命周期函数中的setState" class="headerlink" title="二、生命周期函数中的setState"></a>二、生命周期函数中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">   console.log(this.state.val) // 输出的还是更新前的值 --&gt; 0</span><br><span class="line"> &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>钩子函数中setState的调用栈：<br><img src="/2017/09/21/React-setState/3.webp" alt=""><br>其实还是和合成事件一样，当 <code>componentDidmount</code> 执行的时候，react内部并没有更新，执行完<code>componentDidmount</code>  后才去 <code>commitUpdateQueue</code> 更新。这就导致你在 <code>componentDidmount</code> 中 <code>setState</code> 完去console.log拿的结果还是更新前的值。</p>
+<h3 id="三、原生事件中的setState"><a href="#三、原生事件中的setState" class="headerlink" title="三、原生事件中的setState"></a>三、原生事件中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  changeValue = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新后的值 --&gt; 1</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    document.body.addEventListener(&apos;click&apos;, this.changeValue, false)</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>原生事件是指非react合成事件，原生自带的事件监听 <code>addEventListener</code> ，或者也可以用原生js、jq直接 <code>document.querySelector().onclick</code> 这种绑定事件的形式都属于原生事件。<br><img src="/2017/09/21/React-setState/4.webp" alt=""><br>原生事件的调用栈就比较简单了，因为没有走合成事件的那一大堆，直接触发click事件，到 <code>requestWork</code> ,在<code>requestWork</code>里由于 <code>expirationTime === Sync</code> 的原因，直接走了 <code>performSyncWork</code> 去更新，并不像合成事件或钩子函数中被return，所以当你在原生事件中setState后，能同步拿到更新后的state值。</p>
+<h3 id="四、setTimeout中的setState"><a href="#四、setTimeout中的setState" class="headerlink" title="四、setTimeout中的setState"></a>四、setTimeout中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val) // 输出更新后的值 --&gt; 1</span><br><span class="line">    &#125;, 0)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 <code>setTimeout</code> 中去 <code>setState</code> 并不算是一个单独的场景，它是随着你外层去决定的，因为你可以在合成事件中 <code>setTimeout</code> ，可以在钩子函数中 <code>setTimeout</code> ，也可以在原生事件<code>setTimeout</code>，但是不管是哪个场景下，基于<a href="https://link.juejin.im?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D6XRNXXgP_0" target="_blank" rel="noopener">event loop</a>的模型下， <code>setTimeout</code> 中里去 <code>setState</code> 总能拿到最新的state值。</p>
+<p>举个栗子，比如之前的合成事件，由于你是 <code>setTimeout(_ =&gt; { this.setState()}, 0)</code> 是在 <code>try</code> 代码块中,当你 <code>try</code> 代码块执行到 <code>setTimeout</code> 的时候，把它丢到列队里，并没有去执行，而是先执行的 <code>finally</code> 代码块，等 <code>finally</code> 执行完了， <code>isBatchingUpdates</code> 又变为了 <code>false</code> ，导致最后去执行队列里的 <code>setState</code> 时候， <code>requestWork</code> 走的是和原生事件一样的 <code>expirationTime === Sync</code> if分支，所以表现就会和原生事件一样，可以同步拿到最新的state值。</p>
+<h3 id="五、setState中的批量更新"><a href="#五、setState中的批量更新" class="headerlink" title="五、setState中的批量更新"></a>五、<code>setState</code>中的批量更新</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  batchUpdates = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.batchUpdates&#125;&gt;</span><br><span class="line">        &#123;`Counter is $&#123;this.state.val&#125;`&#125; // 1</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的结果最终是1，在 <code>setState</code> 的时候react内部会创建一个 <code>updateQueue</code> ，通过 <code>firstUpdate</code> 、 <code>lastUpdate</code> 、 <code>lastUpdate.next</code> 去维护一个更新的队列，在最终的 <code>performWork</code> 中，相同的key会被覆盖，只会对最后一次的 <code>setState</code> 进行更新，下面是部分实现代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">function createUpdateQueue(baseState) &#123;</span><br><span class="line">  var queue = &#123;</span><br><span class="line">    expirationTime: NoWork,</span><br><span class="line">    baseState: baseState,</span><br><span class="line">    firstUpdate: null,</span><br><span class="line">    lastUpdate: null,</span><br><span class="line">    firstCapturedUpdate: null,</span><br><span class="line">    lastCapturedUpdate: null,</span><br><span class="line">    firstEffect: null,</span><br><span class="line">    lastEffect: null,</span><br><span class="line">    firstCapturedEffect: null,</span><br><span class="line">    lastCapturedEffect: null</span><br><span class="line">  &#125;;</span><br><span class="line">  return queue;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">function appendUpdateToQueue(queue, update, expirationTime) &#123;</span><br><span class="line">  // Append the update to the end of the list.</span><br><span class="line">  if (queue.lastUpdate === null) &#123;</span><br><span class="line">    // Queue is empty</span><br><span class="line">    queue.firstUpdate = queue.lastUpdate = update;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    queue.lastUpdate.next = update;</span><br><span class="line">    queue.lastUpdate = update;</span><br><span class="line">  &#125;</span><br><span class="line">  if (queue.expirationTime === NoWork || queue.expirationTime &gt; expirationTime) &#123;</span><br><span class="line">    // The incoming update has the earliest expiration of any update in the</span><br><span class="line">    // queue. Update the queue&apos;s expiration time.</span><br><span class="line">    queue.expirationTime = expirationTime;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="看个demo"><a href="#看个demo" class="headerlink" title="看个demo"></a>看个demo</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">class App extends React.Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val);</span><br><span class="line"></span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val)</span><br><span class="line">    &#125;, 0)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return &lt;div&gt;&#123;this.state.val&#125;&lt;/div&gt;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结合上面分析的，钩子函数中的 <code>setState</code> 无法立马拿到更新后的值，所以前两次都是输出0，当执行到 <code>setTimeout</code> 里的时候，前面两个state的值已经被更新，由于 <code>setState</code> 批量更新的策略， <code>this.state.val</code> 只对最后一次的生效，为1，而在 <code>setTimmout</code> 中 <code>setState</code> 是可以同步拿到更新结果，所以 <code>setTimeout</code> 中的两次输出2，3，最终结果就为 <code>0, 0, 2, 3</code> 。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结 :"></a>总结 :</h3><ol>
+<li><strong><code>setState</code> 只在合成事件和钩子函数中是“异步”的，在原生事件和 <code>setTimeout</code> 中都是同步的。</strong></li>
+<li><strong><code>setState</code>的“异步”并不是说内部由异步代码实现，其实本身执行的过程和代码都是同步的，只是合成事件和钩子函数的调用顺序在更新之前，导致在合成事件和钩子函数中没法立马拿到更新后的值，形式了所谓的“异步”，当然可以通过第二个参数 setState(partialState, callback) 中的callback拿到更新后的结果。</strong></li>
+<li><strong><code>setState</code> 的批量更新优化也是建立在“异步”（合成事件、钩子函数）之上的，在原生事件和setTimeout 中不会批量更新，在“异步”中如果对同一个值进行多次 <code>setState</code> ， <code>setState</code> 的批量更新策略会对其进行覆盖，取最后一次的执行，如果是同时 <code>setState</code> 多个不同的值，在更新时会对其进行合并批量更新。</strong></li>
+</ol>
+<p>以上就是我看了部分代码后的粗浅理解，对源码细节的那块分析的较少，主要是想让大家理解<code>setState</code>在不同的场景，不同的写法下到底发生了什么样的一个过程和结果，希望对大家有帮助，由于是个人的理解和见解，如果哪里有说的不对的地方，欢迎大家一起指出并讨论。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/11/Git-必知必会/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3587,359 +3744,6 @@ $ npm bin
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/18/简化版的vue-router/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/04/18/简化版的vue-router/" itemprop="url">简化版的vue-router</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-18T15:12:24+08:00">
-                2017-04-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>本文旨在介绍<code>vue-router</code>的实现思路，并动手实现一个简化版的<code>vue-router</code>。<br>我们先来看一下一般项目中对<code>vue-router</code>最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根<code>vue</code>实例中注入该<code>router</code>对象就可以使用了.</p>
-<pre><code>import VueRouter from&apos;vue-router&apos;;
-import Home from&apos;@/components/Home&apos;;
-import A from&apos;@/components/A&apos;;
-import B from&apos;@/components/B&apos;import C from&apos;@/components/C&apos;
-
-Vue.use(VueRouter)
-
-export default new VueRouter.Router({
-  // mode: &apos;history&apos;,
-  routes: [
-    {
-      path: &apos;/&apos;,
-      component: Home
-    },
-    {
-      path: &apos;/a&apos;,
-      component: A
-    },
-    {
-      path: &apos;/b&apos;,
-      component: B
-    },
-    {
-      path: &apos;/c&apos;,
-      component: C
-    }
-  ]
-})
-</code></pre><p><code>vue-router</code>提供两个全局组件，<code>router-view</code>和<code>router-link</code>，前者是用于路由组件的占位，后者用于点击时跳转到指定路由。此外组件内部可以通过<code>this.$router.push</code>,<code>this.$rouer.replace</code>等api实现路由跳转。本文将实现上述两个全局组件以及<code>push</code>和<code>replace</code>两个api，调用的时候支持<code>params</code>传参，并且支持<code>hash</code>和<code>history</code>两种模式，忽略其余api、嵌套路由、异步路由、<code>abstract</code>路由以及导航守卫等高级功能的实现，这样有助于理解<code>vue-router</code>的核心原理。本文的最终代码不建议在生产环境使用，只做一个学习用途，下面我们就来一步步实现它。</p>
-<h3 id="install实现"><a href="#install实现" class="headerlink" title="install实现"></a>install实现</h3><p>任何一个<code>vue</code>插件都要实现一个<code>install</code>方法，通过<code>Vue.use</code>调用插件的时候就是在调用插件的<code>install</code>方法，那么路由的<code>install</code>要做哪些事情呢？首先我们知道 我们会用<code>new</code>关键字生成一个<code>router</code>实例，就像前面的代码实例一样，然后将其挂载到根<code>vue</code>实例上，那么作为一个全局路由，我们当然需要在各个组件中都可以拿到这个<code>router</code>实例。另外我们使用了全局组件<code>router-view</code>和<code>router-link</code>，由于<code>install</code>会接收到<code>Vue</code>构造函数作为实参，方便我们调用<code>Vue.component</code>来注册全局组件。因此，在<code>install</code>中主要就做两件事，给各个组件都挂载<code>router</code>实例，以及实现<code>router-view</code>和<code>router-link</code>两个全局组件。下面是代码：</p>
-<pre><code>const install = (Vue) =&gt; {
-
-  if (this._Vue) {
-    return;
-  };
-  Vue.mixin({
-    beforeCreate() {
-      if (this.$options &amp;&amp; this.$options.router) {
-        this._routerRoot = this;
-        this._router = this.$options.router;
-        Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
-      } else {
-        this._routerRoot = (this.$parent &amp;&amp; this.$parent._routerRoot) || this
-      }
-
-      Object.defineProperty(this, &apos;$router&apos;, {
-        get() {
-          returnthis._routerRoot._router;
-        }
-      })
-
-      Object.defineProperty(this, &apos;$route&apos;, {
-        get() {
-          return {
-            current: this._routerRoot._routeHistory.current,
-            ...this._routerRoot._router.route
-          };
-        }
-      })
-    }
-  });
-
-  Vue.component(&apos;router-view&apos;, {
-    render(h) { ... }
-  })
-
-  Vue.component(&apos;router-link&apos;, {    
-    props: {
-      to: String,
-      tag: String,
-    },
-    render(h) { ... }
-  })
-  this._Vue = Vue;
-}
-</code></pre><p>这里的<code>this</code>代表的就是<code>vue-router</code>对象，它有两个属性暴露出来供外界调用，一个是<code>install</code>，一个是<code>Router</code>构造函数，这样可以保证插件的正确安装以及路由实例化。我们先忽略<code>Router</code>构造函数，来看<code>install</code>，上面代码中的<code>this._Vue</code>是个开始没有定义的属性，他的目的是防止多次安装。我们使用<code>Vue.mixin</code>对每个组件的<code>beforeCreate</code>钩子做全局混入，目的是让每个组件实例共享<code>router</code>实例，即通过<code>this.$router</code>拿到路由实例，通过<code>this.$route</code>拿到路由状态。需要重点关注的是这行代码：</p>
-<pre><code>Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
-</code></pre><p>这行代码利用<code>vue</code>的响应式原理，对根<code>vue</code>实例注册了一个<code>_routeHistory</code>属性，指向路由实例的<code>history</code>对象，这样<code>history</code>也变成了响应式的。因此一旦路由的<code>history</code>发生变化，用到这个值的组件就会触发<code>render</code>函数重新渲染，这里的组件就是<code>router-view</code>。从这里可以窥察到<code>vue-router</code>实现的一个基本思路。上述的代码中对于两个全局组件的<code>render</code>函数的实现，因为会依赖于<code>router</code>对象，我们先放一放，稍后再来实现它们，下面我们分析一下<code>Router</code>构造函数。</p>
-<h3 id="Router构造函数"><a href="#Router构造函数" class="headerlink" title="Router构造函数"></a>Router构造函数</h3><p>经过刚才的分析，我们知道<code>router</code>实例需要有一个<code>history</code>对象，需要一个保存当前路由状态的对象<code>route</code>，另外很显然还需要接受路由配置表<code>routes</code>，根据<code>routes</code>需要一个路由映射表<code>routerMap</code>来实现组件搜索，还需要一个变量<code>mode</code>判断是什么模式下的路由，需要实现<code>push</code>和<code>replace</code>两个api，代码如下：</p>
-<pre><code>const Router = function (options) {
-  this.routes = options.routes; // 存放路由配置this.mode = options.mode || &apos;hash&apos;;
-  this.route = Object.create(null), // 生成路由状态this.routerMap = createMap(this.routes) // 生成路由表this.history = new RouterHistory(); // 实例化路由历史对象this.init(); // 初始化
-}
-
-Router.prototype.push = (options) =&gt; { ... }
-
-Router.prototype.replace = (options) =&gt; { ... }
-
-Router.prototype.init = () =&gt; { ... }
-</code></pre><p>我们看一下路由表<code>routerMap</code>的实现，由于不考虑嵌套等其他情况，实现很简单，如下：</p>
-<pre><code>const createMap = (routes) =&gt; {
-  let resMap = Object.create(null);
-  routes.forEach(route =&gt; {
-    resMap[route[&apos;path&apos;]] = route[&apos;component&apos;];
-  })
-  return resMap;
-}
-</code></pre><p><code>RouterHistory</code>的实现也很简单，根据前面分析，我们只需要一个<code>current</code>属性就可以，如下：</p>
-<pre><code>const RouterHistory = function (mode) {
-  this.current = null; 
-}
-</code></pre><p>有了路由表和<code>history</code>，<code>router-view</code>的实现就很容易了，如下：</p>
-<pre><code>Vue.component(&apos;router-view&apos;, {
-    render(h) {
-      let routerMap = this._self.$router.routerMap;
-      return h(routerMap[this._self.$route.current])
-    }
-  })
-</code></pre><p>这里的<code>this</code>是一个<code>renderProxy</code>实例，他有一个属性<code>_self</code>可以拿到当前的组件实例，进而访问到<code>routerMap</code>，可以看到路由实例<code>history</code>的<code>current</code>本质上就是我们配置的路由表中的<code>path</code>。</p>
-<p>接下来我们看一下<code>Router</code>要做哪些初始化工作。对于<code>hash</code>路由而言，url上<code>hash</code>值的改变不会引起页面刷新，但是可以触发一个<code>hashchange</code>事件。由于路由<code>history.current</code>初始为<code>null</code>，因此匹配不到任何一个路由，所以会导致页面刷新加载不出任何路由组件。基于这两点，在<code>init</code>方法中，我们需要实现对页面加载完成的监听，以及<code>hash</code>变化的监听。对于<code>history</code>路由，为了实现浏览器前进后退时准确渲染对应组件，还要监听一个<code>popstate</code>事件。代码如下:</p>
-<pre><code>Router.prototype.init = function () {
-
-  if (this.mode === &apos;hash&apos;) {
-    fixHash()
-    window.addEventListener(&apos;hashchange&apos;, () =&gt; {
-      this.history.current = getHash();
-    })
-    window.addEventListener(&apos;load&apos;, () =&gt; {
-      this.history.current = getHash();
-    })
-  }
-
-  if (this.mode === &apos;history&apos;) {
-    removeHash(this);
-    window.addEventListener(&apos;load&apos;, () =&gt; {
-      this.history.current = location.pathname;
-    })
-    window.addEventListener(&apos;popstate&apos;, (e) =&gt; {
-      if (e.state) {
-        this.history.current = e.state.path;
-      }
-    })
-  }
-
-}
-</code></pre><p>当启用<code>hash</code>模式的时候，我们要检测url上是否存在<code>hash</code>值，没有的话强制赋值一个默认<code>path</code>，<code>hash</code>路由时会根据<code>hash</code>值作为<code>key</code>来查找路由表。<code>fixHash</code>和<code>getHash</code>实现如下：</p>
-<pre><code>const fixHash = () =&gt; {
-  if (!location.hash) {
-    location.hash = &apos;/&apos;;
-  }
-}
-const getHash = () =&gt; {
-  return location.hash.slice(1) || &apos;/&apos;;
-}
-</code></pre><p>这样在刷新页面和<code>hash</code>改变的时候，<code>current</code>可以得到赋值和更新，页面能根据<code>hash</code>值准确渲染路由。<code>history</code>模式也是一样的道理，只是它通过<code>location.pathname</code>作为<code>key</code>搜索路由组件，另外<code>history</code>模式需要去除url上可能存在的<code>hash</code>,<code>removeHash</code>实现如下：</p>
-<pre><code>const removeHash = (route) =&gt; {
-  let url = location.href.split(&apos;#&apos;)[1]
-  if (url) {
-    route.current = url;
-    history.replaceState({}, null, url)
-  }
-}
-</code></pre><p>我们可以看到当浏览器后退的时候，<code>history</code>模式会触发<code>popstate</code>事件，这个时候是通过<code>state</code>状态去获取<code>path</code>的，那么<code>state</code>状态从哪里来呢，答案是从<code>window.history</code>对象的<code>pushState</code>和<code>replaceState</code>而来，这两个方法正好可以用来实现<code>router</code>的<code>push</code>方法和<code>replace</code>方法，我们看一下这里它们的实现：</p>
-<pre><code>Router.prototype.push = (options) =&gt; {
-  this.history.current = options.path;
-  if (this.mode === &apos;history&apos;) {
-    history.pushState({
-      path: options.path
-    }, null, options.path);
-  } elseif (this.mode === &apos;hash&apos;) {
-    location.hash = options.path;
-  }
-  this.route.params = {
-    ...options.params
-  }
-}
-
-Router.prototype.replace = (options) =&gt; {
-  this.history.current = options.path;
-  if (this.mode === &apos;history&apos;) {
-    history.replaceState({
-      path: options.path
-    }, null, options.path);
-  } elseif (this.mode === &apos;hash&apos;) {
-    location.replace(`#${options.path}`)
-  }
-  this.route.params = {
-    ...options.params
-  }
-}
-</code></pre><p><code>pushState</code>和<code>replaceState</code>能够实现改变url的值但不引起页面刷新，从而不会导致新请求发生，<code>pushState</code>会生成一条历史记录而<code>replaceState</code>不会，后者只是替换当前url。在这两个方法执行的时候将<code>path</code>存入<code>state</code>，这就使得<code>popstate</code>触发的时候可以拿到路径从而触发组件渲染了。我们在组件内按照如下方式调用，会将<code>params</code>写入<code>router</code>实例的<code>route</code>属性中，从而在跳转后的组件<code>B</code>内通过<code>this.$route.params</code>可以访问到传参。</p>
-<pre><code>this.$router.push({
-    path: &apos;/b&apos;,
-    params: {
-      id: 55
-    }
- });
-</code></pre><h3 id="router-link实现"><a href="#router-link实现" class="headerlink" title="router-link实现"></a>router-link实现</h3><p><code>router-view</code>的实现很简单，前面已经说过。最后，我们来看一下<code>router-link</code>的实现,先放上代码：</p>
-<pre><code>Vue.component(&apos;router-link&apos;, {    
-    props: {
-      to: String,
-      tag: String,
-    },
-
-    render(h) {
-      let mode = this._self.$router.mode;
-      let tag = this.tag || &apos;a&apos;;
-      let routerHistory = this._self.$router.history;
-      return h(tag, {
-        attrs: tag === &apos;a&apos; ? {
-          href: mode === &apos;hash&apos; ? &apos;#&apos; + this.to : this.to,
-
-        } : {},
-        on: {
-          click: (e) =&gt; {
-            if (this.to === routerHistory.current) {
-              e.preventDefault();
-              return;
-            }
-            routerHistory.current = this.to;
-            switch (mode) {
-              case&apos;hash&apos;:
-                if (tag === &apos;a&apos;) return;
-                location.hash = this.to;
-                break;
-              case&apos;history&apos;:
-                history.pushState({
-                  path: this.to
-                }, null, this.to);
-                break;
-              default:
-            }
-            e.preventDefault();
-          }
-        },
-        style: {
-          cursor: &apos;pointer&apos;
-        }
-      }, this.$slots.default)
-    }
-  })
-</code></pre><p><code>router-link</code>可以接受两个属性，<code>to</code>表示要跳转的路由路径，<code>tag</code>表示<code>router-link</code>要渲染的标签名，默认<code>a</code>为标签。如果是<code>a</code>标签，我们为其添加一个<code>href</code>属性。我们给标签绑定<code>click</code>事件，如果检测到本次跳转为当前路由的话什么都不做直接返回，并且阻止默认行为，否则根据<code>to</code>更换路由。<code>hash</code>模式下并且是<code>a</code>标签时候可以直接利用浏览器的默认行为完成url上<code>hash</code>的替换，否者重新为<code>location.hash</code>赋值。<code>history</code>模式下则利用<code>pushState</code>去更新url。</p>
-<p>以上实现就是一个简单的vue-router.</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3994,7 +3798,7 @@ Router.prototype.replace = (options) =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">109</span>
+                  <span class="site-state-item-count">110</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

@@ -300,6 +300,545 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/29/从Vue-js源码看nextTick机制/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/29/从Vue-js源码看nextTick机制/" itemprop="url">从Vue.js源码看nextTick机制</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-29T22:30:13+08:00">
+                2017-10-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><a href="https://link.zhihu.com/?target=https%3A//chuckliu.me/%23%21/posts/58bd08a2b5187d2fb51c04f9" target="_blank" rel="noopener">Vue源码详解之nextTick：MutationObserver只是浮云，microtask才是核心！</a></p>
+<h2 id="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"><a href="#可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。" class="headerlink" title="可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。"></a>可能会有理解存在偏差的地方，欢迎大神斧正，共同学习，共同进步。</h2><h2 id="操作DOM"><a href="#操作DOM" class="headerlink" title="操作DOM"></a>操作DOM</h2><p>在使用vue.js的时候，有时候因为一些特定的业务场景，不得不去操作DOM，比如这样：</p>
+<pre><code>&lt;template&gt;
+  &lt;div&gt;
+    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
+    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+export default {
+    data () {
+        return {
+            test: &apos;begin&apos;
+        };
+    },
+    methods () {
+        handleClick () {
+            this.test = &apos;end&apos;;
+            console.log(this.$refs.test.innerText);//打印“begin”
+        }
+    }
+}
+</code></pre><p>打印的结果是begin，为什么我们明明已经将test设置成了“end”，获取真实DOM节点的innerText却没有得到我们预期中的“end”，而是得到之前的值“begin”呢？</p>
+<h2 id="Watcher队列"><a href="#Watcher队列" class="headerlink" title="Watcher队列"></a>Watcher队列</h2><p>带着疑问，我们找到了Vue.js源码的Watch实现。当某个响应式数据发生变化的时候，它的setter函数会通知闭包中的Dep，Dep则会调用它管理的所有Watch对象。触发Watch对象的update实现。我们来看一下update的实现。</p>
+<pre><code>update () {
+    /* istanbul ignore else */
+    if (this.lazy) {
+        this.dirty = true
+    } else if (this.sync) {
+        /*同步则执行run直接渲染视图*/
+        this.run()
+    } else {
+        /*异步推送到观察者队列中，下一个tick时调用。*/
+        queueWatcher(this)
+    }
+}
+</code></pre><p>我们发现Vue.js默认是使用<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fguide%252Freactivity.html%2523%25E5%25BC%2582%25E6%25AD%25A5%25E6%259B%25B4%25E6%2596%25B0%25E9%2598%259F%25E5%2588%2597" target="_blank" rel="noopener">异步执行DOM更新</a>。<br>当异步执行update的时候，会调用queueWatcher函数。</p>
+<pre><code>/*将一个观察者对象push进观察者队列，在队列中已经存在相同的id则该观察者对象将被跳过，除非它是在队列被刷新时推送*/
+export function queueWatcher (watcher: Watcher) {
+  /*获取watcher的id*/
+  const id = watcher.id
+  /*检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验*/
+  if (has[id] == null) {
+    has[id] = true
+    if (!flushing) {
+      /*如果没有flush掉，直接push到队列中即可*/
+      queue.push(watcher)
+    } else {
+      // if already flushing, splice the watcher based on its id
+      // if already past its id, it will be run next immediately.
+      let i = queue.length - 1
+      while (i &gt;= 0 &amp;&amp; queue[i].id &gt; watcher.id) {
+        i--
+      }
+      queue.splice(Math.max(i, index) + 1, 0, watcher)
+    }
+    // queue the flush
+    if (!waiting) {
+      waiting = true
+      nextTick(flushSchedulerQueue)
+    }
+  }
+}
+</code></pre><p>查看queueWatcher的源码我们发现，Watch对象并不是立即更新视图，而是被push进了一个队列queue，此时状态处于waiting的状态，这时候会继续会有Watch对象被push进这个队列queue，等待下一个tick时，这些Watch对象才会被遍历取出，更新视图。同时，id重复的Watcher不会被多次加入到queue中去，因为在最终渲染时，我们只需要关心数据的最终结果。</p>
+<p>那么，什么是下一个tick？</p>
+<h2 id="nextTick"><a href="#nextTick" class="headerlink" title="nextTick"></a>nextTick</h2><p>vue.js提供了一个<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fcn.vuejs.org%252Fv2%252Fapi%252F%2523Vue-nextTick" target="_blank" rel="noopener">nextTick</a>函数，其实也就是上面调用的nextTick。</p>
+<p>nextTick的实现比较简单，执行的目的是在microtask或者task中推入一个funtion，在当前栈执行完毕（也行还会有一些排在前面的需要执行的任务）以后执行nextTick传入的funtion，看一下源码：</p>
+<pre><code>/**
+ * Defer a task to execute it asynchronously.
+ */
+ /*
+    延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function
+    这个函数的作用是在task或者microtask中推入一个timerFunc，
+    在当前调用栈执行完以后以此执行直到执行到timerFunc
+    目的是延迟到当前调用栈执行完以后执行
+*/
+export const nextTick = (function () {
+  /*存放异步执行的回调*/
+  const callbacks = []
+  /*一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送*/
+  let pending = false
+  /*一个函数指针，指向函数将被推送到任务队列中，等到主线程任务执行完时，任务队列中的timerFunc被调用*/
+  let timerFunc
+
+  /*下一个tick时的回调*/
+  function nextTickHandler () {
+    /*一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行），这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程*/
+    pending = false
+    /*执行所有callback*/
+    const copies = callbacks.slice(0)
+    callbacks.length = 0
+    for (let i = 0; i &lt; copies.length; i++) {
+      copies[i]()
+    }
+  }
+
+  // the nextTick behavior leverages the microtask queue, which can be accessed
+  // via either native Promise.then or MutationObserver.
+  // MutationObserver has wider support, however it is seriously bugged in
+  // UIWebView in iOS &gt;= 9.3.3 when triggered in touch event handlers. It
+  // completely stops working after triggering a few times... so, if native
+  // Promise is available, we will use it:
+  /* istanbul ignore if */
+
+  /*
+    这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法
+    优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法都会在microtask中执行，会比setTimeout更早执行，所以优先使用。
+    如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
+    参考：https://www.zhihu.com/question/55364497
+  */
+  if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
+    /*使用Promise*/
+    var p = Promise.resolve()
+    var logError = err =&gt; { console.error(err) }
+    timerFunc = () =&gt; {
+      p.then(nextTickHandler).catch(logError)
+      // in problematic UIWebViews, Promise.then doesn&apos;t completely break, but
+      // it can get stuck in a weird state where callbacks are pushed into the
+      // microtask queue but the queue isn&apos;t being flushed, until the browser
+      // needs to do some other work, e.g. handle a timer. Therefore we can
+      // &quot;force&quot; the microtask queue to be flushed by adding an empty timer.
+      if (isIOS) setTimeout(noop)
+    }
+  } else if (typeof MutationObserver !== &apos;undefined&apos; &amp;&amp; (
+    isNative(MutationObserver) ||
+    // PhantomJS and iOS 7.x
+    MutationObserver.toString() === &apos;[object MutationObserverConstructor]&apos;
+  )) {
+    // use MutationObserver where native Promise is not available,
+    // e.g. PhantomJS IE11, iOS7, Android 4.4
+    /*新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入主线程（比任务队列优先执行），即textNode.data = String(counter)时便会触发回调*/
+    var counter = 1
+    var observer = new MutationObserver(nextTickHandler)
+    var textNode = document.createTextNode(String(counter))
+    observer.observe(textNode, {
+      characterData: true
+    })
+    timerFunc = () =&gt; {
+      counter = (counter + 1) % 2
+      textNode.data = String(counter)
+    }
+  } else {
+    // fallback to setTimeout
+    /* istanbul ignore next */
+    /*使用setTimeout将回调推入任务队列尾部*/
+    timerFunc = () =&gt; {
+      setTimeout(nextTickHandler, 0)
+    }
+  }
+
+  /*
+    推送到队列中下一个tick时执行
+    cb 回调函数
+    ctx 上下文
+  */
+  return function queueNextTick (cb?: Function, ctx?: Object) {
+    let _resolve
+    /*cb存到callbacks中*/
+    callbacks.push(() =&gt; {
+      if (cb) {
+        try {
+          cb.call(ctx)
+        } catch (e) {
+          handleError(e, ctx, &apos;nextTick&apos;)
+        }
+      } else if (_resolve) {
+        _resolve(ctx)
+      }
+    })
+    if (!pending) {
+      pending = true
+      timerFunc()
+    }
+    if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
+      return new Promise((resolve, reject) =&gt; {
+        _resolve = resolve
+      })
+    }
+  }
+})()
+</code></pre><p>它是一个立即执行函数,返回一个queueNextTick接口。</p>
+<p>传入的cb会被push进callbacks中存放起来，然后执行timerFunc（pending是一个状态标记，保证timerFunc在下一个tick之前只执行一次）。</p>
+<p>timerFunc是什么？</p>
+<p>看了源码发现timerFunc会检测当前环境而不同实现，其实就是按照Promise，MutationObserver，setTimeout优先级，哪个存在使用哪个，最不济的环境下使用setTimeout。</p>
+<p>两者的具体实现</p>
+<ul>
+<li>macrotasks: setTimeout ，setInterval， setImmediate，requestAnimationFrame, I/O ，UI渲染</li>
+<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
+</ul>
+<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
+<ol>
+<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
+<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
+<li><p>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</p>
+<p>  这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。</p>
+<pre><code>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。
+如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。
+</code></pre></li>
+</ol>
+<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
+<blockquote>
+<p>  JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、   MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>       要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>       实在不行，只能用 setTimeout 创建 task 了。<br>       为啥要用 microtask？<br>       根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>       反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
+</blockquote>
+<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
+<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
+<p>至于 MutationObserver 如何模拟 nextTick 这点，直接看源码，其实就是创建一个 TextNode 并监听内容变化，然后要 nextTick 的时候去改一下这个节点的文本内容：    var counter = 1</p>
+<pre><code>var observer = new MutationObserver(nextTickHandler)
+    var textNode = document.createTextNode(String(counter))
+    observer.observe(textNode, {
+      characterData: true
+    })
+    timerFunc = () =&gt; {
+      counter = (counter + 1) % 2
+      textNode.data = String(counter)
+    }
+</code></pre><p>   setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
+<pre><code>setTimeout(function(){
+    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
+},0);
+</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
+<pre><code>setTimeout(function(){console.log(4)},0);
+new Promise(function(resolve){
+    console.log(1)
+    for( var i=0 ; i&lt;10000 ; i++ ){
+        i==9999 &amp;&amp; resolve()
+    }
+    console.log(2)
+}).then(function(){
+    console.log(5)
+});
+console.log(3);
+结果是：
+1,2,3,5,4
+</code></pre><p>再看这个，两个自执行同时执行：</p>
+<pre><code>&lt;script&gt;
+(function test() {
+  setTimeout(function () {
+    console.log(4)
+  }, 0);
+  new Promise(function executor (resolve) {
+    console.log(1);
+    for(var i = 0; i &lt; 10000; i++) {
+      i == 9999 &amp;&amp; resolve();
+    }
+    console.log(2);
+  }).then(function() {
+    console.log(5);
+  });
+  console.log(3);
+})()
+
+(function test2() {
+  setTimeout(function () {
+    console.log(42)
+  }, 0);
+  new Promise(function executor (resolve) {
+    console.log(12);
+    for(var i = 0; i &lt; 10000; i++) {
+      i == 9999 &amp;&amp; resolve();
+    }
+    console.log(22);
+  }).then(function() {
+    console.log(52);
+  });
+  console.log(32);
+})()
+&lt;/script&gt;
+</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-afcb6fa6fb862818359f757107b769ab_hd.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的 <code>setTimeout</code> 进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
+<pre><code>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：
+</code></pre><p>   1.先执行 macrotasks：I/O -》 UI渲染</p>
+<p>   2.再执行 microtasks ：process.nextTick  -》 Promise  -》MutationObserver -&gt;Object.observe</p>
+<p>   3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
+<p>setTimeout ，setInterval –》setImmediate</p>
+<pre><code>  综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。
+
+setImmediate(function(){
+    console.log(1);
+},0);
+setTimeout(function(){
+    console.log(2);
+},0);
+new Promise(function(resolve){
+    console.log(3);
+    resolve();
+    console.log(4);
+}).then(function(){
+    console.log(5);
+});
+console.log(6);
+process.nextTick(function(){
+    console.log(7);
+});
+console.log(8);
+结果是：3 4 6 8 7 5 2 1
+</code></pre><h2 id="flushSchedulerQueue"><a href="#flushSchedulerQueue" class="headerlink" title="flushSchedulerQueue"></a>flushSchedulerQueue</h2><pre><code>/*Github:https://github.com/answershuto*/
+/**
+ * Flush both queues and run the watchers.
+ */
+ /*nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers*/
+function flushSchedulerQueue () {
+  flushing = true
+  let watcher, id
+
+  // Sort queue before flush.
+  // This ensures that:
+  // 1. Components are updated from parent to child. (because parent is always
+  //    created before the child)
+  // 2. A component&apos;s user watchers are run before its render watcher (because
+  //    user watchers are created before the render watcher)
+  // 3. If a component is destroyed during a parent component&apos;s watcher run,
+  //    its watchers can be skipped.
+  /*
+    给queue排序，这样做可以保证：
+    1.组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。
+    2.一个组件的user watchers比render watcher先运行，因为user watchers往往比render watcher更早创建
+    3.如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过。
+  */
+  queue.sort((a, b) =&gt; a.id - b.id)
+
+  // do not cache length because more watchers might be pushed
+  // as we run existing watchers
+  /*这里不用index = queue.length;index &gt; 0; index--的方式写是因为不要将length进行缓存，因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue*/
+  for (index = 0; index &lt; queue.length; index++) {
+    watcher = queue[index]
+    id = watcher.id
+    /*将has的标记删除*/
+    has[id] = null
+    /*执行watcher*/
+    watcher.run()
+    // in dev build, check and stop circular updates.
+    /*
+      在测试环境中，检测watch是否在死循环中
+      比如这样一种情况
+      watch: {
+        test () {
+          this.test++;
+        }
+      }
+      持续执行了一百次watch代表可能存在死循环
+    */
+    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {
+      circular[id] = (circular[id] || 0) + 1
+      if (circular[id] &gt; MAX_UPDATE_COUNT) {
+        warn(
+          &apos;You may have an infinite update loop &apos; + (
+            watcher.user
+              ? `in watcher with expression &quot;${watcher.expression}&quot;`
+              : `in a component render function.`
+          ),
+          watcher.vm
+        )
+        break
+      }
+    }
+  }
+
+  // keep copies of post queues before resetting state
+  /**/
+  /*得到队列的拷贝*/
+  const activatedQueue = activatedChildren.slice()
+  const updatedQueue = queue.slice()
+
+  /*重置调度者的状态*/
+  resetSchedulerState()
+
+  // call component updated and activated hooks
+  /*使子组件状态都改编成active同时调用activated钩子*/
+  callActivatedHooks(activatedQueue)
+  /*调用updated钩子*/
+  callUpdateHooks(updatedQueue)
+
+  // devtool hook
+  /* istanbul ignore if */
+  if (devtools &amp;&amp; config.devtools) {
+    devtools.emit(&apos;flush&apos;)
+  }
+}
+</code></pre><p>flushSchedulerQueue是下一个tick时的回调函数，主要目的是执行Watcher的run函数，用来更新视图</p>
+<h2 id="为什么要异步更新视图"><a href="#为什么要异步更新视图" class="headerlink" title="为什么要异步更新视图"></a>为什么要异步更新视图</h2><p>来看一下下面这一段代码</p>
+<pre><code>&lt;template&gt;
+  &lt;div&gt;
+    &lt;div&gt;{{test}}&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+export default {
+    data () {
+        return {
+            test: 0
+        };
+    },
+    created () {
+      for(let i = 0; i &lt; 1000; i++) {
+        this.test++;
+      }
+    }
+}
+</code></pre><p>现在有这样的一种情况，created的时候test的值会被++循环执行1000次。<br>每次++时，都会根据响应式触发setter-&gt;Dep-&gt;Watcher-&gt;update-&gt;patch。<br>如果这时候没有异步更新视图，那么每次++都会直接操作DOM更新视图，这是非常消耗性能的。<br>所以Vue.js实现了一个queue队列，在下一个tick的时候会统一执行queue中Watcher的run。同时，拥有相同id的Watcher不会被重复加入到该queue中去，所以不会执行1000次Watcher的run。最终更新视图只会直接将test对应的DOM的0变成1000。<br>保证更新视图操作DOM的动作是在当前栈执行完以后下一个tick的时候调用，大大优化了性能。</p>
+<h2 id="访问真实DOM节点更新后的数据"><a href="#访问真实DOM节点更新后的数据" class="headerlink" title="访问真实DOM节点更新后的数据"></a>访问真实DOM节点更新后的数据</h2><p>所以我们需要在修改data中的数据后访问真实的DOM节点更新后的数据，只需要这样，我们把文章第一个例子进行修改。</p>
+<pre><code>&lt;template&gt;
+  &lt;div&gt;
+    &lt;div ref=&quot;test&quot;&gt;{{test}}&lt;/div&gt;
+    &lt;button @click=&quot;handleClick&quot;&gt;tet&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/template&gt;
+export default {
+    data () {
+        return {
+            test: &apos;begin&apos;
+        };
+    },
+    methods () {
+        handleClick () {
+            this.test = &apos;end&apos;;
+            this.$nextTick(() =&gt; {
+                console.log(this.$refs.test.innerText);//打印&quot;end&quot;
+            });
+            console.log(this.$refs.test.innerText);//打印“begin”
+        }
+    }
+}
+</code></pre><p>使用Vue.js的global API的$nextTick方法，即可在回调中获取已经更新好的DOM实例了。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/28/CSS网格布局（Grid）完全教程/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2618,163 +3157,6 @@ text-justify:inter-ideograph;
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/21/React-setState/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/09/21/React-setState/" itemprop="url">React setState</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-21T20:16:49+08:00">
-                2017-09-21
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><img src="/2017/09/21/React-setState/1.webp" alt=""></p>
-<blockquote>
-<p>面试官：“react中<code>setState</code>是同步的还是异步？”</p>
-</blockquote>
-<blockquote>
-<p>我：“异步的，<code>setState</code>不能立马拿到结果。”</p>
-</blockquote>
-<blockquote>
-<p>面试官：“那什么场景下是异步的，可不可能是同步，什么场景下又是同步的？”</p>
-</blockquote>
-<blockquote>
-<p>我：“……”</p>
-</blockquote>
-<h3 id="setState真的是异步的吗？"><a href="#setState真的是异步的吗？" class="headerlink" title="setState真的是异步的吗？"></a><code>setState</code>真的是异步的吗？</h3><p>这两天自己简单的看了下 <code>setState</code> 的部分实现代码，在这边给到大家一个自己个人的见解，可能文字或图片较多，没耐心的同学可以直接跳过看总结(<strong>源码版本是16.4.1</strong>)。</p>
-<p><strong>看之前，为了方便理解和简化流程，我们默认react内部代码执行到<code>performWork</code><br>、<code>performWorkOnRoot</code>、<code>performSyncWork</code>、<code>performAsyncWork</code>这四个方法的时候，就是react去update更新并且作用到UI上。</strong></p>
-<h3 id="一、合成事件中的setState"><a href="#一、合成事件中的setState" class="headerlink" title="一、合成事件中的setState"></a>一、合成事件中的<code>setState</code></h3><p>首先得了解一下什么是合成事件，react为了解决跨平台，兼容性问题，自己封装了一套事件机制，代理了原生的事件，像在<code>jsx</code>中常见的<code>onClick</code>、<code>onChange</code>这些都是合成事件。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  increment = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新前的val --&gt; 0</span><br><span class="line">  &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.increment&#125;&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>合成事件中的<code>setState</code>写法比较常见，点击事件里去改变 <code>this.state.val</code> 的状态值，在 <code>increment</code> 事件中打个断点可以看到调用栈，这里我贴一张自己画的流程图：<br><img src="/2017/09/21/React-setState/2.webp" alt=""><br>从 <code>dispatchInteractiveEvent</code> 到 <code>callCallBack</code> 为止，都是对合成事件的处理和执行，从 <code>setState</code> 到 <code>requestWork</code> 是调用 <code>this.setState</code> 的逻辑，这边主要看下  <code>requestWork</code> 这个函数（从 <code>dispatchEvent</code> 到 <code>requestWork</code> 的调用栈是属于 <code>interactiveUpdates$1</code> 的 <code>try</code> 代码块，下文会提到）。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">function requestWork(root, expirationTime) &#123;</span><br><span class="line">  addRootToSchedule(root, expirationTime);</span><br><span class="line"></span><br><span class="line">  if (isRendering) &#123;</span><br><span class="line">    // Prevent reentrancy. Remaining work will be scheduled at the end of</span><br><span class="line">    // the currently rendering batch.</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (isBatchingUpdates) &#123;</span><br><span class="line">    // Flush work at the end of the batch.</span><br><span class="line">    if (isUnbatchingUpdates) &#123;</span><br><span class="line">      // ...unless we&apos;re inside unbatchedUpdates, in which case we should</span><br><span class="line">      // flush it now.</span><br><span class="line">      nextFlushedRoot = root;</span><br><span class="line">      nextFlushedExpirationTime = Sync;</span><br><span class="line">      performWorkOnRoot(root, Sync, false);</span><br><span class="line">    &#125;</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // TODO: Get rid of Sync and use current time?</span><br><span class="line">  if (expirationTime === Sync) &#123;</span><br><span class="line">    performSyncWork();</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    scheduleCallbackWithExpiration(expirationTime);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>在 <code>requestWork</code> 中有三个if分支，三个分支中有两个方法 <code>performWorkOnRoot</code> 和 <code>performSyncWork</code> ，就是我们默认的update函数，但是在合成事件中，走的是第二个if分支，第二个分支中有两个标识 <code>isBatchingUpdates</code> 和 <code>isUnbatchingUpdates</code> 两个初始值都为  <code>false</code> ，但是在 <code>interactiveUpdates$1</code> 中会把 <code>isBatchingUpdates</code> 设为 <code>true</code> ，下面就是 <code>interactiveUpdates$1</code> 的代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">function interactiveUpdates$1(fn, a, b) &#123;</span><br><span class="line">  if (isBatchingInteractiveUpdates) &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125;</span><br><span class="line">  // If there are any pending interactive updates, synchronously flush them.</span><br><span class="line">  // This needs to happen before we read any handlers, because the effect of</span><br><span class="line">  // the previous event may influence which handlers are called during</span><br><span class="line">  // this event.</span><br><span class="line">  if (!isBatchingUpdates &amp;&amp; !isRendering &amp;&amp; lowestPendingInteractiveExpirationTime !== NoWork) &#123;</span><br><span class="line">    // Synchronously flush pending interactive updates.</span><br><span class="line">    performWork(lowestPendingInteractiveExpirationTime, false, null);</span><br><span class="line">    lowestPendingInteractiveExpirationTime = NoWork;</span><br><span class="line">  &#125;</span><br><span class="line">  var previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates;</span><br><span class="line">  var previousIsBatchingUpdates = isBatchingUpdates;</span><br><span class="line">  isBatchingInteractiveUpdates = true;</span><br><span class="line">  isBatchingUpdates = true;  // 把requestWork中的isBatchingUpdates标识改为true</span><br><span class="line">  try &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125; finally &#123;</span><br><span class="line">    isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates;</span><br><span class="line">    isBatchingUpdates = previousIsBatchingUpdates;</span><br><span class="line">    if (!isBatchingUpdates &amp;&amp; !isRendering) &#123;</span><br><span class="line">      performSyncWork();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>在这个方法中把 <code>isBatchingUpdates</code> 设为了 <code>true</code> ,导致在 <code>requestWork</code> 方法中， <code>isBatchingUpdates</code> 为 <code>true</code> ，但是 <code>isUnbatchingUpdates</code> 是 <code>false</code> ，而被直接return了。</p>
-<p>那return完的逻辑回到哪里呢，最终正是回到了 <code>interactiveUpdates</code> 这个方法，仔细看一眼，这个方法里面有个<a href="https://link.juejin.im?target=http%3A%2F%2Fjavascript.ruanyifeng.com%2Fgrammar%2Ferror.html%23toc12" target="_blank" rel="noopener">try finally</a>语法，前端同学这个其实是用的比较少的，简单的说就是会先执行 <code>try</code> 代码块中的语句，然后再执行 <code>finally</code> 中的代码，而 <code>fn(a, b)</code> 是在try代码块中，刚才说到在 <code>requestWork</code> 中被return掉的也就是这个fn（上文提到的 <code>从dispatchEvent</code> 到 <code>requestWork</code> 的一整个调用栈）。</p>
-<p>所以当你在 <code>increment</code> 中调用 <code>setState</code> 之后去console.log的时候，是属于 <code>try</code> 代码块中的执行，但是由于是合成事件，try代码块执行完state并没有更新，所以你输入的结果是更新前的 <code>state</code> 值，这就导致了所谓的”异步”，但是当你的try代码块执行完的时候（也就是你的increment合成事件），这个时候会去执行 <code>finally</code> 里的代码，在 <code>finally</code> 中执行了 <code>performSyncWork</code> 方法，这个时候才会去更新你的 <code>state</code> 并且渲染到UI上。</p>
-<h3 id="二、生命周期函数中的setState"><a href="#二、生命周期函数中的setState" class="headerlink" title="二、生命周期函数中的setState"></a>二、生命周期函数中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">   console.log(this.state.val) // 输出的还是更新前的值 --&gt; 0</span><br><span class="line"> &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>钩子函数中setState的调用栈：<br><img src="/2017/09/21/React-setState/3.webp" alt=""><br>其实还是和合成事件一样，当 <code>componentDidmount</code> 执行的时候，react内部并没有更新，执行完<code>componentDidmount</code>  后才去 <code>commitUpdateQueue</code> 更新。这就导致你在 <code>componentDidmount</code> 中 <code>setState</code> 完去console.log拿的结果还是更新前的值。</p>
-<h3 id="三、原生事件中的setState"><a href="#三、原生事件中的setState" class="headerlink" title="三、原生事件中的setState"></a>三、原生事件中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  changeValue = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新后的值 --&gt; 1</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    document.body.addEventListener(&apos;click&apos;, this.changeValue, false)</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>原生事件是指非react合成事件，原生自带的事件监听 <code>addEventListener</code> ，或者也可以用原生js、jq直接 <code>document.querySelector().onclick</code> 这种绑定事件的形式都属于原生事件。<br><img src="/2017/09/21/React-setState/4.webp" alt=""><br>原生事件的调用栈就比较简单了，因为没有走合成事件的那一大堆，直接触发click事件，到 <code>requestWork</code> ,在<code>requestWork</code>里由于 <code>expirationTime === Sync</code> 的原因，直接走了 <code>performSyncWork</code> 去更新，并不像合成事件或钩子函数中被return，所以当你在原生事件中setState后，能同步拿到更新后的state值。</p>
-<h3 id="四、setTimeout中的setState"><a href="#四、setTimeout中的setState" class="headerlink" title="四、setTimeout中的setState"></a>四、setTimeout中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val) // 输出更新后的值 --&gt; 1</span><br><span class="line">    &#125;, 0)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在 <code>setTimeout</code> 中去 <code>setState</code> 并不算是一个单独的场景，它是随着你外层去决定的，因为你可以在合成事件中 <code>setTimeout</code> ，可以在钩子函数中 <code>setTimeout</code> ，也可以在原生事件<code>setTimeout</code>，但是不管是哪个场景下，基于<a href="https://link.juejin.im?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D6XRNXXgP_0" target="_blank" rel="noopener">event loop</a>的模型下， <code>setTimeout</code> 中里去 <code>setState</code> 总能拿到最新的state值。</p>
-<p>举个栗子，比如之前的合成事件，由于你是 <code>setTimeout(_ =&gt; { this.setState()}, 0)</code> 是在 <code>try</code> 代码块中,当你 <code>try</code> 代码块执行到 <code>setTimeout</code> 的时候，把它丢到列队里，并没有去执行，而是先执行的 <code>finally</code> 代码块，等 <code>finally</code> 执行完了， <code>isBatchingUpdates</code> 又变为了 <code>false</code> ，导致最后去执行队列里的 <code>setState</code> 时候， <code>requestWork</code> 走的是和原生事件一样的 <code>expirationTime === Sync</code> if分支，所以表现就会和原生事件一样，可以同步拿到最新的state值。</p>
-<h3 id="五、setState中的批量更新"><a href="#五、setState中的批量更新" class="headerlink" title="五、setState中的批量更新"></a>五、<code>setState</code>中的批量更新</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  batchUpdates = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.batchUpdates&#125;&gt;</span><br><span class="line">        &#123;`Counter is $&#123;this.state.val&#125;`&#125; // 1</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>上面的结果最终是1，在 <code>setState</code> 的时候react内部会创建一个 <code>updateQueue</code> ，通过 <code>firstUpdate</code> 、 <code>lastUpdate</code> 、 <code>lastUpdate.next</code> 去维护一个更新的队列，在最终的 <code>performWork</code> 中，相同的key会被覆盖，只会对最后一次的 <code>setState</code> 进行更新，下面是部分实现代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">function createUpdateQueue(baseState) &#123;</span><br><span class="line">  var queue = &#123;</span><br><span class="line">    expirationTime: NoWork,</span><br><span class="line">    baseState: baseState,</span><br><span class="line">    firstUpdate: null,</span><br><span class="line">    lastUpdate: null,</span><br><span class="line">    firstCapturedUpdate: null,</span><br><span class="line">    lastCapturedUpdate: null,</span><br><span class="line">    firstEffect: null,</span><br><span class="line">    lastEffect: null,</span><br><span class="line">    firstCapturedEffect: null,</span><br><span class="line">    lastCapturedEffect: null</span><br><span class="line">  &#125;;</span><br><span class="line">  return queue;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">function appendUpdateToQueue(queue, update, expirationTime) &#123;</span><br><span class="line">  // Append the update to the end of the list.</span><br><span class="line">  if (queue.lastUpdate === null) &#123;</span><br><span class="line">    // Queue is empty</span><br><span class="line">    queue.firstUpdate = queue.lastUpdate = update;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    queue.lastUpdate.next = update;</span><br><span class="line">    queue.lastUpdate = update;</span><br><span class="line">  &#125;</span><br><span class="line">  if (queue.expirationTime === NoWork || queue.expirationTime &gt; expirationTime) &#123;</span><br><span class="line">    // The incoming update has the earliest expiration of any update in the</span><br><span class="line">    // queue. Update the queue&apos;s expiration time.</span><br><span class="line">    queue.expirationTime = expirationTime;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h3 id="看个demo"><a href="#看个demo" class="headerlink" title="看个demo"></a>看个demo</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">class App extends React.Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val);</span><br><span class="line"></span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val)</span><br><span class="line">    &#125;, 0)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return &lt;div&gt;&#123;this.state.val&#125;&lt;/div&gt;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>结合上面分析的，钩子函数中的 <code>setState</code> 无法立马拿到更新后的值，所以前两次都是输出0，当执行到 <code>setTimeout</code> 里的时候，前面两个state的值已经被更新，由于 <code>setState</code> 批量更新的策略， <code>this.state.val</code> 只对最后一次的生效，为1，而在 <code>setTimmout</code> 中 <code>setState</code> 是可以同步拿到更新结果，所以 <code>setTimeout</code> 中的两次输出2，3，最终结果就为 <code>0, 0, 2, 3</code> 。</p>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结 :"></a>总结 :</h3><ol>
-<li><strong><code>setState</code> 只在合成事件和钩子函数中是“异步”的，在原生事件和 <code>setTimeout</code> 中都是同步的。</strong></li>
-<li><strong><code>setState</code>的“异步”并不是说内部由异步代码实现，其实本身执行的过程和代码都是同步的，只是合成事件和钩子函数的调用顺序在更新之前，导致在合成事件和钩子函数中没法立马拿到更新后的值，形式了所谓的“异步”，当然可以通过第二个参数 setState(partialState, callback) 中的callback拿到更新后的结果。</strong></li>
-<li><strong><code>setState</code> 的批量更新优化也是建立在“异步”（合成事件、钩子函数）之上的，在原生事件和setTimeout 中不会批量更新，在“异步”中如果对同一个值进行多次 <code>setState</code> ， <code>setState</code> 的批量更新策略会对其进行覆盖，取最后一次的执行，如果是同时 <code>setState</code> 多个不同的值，在更新时会对其进行合并批量更新。</strong></li>
-</ol>
-<p>以上就是我看了部分代码后的粗浅理解，对源码细节的那块分析的较少，主要是想让大家理解<code>setState</code>在不同的场景，不同的写法下到底发生了什么样的一个过程和结果，希望对大家有帮助，由于是个人的理解和见解，如果哪里有说的不对的地方，欢迎大家一起指出并讨论。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2829,7 +3211,7 @@ text-justify:inter-ideograph;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">109</span>
+                  <span class="site-state-item-count">110</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
