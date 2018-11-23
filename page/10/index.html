@@ -300,6 +300,766 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/05/21/跨域，你需要知道的全在这里/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/05/21/跨域，你需要知道的全在这里/" itemprop="url">跨域，你需要知道的全在这里</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-05-21T11:05:10+08:00">
+                2016-05-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>最近在面试的时候常被问到如何解决跨域的问题，看了网上的一些文章后，许多文章并没有介绍清楚，经常使读者(我)感到困惑，所以今天我整理一下常用的跨域技巧，写这篇关于跨域的文章目的在于：</p>
+<ol>
+<li>介绍常见的跨域的解决方案以及其优缺点</li>
+<li>模拟实际的跨域场景，在每种方案后给出一个简单的实例，能够让读者和我一起敲代码，直观地理解这些跨域技巧</li>
+</ol>
+<p>如果觉得本文有帮助，可以点 star 鼓励下，本文所有代码都可以从 github 仓库下载，读者可以按照下述打开:</p>
+<pre><code>git clone https://github.com/happylindz/blog.git
+cd blog/code/crossOrigin/
+yarn
+</code></pre><p>建议你 clone 下来，方便你阅读代码，跟我一起测试。</p>
+<h2 id="同源策略"><a href="#同源策略" class="headerlink" title="同源策略"></a>同源策略</h2><p>使用过 Ajax 的同学都知道其便利性，可以在不向服务端提交完整页面的情况下，实现局部刷新，在当今 SPA 应用普遍使用，但是浏览器处于对安全方面的考虑，不允许跨域调用其它页面的对象，这对于我们在注入 iframe 或是 ajax 应用上带来不少麻烦。</p>
+<p>简单来说，只有当协议，域名，端口号相同的时候才算是同一个域名，否则，均认为需要做跨域处理。</p>
+<p><img src="https://pic4.zhimg.com/v2-5fa29773fc875bf58e4513fdba402bf0_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-5fa29773fc875bf58e4513fdba402bf0_hd.jpg" alt=""></p>
+<h2 id="跨域方法"><a href="#跨域方法" class="headerlink" title="跨域方法"></a>跨域方法</h2><p>今天一共介绍七种常用的跨域技巧，关于跨域技巧大致可以分为 iframe 跨域和 API 跨域请求。</p>
+<p>下面就先介绍三种 API 跨域的方法:</p>
+<h2 id="1-JSONP："><a href="#1-JSONP：" class="headerlink" title="1. JSONP："></a>1. JSONP：</h2><p>只要说到跨域，就必须聊到 JSONP，JSONP 全称为：JSON with padding，可用于解决老版本浏览器的跨域数据访问问题。</p>
+<p>由于 web 页面上调用 js 文件不受浏览器同源策略的影响，所以通过 script 标签可以进行跨域请求：</p>
+<ol>
+<li>首先前端需要先设置好回调函数，并将其作为 url 的参数。</li>
+<li>服务端接收到请求后，通过该参数获取到回调函数名，并将数据放在参数中将其返回</li>
+<li>收到结果后因为是 script 标签，所以浏览器会当做是脚本进行运行，从而达到跨域获取数据的目的</li>
+</ol>
+<p>jsonp 之所以能够跨域的关键在于页面调用 JS 脚本是不受同源策略的影响，相当于向后端发起一条 http 请求，跟后端约定好函数名，后端拿到函数名，动态计算出返回结果并返回给前端执行 JS 脚本，相当于是一种 “动态 JS 脚本”</p>
+<p>接下来我们通过一个实例来尝试：</p>
+<p>后端逻辑：</p>
+<pre><code>// jsonp/server.js
+const url = require(&apos;url&apos;);
+
+require(&apos;http&apos;).createServer((req, res) =&gt; {
+    const data = {
+        x: 10
+    };
+    // 拿到回调函数名
+    const callback = url.parse(req.url, true).query.callback;
+    console.log(callback);
+    res.writeHead(200);
+    res.end(`${callback}(${JSON.stringify(data)})`);
+
+}).listen(3000, &apos;127.0.0.1&apos;);
+
+console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
+</code></pre><p>前端逻辑：</p>
+<pre><code>// jsonp/index.html
+&lt;script&gt;
+    function jsonpCallback(data) {
+        alert(&apos;获得 X 数据:&apos; + data.x);
+    }
+&lt;/script&gt;
+&lt;script src=&quot;http://127.0.0.1:3000?callback=jsonpCallback&quot;&gt;&lt;/script&gt;
+</code></pre><p>然后在终端开启服务：</p>
+<p>之所以能用脚本指令，是因为我在 package.json 里面设置好了脚本命令：</p>
+<pre><code>{
+  // 输入 yarn jsonp 等于 &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;
+  &quot;scripts&quot;: {
+    &quot;jsonp&quot;: &quot;node ./jsonp/server.js &amp; http-server ./jsonp&quot;,
+    &quot;cors&quot;: &quot;node ./cors/server.js &amp; http-server ./cors&quot;,
+    &quot;proxy&quot;: &quot;node ./serverProxy/server.js&quot;,
+    &quot;hash&quot;: &quot;http-server ./hash/client/ -p 8080 &amp; http-server ./hash/server/ -p 8081&quot;,
+    &quot;name&quot;: &quot;http-server ./name/client/ -p 8080 &amp; http-server ./name/server/ -p 8081&quot;,
+    &quot;postMessage&quot;: &quot;http-server ./postMessage/client/ -p 8080 &amp; http-server ./postMessage/server/ -p 8081&quot;,
+    &quot;domain&quot;: &quot;http-server ./domain/client/ -p 8080 &amp; http-server ./domain/server/ -p 8081&quot;
+  },
+  // ...
+}
+
+yarn jsonp
+// 因为端口 3000 和 8080 分别属于不同域名下
+// 在 localhost:3000 查看效果，即可收到后台返回的数据 10
+</code></pre><p>打开浏览器访问 <code>localhost:8080</code> 即可看到获取到的数据。</p>
+<p><img src="https://pic2.zhimg.com/v2-1bd48c160110899a8ad7e08e56d36560_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-1bd48c160110899a8ad7e08e56d36560_hd.jpg" alt=""></p>
+<p>至此，通过 JSONP 跨域获取数据已经成功了，但是通过这种方式也存在着一定的优缺点：</p>
+<p>优点：</p>
+<ol>
+<li>它不像XMLHttpRequest 对象实现 Ajax 请求那样受到同源策略的限制</li>
+<li>兼容性很好，在古老的浏览器也能很好的运行</li>
+<li>不需要 XMLHttpRequest 或 ActiveX 的支持；并且在请求完毕后可以通过调用 callback 的方式回传结果。</li>
+</ol>
+<p>缺点：</p>
+<ol>
+<li>它支持 GET 请求而不支持 POST 等其它类行的 HTTP 请求。</li>
+<li>它只支持跨域 HTTP 请求这种情况，不能解决不同域的两个页面或 iframe 之间进行数据通信的问题</li>
+<li>无法捕获 Jsonp 请求时的连接异常，只能通过超时进行处理</li>
+</ol>
+<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS:"></a>CORS:</h2><p>CORS 是一个 W3C 标准，全称是”跨域资源共享”（Cross-origin resource sharing）它允许浏览器向跨源服务器，发出 XMLHttpRequest 请求，从而克服了 ajax 只能同源使用的限制。</p>
+<p>CORS 需要浏览器和服务器同时支持才可以生效，对于开发者来说，CORS 通信与同源的 ajax 通信没有差别，代码完全一样。浏览器一旦发现 ajax 请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。</p>
+<p>因此，实现 CORS 通信的关键是服务器。只要服务器实现了 CORS 接口，就可以跨域通信。</p>
+<p>前端逻辑很简单，只要正常发起 ajax 请求即可:</p>
+<pre><code>// cors/index.html
+&lt;script&gt;
+    const xhr = new XMLHttpRequest();
+    xhr.open(&apos;GET&apos;, &apos;http://127.0.0.1:3000&apos;, true);
+    xhr.onreadystatechange = function() {
+        if(xhr.readyState === 4 &amp;&amp; xhr.status === 200) {
+            alert(xhr.responseText);
+        }
+    }
+    xhr.send(null);
+&lt;/script&gt;
+</code></pre><p>这似乎跟一次正常的异步 ajax 请求没有什么区别，关键是在服务端收到请求后的处理：</p>
+<pre><code>// cors/server.js
+require(&apos;http&apos;).createServer((req, res) =&gt; {
+
+    res.writeHead(200, {
+        &apos;Access-Control-Allow-Origin&apos;: &apos;http://localhost:8080&apos;,
+        &apos;Content-Type&apos;: &apos;text/html;charset=utf-8&apos;,
+    });
+    res.end(&apos;这是你要的数据：1111&apos;);
+
+}).listen(3000, &apos;127.0.0.1&apos;);
+
+console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
+</code></pre><p>关键是在于设置相应头中的 Access-Control-Allow-Origin，该值要与请求头中 Origin 一致才能生效，否则将跨域失败。</p>
+<p>然后我们执行命令：<code>yarn cors</code> 打开浏览器访问 <code>localhost:3000</code> 即可看到效果：</p>
+<p><img src="https://pic2.zhimg.com/v2-13ee0a40a998948019749da80e1d259a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-13ee0a40a998948019749da80e1d259a_hd.jpg" alt=""></p>
+<p>成功的关键在于 Access-Control-Allow-Origin 是否包含请求页面的域名，如果不包含的话，浏览器将认为这是一次失败的异步请求，将会调用 xhr.onerror 中的函数。</p>
+<p>CORS 的优缺点：</p>
+<ol>
+<li>使用简单方便，更为安全</li>
+<li>支持 POST 请求方式</li>
+<li>CORS 是一种新型的跨域问题的解决方案，存在兼容问题，仅支持 IE 10 以上</li>
+</ol>
+<p>这里只是对 CORS 做一个简单的介绍，如果想更详细地了解其原理的话，可以看看下面这篇文章：</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/cors.html" target="_blank" rel="noopener">跨域资源共享 CORS 详解 - 阮一峰的网络日志</a></p>
+<h2 id="3-服务端代理："><a href="#3-服务端代理：" class="headerlink" title="3. 服务端代理："></a>3. 服务端代理：</h2><p>服务器代理，顾名思义，当你需要有跨域的请求操作时发送请求给后端，让后端帮你代为请求，然后最后将获取的结果发送给你。</p>
+<p>假设有这样的一个场景，你的页面需要获取 <a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/api" target="_blank" rel="noopener">CNode：Node.js专业中文社区</a> 论坛上一些数据，如通过 <code>https://cnodejs.org/api/v1/topics</code>，当时因为不同域，所以你可以将请求后端，让其对该请求代为转发。</p>
+<p>代码如下：</p>
+<pre><code>// serverProxy/server.js
+const url = require(&apos;url&apos;);
+const http = require(&apos;http&apos;);
+const https = require(&apos;https&apos;);
+
+const server = http.createServer((req, res) =&gt; {
+    const path = url.parse(req.url).path.slice(1);
+    if(path === &apos;topics&apos;) {
+        https.get(&apos;https://cnodejs.org/api/v1/topics&apos;, (resp) =&gt; {
+            let data = &quot;&quot;;
+            resp.on(&apos;data&apos;, chunk =&gt; {
+                data += chunk;
+            });
+            resp.on(&apos;end&apos;, () =&gt; {
+                res.writeHead(200, {
+                    &apos;Content-Type&apos;: &apos;application/json; charset=utf-8&apos;
+                });
+                res.end(data);
+            });
+        })        
+    }
+}).listen(3000, &apos;127.0.0.1&apos;);
+console.log(&apos;启动服务，监听 127.0.0.1:3000&apos;);
+</code></pre><p>通过代码你可以看出，当你访问 <code>http://127.0.0.1:3000/topics</code> 的时候，服务器收到请求，会代你发送请求 <code>https://cnodejs.org/api/v1/topics</code> 最后将获取到的数据发送给浏览器。</p>
+<p>启动服务 <code>yarn proxy</code> 并访问 <code>http://localhost:3000/topics</code> 即可看到效果：<br><img src="https://pic1.zhimg.com/v2-a14f2dd5cfd124187cabff0fdfabe5a9_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-a14f2dd5cfd124187cabff0fdfabe5a9_hd.jpg" alt=""></p>
+<p>跨域请求成功。纯粹的获取跨域获取后端数据的请求的方式已经介绍完了，另外介绍四种通过 iframe 跨域与其它页面通信的方式。</p>
+<h2 id="location-hash："><a href="#location-hash：" class="headerlink" title="location.hash："></a>location.hash：</h2><p>在 url 中，<code>http://www.baidu.com#helloworld</code> 的 “#helloworld” 就是 location.hash，改变 hash 值不会导致页面刷新，所以可以利用 hash 值来进行数据的传递，当然数据量是有限的。</p>
+<p>假设 <code>localhost:8080</code> 下有文件 index.html 要和 <code>localhost:8081</code> 下的 data.html 传递消息，index.html 首先创建一个隐藏的 iframe，iframe 的 src 指向 <code>localhost:8081/data.html</code>，这时的 hash 值就可以做参数传递。</p>
+<pre><code>// hash/client/index.html 对应 localhost:8080/index.html
+&lt;script&gt;
+    let ifr = document.createElement(&apos;iframe&apos;);
+    ifr.style.display = &apos;none&apos;;
+    ifr.src = &quot;http://localhost:8081/data.html#data&quot;;
+    document.body.appendChild(ifr);
+
+    function checkHash() {
+        try {
+            let data = location.hash ? location.hash.substring(1) : &apos;&apos;;
+            console.log(&apos;获得到的数据是：&apos;, data);
+        }catch(e) {
+
+        }
+    }
+    window.addEventListener(&apos;hashchange&apos;, function(e) {
+        console.log(&apos;获得的数据是：&apos;, location.hash.substring(1));
+    });
+&lt;/script&gt;
+</code></pre><p>data.html 收到消息后通过 parent.location.hash 值来修改 index.html 的 hash 值，从而达到数据传递。</p>
+<pre><code>// hash/server/data.html 对应 localhost:8081/data.html
+&lt;script&gt;
+    switch(location.hash) {
+        case &quot;#data&quot;:
+            callback();
+            break;
+    }
+    function callback() {
+        const data = &quot;data.html 的数据&quot;
+        try {
+            parent.location.hash = data;
+        }catch(e) {
+            // ie, chrome 下的安全机制无法修改 parent.location.hash
+            // 所以要利用一个中间的代理 iframe 
+            var ifrproxy = document.createElement(&apos;iframe&apos;);
+            ifrproxy.style.display = &apos;none&apos;;
+            ifrproxy.src = &apos;http://localhost:8080/proxy.html#&apos; + data;     // 该文件在 client 域名的域下
+            document.body.appendChild(ifrproxy);
+        }
+    }
+&lt;/script&gt;
+</code></pre><p>由于两个页面不在同一个域下 IE、Chrome 不允许修改 parent.location.hash 的值，所以要借助于 <code>localhost:8080</code> 域名下的一个代理 iframe 的 proxy.html 页面</p>
+<pre><code>// hash/client/proxy.html 对应 localhost:8080/proxy.html
+&lt;script&gt;
+    parent.parent.location.hash = self.location.hash.substring(1);
+&lt;/script&gt;
+</code></pre><p>之后启动服务 <code>yarn hash</code>，即可在 <code>localhost:8080</code> 下观察到：</p>
+<p><img src="https://pic2.zhimg.com/v2-278b33c730dc9aaf499f172424adde00_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-278b33c730dc9aaf499f172424adde00_hd.jpg" alt=""></p>
+<p>当然这种方法存在着诸多的缺点：</p>
+<ol>
+<li>数据直接暴露在了 url 中</li>
+<li>数据容量和类型都有限等等</li>
+</ol>
+<h2 id="window-name"><a href="#window-name" class="headerlink" title="window.name:"></a>window.name:</h2><p>window.name（一般在 js 代码里出现）的值不是一个普通的全局变量，而是当前窗口的名字，这里要注意的是每个 iframe 都有包裹它的 window，而这个 window 是 top window 的子窗口，而它自然也有 window.name 的属性，window.name 属性的神奇之处在于 name 值在不同的页面（甚至不同域名）加载后依旧存在（如果没修改则值不会变化），并且可以支持非常长的 name 值（2MB）。</p>
+<p>举个简单的例子：</p>
+<p>你在某个页面的控制台输入：</p>
+<pre><code>window.name = &quot;Hello World&quot;
+window.location = &quot;http://www.baidu.com&quot;
+</code></pre><p>页面跳转到了百度首页，但是 window.name 却被保存了下来，还是 Hello World，跨域解决方案似乎可以呼之欲出了：</p>
+<p>前端逻辑：</p>
+<pre><code>// name/client/index.html 对应 localhost:8080/index.html 
+&lt;script&gt;
+    let data = &apos;&apos;;
+    const ifr = document.createElement(&apos;iframe&apos;);
+    ifr.src = &quot;http://localhost:8081/data.html&quot;;
+    ifr.style.display = &apos;none&apos;;
+    document.body.appendChild(ifr);
+    ifr.onload = function() {
+        ifr.onload = function() {
+            data = ifr.contentWindow.name;
+            console.log(&apos;收到数据:&apos;, data);
+        }
+        ifr.src = &quot;http://localhost:8080/proxy.html&quot;;
+    }
+&lt;/script&gt;
+</code></pre><p>数据页面：</p>
+<pre><code>// name/server/data.html 对应 localhost:8081/data.html
+&lt;script&gt;
+    window.name = &quot;data.html 的数据!&quot;;
+&lt;/script&gt;
+</code></pre><p><code>localhost:8080index.html</code> 在请求数据端 <code>localhost:8081/data.html</code> 时，我们可以在该页面新建一个 iframe，该 iframe 的 src 指向数据端地址(利用 iframe 标签的跨域能力)，数据端文件设置好 window.name 的值。</p>
+<p>但是由于 index.html 页面与该页面 iframe 的 src 如果不同源的话，则无法操作 iframe 里的任何东西，所以就取不到 iframe 的 name 值，所以我们需要在 data.html 加载完后重新换个 src 去指向一个同源的 html 文件，或者设置成 ‘about:blank;’ 都行，这时候我只要在 index.html 相同目录下新建一个 proxy.html 的空页面即可。如果不重新指向 src 的话直接获取的 window.name 的话会报错：</p>
+<p><img src="https://pic2.zhimg.com/v2-7bd77f4df4565cd258bbeeed28515152_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7bd77f4df4565cd258bbeeed28515152_hd.jpg" alt=""></p>
+<p>之后运行 <code>yarn name</code> 即可看到效果：</p>
+<p><img src="https://pic4.zhimg.com/v2-4dcf4a5d25982ce71bdbe6f14af4620c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-4dcf4a5d25982ce71bdbe6f14af4620c_hd.jpg" alt=""></p>
+<h2 id="6-postMessage"><a href="#6-postMessage" class="headerlink" title="6.postMessage"></a>6.postMessage</h2><p>postMessage 是 HTML5 新增加的一项功能，跨文档消息传输(Cross Document Messaging)，目前：Chrome 2.0+、Internet Explorer 8.0+, Firefox 3.0+, Opera 9.6+, 和 Safari 4.0+ 都支持这项功能，使用起来也特别简单。</p>
+<p>前端逻辑：</p>
+<pre><code>// postMessage/client/index.html 对应 localhost:8080/index.html
+&lt;iframe src=&quot;http://localhost:8081/data.html&quot; style=&apos;display: none;&apos;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+    window.onload = function() {
+        let targetOrigin = &apos;http://localhost:8081&apos;;
+        window.frames[0].postMessage(&apos;index.html 的 data!&apos;, targetOrigin);
+    }
+    window.addEventListener(&apos;message&apos;, function(e) {
+        console.log(&apos;index.html 接收到的消息:&apos;, e.data);
+    });
+&lt;/script&gt;
+</code></pre><p>创建一个 iframe，使用 iframe 的一个方法 postMessage 可以想 <code>http://localhost:8081/data.html</code> 发送消息，然后监听 message，可以获得其文档发来的消息。</p>
+<p>数据端逻辑：</p>
+<pre><code>// postMessage/server/data.html 对应 localhost:8081/data.html
+&lt;script&gt;
+    window.addEventListener(&apos;message&apos;, function(e) {
+        if(e.source != window.parent) {
+            return;
+        }
+        let data = e.data;
+        console.log(&apos;data.html 接收到的消息:&apos;, data);
+        parent.postMessage(&apos;data.html 的 data!&apos;, e.origin);
+    });
+&lt;/script&gt;
+</code></pre><p>启动服务：<code>yarn postMessage</code> 并打开浏览器访问：</p>
+<p><img src="https://pic1.zhimg.com/v2-62c2ff153980a18ddd08110cd41cfde4_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-62c2ff153980a18ddd08110cd41cfde4_hd.jpg" alt=""></p>
+<p>对 postMessage 感兴趣的详细内容可以看看教程：</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//baike.baidu.com/item/PostMessage/6373972%3Ffr%3Daladdin" target="_blank" rel="noopener">PostMessage_百度百科</a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/Window/postMessage" target="_blank" rel="noopener">Window.postMessage()</a></p>
+<h2 id="7-document-domain"><a href="#7-document-domain" class="headerlink" title="7.document.domain"></a>7.document.domain</h2><p>对于主域相同而子域不同的情况下，可以通过设置 document.domain 的办法来解决，具体做法是可以在 <code>http://www.example.com/index.html</code> 和 <code>http://sub.example.com/data.html</code> 两个文件分别加上 <code>document.domain = &quot;example.com&quot;</code> 然后通过 index.html 文件创建一个 iframe，去控制 iframe 的 window，从而进行交互，当然这种方法只能解决主域相同而二级域名不同的情况，如果你异想天开的把 script.example.com 的 domain 设为 qq.com 显然是没用的，那么如何测试呢？</p>
+<p>测试的方式稍微复杂点，需要安装 nginx 做域名映射，如果你电脑没有安装 nginx，请先去安装一下: <a href="https://link.zhihu.com/?target=http%3A//nginx.org/" target="_blank" rel="noopener">nginx</a></p>
+<p>前端逻辑：</p>
+<pre><code>// domain/client/index.html 对应 sub1.example.com/index.html
+&lt;script&gt;
+    document.domain = &apos;example.com&apos;;
+    let ifr = document.createElement(&apos;iframe&apos;);
+    ifr.src = &apos;http://sub2.example.com/data.html&apos;;
+    ifr.style.display = &apos;none&apos;;
+    document.body.append(ifr);
+    ifr.onload = function() {
+        let win = ifr.contentWindow;
+        alert(win.data);
+    }
+&lt;/script&gt;
+</code></pre><p>数据端逻辑：</p>
+<pre><code>// domain/server/data 对应 sub2.example.com/data.html
+&lt;script&gt;
+    document.domain = &apos;example.com&apos;;
+    window.data = &apos;data.html 的数据！&apos;;
+&lt;/script&gt;
+</code></pre><p>打开操作系统下的 hosts 文件：mac 是位于 /etc/hosts 文件，并添加：</p>
+<pre><code>127.0.0.1 sub1.example.com
+127.0.0.1 sub2.example.com
+</code></pre><p>之后打开 nginx 的配置文件：/usr/local/etc/nginx/nginx.conf，并在 http 模块里添加，记得输入 nginx 启动 nginx 服务：</p>
+<pre><code>/usr/local/etc/nginx/nginx.conf
+http {
+    // ...
+    server {
+        listen 80;
+        server_name sub1.example.com;
+        location / {
+            proxy_pass http://127.0.0.1:8080/;
+        }
+    }
+    server {
+        listen 80;
+        server_name sub2.example.com;
+        location / {
+            proxy_pass http://127.0.0.1:8081/;
+        }
+    }
+    // ...
+}
+</code></pre><p>相当于是讲 <code>sub1.example.com</code> 和 <code>sub2.example.com</code> 这些域名地址指向本地 <code>127.0.0.1:80</code>，然后用 nginx 做反向代理分别映射到 8080 和 8081 端口。</p>
+<p>这样访问 <code>sub1(2).example.com</code> 等于访问 <code>127.0.0.1:8080(1)</code></p>
+<p>启动服务 <code>yarn domain</code> 访问浏览器即可看到效果：</p>
+<p><img src="https://pic2.zhimg.com/v2-19277c077856648ca1d593f44afadf6e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-19277c077856648ca1d593f44afadf6e_hd.jpg" alt=""></p>
+<h2 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h2><p>前面七种跨域方式我已经全部讲完，其实讲道理，常用的也就是前三种方式，后面四种更多时候是一些小技巧，虽然在工作中不一定会用到，但是如果你在面试过程中能够提到这些跨域的技巧，无疑在面试官的心中是一个加分项。</p>
+<p>上面阐述方法的时候可能有些讲的不明白，希望在阅读的过程中建议你跟着我敲代码，当你打开浏览器看到结果的时候，你也就能掌握到这种方法。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/04/23/前端性能监控：window-performance/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/04/23/前端性能监控：window-performance/" itemprop="url">前端性能监控：window.performance</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-04-23T22:51:24+08:00">
+                2016-04-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><a href="https://link.zhihu.com/?target=https%3A//www.w3.org/TR/2014/WD-navigation-timing-2-20140325/" target="_blank" rel="noopener">window.performance</a> 是W3C性能小组引入的新的API，目前IE9以上的浏览器都支持。一个performance对象的完整结构如下图所示：</p>
+<h2 id="Window-performance"><a href="#Window-performance" class="headerlink" title="Window.performance"></a>Window.performance</h2><p>虽然叫 <code>Timing API</code> 但是用起来却是 <code>window.performance</code></p>
+<pre><code>// 兼容性写法
+const performance = window.performance || 
+                      window.msPerformance || 
+                      window.webkitPerformance;
+</code></pre><p>memory字段代表JavaScript对内存的占用。</p>
+<h2 id="performance-memory-内存"><a href="#performance-memory-内存" class="headerlink" title="performance.memory(内存)"></a>performance.memory(内存)</h2><ul>
+<li>usedJSHeapSize<br>JS 对象（包括V8引擎内部对象）占用的内存</li>
+<li>totalJSHeapSize<br>可使用的内存</li>
+<li>jsHeapSizeLimit<br>内存大小限制</li>
+</ul>
+<p><img src="https://pic4.zhimg.com/v2-f4a0fa5f8a8a1c4ef07f83d0f393fd9a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-f4a0fa5f8a8a1c4ef07f83d0f393fd9a_hd.jpg" alt=""></p>
+<h2 id="performance-navigation-我从哪里来"><a href="#performance-navigation-我从哪里来" class="headerlink" title="performance.navigation(我从哪里来)"></a>performance.navigation(我从哪里来)</h2><ul>
+<li>redirectCount<br>如果有重定向的话，页面通过几次重定向跳转而来</li>
+<li><p>type</p>
+</li>
+<li><p>0 即 TYPE_NAVIGATENEXT 正常进入的页面（非刷新、非重定向等）</p>
+</li>
+<li>1 即 TYPE_RELOAD 通过 window.location.reload() 刷新的页面</li>
+<li>2 即 TYPE_BACK_FORWARD 通过浏览器的前进后退按钮进入的页面（历史记录）</li>
+<li>255 即 TYPE_UNDEFINED 非以上方式进入的页面</li>
+</ul>
+<p>navigation字段统计的是一些网页导航相关的数据：</p>
+<ol>
+<li>redirectCount:重定向的数量（只读），但是这个接口有同源策略限制，即仅能检测同源的重定向；</li>
+<li>type 返回值应该是0,1,2 中的一个。分别对应三个枚举值:</li>
+</ol>
+<ul>
+<li>0 : TYPE_NAVIGATE (用户通过常规导航方式访问页面，比如点一个链接，或者一般的get方式)</li>
+<li>1 : TYPE_RELOAD (用户通过刷新，包括JS调用刷新接口等方式访问页面)</li>
+<li>2 : TYPE_BACK_FORWARD (用户通过后退按钮访问本页面)</li>
+</ul>
+<p>最重要的是timing字段的统计数据，它包含了网络、解析等一系列的时间数据。</p>
+<h2 id="performance-timing-时间"><a href="#performance-timing-时间" class="headerlink" title="performance.timing(时间)"></a>performance.timing(时间)</h2><p><img src="https://pic4.zhimg.com/v2-a9f7be2c5aaa973e405bd0b8da7e6890_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-a9f7be2c5aaa973e405bd0b8da7e6890_hd.jpg" alt=""></p>
+<p>2.2.1 timing API</p>
+<p>timing的整体结构如上图所示：</p>
+<p><img src="https://pic2.zhimg.com/v2-95d9e0f1ff8257f3c007045c6a2d07bb_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-95d9e0f1ff8257f3c007045c6a2d07bb_hd.jpg" alt=""></p>
+<p>各字段的含义如下：</p>
+<ul>
+<li>startTime：有些浏览器实现为<a href="https://link.zhihu.com/?target=https%3A//msdn.microsoft.com/en-us/library/ff974724%28v%3Dvs.85%29.aspx" target="_blank" rel="noopener">navigationStart</a>，代表浏览器开始unload前一个页面文档的开始时间节点。比如我们当前正在浏览baidu.com，在地址栏输入google.com并回车，浏览器的执行动作依次为：unload当前文档（即<a href="https://link.zhihu.com/?target=http%3A//baidu.com" target="_blank" rel="noopener">http://baidu.com</a>）-&gt;请求下一文档（即<a href="https://link.zhihu.com/?target=http%3A//google.com" target="_blank" rel="noopener">http://google.com</a>）。navigationStart的值便是触发unload当前文档的时间节点。</li>
+</ul>
+<p>如果当前文档为空，则navigationStart的值等于fetchStart。</p>
+<ul>
+<li>redirectStart和redirectEnd：如果页面是由redirect而来，则redirectStart和redirectEnd分别代表redirect开始和结束的时间节点；</li>
+<li>unloadEventStart和unloadEventEnd：如果前一个文档和请求的文档是同一个域的，则unloadEventStart和unloadEventEnd分别代表浏览器unload前一个文档的开始和结束时间节点。否则两者都等于0；</li>
+<li>fetchStart是指在浏览器发起任何请求之前的时间值。在fetchStart和domainLookupStart之间，浏览器会检查当前文档的缓存；</li>
+<li>domainLookupStart和domainLookupEnd分别代表DNS查询的开始和结束时间节点。如果浏览器没有进行DNS查询（比如使用了cache），则两者的值都等于fetchStart；</li>
+<li>connectStart和connectEnd分别代表TCP建立连接和连接成功的时间节点。如果浏览器没有进行TCP连接（比如使用持久化连接webscoket），则两者都等于domainLookupEnd；</li>
+<li>secureConnectionStart：可选。如果页面使用HTTPS，它的值是安全连接握手之前的时刻。如果该属性不可用，则返回undefined。如果该属性可用，但没有使用HTTPS，则返回0；</li>
+<li>requestStart代表浏览器发起请求的时间节点，请求的方式可以是请求服务器、缓存、本地资源等；</li>
+<li>responseStart和responseEnd分别代表浏览器收到从服务器端（或缓存、本地资源）响应回的第一个字节和最后一个字节数据的时刻；</li>
+<li>domLoading代表浏览器开始解析html文档的时间节点。我们知道IE浏览器下的document有readyState属性，domLoading的值就等于readyState改变为loading的时间节点；</li>
+<li>domInteractive代表浏览器解析html文档的状态为interactive时的时间节点。domInteractive并非DOMReady，它早于DOMReady触发，代表html文档解析完毕（即dom tree创建完成）但是内嵌资源（比如外链css、js等）还未加载的时间点；</li>
+<li>domContentLoadedEventStart：代表DOMContentLoaded事件触发的时间节点：</li>
+</ul>
+<p>页面文档完全加载并解析完毕之后,会触发DOMContentLoaded事件，HTML文档不会等待样式文件,图片文件,子框架页面的加载(load事件可以用来检测HTML页面是否完全加载完毕(fully-loaded))。</p>
+<ul>
+<li>domContentLoadedEventEnd：代表DOMContentLoaded事件完成的时间节点，此刻用户可以对页面进行操作，也就是jQuery中的domready时间；</li>
+<li>domComplete：html文档完全解析完毕的时间节点；</li>
+<li>loadEventStart和loadEventEnd分别代表onload事件触发和结束的时间节点</li>
+</ul>
+<p>2.2.2 计算性能指标</p>
+<p>可以使用Navigation.timing 统计到的时间数据来计算一些页面性能指标，比如DNS查询耗时、白屏时间、domready等等。如下：</p>
+<ul>
+<li>DNS查询耗时 = domainLookupEnd - domainLookupStart</li>
+<li>TCP链接耗时 = connectEnd - connectStart</li>
+<li>request请求耗时 = responseEnd - responseStart</li>
+<li>解析dom树耗时 = domComplete - domInteractive</li>
+<li>白屏时间 = domloadng - fetchStart</li>
+<li>domready时间 = domContentLoadedEventEnd - fetchStart</li>
+<li><p>onload时间 = loadEventEnd - fetchStart</p>
+<p>  所以根据上面的时间点，我们可以计算常规的性能值，如下：<br>  （使用该api时需要在页面完全加载完成之后才能使用，最简单的办法是在window.onload事件中读取各种数据，因为很多值必须在页面完全加载之后才能得出。）</p>
+<p>  var timing = window.performance &amp;&amp; window.performance.timing;<br>  var navigation = window.performance &amp;&amp; window.performance.navigation;</p>
+</li>
+</ul>
+<pre><code>重定向次数：
+var redirectCount = navigation &amp;&amp; navigation.redirectCount;
+
+跳转耗时：
+var redirect = timing.redirectEnd - timing.redirectStart;
+
+APP CACHE 耗时：
+var appcache = Math.max(timing.domainLookupStart - timing.fetchStart, 0);
+
+DNS 解析耗时：
+var dns = timing.domainLookupEnd - timing.domainLookupStart;
+
+TCP 链接耗时：
+var conn = timing.connectEnd - timing.connectStart;
+
+等待服务器响应耗时（注意是否存在cache）：
+var request = timing.responseStart - timing.requestStart;
+
+内容加载耗时（注意是否存在cache）:
+var response = timing.responseEnd - timing.responseStart;
+
+总体网络交互耗时，即开始跳转到服务器资源下载完成：
+var network = timing.responseEnd - timing.navigationStart;
+
+渲染处理：
+var processing = (timing.domComplete || timing.domLoading) - timing.domLoading;
+
+抛出 load 事件：
+var load = timing.loadEventEnd - timing.loadEventStart;
+
+总耗时：
+var total = (timing.loadEventEnd || timing.loadEventStart || timing.domComplete || timing.domLoading) - timing.navigationStart;
+
+可交互：
+var active = timing.domInteractive - timing.navigationStart;
+
+请求响应耗时，即 T0，注意cache：
+var t0 = timing.responseStart - timing.navigationStart;
+
+首次出现内容，即 T1：
+var t1 = timing.domLoading - timing.navigationStart;
+
+内容加载完毕，即 T3：
+var t3 = timing.loadEventEnd - timing.navigationStart;
+</code></pre><p>2.2.3 Resource timing API</p>
+<p>Resource timing API是用来统计静态资源相关的时间信息，详细的内容请参考<a href="https://link.zhihu.com/?target=https%3A//www.w3.org/TR/resource-timing/" target="_blank" rel="noopener">W3C Resource timing</a>。这里我们只介绍performance.getEntries方法，它可以获取页面中每个静态资源的请求，【以百度移动版首页的logo为例】如下：</p>
+<p>比较有用的几个属性：</p>
+<pre><code>name：资源的链接
+
+initiatorType: 初始类型（注意这个类型并不准确，例如在css中的图片资源会这个值显示css，所以还是推荐用name中的后缀名）
+
+duration: 资源的总耗时（包括等待时长，请求时长，响应时长 相当于responseEnd - startTime）
+
+transferSize: 转换后的文件大小(略大于encodedBodySize, 为什么我取这个呢，因为这个值是和chrome的devtool Network里的size一致) 
+</code></pre><p><img src="https://pic4.zhimg.com/v2-cff2a7e449c4e6260c2cb8fa0b18c948_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-cff2a7e449c4e6260c2cb8fa0b18c948_hd.jpg" alt=""></p>
+<p>可以看到performance.getEntries返回一个数组，数组的每个元素代表对应的静态资源的信息，比如上图展示的第一个元素对应的资源类型initiatorType是图片img，请求花费的时间就是duration的值。</p>
+<p>关于Resource timing API的使用场景，感兴趣的同学可以深入研究。</p>
+<p><img src="https://pic2.zhimg.com/v2-23c6a6e3744a117368fbd9b0789867ff_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-23c6a6e3744a117368fbd9b0789867ff_hd.jpg" alt=""></p>
+<pre><code>;
+(function() {
+
+    handleAddListener(&apos;load&apos;, getTiming)
+
+    function handleAddListener(type, fn) {
+        if(window.addEventListener) {
+            window.addEventListener(type, fn)
+        } else {
+            window.attachEvent(&apos;on&apos; + type, fn)
+        }
+    }
+
+    function getTiming() {
+        try {
+            var time = performance.timing;
+            var timingObj = {};
+
+            var loadTime = (time.loadEventEnd - time.loadEventStart) / 1000;
+
+            if(loadTime &lt; 0) {
+                setTimeout(function() {
+                    getTiming();
+                }, 200);
+                return;
+            }
+
+            timingObj[&apos;重定向时间&apos;] = (time.redirectEnd - time.redirectStart) / 1000;
+            timingObj[&apos;DNS解析时间&apos;] = (time.domainLookupEnd - time.domainLookupStart) / 1000;
+            timingObj[&apos;TCP完成握手时间&apos;] = (time.connectEnd - time.connectStart) / 1000;
+            timingObj[&apos;HTTP请求响应完成时间&apos;] = (time.responseEnd - time.requestStart) / 1000;
+            timingObj[&apos;DOM开始加载前所花费时间&apos;] = (time.responseEnd - time.navigationStart) / 1000;
+            timingObj[&apos;DOM加载完成时间&apos;] = (time.domComplete - time.domLoading) / 1000;
+            timingObj[&apos;DOM结构解析完成时间&apos;] = (time.domInteractive - time.domLoading) / 1000;
+            timingObj[&apos;脚本加载时间&apos;] = (time.domContentLoadedEventEnd - time.domContentLoadedEventStart) / 1000;
+            timingObj[&apos;onload事件时间&apos;] = (time.loadEventEnd - time.loadEventStart) / 1000;
+            timingObj[&apos;页面完全加载时间&apos;] = (timingObj[&apos;重定向时间&apos;] + timingObj[&apos;DNS解析时间&apos;] + timingObj[&apos;TCP完成握手时间&apos;] + timingObj[&apos;HTTP请求响应完成时间&apos;] + timingObj[&apos;DOM结构解析完成时间&apos;] + timingObj[&apos;DOM加载完成时间&apos;]);
+
+            for(item in timingObj) {
+                console.log(item + &quot;:&quot; + timingObj[item] + &apos;毫秒(ms)&apos;);
+            }
+
+            console.log(performance.timing);
+
+        } catch(e) {
+            console.log(timingObj)
+            console.log(performance.timing);
+        }
+    }
+})();
+
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;utf-8&quot; /&gt;
+        &lt;title&gt;&lt;/title&gt;
+        &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&quot; /&gt;
+        &lt;link rel=&quot;stylesheet&quot; type=&quot;text/css&quot; href=&quot;//cdn.bootcss.com/bootstrap/4.0.0-alpha.6/css/bootstrap.css&quot; /&gt;
+        &lt;script src=&quot;&quot;&gt;&lt;/script&gt;
+        &lt;script type=&quot;text/javascript&quot; src=&quot;&quot;&gt;&lt;/script&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+
+    &lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre><p><img src="https://pic2.zhimg.com/v2-23c6a6e3744a117368fbd9b0789867ff_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-23c6a6e3744a117368fbd9b0789867ff_hd.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/02/28/eval-和-new-Function-执行JS代码/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3041,583 +3801,11 @@ say.call(obj,&apos;call方法&apos;,&apos;hi&apos;); //call方法:hi afei
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/08/30/JS中的this的七种使用场景/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/08/30/JS中的this的七种使用场景/" itemprop="url">JS中的this的七种使用场景</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-08-30T19:54:45+08:00">
-                2015-08-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Javascript 中的 this，有时候让人迷惑，所以总结了一下关于this指向的问题。</p>
-<p>在函数中 this 到底取何值，是在函数真正被调用执行的时候确定下来的，函数定义的时候确定不了。</p>
-<blockquote>
-<p>因为 this 的取值是函数执行上下文(context)的一部分，每次调用函数，都会产生一个新的执行上下文环境。当代码中使用了 this，这个 this 的值就直接从执行的上下文中获取了，而不会从作用域链中搜寻。</p>
-</blockquote>
-<h2 id="关于-this-的取值，大体上可以分为以下七种情况："><a href="#关于-this-的取值，大体上可以分为以下七种情况：" class="headerlink" title="关于 this 的取值，大体上可以分为以下七种情况："></a>关于 this 的取值，大体上可以分为以下七种情况：</h2><blockquote>
-<p>由于严格模式下，禁止this指向全局对象，所以以下示例均运行在非严格模式下</p>
-</blockquote>
-<h2 id="情况一：全局-amp-调用普通函数"><a href="#情况一：全局-amp-调用普通函数" class="headerlink" title="情况一：全局 &amp; 调用普通函数"></a>情况一：全局 &amp; 调用普通函数</h2><p>在全局环境中，this 永远指向 window。</p>
-<pre><code>console.log(this === window);     //true
-</code></pre><p>普通函数在调用时候(注意不是构造函数，前面不加 new)，其中的 this 也是指向 window。</p>
-<pre><code>var x = 10;
-function foo(){
-    console.log(this);     //Window
-    console.log(this.x);   //10
-}
-foo();
-</code></pre><h2 id="情况二：构造函数"><a href="#情况二：构造函数" class="headerlink" title="情况二：构造函数"></a>情况二：构造函数</h2><p>所谓的构造函数就是由一个函数 new 出来的对象，一般构造函数的函数名首字母大写，例如像 Object，Function，Array 这些都属于构造函数。</p>
-<pre><code>function Foo(){
-    this.x = 10;
-    console.log(this);    //Foo {x:10}
-}
-var foo = new Foo();
-console.log(foo.x);      //10
-</code></pre><p>上述代码，如果函数作为构造函数使用，那么其中的 this 就代表它即将 new 出来的对象。</p>
-<p>但是如果直接调用 Foo 函数，而不是 new Foo()，那就变成情况1，这时候 Foo() 就变成普通函数。</p>
-<pre><code>function Foo(){
-    this.x = 10;
-    console.log(this);    //Window
-}
-var foo = Foo();
-</code></pre><h2 id="情况三：对象方法"><a href="#情况三：对象方法" class="headerlink" title="情况三：对象方法"></a>情况三：对象方法</h2><p>如果函数作为对象的方法时，方法中的 this 指向该对象。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        console.log(this);        //Object
-        console.log(this.x);      //10
-    }
-};
-obj.foo();
-</code></pre><p>注意：若是在对象方法中定义函数，那么情况就不同了。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        function f(){
-            console.log(this);      //Window
-            console.log(this.x);    //undefined
-        }
-        f();
-    }
-}
-obj.foo();
-</code></pre><p>可以这么理解：函数 f 虽然是在 obj.foo 内部定义的，但它仍然属于一个普通函数，this 仍指向 window。</p>
-<p>在这里，如果想要调用上层作用域中的变量 obj.x，可以使用 self 缓存外部 this 变量。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        var self = this;
-        function f(){
-            console.log(self);      //{x: 10}
-            console.log(self.x);    //10
-        }
-        f();
-    }
-}
-obj.foo();
-</code></pre><p>如果 foo 函数不作为对象方法被调用：</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        console.log(this);       //Window
-        console.log(this.x);     //undefined
-    }
-};
-var fn = obj.foo;
-fn();
-</code></pre><p>obj.foo 被赋值给一个全局变量，并没有作为 obj 的一个属性被调用，那么此时 this 的值是 window。</p>
-<h2 id="情况四：构造函数-prototype-属性"><a href="#情况四：构造函数-prototype-属性" class="headerlink" title="情况四：构造函数 prototype 属性"></a>情况四：构造函数 prototype 属性</h2><pre><code>function Foo(){
-    this.x = 10;
-}
-Foo.prototype.getX = function () {
-    console.log(this);        //Foo {x: 10, getX: function}
-    console.log(this.x);      //10
-}
-var foo = new Foo();
-foo.getX();
-</code></pre><p>在 Foo.prototype.getX 函数中，this 指向的 foo 对象。不仅仅如此，即便是在整个原型链中，this 代表的也是当前对象的值。</p>
-<h2 id="情况五：函数用-call、apply或者-bind-调用。"><a href="#情况五：函数用-call、apply或者-bind-调用。" class="headerlink" title="情况五：函数用 call、apply或者 bind 调用。"></a>情况五：函数用 call、apply或者 bind 调用。</h2><pre><code>var obj = {
-    x: 10
-}
-function foo(){
-    console.log(this);     //{x: 10}
-    console.log(this.x);   //10
-}
-foo.call(obj);
-foo.apply(obj);
-foo.bind(obj)();
-</code></pre><p>当一个函数被 call、apply 或者 bind 调用时，this 的值就取传入的对象的值。</p>
-<h2 id="情况六：DOM-event-this"><a href="#情况六：DOM-event-this" class="headerlink" title="情况六：DOM event this"></a>情况六：DOM event this</h2><p>在一个 HTML DOM 事件处理程序里，this 始终指向这个处理程序所绑定的 HTML DOM 节点：</p>
-<pre><code>function Listener(){   
-    document.getElementById(&apos;foo&apos;).addEventListener(&apos;click&apos;, this.handleClick);     //这里的 this 指向 Listener 这个对象。不是强调的是这里的 this
-}
-Listener.prototype.handleClick = function (event) {
-    console.log(this);    //&lt;div id=&quot;foo&quot;&gt;&lt;/div&gt;
-}
-var listener = new Listener();
-document.getElementById(&apos;foo&apos;).click();
-</code></pre><p>这个很好理解，就相当于是给函数传参，使 handleClick 运行时上下文改变了，相当于下面这样的代码：</p>
-<pre><code>var obj = {
-    x: 10,
-    fn: function() {
-        console.log(this);         //Window
-        console.log(this.x);       //undefined
-    }
-};
-function foo(fn) {
-    fn();
-} 
-foo(obj.fn);
-</code></pre><p>你也可以用通过 bind 切换上下文:</p>
-<pre><code>function  Listener(){
-    document.getElementById(&apos;foo&apos;).addEventListener(&apos;click&apos;,this.handleClick.bind(this));      
-}
-Listener.prototype.handleClick = function (event) {
-    console.log(this);    //Listener {}
-}
-var listener = new Listener();
-document.getElementById(&apos;foo&apos;).click();
-</code></pre><p>前六种情况其实可以总结为： this 指向调用该方法的对象。</p>
-<h2 id="情况七：箭头函数中的-this"><a href="#情况七：箭头函数中的-this" class="headerlink" title="情况七：箭头函数中的 this"></a>情况七：箭头函数中的 this</h2><p>当使用箭头函数的时候，情况就有所不同了：箭头函数内部的 this 是词法作用域，由上下文确定。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function() {
-        var fn = () =&gt; {
-            return () =&gt; {
-                return () =&gt; {
-                    console.log(this);      //Object {x: 10}
-                    console.log(this.x);    //10
-                }
-            }
-        }
-        fn()()();
-    }
-}
-obj.foo();
-</code></pre><p>现在，箭头函数完全修复了 this 的指向，this 总是指向词法作用域，也就是外层调用者 obj。</p>
-<p>如果使用箭头函数，以前的这种 hack 写法：</p>
-<pre><code>var self = this;
-</code></pre><p>就不再需要了。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function() {
-        var fn = () =&gt; {
-            return () =&gt; {
-                return () =&gt; {
-                    console.log(this);    // Object {x: 10}
-                    console.log(this.x);  //10
-                }
-            }
-        }
-        fn.bind({x: 14})()()();
-        fn.call({x: 14})()();
-    }
-}
-obj.foo();
-</code></pre><p>由于 this 在箭头函数中已经按照词法作用域绑定了，所以，用 call()或者 apply()调用箭头函数时，无法对 this 进行绑定，即传入的第一个参数被忽略。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/08/01/强大的margin负边距/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/08/01/强大的margin负边距/" itemprop="url">强大的margin负边距</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-08-01T11:17:55+08:00">
-                2015-08-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>css中的负边距(negative margin)是布局中的一个常用技巧，只要运用得合理常常会有意想不到的效果。很多特殊的css布局方法都依赖于负边距，所以掌握它的用法对于前端的同学来说，那是必须的。本文非常基础，老鸟可以略过。</p>
-<p>左和右的负边距对元素宽度的影响</p>
-<p>负边距不仅能影响元素在文档流中的位置，还能增加元素的宽度！</p>
-<p>这个作用能实现的前提是：该元素没有设定width属性（当然width:auto是可以的）。</p>
-<p>比如下图的黑灰色部分是一个块状元素，它没有设定宽度。它被包裹在一个宽度为400px,且水平居中的父元素中。</p>
-<p><img src="https://pic3.zhimg.com/v2-d7053213fb80015b97e243fae474124a_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-d7053213fb80015b97e243fae474124a_hd.jpg" alt=""></p>
-<p>现在给这个元素的设一个margin-right:-100px;</p>
-<p><img src="https://pic3.zhimg.com/v2-a3037b974494cdbe0c92d4c90af69f80_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-a3037b974494cdbe0c92d4c90af69f80_hd.jpg" alt=""></p>
-<p>我们看到它的宽度的确变长100px;然后再给它设一个margin-left:-100px;</p>
-<p><img src="https://pic1.zhimg.com/v2-444d4e67d5804bfcbcd4991948889bdb_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-444d4e67d5804bfcbcd4991948889bdb_hd.jpg" alt=""></p>
-<p>我们看到它变得更宽了。</p>
-<p>负的margin会改变元素的宽度，这的确很让人费解，如果说负边距会改变元素在文档流中的位置还是很好理解的话，那改变宽度这种现象还真的蛮让人不可思议的。</p>
-<p>那这货有什么用途呢？我就举一个例子吧。<br><img src="https://pic2.zhimg.com/v2-ee54fb10005457120458e7823fc83d29_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-ee54fb10005457120458e7823fc83d29_hd.jpg" alt=""></p>
-<pre><code>&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;zh&quot;&gt;
-
-
-
-    &lt;head&gt;
-        &lt;meta http-equiv=&quot;Content-Type&quot; content=&quot;text/html; charset=utf-8&quot; /&gt;
-        &lt;title&gt;浮动两端对齐&lt;/title&gt;
-        &lt;style type=&quot;text/css&quot;&gt;
-            ul,
-            li {
-                margin: 0;
-                padding: 0;
-            }
-
-            h2 {
-                clear: both;
-                font-size: 1.2em;
-            }
-
-            .justify {
-                width: 320px;
-                /* 1行3个li，li之间距离10px = 100px*3 + 10px*2 */
-                overflow: hidden;
-                margin: 10px;
-                border: 1px solid #999999;
-            }
-
-            .justify ul {
-                width: 330px;
-                /* 可容纳下3列的宽度 */
-                margin-bottom: -10px;
-                /* 隐藏掉最下面一行的margin-bottom */
-                overflow: hidden;
-                zoom: 1;
-                /* 触发IE的Layout */
-            }
-
-            *+html .justify ul {
-                margin-bottom: 0;
-                /* 针对IE7中最后1行li的margin-bottom失效 */
-            }
-
-            .justify li {
-                display: inline;
-                float: left;
-                list-style: none;
-                width: 100px;
-                height: 100px;
-                margin: 0 10px 10px 0;
-                background: #EEEEEE;
-            }
-
-            .margin ul {
-                width: auto;
-                margin: 0 -10px -10px 0;
-            }
-
-            .col-2 {
-                width: 210px;
-            }
-
-            .col-4 {
-                width: 430px;
-            }
-        &lt;/style&gt;
-    &lt;/head&gt;
-
-    &lt;body&gt;
-        &lt;div&gt;
-            &lt;a href=&quot;http://www.ddcat.net/blog/?p=1199&quot; title=&quot;回到猫窝Blog&quot;&gt;回到猫窝Blog&lt;/a&gt;
-        &lt;/div&gt;
-        &lt;h1&gt;浮动两端对齐&lt;/h1&gt;
-        &lt;h2&gt;ul定宽&lt;/h2&gt;
-        &lt;div class=&quot;justify&quot;&gt;
-            &lt;ul&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;中间&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;中间&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;中间&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-            &lt;/ul&gt;
-        &lt;/div&gt;
-        &lt;h2&gt;ul使用负margin值&lt;/h2&gt;
-        &lt;div class=&quot;justify margin&quot;&gt;
-            &lt;ul&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;中间&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;中间&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;中间&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-            &lt;/ul&gt;
-        &lt;/div&gt;
-        &lt;h2&gt;两列&lt;/h2&gt;
-        &lt;div class=&quot;justify margin col-2&quot;&gt;
-            &lt;ul&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-                &lt;li&gt;靠左边&lt;/li&gt;
-                &lt;li&gt;靠右边&lt;/li&gt;
-            &lt;/ul&gt;
-        &lt;/div&gt;
-        &lt;h2&gt;四列&lt;/h2&gt;
-        &lt;div class=&quot;justify margin col-4&quot;&gt;
-            &lt;ul&gt;
-                &lt;li&gt;1&lt;/li&gt;
-                &lt;li&gt;2&lt;/li&gt;
-                &lt;li&gt;3&lt;/li&gt;
-                &lt;li&gt;4&lt;/li&gt;
-                &lt;li&gt;5&lt;/li&gt;
-                &lt;li&gt;6&lt;/li&gt;
-                &lt;li&gt;7&lt;/li&gt;
-                &lt;li&gt;8&lt;/li&gt;
-            &lt;/ul&gt;
-        &lt;/div&gt;
-        &lt;div&gt;
-            &lt;a href=&quot;http://www.ddcat.net/blog/?p=1199&quot; title=&quot;回到猫窝Blog&quot;&gt;回到猫窝Blog&lt;/a&gt;
-        &lt;/div&gt;
-    &lt;/body&gt;
-
-&lt;/html&gt;
-</code></pre><p><img src="https://pic2.zhimg.com/v2-5c529ec117f663aaacc2030c14423321_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-5c529ec117f663aaacc2030c14423321_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-3255d3a67bca63a51e1407f982e2432b_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-3255d3a67bca63a51e1407f982e2432b_hd.jpg" alt=""><br>一个负的margin-right,相当于把ul的宽度增加了10px.</p>
-<p>负边距对浮动元素的影响</p>
-<p>负边距对浮动元素的影响与负边距对文档流中元素的影响其实是差不多的。文档流中元素的位置由文档流的走向决定，浮动的元素也可以看成有一个“浮动流”存在，不过浮动流既可以向左，也可以向右。</p>
-<p>比如下图是三个向左浮动的元素，宽高都是100px：</p>
-<p><img src="https://pic2.zhimg.com/v2-1de5e1221b518a74b0606c221cd421f1_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-1de5e1221b518a74b0606c221cd421f1_hd.jpg" alt=""></p>
-<p>现在把它们都设一个margin-right:-50px; 然后会变成这样子：</p>
-<p><img src="https://pic4.zhimg.com/v2-b0b46b0eff5e6f19a4addafe0d670e85_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-b0b46b0eff5e6f19a4addafe0d670e85_hd.jpg" alt=""></p>
-<p>我们看到后面的元素叠到了前面的元素上。</p>
-<p>再看下面的图：</p>
-<p><img src="https://pic3.zhimg.com/v2-21b3ac21b68d64bdb604b825d00343ce_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-21b3ac21b68d64bdb604b825d00343ce_hd.jpg" alt=""></p>
-<p>我们把浏览器缩小了，然后因为宽度不够，元素3掉下来了。我们给元素3设一个margin-left:-80px;看看会怎么样</p>
-<p><img src="https://pic1.zhimg.com/v2-ee169d733bb4ce86b2c42de5ebf61bb7_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-ee169d733bb4ce86b2c42de5ebf61bb7_hd.jpg" alt=""></p>
-<p>这时我们看到元素3上去了，而且还覆盖了元素2的一部分。继续元素3设为margin-left:-100px</p>
-<p><img src="https://pic4.zhimg.com/v2-73ff48691bcf79125064218d71d6134f_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-73ff48691bcf79125064218d71d6134f_hd.jpg" alt=""></p>
-<p>这时元素3完全覆盖住了元素2,当元素3设为：margin-left:-200px时：</p>
-<p><img src="https://pic4.zhimg.com/v2-fcc5dd42f3e8df550341c5af6a00fcfb_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-fcc5dd42f3e8df550341c5af6a00fcfb_hd.jpg" alt=""></p>
-<p>我们看到元素3继续向左移动并覆盖住了元素1。</p>
-<p>现在想必大家都明白了负边距对浮动元素位置的影响了吧。所以那些说得很好听的什么圣杯布局、双飞翼布局啊什么的，都是利用这个原理实现的。就是某个元素虽然是写在了后面，但可以通过负边距让它在浏览器显示的时候是在前面的。这个以后可以再慢慢讲。</p>
-<p>负边距对绝对定位元素的影响</p>
-<p>绝对定位的元素定义的top、right、bottom、left等值是元素自身的边界到最近的已定位的祖先元素的距离，这个元素自身的边界指的就是margin定义的边界，所以，如果margin为正的时候，那它的边界是向外扩的，如果margin为负的时候，则它的边界是向里收的。利用这点，就有了经典的利用绝对定位来居中的方法：</p>
-<p><img src="https://pic4.zhimg.com/v2-dffb7a1006cc4f494125e196595e79db_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-dffb7a1006cc4f494125e196595e79db_hd.jpg" alt=""></p>
-<p>看下效果：</p>
-<p><img src="https://pic3.zhimg.com/v2-61da203d81eb5f79ac55ca7811a35ff2_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-61da203d81eb5f79ac55ca7811a35ff2_hd.jpg" alt=""></p>
-<p>但该方法的缺点是必须要知道要居中元素的高度和宽度。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/9/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><span class="page-number current">10</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/11/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/9/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><span class="page-number current">10</span><a class="page-number" href="/page/11/">11</a><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/11/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3667,7 +3855,7 @@ obj.foo();
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">110</span>
+                  <span class="site-state-item-count">112</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3680,7 +3868,7 @@ obj.foo();
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">83</span>
+                  <span class="site-state-item-count">86</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
