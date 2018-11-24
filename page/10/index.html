@@ -300,6 +300,182 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/07/25/移动端H5页面返回并且刷新页面/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/07/25/移动端H5页面返回并且刷新页面/" itemprop="url">移动端H5页面返回并且刷新页面</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-07-25T20:08:31+08:00">
+                2016-07-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>项目中的需求：点击浏览器中的返回按钮，要让页面重新加载资源。因为这部分的资源每次去加载的内容都不一样，如果返回的时候，还是看到原先的内容，那做这个内容块的意义就很小了；而如果用户看完了这部分内容，再返回来的时候，这个地方换成了新的内容，这样就能体现这部分的价值了。</p>
+<p>而对于浏览器来说，大部分浏览器的返回是直接使用缓存的，不会执行任何的javascript代码。原因：部分浏览器在后退时不会触发onload事件，這是HTML5世代浏览器新增的特性之一——Back-Forward Cache(简称bfcache)</p>
+<p><strong>什么是bfcache？</strong></p>
+<p>bfcache，即back-forward cache，可称为“往返缓存”，可以在用户使用浏览器的“后退”和“前进”按钮时加快页面的转换速度。这个缓存不仅保存页面数据，还保存了DOM和JS的状态，实际上是将整个页面都保存在内存里。如果页面位于bfcache中，那么再次打开该页面就不会触发onload事件</p>
+<h3 id="pageshow事件"><a href="#pageshow事件" class="headerlink" title="pageshow事件"></a>pageshow事件</h3><p>这个事件在用户浏览网页时触发，pageshow 事件类似于 onload 事件，onload 事件在页面第一次加载时触发， pageshow 事件在每次加载页面时触发，即 onload 事件在页面从浏览器缓存中读取时不触发。</p>
+<h3 id="pagehide事件"><a href="#pagehide事件" class="headerlink" title="pagehide事件"></a>pagehide事件</h3><p>该事件会在用户离开网页时触发。离开网页有多种方式。如点击一个链接，刷新页面，提交表单，关闭浏览器等。pagehide 事件有时可以替代 unload事件，但 unload 事件触发后无法缓存页面。</p>
+<h3 id="persisted属性"><a href="#persisted属性" class="headerlink" title="persisted属性"></a>persisted属性</h3><p>pageshow事件和pagehide事件的event对象还包含一个名为persisted的布尔值属性。</p>
+<ul>
+<li>对于pageshow事件，如果页面是从bfcache中加载的，则这个属性的值为true；否则，这个属性的值为false。</li>
+<li>对于pagehide事件，如果页面在卸载之后被保存在bfcache中，则这个属性的值为true；否则，这个属性的值为false。</li>
+</ul>
+<p>不同的浏览器在对当前窗口‘打开’历史记录中的前一个页面的表现上并不统一，这和浏览器的实现以及页面本身的设置有关系。</p>
+<p><strong>解决方案：</strong></p>
+<p><strong>javascript监听pageshow事件阻止页面进入bfcache</strong></p>
+<pre><code> window.addEventListener(&apos;pageshow&apos;, function (e) {
+     if (e.persisted) {
+         window.location.reload()
+     }
+})
+</code></pre><p>在uc和微信中测试通过，但是在某些安卓手机自带的浏览器中无效。</p>
+<p><strong>javascript监听pagehide事件阻止页面进入bfcache</strong></p>
+<pre><code>window.addEventListener(&apos;pagehide&apos;, function (e) {
+    var dom = document.body;
+    dom.children.remove();
+    setTimeout(function () {
+        dom.appendChild(&quot;&lt;script type=&apos;text/javascript&apos;&gt;window.location.reload();&lt;\/script&gt;&quot;);
+    });
+});
+</code></pre><p><strong>设置meta标签，清除页面缓存</strong></p>
+<pre><code>&lt;meta http-equiv=&quot;Cache-Control&quot; content=&quot;no-cache, no-store, must-revalidate&quot; /&gt;
+&lt;meta http-equiv=&quot;Pragma&quot; content=&quot;no-cache&quot; /&gt;
+&lt;meta http-equiv=&quot;Expires&quot; content=&quot;0&quot; /&gt;
+</code></pre><p>Cache-Control指定请求和响应遵循的缓存机制。在请求消息或响应消息中设置Cache-Control并不会修改另一个消息处理过程中的缓存处理过程。请求时的缓存指令包括no-cache、no-store、max-age、max-stale、min-fresh、only-if-cached，响应消息中的指令包括public、private、no-cache、no-store、no-transform、must-revalidate、proxy-revalidate、max-age。各个消息中的指令含义如下<br>Public指示响应可被任何缓存区缓存<br>Private指示对于单个用户的整个或部分响应消息，不能被共享缓存处理。这允许服务器仅仅描述当用户的部分响应消息，此响应消息对于其他用户的请求无效<br>no-cache指示请求或响应消息不能缓存<br>no-store用于防止重要的信息被无意的发布。在请求消息中发送将使得请求和响应消息都不使用缓存。<br>max-age指示客户机可以接收生存期不大于指定时间（以秒为单位）的响应<br>min-fresh指示客户机可以接收响应时间小于当前时间加上指定时间的响应<br>max-stale指示客户机可以接收超出超时期间的响应消息。如果指定max-stale消息的值，那么客户机可以接收超出超时期指定值之内的响应消息。<br>注：有些情况下设置清除缓存也没有起到作用，我自己做的这个h5页面就没有起到效果。具体情况还是要具体分析。</p>
+<p><strong>我遇到的情况：</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;div class=&quot;content&quot;&gt;</span><br><span class="line">     &lt;iframe id=&quot;iframe&quot; src=&quot;https://cpu.baidu.com/xx/xx/xxx&quot; frameborder=&quot;no&quot; scrolling=&quot;no&quot;&gt;&lt;/iframe&gt;</span><br><span class="line">&lt;/div&gt;</span><br></pre></td></tr></table></figure></p>
+<p>这个iframe中的地址每次刷新页面都会有不同的内容推送给用户。进入iframe中的内容之后，按返回按钮返回来想进行页面自动刷新，为的就是让用户看到新的内容。</p>
+<p>做法：</p>
+<p>使用pageshow进行整个页面刷新</p>
+<pre><code>window.addEventListener(&apos;pageshow&apos;, function (e) {
+    if (e.persisted) {
+        window.location.reload()
+    }
+})
+</code></pre><p>这样可以实现。</p>
+<p>后面又觉得不妥，没有因为这个小部分而进行整个页面刷新，想到了另一种思路：因为这个iframe中的内容是动态的，可以对其进行定时器设置，如下：</p>
+<pre><code>let iframe = document.getElementById(&apos;iframe&apos;)
+setInterval(() =&gt; {
+    iframe.setAttribute(&quot;src&quot;, &quot;https://cpu.baidu.com/xx/xx/xx&quot;);
+},15000)
+</code></pre><p>这样也可以实现自己的功能。</p>
+<p>最后可以结合一下：</p>
+<pre><code>let iframe = document.getElementById(&apos;iframe&apos;)
+window.addEventListener(&apos;pageshow&apos;, function (e) {
+    if (e.persisted) {
+        iframe.setAttribute(&quot;src&quot;, &quot;https://cpu.baidu.com/xx/xx/xx&quot;);
+    }
+})
+</code></pre><p>这样做也有好处，可以避免使用定时器，对网页的性能也是比较好。但是这个方法在返回的时候，可以看到iframe里面内容的重新加载，会有一个时间间隙。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/05/21/跨域，你需要知道的全在这里/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1683,237 +1859,6 @@ function strictFunc(){
           
             <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br><span class="line">482</span><br><span class="line">483</span><br><span class="line">484</span><br><span class="line">485</span><br><span class="line">486</span><br><span class="line">487</span><br><span class="line">488</span><br><span class="line">489</span><br><span class="line">490</span><br><span class="line">491</span><br><span class="line">492</span><br><span class="line">493</span><br><span class="line">494</span><br><span class="line">495</span><br><span class="line">496</span><br><span class="line">497</span><br><span class="line">498</span><br><span class="line">499</span><br><span class="line">500</span><br><span class="line">501</span><br><span class="line">502</span><br><span class="line">503</span><br><span class="line">504</span><br><span class="line">505</span><br><span class="line">506</span><br><span class="line">507</span><br><span class="line">508</span><br><span class="line">509</span><br><span class="line">510</span><br><span class="line">511</span><br><span class="line">512</span><br><span class="line">513</span><br><span class="line">514</span><br><span class="line">515</span><br><span class="line">516</span><br><span class="line">517</span><br><span class="line">518</span><br><span class="line">519</span><br><span class="line">520</span><br><span class="line">521</span><br><span class="line">522</span><br><span class="line">523</span><br><span class="line">524</span><br><span class="line">525</span><br><span class="line">526</span><br><span class="line">527</span><br><span class="line">528</span><br><span class="line">529</span><br><span class="line">530</span><br><span class="line">531</span><br><span class="line">532</span><br><span class="line">533</span><br><span class="line">534</span><br><span class="line">535</span><br><span class="line">536</span><br><span class="line">537</span><br><span class="line">538</span><br><span class="line">539</span><br><span class="line">540</span><br><span class="line">541</span><br><span class="line">542</span><br><span class="line">543</span><br><span class="line">544</span><br><span class="line">545</span><br><span class="line">546</span><br><span class="line">547</span><br><span class="line">548</span><br><span class="line">549</span><br><span class="line">550</span><br><span class="line">551</span><br><span class="line">552</span><br><span class="line">553</span><br><span class="line">554</span><br><span class="line">555</span><br><span class="line">556</span><br><span class="line">557</span><br><span class="line">558</span><br><span class="line">559</span><br><span class="line">560</span><br><span class="line">561</span><br><span class="line">562</span><br><span class="line">563</span><br><span class="line">564</span><br><span class="line">565</span><br><span class="line">566</span><br><span class="line">567</span><br><span class="line">568</span><br><span class="line">569</span><br><span class="line">570</span><br><span class="line">571</span><br><span class="line">572</span><br><span class="line">573</span><br><span class="line">574</span><br><span class="line">575</span><br><span class="line">576</span><br><span class="line">577</span><br><span class="line">578</span><br><span class="line">579</span><br><span class="line">580</span><br><span class="line">581</span><br><span class="line">582</span><br><span class="line">583</span><br><span class="line">584</span><br><span class="line">585</span><br><span class="line">586</span><br><span class="line">587</span><br><span class="line">588</span><br><span class="line">589</span><br><span class="line">590</span><br><span class="line">591</span><br><span class="line">592</span><br><span class="line">593</span><br><span class="line">594</span><br><span class="line">595</span><br><span class="line">596</span><br><span class="line">597</span><br><span class="line">598</span><br><span class="line">599</span><br><span class="line">600</span><br><span class="line">601</span><br><span class="line">602</span><br><span class="line">603</span><br><span class="line">604</span><br><span class="line">605</span><br><span class="line">606</span><br><span class="line">607</span><br><span class="line">608</span><br><span class="line">609</span><br><span class="line">610</span><br><span class="line">611</span><br><span class="line">612</span><br><span class="line">613</span><br><span class="line">614</span><br><span class="line">615</span><br><span class="line">616</span><br><span class="line">617</span><br><span class="line">618</span><br><span class="line">619</span><br><span class="line">620</span><br><span class="line">621</span><br><span class="line">622</span><br><span class="line">623</span><br><span class="line">624</span><br><span class="line">625</span><br><span class="line">626</span><br><span class="line">627</span><br><span class="line">628</span><br><span class="line">629</span><br><span class="line">630</span><br><span class="line">631</span><br><span class="line">632</span><br><span class="line">633</span><br><span class="line">634</span><br><span class="line">635</span><br><span class="line">636</span><br><span class="line">637</span><br><span class="line">638</span><br><span class="line">639</span><br><span class="line">640</span><br><span class="line">641</span><br><span class="line">642</span><br><span class="line">643</span><br><span class="line">644</span><br><span class="line">645</span><br><span class="line">646</span><br><span class="line">647</span><br><span class="line">648</span><br><span class="line">649</span><br><span class="line">650</span><br><span class="line">651</span><br><span class="line">652</span><br><span class="line">653</span><br><span class="line">654</span><br><span class="line">655</span><br><span class="line">656</span><br><span class="line">657</span><br><span class="line">658</span><br><span class="line">659</span><br><span class="line">660</span><br><span class="line">661</span><br><span class="line">662</span><br><span class="line">663</span><br><span class="line">664</span><br><span class="line">665</span><br><span class="line">666</span><br><span class="line">667</span><br><span class="line">668</span><br><span class="line">669</span><br><span class="line">670</span><br><span class="line">671</span><br><span class="line">672</span><br><span class="line">673</span><br><span class="line">674</span><br><span class="line">675</span><br><span class="line">676</span><br><span class="line">677</span><br><span class="line">678</span><br><span class="line">679</span><br><span class="line">680</span><br><span class="line">681</span><br><span class="line">682</span><br><span class="line">683</span><br><span class="line">684</span><br><span class="line">685</span><br><span class="line">686</span><br><span class="line">687</span><br></pre></td><td class="code"><pre><span class="line">;</span><br><span class="line">(function() &#123;</span><br><span class="line">	&apos;use strict&apos;;</span><br><span class="line">	//构造函数</span><br><span class="line">	function FastClick(layer, options) &#123;</span><br><span class="line">		var oldOnClick;</span><br><span class="line">		options = options || &#123;&#125;;</span><br><span class="line"></span><br><span class="line">		//是否开始追踪click事件</span><br><span class="line">		this.trackingClick = false;</span><br><span class="line"></span><br><span class="line">		//存储第一次按下时间戳</span><br><span class="line">		this.trackingClickStart = 0;</span><br><span class="line"></span><br><span class="line">		//目标元素</span><br><span class="line">		this.targetElement = null;</span><br><span class="line"></span><br><span class="line">		//存放坐标值X</span><br><span class="line">		this.touchStartX = 0;</span><br><span class="line"></span><br><span class="line">		//存放坐标值Y</span><br><span class="line">		this.touchStartY = 0;</span><br><span class="line"></span><br><span class="line">		//主要hack iOS4下的一个怪异问题</span><br><span class="line">		this.lastTouchIdentifier = 0;</span><br><span class="line"></span><br><span class="line">		//用于区分是click还是Touchmove，若出点移动超过该值则视为touchmove</span><br><span class="line">		this.touchBoundary = options.touchBoundary || 10;</span><br><span class="line"></span><br><span class="line">		// 绑定了FastClick的元素，一般是是body</span><br><span class="line">		this.layer = layer;</span><br><span class="line"></span><br><span class="line">		//双击最小点击时间差</span><br><span class="line">		this.tapDelay = options.tapDelay || 200;</span><br><span class="line"></span><br><span class="line">		//长按最大时间</span><br><span class="line">		this.tapTimeout = options.tapTimeout || 700;</span><br><span class="line"></span><br><span class="line">		//如果是属于不需要处理的元素类型，则直接返回</span><br><span class="line">		if(FastClick.notNeeded(layer)) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//语法糖，兼容一些用不了 Function.prototype.bind 的旧安卓</span><br><span class="line">		//所以后面不走 layer.addEventListener(&apos;click&apos;, this.onClick.bind(this), true);</span><br><span class="line">		function bind(method, context) &#123;</span><br><span class="line">			return function() &#123;</span><br><span class="line">				return method.apply(context, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		var methods = [&apos;onMouse&apos;, &apos;onClick&apos;, &apos;onTouchStart&apos;, &apos;onTouchMove&apos;, &apos;onTouchEnd&apos;, &apos;onTouchCancel&apos;];</span><br><span class="line">		var context = this;</span><br><span class="line">		for(var i = 0, l = methods.length; i &lt; l; i++) &#123;</span><br><span class="line">			context[methods[i]] = bind(context[methods[i]], context);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//安卓则做额外处理</span><br><span class="line">		if(deviceIsAndroid) &#123;</span><br><span class="line">			layer.addEventListener(&apos;mouseover&apos;, this.onMouse, true);</span><br><span class="line">			layer.addEventListener(&apos;mousedown&apos;, this.onMouse, true);</span><br><span class="line">			layer.addEventListener(&apos;mouseup&apos;, this.onMouse, true);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		layer.addEventListener(&apos;click&apos;, this.onClick, true);</span><br><span class="line">		layer.addEventListener(&apos;touchstart&apos;, this.onTouchStart, false);</span><br><span class="line">		layer.addEventListener(&apos;touchmove&apos;, this.onTouchMove, false);</span><br><span class="line">		layer.addEventListener(&apos;touchend&apos;, this.onTouchEnd, false);</span><br><span class="line">		layer.addEventListener(&apos;touchcancel&apos;, this.onTouchCancel, false);</span><br><span class="line"></span><br><span class="line">		// 兼容不支持 stopImmediatePropagation 的浏览器(比如 Android 2)</span><br><span class="line">		if(!Event.prototype.stopImmediatePropagation) &#123;</span><br><span class="line">			layer.removeEventListener = function(type, callback, capture) &#123;</span><br><span class="line">				var rmv = Node.prototype.removeEventListener;</span><br><span class="line">				if(type === &apos;click&apos;) &#123;</span><br><span class="line">					rmv.call(layer, type, callback.hijacked || callback, capture);</span><br><span class="line">				&#125; else &#123;</span><br><span class="line">					rmv.call(layer, type, callback, capture);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">			layer.addEventListener = function(type, callback, capture) &#123;</span><br><span class="line">				var adv = Node.prototype.addEventListener;</span><br><span class="line">				if(type === &apos;click&apos;) &#123;</span><br><span class="line">					//留意这里 callback.hijacked 中会判断 event.propagationStopped 是否为真来确保（安卓的onMouse事件）只执行一次</span><br><span class="line">					//在 onMouse 事件里会给 event.propagationStopped 赋值 true</span><br><span class="line">					adv.call(layer, type, callback.hijacked || (callback.hijacked = function(event) &#123;</span><br><span class="line">						if(!event.propagationStopped) &#123;</span><br><span class="line">							callback(event);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;), capture);</span><br><span class="line">				&#125; else &#123;</span><br><span class="line">					adv.call(layer, type, callback, capture);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 如果layer直接在DOM上写了 onclick 方法，那我们需要把它替换为 addEventListener 绑定形式</span><br><span class="line">		if(typeof layer.onclick === &apos;function&apos;) &#123;</span><br><span class="line">			oldOnClick = layer.onclick;</span><br><span class="line">			layer.addEventListener(&apos;click&apos;, function(event) &#123;</span><br><span class="line">				oldOnClick(event);</span><br><span class="line">			&#125;, false);</span><br><span class="line">			layer.onclick = null;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * Windows Phone 8.1 fakes user agent string to look like Android and iPhone.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsWindowsPhone = navigator.userAgent.indexOf(&quot;Windows Phone&quot;) &gt;= 0;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * Android requires exceptions.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsAndroid = navigator.userAgent.indexOf(&apos;Android&apos;) &gt; 0 &amp;&amp; !deviceIsWindowsPhone;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * iOS requires exceptions.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsIOS = /iP(ad|hone|od)/.test(navigator.userAgent) &amp;&amp; !deviceIsWindowsPhone;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * iOS 4 requires an exception for select elements.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsIOS4 = deviceIsIOS &amp;&amp; (/OS 4_\d(_\d)?/).test(navigator.userAgent);</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * iOS 6.0-7.* requires the target element to be manually derived</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsIOSWithBadTarget = deviceIsIOS &amp;&amp; (/OS [6-7]_\d/).test(navigator.userAgent);</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * BlackBerry requires exceptions.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsBlackBerry10 = navigator.userAgent.indexOf(&apos;BB10&apos;) &gt; 0;</span><br><span class="line"></span><br><span class="line">	//判断元素是否要保留穿透功能</span><br><span class="line">	FastClick.prototype.needsClick = function(target) &#123;</span><br><span class="line">		switch(target.nodeName.toLowerCase()) &#123;</span><br><span class="line"></span><br><span class="line">			// disabled的input</span><br><span class="line">			case &apos;button&apos;:</span><br><span class="line">			case &apos;select&apos;:</span><br><span class="line">			case &apos;textarea&apos;:</span><br><span class="line">				if(target.disabled) &#123;</span><br><span class="line">					return true;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				break;</span><br><span class="line">			case &apos;input&apos;:</span><br><span class="line"></span><br><span class="line">				// file组件必须通过原生click事件点击才有效</span><br><span class="line">				if((deviceIsIOS &amp;&amp; target.type === &apos;file&apos;) || target.disabled) &#123;</span><br><span class="line">					return true;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				break;</span><br><span class="line">			case &apos;label&apos;:</span><br><span class="line">			case &apos;iframe&apos;:</span><br><span class="line">			case &apos;video&apos;:</span><br><span class="line">				return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//元素带了名为“bneedsclick”的class也返回true</span><br><span class="line">		return(/\bneedsclick\b/).test(target.className);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//判断给定元素是否需要通过合成click事件来模拟聚焦</span><br><span class="line">	FastClick.prototype.needsFocus = function(target) &#123;</span><br><span class="line">		switch(target.nodeName.toLowerCase()) &#123;</span><br><span class="line">			case &apos;textarea&apos;:</span><br><span class="line">				return true;</span><br><span class="line">			case &apos;select&apos;:</span><br><span class="line">				return !deviceIsAndroid; //iOS下的select得走穿透点击才行</span><br><span class="line">			case &apos;input&apos;:</span><br><span class="line">				switch(target.type) &#123;</span><br><span class="line">					case &apos;button&apos;:</span><br><span class="line">					case &apos;checkbox&apos;:</span><br><span class="line">					case &apos;file&apos;:</span><br><span class="line">					case &apos;image&apos;:</span><br><span class="line">					case &apos;radio&apos;:</span><br><span class="line">					case &apos;submit&apos;:</span><br><span class="line">						return false;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				return !target.disabled &amp;&amp; !target.readOnly;</span><br><span class="line">			default:</span><br><span class="line">				//带有名为“bneedsfocus”的class则返回true</span><br><span class="line">				return(/\bneedsfocus\b/).test(target.className);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//合成一个click事件并在指定元素上触发</span><br><span class="line">	FastClick.prototype.sendClick = function(targetElement, event) &#123;</span><br><span class="line">		var clickEvent, touch;</span><br><span class="line"></span><br><span class="line">		// 在一些安卓机器中，得让页面所存在的 activeElement（聚焦的元素，比如input）失焦，否则合成的click事件将无效</span><br><span class="line">		if(document.activeElement &amp;&amp; document.activeElement !== targetElement) &#123;</span><br><span class="line">			document.activeElement.blur();</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		touch = event.changedTouches[0];</span><br><span class="line"></span><br><span class="line">		// 合成(Synthesise) 一个 click 事件</span><br><span class="line">		// 通过一个额外属性确保它能被追踪（tracked）</span><br><span class="line">		clickEvent = document.createEvent(&apos;MouseEvents&apos;);</span><br><span class="line">		clickEvent.initMouseEvent(this.determineEventType(targetElement), true, true, window, 1, touch.screenX, touch.screenY, touch.clientX, touch.clientY, false, false, false, false, 0, null);</span><br><span class="line">		clickEvent.forwardedTouchEvent = true; // fastclick的内部变量，用来识别click事件是原生还是合成的</span><br><span class="line">		targetElement.dispatchEvent(clickEvent); //立即触发其click事件</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.determineEventType = function(targetElement) &#123;</span><br><span class="line"></span><br><span class="line">		//安卓设备下 Select 无法通过合成的 click 事件被展开，得改为 mousedown</span><br><span class="line">		if(deviceIsAndroid &amp;&amp; targetElement.tagName.toLowerCase() === &apos;select&apos;) &#123;</span><br><span class="line">			return &apos;mousedown&apos;;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return &apos;click&apos;;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//设置元素聚焦事件</span><br><span class="line">	FastClick.prototype.focus = function(targetElement) &#123;</span><br><span class="line">		var length;</span><br><span class="line"></span><br><span class="line">		// 组件建议通过setSelectionRange(selectionStart, selectionEnd)来设定光标范围（注意这样还没有聚焦</span><br><span class="line">		// 要等到后面触发 sendClick 事件才会聚焦）</span><br><span class="line">		// 另外 iOS7 下有些input元素(比如 date datetime month) 的 selectionStart 和 selectionEnd 特性是没有整型值的，</span><br><span class="line">		// 导致会抛出一个关于 setSelectionRange 的模糊错误，它们需要改用 focus 事件触发</span><br><span class="line">		if(deviceIsIOS &amp;&amp; targetElement.setSelectionRange &amp;&amp; targetElement.type.indexOf(&apos;date&apos;) !== 0 &amp;&amp; targetElement.type !== &apos;time&apos; &amp;&amp; targetElement.type !== &apos;month&apos;) &#123;</span><br><span class="line">			length = targetElement.value.length;</span><br><span class="line">			targetElement.setSelectionRange(length, length);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			//直接触发其focus事件</span><br><span class="line">			targetElement.focus();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 检查target是否一个滚动容器里的子元素，如果是则给它加个标记</span><br><span class="line">	 */</span><br><span class="line">	FastClick.prototype.updateScrollParent = function(targetElement) &#123;</span><br><span class="line">		var scrollParent, parentElement;</span><br><span class="line"></span><br><span class="line">		scrollParent = targetElement.fastClickScrollParent;</span><br><span class="line"></span><br><span class="line">		// Attempt to discover whether the target element is contained within a scrollable layer. Re-check if the</span><br><span class="line">		// target element was moved to another parent.</span><br><span class="line">		if(!scrollParent || !scrollParent.contains(targetElement)) &#123;</span><br><span class="line">			parentElement = targetElement;</span><br><span class="line">			do &#123;</span><br><span class="line">				if(parentElement.scrollHeight &gt; parentElement.offsetHeight) &#123;</span><br><span class="line">					scrollParent = parentElement;</span><br><span class="line">					targetElement.fastClickScrollParent = parentElement;</span><br><span class="line">					break;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				parentElement = parentElement.parentElement;</span><br><span class="line">			&#125; while (parentElement);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 给滚动容器加个标志fastClickLastScrollTop，值为其当前垂直滚动偏移</span><br><span class="line">		if(scrollParent) &#123;</span><br><span class="line">			scrollParent.fastClickLastScrollTop = scrollParent.scrollTop;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 返回目标元素</span><br><span class="line">	 */</span><br><span class="line">	FastClick.prototype.getTargetElementFromEventTarget = function(eventTarget) &#123;</span><br><span class="line"></span><br><span class="line">		// 一些较老的浏览器，target 可能会是一个文本节点，得返回其DOM节点</span><br><span class="line">		if(eventTarget.nodeType === Node.TEXT_NODE) &#123;</span><br><span class="line">			return eventTarget.parentNode;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return eventTarget;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchStart = function(event) &#123;</span><br><span class="line">		var targetElement, touch, selection;</span><br><span class="line"></span><br><span class="line">		// 多指触控的手势则忽略</span><br><span class="line">		if(event.targetTouches.length &gt; 1) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		targetElement = this.getTargetElementFromEventTarget(event.target); //一些较老的浏览器，target 可能会是一个文本节点，得返回其DOM节点</span><br><span class="line">		touch = event.targetTouches[0];</span><br><span class="line"></span><br><span class="line">		if(deviceIsIOS) &#123; //IOS处理</span><br><span class="line"></span><br><span class="line">			// 若用户已经选中了一些内容（比如选中了一段文本打算复制），则忽略</span><br><span class="line">			selection = window.getSelection();</span><br><span class="line">			if(selection.rangeCount &amp;&amp; !selection.isCollapsed) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			if(!deviceIsIOS4) &#123; //是否IOS4</span><br><span class="line"></span><br><span class="line">				//怪异特性处理——若click事件回调打开了一个alert/confirm，用户下一次tap页面的其它地方时，新的touchstart和touchend</span><br><span class="line">				//事件会拥有同一个touch.identifier（新的 touch event 会跟上一次触发alert点击的 touch event 一样），</span><br><span class="line">				//为避免将新的event当作之前的event导致问题，这里需要禁用默认事件</span><br><span class="line">				//另外chrome的开发工具启用&apos;Emulate touch events&apos;后，iOS UA下的 identifier 会变成0，所以要做容错避免调试过程也被禁用事件了</span><br><span class="line">				if(touch.identifier &amp;&amp; touch.identifier === this.lastTouchIdentifier) &#123;</span><br><span class="line">					event.preventDefault();</span><br><span class="line">					return false;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				this.lastTouchIdentifier = touch.identifier;</span><br><span class="line"></span><br><span class="line">				// 如果target是一个滚动容器里的一个子元素(使用了 -webkit-overflow-scrolling: touch) ，而且满足:</span><br><span class="line">				// 1) 用户非常快速地滚动外层滚动容器</span><br><span class="line">				// 2) 用户通过tap停止住了这个快速滚动</span><br><span class="line">				// 这时候最后的&apos;touchend&apos;的event.target会变成用户最终手指下的那个元素</span><br><span class="line">				// 所以当快速滚动开始的时候，需要做检查target是否滚动容器的子元素，如果是，做个标记</span><br><span class="line">				// 在touchend时检查这个标记的值（滚动容器的scrolltop）是否改变了，如果是则说明页面在滚动中，需要取消fastclick处理</span><br><span class="line">				this.updateScrollParent(targetElement);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		this.trackingClick = true; //做个标志表示开始追踪click事件了</span><br><span class="line">		this.trackingClickStart = event.timeStamp; //标记下touch事件开始的时间戳</span><br><span class="line">		this.targetElement = targetElement;</span><br><span class="line"></span><br><span class="line">		//标记touch起始点的页面偏移值</span><br><span class="line">		this.touchStartX = touch.pageX;</span><br><span class="line">		this.touchStartY = touch.pageY;</span><br><span class="line"></span><br><span class="line">		// this.lastClickTime 是在 touchend 里标记的事件时间戳</span><br><span class="line">		// this.tapDelay 为常量 200 （ms）</span><br><span class="line">		// 此举用来避免 phantom 的双击（200ms内快速点了两次）触发 click</span><br><span class="line">		// 反正200ms内的第二次点击会禁止触发点击的默认事件</span><br><span class="line">		if((event.timeStamp - this.lastClickTime) &lt; this.tapDelay) &#123;</span><br><span class="line">			event.preventDefault();</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return true;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//判断是否移动了</span><br><span class="line">	//this.touchBoundary是常量，值为10</span><br><span class="line">	//如果touch已经移动了10个偏移量单位，则应当作为移动事件处理而非click事件</span><br><span class="line">	FastClick.prototype.touchHasMoved = function(event) &#123;</span><br><span class="line">		var touch = event.changedTouches[0],</span><br><span class="line">			boundary = this.touchBoundary;</span><br><span class="line"></span><br><span class="line">		if(Math.abs(touch.pageX - this.touchStartX) &gt; boundary || Math.abs(touch.pageY - this.touchStartY) &gt; boundary) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return false;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchMove = function(event) &#123;</span><br><span class="line">		//不是需要被追踪click的事件则忽略</span><br><span class="line">		if(!this.trackingClick) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 如果target突然改变了，或者用户其实是在移动手势而非想要click</span><br><span class="line">		// 则应该清掉this.trackingClick和this.targetElement，告诉后面的事件你们也不用处理了</span><br><span class="line">		if(this.targetElement !== this.getTargetElementFromEventTarget(event.target) || this.touchHasMoved(event)) &#123;</span><br><span class="line">			this.trackingClick = false;</span><br><span class="line">			this.targetElement = null;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return true;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//找到label标签所映射的组件，方便让用户点label的时候直接激活该组件</span><br><span class="line">	FastClick.prototype.findControl = function(labelElement) &#123;</span><br><span class="line"></span><br><span class="line">		// 有缓存则直接读缓存着的</span><br><span class="line">		if(labelElement.control !== undefined) &#123;</span><br><span class="line">			return labelElement.control;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 获取指向的组件</span><br><span class="line">		if(labelElement.htmlFor) &#123;</span><br><span class="line">			return document.getElementById(labelElement.htmlFor);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 没有for属性则激活页面第一个组件（labellable 元素）</span><br><span class="line">		return labelElement.querySelector(&apos;button, input:not([type=hidden]), keygen, meter, output, progress, select, textarea&apos;);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchEnd = function(event) &#123;</span><br><span class="line">		var forElement, trackingClickStart, targetTagName, scrollParent, touch, targetElement = this.targetElement;</span><br><span class="line"></span><br><span class="line">		if(!this.trackingClick) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 避免 phantom 的双击（200ms内快速点了两次）触发 click</span><br><span class="line">		// 我们在 ontouchstart 里已经做过一次判断了（仅仅禁用默认事件），这里再做一次判断</span><br><span class="line">		if((event.timeStamp - this.lastClickTime) &lt; this.tapDelay) &#123;</span><br><span class="line">			this.cancelNextClick = true; //该属性会在 onMouse 事件中被判断，为true则彻底禁用事件和冒泡</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//this.tapTimeout是常量，值为700</span><br><span class="line">		//识别是否为长按事件，如果是（大于700ms）则忽略</span><br><span class="line">		if((event.timeStamp - this.trackingClickStart) &gt; this.tapTimeout) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 得重置为false，避免input事件被意外取消</span><br><span class="line">		// 例子见 https://github.com/ftlabs/fastclick/issues/156</span><br><span class="line">		this.cancelNextClick = false;</span><br><span class="line"></span><br><span class="line">		this.lastClickTime = event.timeStamp; //标记touchend时间，方便下一次的touchstart做双击校验</span><br><span class="line"></span><br><span class="line">		trackingClickStart = this.trackingClickStart;</span><br><span class="line">		//重置 this.trackingClick 和 this.trackingClickStart</span><br><span class="line">		this.trackingClick = false;</span><br><span class="line">		this.trackingClickStart = 0;</span><br><span class="line"></span><br><span class="line">		// iOS 6.0-7.*版本下有个问题 —— 如果layer处于transition或scroll过程，event所提供的target是不正确的</span><br><span class="line">		// 所以咱们得重找 targetElement（这里通过 document.elementFromPoint 接口来寻找）</span><br><span class="line">		if(deviceIsIOSWithBadTarget) &#123; //iOS 6.0-7.*版本</span><br><span class="line">			touch = event.changedTouches[0]; //手指离开前的触点</span><br><span class="line"></span><br><span class="line">			// 有些情况下 elementFromPoint 里的参数是预期外/不可用的, 所以还得避免 targetElement 为 null</span><br><span class="line">			targetElement = document.elementFromPoint(touch.pageX - window.pageXOffset, touch.pageY - window.pageYOffset) || targetElement;</span><br><span class="line">			// target可能不正确需要重找，但fastClickScrollParent是不会变的</span><br><span class="line">			targetElement.fastClickScrollParent = this.targetElement.fastClickScrollParent;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		targetTagName = targetElement.tagName.toLowerCase();</span><br><span class="line">		if(targetTagName === &apos;label&apos;) &#123; //是label则激活其指向的组件</span><br><span class="line">			forElement = this.findControl(targetElement);</span><br><span class="line">			if(forElement) &#123;</span><br><span class="line">				this.focus(targetElement);</span><br><span class="line">				//安卓直接返回（无需合成click事件触发，因为点击和激活元素不同，不存在点透）</span><br><span class="line">				if(deviceIsAndroid) &#123;</span><br><span class="line">					return false;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				targetElement = forElement;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; else if(this.needsFocus(targetElement)) &#123; //非label则识别是否需要focus的元素</span><br><span class="line"></span><br><span class="line">			//手势停留在组件元素时长超过100ms，则置空this.targetElement并返回</span><br><span class="line">			//（而不是通过调用this.focus来触发其聚焦事件，走的原生的click/focus事件触发流程）</span><br><span class="line">			//这也是为何文章开头提到的问题中，稍微久按一点（超过100ms）textarea是可以把光标定位在正确的地方的原因</span><br><span class="line">			//另外iOS下有个意料之外的bug——如果被点击的元素所在文档是在iframe中的，手动调用其focus的话，</span><br><span class="line">			//会发现你往其中输入的text是看不到的（即使value做了更新），so这里也直接返回</span><br><span class="line">			if((event.timeStamp - trackingClickStart) &gt; 100 || (deviceIsIOS &amp;&amp; window.top !== window &amp;&amp; targetTagName === &apos;input&apos;)) &#123;</span><br><span class="line">				this.targetElement = null;</span><br><span class="line">				return false;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			this.focus(targetElement);</span><br><span class="line">			this.sendClick(targetElement, event); //立即触发其click事件，而无须等待300ms</span><br><span class="line"></span><br><span class="line">			//iOS4下的 select 元素不能禁用默认事件（要确保它能被穿透），否则不会打开select目录</span><br><span class="line">			//有时候 iOS6/7 下（VoiceOver开启的情况下）也会如此</span><br><span class="line">			if(!deviceIsIOS || targetTagName !== &apos;select&apos;) &#123;</span><br><span class="line">				this.targetElement = null;</span><br><span class="line">				event.preventDefault();</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			return false;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if(deviceIsIOS &amp;&amp; !deviceIsIOS4) &#123;</span><br><span class="line"></span><br><span class="line">			// 滚动容器的垂直滚动偏移改变了，说明是容器在做滚动而非点击，则忽略</span><br><span class="line">			scrollParent = targetElement.fastClickScrollParent;</span><br><span class="line">			if(scrollParent &amp;&amp; scrollParent.fastClickLastScrollTop !== scrollParent.scrollTop) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 查看元素是否无需处理的白名单内（比如加了名为“needsclick”的class）</span><br><span class="line">		// 不是白名单的则照旧预防穿透处理，立即触发合成的click事件</span><br><span class="line">		if(!this.needsClick(targetElement)) &#123;</span><br><span class="line">			event.preventDefault();</span><br><span class="line">			this.sendClick(targetElement, event);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return false;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchCancel = function() &#123;</span><br><span class="line">		this.trackingClick = false;</span><br><span class="line">		this.targetElement = null;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//用于决定是否允许穿透事件（触发layer的click默认事件）</span><br><span class="line">	FastClick.prototype.onMouse = function(event) &#123;</span><br><span class="line"></span><br><span class="line">		// touch事件一直没触发</span><br><span class="line">		if(!this.targetElement) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if(event.forwardedTouchEvent) &#123; //触发的click事件是合成的</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 编程派生的事件所对应元素事件可以被允许</span><br><span class="line">		// 确保其没执行过 preventDefault 方法（event.cancelable 不为 true）即可</span><br><span class="line">		if(!event.cancelable) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 需要做预防穿透处理的元素，或者做了快速（200ms）双击的情况</span><br><span class="line">		if(!this.needsClick(this.targetElement) || this.cancelNextClick) &#123;</span><br><span class="line">			//停止当前默认事件和冒泡</span><br><span class="line">			if(event.stopImmediatePropagation) &#123;</span><br><span class="line">				event.stopImmediatePropagation();</span><br><span class="line">			&#125; else &#123;</span><br><span class="line"></span><br><span class="line">				// 不支持 stopImmediatePropagation 的设备(比如Android 2)做标记，</span><br><span class="line">				// 确保该事件回调不会执行（见126行）</span><br><span class="line">				event.propagationStopped = true;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			// 取消事件和冒泡</span><br><span class="line">			event.stopPropagation();</span><br><span class="line">			event.preventDefault();</span><br><span class="line"></span><br><span class="line">			return false;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//允许穿透</span><br><span class="line">		return true;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//click事件常规都是touch事件衍生来的，也排在touch后面触发。</span><br><span class="line">	//对于那些我们在touch事件过程没有禁用掉默认事件的event来说，我们还需要在click的捕获阶段进一步</span><br><span class="line">	//做判断决定是否要禁掉点击事件（防穿透）</span><br><span class="line">	FastClick.prototype.onClick = function(event) &#123;</span><br><span class="line">		var permitted;</span><br><span class="line"></span><br><span class="line">		// 如果还有 trackingClick 存在，可能是某些UI事件阻塞了touchEnd 的执行</span><br><span class="line">		if(this.trackingClick) &#123;</span><br><span class="line">			this.targetElement = null;</span><br><span class="line">			this.trackingClick = false;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 依旧是对 iOS 怪异行为的处理 —— 如果用户点击了iOS模拟器里某个表单中的一个submit元素</span><br><span class="line">		// 或者点击了弹出来的键盘里的“Go”按钮，会触发一个“伪”click事件（target是一个submit-type的input元素）</span><br><span class="line">		if(event.target.type === &apos;submit&apos; &amp;&amp; event.detail === 0) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		permitted = this.onMouse(event);</span><br><span class="line"></span><br><span class="line">		if(!permitted) &#123; //如果点击是被允许的，将this.targetElement置空可以确保onMouse事件里不会阻止默认事件</span><br><span class="line">			this.targetElement = null;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//没有多大意义</span><br><span class="line">		return permitted;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//销毁Fastclick所注册的监听事件。是给外部实例去调用的</span><br><span class="line">	FastClick.prototype.destroy = function() &#123;</span><br><span class="line">		var layer = this.layer;</span><br><span class="line"></span><br><span class="line">		if(deviceIsAndroid) &#123;</span><br><span class="line">			layer.removeEventListener(&apos;mouseover&apos;, this.onMouse, true);</span><br><span class="line">			layer.removeEventListener(&apos;mousedown&apos;, this.onMouse, true);</span><br><span class="line">			layer.removeEventListener(&apos;mouseup&apos;, this.onMouse, true);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		layer.removeEventListener(&apos;click&apos;, this.onClick, true);</span><br><span class="line">		layer.removeEventListener(&apos;touchstart&apos;, this.onTouchStart, false);</span><br><span class="line">		layer.removeEventListener(&apos;touchmove&apos;, this.onTouchMove, false);</span><br><span class="line">		layer.removeEventListener(&apos;touchend&apos;, this.onTouchEnd, false);</span><br><span class="line">		layer.removeEventListener(&apos;touchcancel&apos;, this.onTouchCancel, false);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//是否没必要使用到 Fastclick 的检测</span><br><span class="line">	FastClick.notNeeded = function(layer) &#123;</span><br><span class="line">		var metaViewport;</span><br><span class="line">		var chromeVersion;</span><br><span class="line">		var blackberryVersion;</span><br><span class="line">		var firefoxVersion;</span><br><span class="line"></span><br><span class="line">		// 不支持触摸的设备</span><br><span class="line">		if(typeof window.ontouchstart === &apos;undefined&apos;) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 获取Chrome版本号，若非Chrome则返回0</span><br><span class="line">		chromeVersion = +(/Chrome\/([0-9]+)/.exec(navigator.userAgent) || [, 0])[1];</span><br><span class="line"></span><br><span class="line">		if(chromeVersion) &#123;</span><br><span class="line"></span><br><span class="line">			if(deviceIsAndroid) &#123; //安卓</span><br><span class="line">				metaViewport = document.querySelector(&apos;meta[name=viewport]&apos;);</span><br><span class="line"></span><br><span class="line">				if(metaViewport) &#123;</span><br><span class="line">					// 安卓下，带有 user-scalable=&quot;no&quot; 的 meta 标签的 chrome 是会自动禁用 300ms 延迟的，所以无需 Fastclick</span><br><span class="line">					if(metaViewport.content.indexOf(&apos;user-scalable=no&apos;) !== -1) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line">					// 安卓Chrome 32 及以上版本，若带有 width=device-width 的 meta 标签也是无需 FastClick 的</span><br><span class="line">					if(chromeVersion &gt; 31 &amp;&amp; document.documentElement.scrollWidth &lt;= window.outerWidth) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				// 其它的就肯定是桌面级的 Chrome 了，更不需要 FastClick 啦</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if(deviceIsBlackBerry10) &#123; //黑莓，和上面安卓同理，就不写注释了</span><br><span class="line">			blackberryVersion = navigator.userAgent.match(/Version\/([0-9]*)\.([0-9]*)/);</span><br><span class="line"></span><br><span class="line">			if(blackberryVersion[1] &gt;= 10 &amp;&amp; blackberryVersion[2] &gt;= 3) &#123;</span><br><span class="line">				metaViewport = document.querySelector(&apos;meta[name=viewport]&apos;);</span><br><span class="line"></span><br><span class="line">				if(metaViewport) &#123;</span><br><span class="line">					if(metaViewport.content.indexOf(&apos;user-scalable=no&apos;) !== -1) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line"></span><br><span class="line">					if(document.documentElement.scrollWidth &lt;= window.outerWidth) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 带有 -ms-touch-action: none / manipulation 特性的 IE10 会禁用双击放大，也没有 300ms 时延</span><br><span class="line">		if(layer.style.msTouchAction === &apos;none&apos; || layer.style.touchAction === &apos;manipulation&apos;) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// Firefox检测，同上</span><br><span class="line">		firefoxVersion = +(/Firefox\/([0-9]+)/.exec(navigator.userAgent) || [, 0])[1];</span><br><span class="line"></span><br><span class="line">		if(firefoxVersion &gt;= 27) &#123;</span><br><span class="line"></span><br><span class="line">			metaViewport = document.querySelector(&apos;meta[name=viewport]&apos;);</span><br><span class="line">			if(metaViewport &amp;&amp; (metaViewport.content.indexOf(&apos;user-scalable=no&apos;) !== -1 || document.documentElement.scrollWidth &lt;= window.outerWidth)) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// IE11 推荐使用没有“-ms-”前缀的 touch-action 样式特性名</span><br><span class="line">		if(layer.style.touchAction === &apos;none&apos; || layer.style.touchAction === &apos;manipulation&apos;) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return false;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.attach = function(layer, options) &#123;</span><br><span class="line">		return new FastClick(layer, options);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	if(typeof define === &apos;function&apos; &amp;&amp; typeof define.amd === &apos;object&apos; &amp;&amp; define.amd) &#123;</span><br><span class="line"></span><br><span class="line">		// AMD. Register as an anonymous module.</span><br><span class="line">		define(function() &#123;</span><br><span class="line">			return FastClick;</span><br><span class="line">		&#125;);</span><br><span class="line">	&#125; else if(typeof module !== &apos;undefined&apos; &amp;&amp; module.exports) &#123;</span><br><span class="line">		module.exports = FastClick.attach;</span><br><span class="line">		module.exports.FastClick = FastClick;</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		window.FastClick = FastClick;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;());</span><br></pre></td></tr></table></figure>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=&quot;en&quot;&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;</span><br><span class="line">		&lt;title&gt;Demo&lt;/title&gt;</span><br><span class="line">		&lt;script src=&quot;./fastclick.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">		&lt;style&gt;</span><br><span class="line">			div &#123;</span><br><span class="line">				width: 200px;</span><br><span class="line">				background: red;Y</span><br><span class="line">				margin: 0 auto;</span><br><span class="line">				height: 200px;</span><br><span class="line">				color: wheat;</span><br><span class="line">				font-size: 25px;</span><br><span class="line">				display: flex;</span><br><span class="line">				justify-content: center;</span><br><span class="line">				align-items: center;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div id=&quot;main&quot;&gt;FastClick&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">		&lt;script&gt;</span><br><span class="line">			FastClick.attach(document.body);</span><br><span class="line">			document.getElementById(&quot;main&quot;).addEventListener(&quot;click&quot;, function(event) &#123;</span><br><span class="line">				console.log(event.target.innerText)</span><br><span class="line">			&#125;, false)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/10/03/浅谈-instanceof-和-typeof-的实现原理/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/10/03/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-10-03T13:17:32+08:00">
-                2015-10-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
-<pre><code>let s =newString(&apos;abc&apos;);
-typeof s ===&apos;object&apos;// true
-s instanceofString// true
-</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
-<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
-<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>1：整数</li>
-</ul>
-<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
-<p><code>null</code>：所有机器码均为0</p>
-<p><code>undefined</code>：用 −2^30 整数来表示</p>
-<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
-<p>然而用 <code>instanceof</code> 来判断的话👉</p>
-<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
-</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
-<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
-<p>还有一个不错的判断类型的方法，就是<strong><font color="#dd0000">Object.prototype.toString</font></strong>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
-<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
-Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
-Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
-Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
-Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
-Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
-Object.prototype.toString.call(null)// &quot;[object Null]&quot;
-Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
-Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
-</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
-<pre><code>let person =function(){
-}
-let nicole =new person()
-nicole instanceof person // true
-</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
-<pre><code>let person =function(){
-}
-let programmer =function(){
-}
-programmer.prototype =new person()
-let nicole =new programmer()
-nicole instanceof person // true
-nicole instanceof programmer // true
-</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
-<pre><code>function new_instance_of(leftVaule, rightVaule){
-    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
-    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
-    while(true){
-        if(leftVaule ===null){
-            returnfalse;    
-        }
-        if(leftVaule === rightProto){
-            returntrue;    
-        }
-        leftVaule = leftVaule.__proto__ 
-    }
-}
-</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
-<pre><code>functionFoo(){
-}
-Object instanceof Object// true
-Function instanceof Function// true
-Function instanceof Object// true
-Foo instanceof Foo// false
-Foo instanceof Object// true
-Foo instanceof Function// true
-</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
-<p>关于原型继承的原理，我简单用一张图来表示</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
-<p><code>Object instanceof Object</code></p>
-<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
-<pre><code>leftValue =Object.__proto__ =Function.prototype;
-rightValue =Object.prototype;
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue === rightValue
-// 返回 true
-</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
-<p><code>Foo instanceof Foo</code></p>
-<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
-<p>我们用代码简单的表示一下</p>
-<pre><code>leftValue =Foo, rightValue =Foo
-leftValue =Foo.__proto =Function.prototype
-rightValue =Foo.prototype
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue != rightValue
-leftValue =Object.prototype =null
-// 第三次判断
-leftValue ===null
-// 返回 false
-</code></pre><p><code>Foo instanceof Object</code></p>
-<pre><code>leftValue =Foo, rightValue =Object
-leftValue =Foo.__proto__ =Function.prototype
-rightValue =Object.prototype
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue === rightValue
-// 返回 true 
-</code></pre><p><code>Foo instanceof Function</code></p>
-<pre><code>leftValue =Foo, rightValue =Function
-leftValue =Foo.__proto__ =Function.prototype
-rightValue =Function.prototype
-// 第一次判断
-leftValue === rightValue
-// 返回 true 
-</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
-
           
         
       

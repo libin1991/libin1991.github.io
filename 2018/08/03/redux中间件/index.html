@@ -90,13 +90,13 @@
 <meta name="keywords" content="redux">
 <meta property="og:type" content="article">
 <meta property="og:title" content="redux中间件">
-<meta property="og:url" content="http://yoursite.com/2018/08/03/redux中间件/index.html">
+<meta property="og:url" content="http://yoursite.com/2018/08/03/Redux中间件/index.html">
 <meta property="og:site_name" content="LuckDay">
 <meta property="og:description" content="前言提到中间件，你可能会想到Express和Koa等服务端框架，没想到也没关系，这句话是我装逼用的。 那么redux中的中间件到底干嘛用的？ 有这样一个问题？我们之前用的Redux都是在Action发出之后立即执行Reducer,计算出state,这是同步操作。如果想异步操作呢？即过一段时间再执行Reducer怎么办？这里就需要用到中间件middleware。 先放一张图看看： 一、中间件的概念r">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="https://user-gold-cdn.xitu.io/2018/4/19/162dcb142c194bfb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
 <meta property="og:image" content="https://user-gold-cdn.xitu.io/2018/4/19/162dd052d2e07b77?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
-<meta property="og:updated_time" content="2018-11-08T12:33:37.769Z">
+<meta property="og:updated_time" content="2018-11-24T01:19:11.333Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="redux中间件">
 <meta name="twitter:description" content="前言提到中间件，你可能会想到Express和Koa等服务端框架，没想到也没关系，这句话是我装逼用的。 那么redux中的中间件到底干嘛用的？ 有这样一个问题？我们之前用的Redux都是在Action发出之后立即执行Reducer,计算出state,这是同步操作。如果想异步操作呢？即过一段时间再执行Reducer怎么办？这里就需要用到中间件middleware。 先放一张图看看： 一、中间件的概念r">
@@ -130,7 +130,7 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2018/08/03/redux中间件/"/>
+  <link rel="canonical" href="http://yoursite.com/2018/08/03/Redux中间件/"/>
 
 
 
@@ -304,7 +304,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/03/redux中间件/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/03/Redux中间件/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -388,7 +388,6 @@ store.dispatch = function(action){
    next(action);
    console.log(&apos;新状态 &apos;,store.getState());
 }
-复制代码
 </code></pre><p>示例中可以看出，我们对<code>store.dispatch</code>重新进行了定义，在发送<code>action</code>的前后，做了打印。</p>
 <p>这是中间件的大致雏形，真实的中间件要比这么复杂多了</p>
 <h2 id="二、中间件的用法"><a href="#二、中间件的用法" class="headerlink" title="二、中间件的用法"></a>二、中间件的用法</h2><p>我们在这里先看看中间件是怎么使用，下面我们一步步剖析每个细节。</p>
@@ -396,15 +395,14 @@ store.dispatch = function(action){
 import reduxLogger form &apos;redux-logger&apos;;
 
 const store = createStore(reducer,inital_state,applyMiddleware(thunk, promise,reduxLogger));
-
-复制代码
 </code></pre><p>代码中有两点需要注意：</p>
 <ul>
 <li><p>1、<code>createStore</code>方法可以整个应用的初始状态作为参数<br>内部是这么处理的</p>
-<p>  let state = inital_state;<br>  复制代码</p>
+<p>  let state = inital_state;</p>
 </li>
-<li><p>2、中间件的参数次序有讲究。下面我会把这个问题讲明白。</p>
-</li>
+</ul>
+<ul>
+<li>2、中间件的参数次序有讲究。下面我会把这个问题讲明白。</li>
 </ul>
 <h2 id="三、applyMiddleware"><a href="#三、applyMiddleware" class="headerlink" title="三、applyMiddleware"></a>三、applyMiddleware</h2><p>Middleware可以让你包装<code>store</code>的<code>dispatch</code>方法来达到你想要的目的。同时，<code>middleWare</code>还拥有“可组合”这一关键特性。多个<code>middleWare</code>可以被组合到一起使用，形成<code>middleWare</code>链，依次执行。其中每个<code>middleware</code>不需要关心链前后的的<code>middleWare</code>的任何信息。</p>
 <pre><code>function applyMiddleware(...middlewares){
@@ -426,7 +424,6 @@ const store = createStore(reducer,inital_state,applyMiddleware(thunk, promise,re
         }
     }
 }
-复制代码
 </code></pre><p>上面代码中，所有中间件都被放进了一个数组<code>chain</code>,然后嵌套执行，最后执行<code>store.dispatch</code>。中间件内部<code>middlewaAPI</code>可以拿到<code>getState</code>和<code>dispatch</code>这两个方法。</p>
 <p><code>...middleware</code>：遵循<code>Redux middleware API</code>的函数。每个<code>middleware</code>接受<code>Store</code>的<code>dispatch</code>和<code>getState</code>函数作为命名参数，并返回一个函数。该函数会被传入成为<code>next</code>的下一个middleWare 的dispatch方法，并返回一个接收action的新函数，这个函数可以直接调用next(action)，或者在其他需要的时刻调用，甚至根本不去调用它。</p>
 <p>所以，接下来，我们就能看到middleware的函数签名是<code>({ getState, dispatch }) =&gt; next =&gt; action</code></p>
@@ -443,8 +440,6 @@ function add2(str){
     return str+3;
  }
  let result = add3(add2(add1(&apos;好吃&apos;)));// 好吃123;
-
-复制代码
 </code></pre><p>这中写法调用起来，一层套一层，是不是看着很不爽，我们简化一下：</p>
 <pre><code>function compose(...fns){
     if(fns.length==1)
@@ -459,7 +454,6 @@ function add2(str){
  let add = compose(add3,add2,add1);//
  let result = add(&apos;好吃&apos;);// 好吃123
  // 上面的代码其实就是redux3.6.0版本中compose的实现方式
-复制代码
 </code></pre><p>看看这个代码是不是用起来，很干练一些。其实还可以简化</p>
 <pre><code>function compose(...fns){
   if(fns.length==1)
@@ -469,7 +463,6 @@ function add2(str){
  let add = compose(add3,add2,add1);//
  let result = add(&apos;好吃&apos;);// 好吃123
  // 这是redux3.6.0版本之后的compose实现方式，一直沿用至今。
-复制代码
 </code></pre><p>至于为什么<code>applyMiddleWare</code>的参数有顺序，这里给出了答案。</p>
 <h2 id="四、Applymiddleware的三个常用参数"><a href="#四、Applymiddleware的三个常用参数" class="headerlink" title="四、Applymiddleware的三个常用参数"></a>四、Applymiddleware的三个常用参数</h2><h3 id="4-1、日志记录"><a href="#4-1、日志记录" class="headerlink" title="4.1、日志记录"></a>4.1、日志记录</h3><p>使用 Redux 的一个益处就是它让 state 的变化过程变的可预知和透明。每当一个 action 发起完成后，新的 state 就会被计算并保存下来。State 不能被自身修改，只能由特定的 action 引起变化。</p>
 <p>试想一下，当我们的应用中每一个 action 被发起以及每次新的 state 被计算完成时都将它们记录下来，岂不是很好？当程序出现问题时，我们可以通过查阅日志找出是哪个 action 导致了 state 不正确。<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dd052d2e07b77?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>图片的效果是不是很期待啊！！！</p>
@@ -480,7 +473,6 @@ store.dispatch = function(action){
    next(action);
    console.log(&apos;新状态 &apos;,store.getState());
 }
-复制代码
 </code></pre><p>还是上面的示例，我们来做个修改</p>
 <pre><code>let logger = function({ getState, dispatch }){
    returnfunction(next){// 这里的next可以理解为store.dispath,本质上就是调用 middleware 链中下一个 middleware 的 dispatch。returnfunction(action){
@@ -494,7 +486,6 @@ store.dispatch = function(action){
   next(action)
   console.log(&apos;新状态1 &apos;,getState());
 }
-复制代码
 </code></pre><h3 id="4-2、redux-thunk-中间件"><a href="#4-2、redux-thunk-中间件" class="headerlink" title="4.2、redux-thunk 中间件"></a>4.2、redux-thunk 中间件</h3><p><code>redux-thunk</code> 是<code>redux</code>官方文档中用到的异步组件，实质就是一个<code>redux</code>中间件，一个封装表达式的函数，封装的目的就是延迟执行表达式。</p>
 <p><code>redux-thunk</code>是一个通用的解决方案，其核心思想是让<code>action</code>可以变成一个<code>thunk</code>，这样的话，同步情况：<code>dispatch(action)</code>,异步情况：<code>dispatch(thunk)</code>。</p>
 <p>下面是<code>redux-thunk</code>的实现：</p>
@@ -505,26 +496,22 @@ store.dispatch = function(action){
         next(action);//这里可以理解为dispatch(action),本质上就是调用 middleware 链中下一个 middleware 的 dispatch。
     }
 }
-复制代码
 </code></pre><p>使用redux-thunk</p>
 <pre><code>const store = createStore(  
   reducer,
   applyMiddleware(thunk)
 );
-复制代码
 </code></pre><p>然后我们实现一个thunkActionCreator</p>
-<pre><code>    //过一秒加1
-    exportfunction thunkActionCreator(payload){
-        returnfunction(dispatch,getState){
-            setTimeout(function(){
-                dispatch({type:types.INCREMENT,payload:payload});
-            },1000);
-        }
-    },
-复制代码
+<pre><code>//过一秒加1
+exportfunction thunkActionCreator(payload){
+    returnfunction(dispatch,getState){
+        setTimeout(function(){
+            dispatch({type:types.INCREMENT,payload:payload});
+        },1000);
+    }
+},
 </code></pre><p>最后，在组件中dispatch thunk</p>
 <pre><code>this.dispatch(thunkActionCreator(payload));
-复制代码
 </code></pre><h3 id="4-3、redux-promise"><a href="#4-3、redux-promise" class="headerlink" title="4.3、redux-promise"></a>4.3、redux-promise</h3><p><code>redux-promise</code>也是延迟执行的表达式，它是解决异步的另外一种方案。</p>
 <p><code>redux-thunk</code>和核心思想是把<code>action</code>变成<code>thunk</code>，而<code>redux-promise</code>的核心思想是让<code>action</code>返回一个promise对象。</p>
 <p>这个中间件使得<code>store.dispatch</code>方法可以接收Promise对象作为参数。这时 ，action 有两种写法:</p>
@@ -536,7 +523,6 @@ store.dispatch = function(action){
       },1000);
     });
  },
-复制代码
 </code></pre><p>写法二，action 对象的payload属性是一个Promise对象，这需要从</p>
 <pre><code>functionpayloadIncrement(){
     return {
@@ -552,7 +538,6 @@ store.dispatch = function(action){
         })
     }
 }
-复制代码
 </code></pre><p>下面我们来看看 <code>redux-promise</code>是怎么实现的，就会明白它内部是怎么操作的.</p>
 <pre><code>let promise = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
     if(action.then &amp;&amp; typeof action.then == &apos;function&apos;){
@@ -564,7 +549,6 @@ store.dispatch = function(action){
         next(action);
     }
 }
-复制代码
 </code></pre><p>上面的代码可以看出，如果Action本身就是一个Promise，它resolve以后的值应该是一个Action对象，会被dispatch方法送出action.then(dispatch)；如果<code>Action</code>对象的 <code>payload</code>属性是一个<code>Promise</code>对象，那么无论<code>resolve</code>和<code>reject</code>,dispatch 方法都会发出<code>Action</code>。</p>
 
       
@@ -606,8 +590,8 @@ store.dispatch = function(action){
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2018/08/11/Raect-异步加载组件/" rel="prev" title="React 异步加载组件">
-                React 异步加载组件 <i class="fa fa-chevron-right"></i>
+              <a href="/2018/08/03/JS获取深层次属性-一道很经典的面试题/" rel="prev" title="js获取深层次属性,一道很经典的面试题">
+                js获取深层次属性,一道很经典的面试题 <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>

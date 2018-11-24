@@ -300,7 +300,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/30/pm2-常用配置及命令/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/04/React高阶组件/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -319,7 +319,813 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2017/09/30/pm2-常用配置及命令/" itemprop="url">pm2 常用配置及命令</a></h1>
+                <a class="post-title-link" href="/2017/10/04/React高阶组件/" itemprop="url">React高阶组件HOC</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-04T19:10:27+08:00">
+                2017-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="什么是高阶组件？"><a href="#什么是高阶组件？" class="headerlink" title="什么是高阶组件？"></a>什么是高阶组件？</h4><blockquote>
+<p>高阶部件是一种用于复用组件逻辑的高级技术，它并不是 React API的一部分，而是从React 演化而来的一种模式。 具体地说，高阶组件就是一个接收一个组件并返回另外一个新组件的函数！</p>
+</blockquote>
+<p>这是官方文档说的，我没有截全，因为后面的解释会造成误解，但简单讲高阶组件（函数）就好比一个加工厂，同样的，屏幕、cpu、扬声器、键盘按键、外壳、电池，小米手机工厂组装完就是小米手机，魅族手机组装完就是魅族手机，基本材料都是相同的，不同工厂（高阶组件）有不同的实现及产出，当然这个工厂（高阶组件）也可能是针对某个基本材料的处理。</p>
+<p>总之产出的结果拥有了输入组件不具备的功能，输入的组件可以是一个组件的实例，也可以是一个组件类，还可以是一个无状态组件的函数。</p>
+<h4 id="解决什么问题？"><a href="#解决什么问题？" class="headerlink" title="解决什么问题？"></a>解决什么问题？</h4><p>随着项目越来越复杂，开发过程中，多个组件需要某个功能，而且这个功能和页面并没有关系，所以也不能简单的抽取成一个新的组件，但是如果让同样的逻辑在各个组件里各自实现，无疑会导致重复的代码。比如页面有三种弹窗一个有title，一个没有，一个又有右上角关闭按钮，除此之外别无它样，你总不能整好几个弹窗组件吧，这里除了tilte,关闭按钮其他的就可以做为上面说的基本材料。</p>
+<hr>
+<h4 id="高阶组件总共分为两大类"><a href="#高阶组件总共分为两大类" class="headerlink" title="高阶组件总共分为两大类"></a>高阶组件总共分为两大类</h4><ul>
+<li><p>代理方式</p>
+<ol>
+<li>操纵prop</li>
+<li>访问ref（不推荐）</li>
+<li>抽取状态</li>
+<li>包装组件</li>
+</ol>
+</li>
+<li><p>继承方式</p>
+<ol>
+<li>操纵生命周期</li>
+<li>操纵prop</li>
+</ol>
+</li>
+</ul>
+<h4 id="代理方式之-操纵prop"><a href="#代理方式之-操纵prop" class="headerlink" title="代理方式之 操纵prop"></a>代理方式之 操纵prop</h4><h6 id="删除prop"><a href="#删除prop" class="headerlink" title="删除prop"></a>删除prop</h6><pre><code>import React from&apos;react&apos;functionHocRemoveProp(WrappedComponent) {
+  returnclassWrappingComPonentextendsReact.Component{
+    render() {
+      const { user, ...otherProps } = this.props;
+      return&lt;WrappedComponent {...otherProps} /&gt;
+    }
+  }
+}
+export default HocRemoveProp;
+</code></pre><h6 id="增加prop"><a href="#增加prop" class="headerlink" title="增加prop"></a>增加prop</h6><p>接下来我把简化了写法，把匿名函数去掉，同时换成箭头函数</p>
+<pre><code>import React from&apos;react&apos;const HocAddProp = (WrappedComponent，uid) =&gt;classextendsReact.Component{
+    render() {
+      const newProps = {
+        uid,
+      };
+      return&lt;WrappedComponent {...this.props}  {...newProps}  /&gt;
+    }
+  }
+
+export default HocAddProp;
+</code></pre><p>上面HocRemoveProp高阶组件中，所做的事情和输入组件WrappedComponent功能一样，只是忽略了名为user的prop。也就是说，如果WrappedComponent能处理名为user的prop,这个高阶组件返回的组件则完全无视这个prop。</p>
+<pre><code>const { user, ...otherProps } = this.props;
+</code></pre><p>这是一个利用es6语法技巧，经过上面的语句，otherProps里面就有this.props中所有的字段除了user.</p>
+<p>假如我们现在不希望某个组件接收user的prop,那么我们就不要直接使用这个组件，而是把这个组件作为参数传递给HocRemoveProp，然后我们把这个函数的返回结果当作组件来使用</p>
+<p>两个高阶组件的使用方法：</p>
+<pre><code>const  newComponent = HocRemoveProp(SampleComponent);
+const  newComponent = HocAddProp(SampleComponent,&apos;1111111&apos;);
+</code></pre><p>也可以利用decorator语法糖这样使用</p>
+<pre><code>import React, { Component } from&apos;React&apos;;
+
+@HocRemoveProp 
+classSampleComponentextendsComponent{
+render() {}
+}
+exportdefault SampleComponent;
+</code></pre><h4 id="代理方式之-抽取状态"><a href="#代理方式之-抽取状态" class="headerlink" title="代理方式之 抽取状态"></a>代理方式之 抽取状态</h4><p>将所有的状态的管理交给外面的容器组件，这个模式就是 抽取状态</p>
+<p>外面的容器就是这个高阶组件</p>
+<pre><code>const HocContainer = (WrappedComponent) =&gt;classextendsReact.Component{
+    constructor(props) {
+      super(props)
+      this.state = {
+        name: &apos;&apos;
+      }
+    }
+    onNameChange = (event) =&gt; {
+      this.setState({
+        name: event.target.value
+      })
+    }
+    render() {
+      const newProps = {
+        name: {
+          value: this.state.name,
+          onChange: this.onNameChange
+        }
+      }
+      return&lt;WrappedComponent {...this.props} {...newProps} /&gt;
+    }
+  }
+
+@HocContainer
+classSampleComponentextendsReact.Component{
+  render() {
+    return&lt;inputname=&quot;name&quot; {...this.props.name}/&gt;
+  }
+}
+</code></pre><p>这样当我们在使用这个已经被包裹的input组件（SampleComponent）时候</p>
+<p>它的值就被放在了HocContainer高阶组件中，当很多这样的input组件都用这个HocContainer高阶组件时，那么它们的值都将保存在这个HocContainer高阶组件中</p>
+<h4 id="代理方式之-包装组件"><a href="#代理方式之-包装组件" class="headerlink" title="代理方式之 包装组件"></a>代理方式之 包装组件</h4><pre><code>const HocStyleComponent = (WrappedComponent, style) =&gt;classextendsReact.Component{
+    render() {
+      return (
+        &lt;divstyle={style}&gt;&lt;WrappedComponent {...this.props} {...newProps} /&gt;&lt;/div&gt;
+      )
+    }
+  }
+</code></pre><p>这样使用</p>
+<pre><code>import HocStyleComponent from&apos;./HocStyleComponent&apos;;
+const colorSytle ={color:&apos;#ff5555&apos;}
+const  newComponent = HocStyleComponent(SampleComponent, colorSytle);
+</code></pre><p>-代理方式的生命周期的过程类似于堆栈调用:</p>
+<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;(HOCs will unmount) 一&gt;HOC will unmount一&gt;unmount</p>
+<h4 id="在说继承方式之前先看一个例子"><a href="#在说继承方式之前先看一个例子" class="headerlink" title="在说继承方式之前先看一个例子"></a>在说继承方式之前先看一个例子</h4><pre><code>const MyContainer = (WrappedComponent) =&gt;classextendsWrappedComponent{
+    render() {
+      returnsuper.render();
+    }
+  }
+</code></pre><p>这个例子很简单，相当于把WrappedComponent组件的render方法，通过super.render()方法吐到了MyContainer 中，可以顺序调用。</p>
+<ul>
+<li>继承方式的生命周期的过程类似于队列调用:</li>
+</ul>
+<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;will unmount一&gt;HOC will unmount一&gt; (HOCs will unmount)</p>
+<ul>
+<li>代理方式下WrappedComponent会经历一个完整的生命周期，产生的新组件和参数组件是两个不同的组件，一次渲染，两个组件都会经历各自的生命周期，</li>
+<li>在继承方式下，产生的新组件和参数组件合二为一，super.render只是生命周期中的函数，变成一个生命周期。</li>
+</ul>
+<p>来看下面的例子你就会明白了。</p>
+<h4 id="继承方式之-操纵生命周期-渲染劫持"><a href="#继承方式之-操纵生命周期-渲染劫持" class="headerlink" title="继承方式之 操纵生命周期(渲染劫持)"></a>继承方式之 操纵生命周期(渲染劫持)</h4><p>首先创建一个高阶，在创建一个使用高阶组件的组件，也就是是输入组件，最后我在改变这个输入组件props</p>
+<pre><code>import * as React from&apos;react&apos;;
+
+const HocComponent = (WrappedComponent) =&gt;classMyContainerextendsWrappedComponent{
+    render() {
+      if (this.props.time &amp;&amp; this.state.success) {
+        returnsuper.render()
+      }
+      return&lt;div&gt;倒计时完成了...&lt;/div&gt;
+    }
+  }
+</code></pre><p>这个高阶组件会直接读取输入组件中的props,state,然后控制了输入组件的render展示</p>
+<p>只有在props.time和state.success同时为真的时候才会展示</p>
+<pre><code>import * as React from&apos;react&apos;;
+import HocComponent from&apos;./HocComponent&apos;
+
+@HocComponent
+
+classDemoComponentextendsReact.Component{
+  constructor(props) {
+    super(props);
+   this.state = {
+    success: true,
+   };
+ }
+  render() {
+    return&lt;div&gt;我是一个组件&lt;/div&gt;
+  }
+} 
+exportdefault DemoComponent;
+</code></pre><p>然后调用，递减time数值直到变为0</p>
+<h6 id="由此可以看出高阶组件也可以控制state"><a href="#由此可以看出高阶组件也可以控制state" class="headerlink" title="由此可以看出高阶组件也可以控制state"></a>由此可以看出高阶组件也可以控制state</h6><p>但是最好要限制这样做，可能会让WrappedComponent组件内部状态变得一团糟。建议可以通过重新命名state，以防止混淆。</p>
+<h4 id="继承方式之-操纵prop"><a href="#继承方式之-操纵prop" class="headerlink" title="继承方式之 操纵prop"></a>继承方式之 操纵prop</h4><pre><code>const HOCPropsComponent = (WrappedComponent) =&gt;classextendsWrappedComponent{
+    render() {
+      const elementsTree = super.render();
+      let newProps = {
+        color: (elementsTree &amp;&amp; elementsTree.type === &apos;div&apos;) ? &apos;#fff&apos; : &apos;#ff5555&apos;
+      };
+
+      const props = Object.assign({}, elementsTree.props, newProps)
+      const newElementsTree = React.cloneElement(elementsTree, props, elementsTree.props.children)
+      return newElementsTree
+    }
+  }
+</code></pre><p>这样就传入了新的props，。</p>
+<p>React.cloneElement( element, [props], […children])</p>
+<p>参数：TYPE（ReactElement），[PROPS（object）]，[CHILDREN（ReactElement）]</p>
+<p>克隆并返回一个新的 ReactElement ，新返回的元素会保留有旧元素的 props、ref、key，也会集成新的 props。</p>
+<h5 id="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"><a href="#还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，" class="headerlink" title="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"></a>还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，</h5><pre><code>classaddPropsextendsReact.Component{
+  render() {
+    const newProps = &apos;uid&apos;returnthis.props.children(newProps)
+  }
+} 
+</code></pre><p>使用方式</p>
+<pre><code>&lt;addProps&gt;
+{
+   (argument) =&gt; &lt;div&gt;{argument}&lt;/div&gt;
+}
+&lt;/addProps&gt;
+</code></pre><p>感觉很方便，但是每次渲染都会重新定义一个新的函数，如果不想的话就不要定义匿名函数，</p>
+<pre><code>showUid(argument) {
+    return&lt;div&gt;{argument}&lt;/div&gt;
+}
+</code></pre><h5 id="彩蛋recompose库"><a href="#彩蛋recompose库" class="headerlink" title="彩蛋recompose库"></a>彩蛋recompose库</h5><p>recompose是一个很流行的库，它提供了很多很有用的高阶组件（小工具），而且也可以优雅的组合它们。</p>
+<h6 id="Step-1-扁平props"><a href="#Step-1-扁平props" class="headerlink" title="Step 1 扁平props."></a>Step 1 扁平props.</h6><p>我们有这样一个组件</p>
+<pre><code>const Profile = ({ user }) =&gt; ( 
+&lt;div&gt;&lt;div&gt;Username: {user.username}&lt;/div&gt;&lt;div&gt;Age: {user.age}&lt;/div&gt;&lt;/div&gt;
+ )
+</code></pre><p>如果想要改变组件接口来接收单个 prop 而不是整个用户对象，可以用 recompose 提供的高 阶组件 flattenProp 来实现。</p>
+<pre><code>const Profile = ({ username，age }) =&gt; ( 
+&lt;div&gt;&lt;div&gt;Username: {username}&lt;/div&gt;&lt;div&gt;Age: {age}&lt;/div&gt;&lt;/div&gt;
+ )
+</code></pre><p>const ProfileWithFlattenUser = flattenProp(‘user’)(Profile)；</p>
+<p>现在我们希望同时使用多个高阶组件：一个用于扁平化处理用户 prop，另一个用于重命名用 户对象的单个 prop，不过串联使用函数的做法似乎不太好。 此时 recompose 库提供的 compose 函数就派上用场了。</p>
+<pre><code>const enhance = compose(
+ flattenProp(&apos;user&apos;),
+ renameProp(&apos;username&apos;, &apos;name&apos;)
+ )
+</code></pre><p>然后按照以下方式将它应用于原有组件：</p>
+<pre><code>const EnhancedProfile = enhance(Profile)
+</code></pre><p>还可以将 compose 函数用 在我们自己的高阶组件上，甚至结合使用都可以：</p>
+<pre><code>const enhance = compose( 
+ flattenProp(&apos;user&apos;), 
+ renameProp(&apos;username&apos;, &apos;name&apos;), 
+ withInnerWidth 
+)
+</code></pre><h6 id="Step-2-提取输入表单的State"><a href="#Step-2-提取输入表单的State" class="headerlink" title="Step 2 提取输入表单的State"></a>Step 2 提取输入表单的State</h6><p>我们将从Recompose库中使用withStateHandlers高阶组件。 它将允许我们将组件状态与组件本身隔离开来。 我们将使用它为电子邮件，密码和确认密码字段添加表单状态，以及上述字段的事件处理程序。</p>
+<pre><code>import { withStateHandlers, compose } from&quot;recompose&quot;;
+
+const initialState = {
+  email: { value: &quot;&quot; },
+  password: { value: &quot;&quot; },
+  confirmPassword: { value: &quot;&quot; }
+};
+
+const onChangeEmail = props =&gt; event =&gt; ({
+  email: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const onChangePassword = props =&gt; event =&gt; ({
+  password: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const onChangeConfirmPassword = props =&gt; event =&gt; ({
+  confirmPassword: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const withTextFieldState = withStateHandlers(initialState, {
+  onChangeEmail,
+  onChangePassword,
+  onChangeConfirmPassword
+});
+
+exportdefault withTextFieldState;
+</code></pre><p>withStateHandlers它接受初始状态和包含状态处理程序的对象。调用时，每个状态处理程序将返回新的状态。</p>
+<p>好了，很辛苦也很感谢你能看到这里，关于recompose介绍到此为止，喜欢的朋友可以深入研究recompose其它的方法和源码。</p>
+<p>不准确的地方欢迎拍砖</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/03/Event-Loop-必知必会（六道题）/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/03/Event-Loop-必知必会（六道题）/" itemprop="url">Event Loop 必知必会（六道题）</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-03T11:48:09+08:00">
+                2017-10-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>一直想写一篇关于 Event Loop 的文章，前不久发现 CNode 上有位同学写了一篇原理分析的<a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/5a9108d78d6e16e56bb80882%235a98d9a2ce1c90bc44c445af" target="_blank" rel="noopener">文章</a>很详细，这里我就不献丑了。本文就拿出六道题来补充一下，放出一张我认为非常直观的图。<br><img src="https://pic4.zhimg.com/v2-3a59c624e6ff95a7e8c5a23c979f5abe_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3a59c624e6ff95a7e8c5a23c979f5abe_hd.jpg" alt=""><br>绿色小块是 macrotask（宏任务），macrotask 中间的粉红箭头是 microtask（微任务）。</p>
+<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate
+setTimeout
+</code></pre><p>或者：</p>
+<pre><code>setTimeout
+setImmediate
+</code></pre><p>为什么结果不确定呢？</p>
+<p>解释：setTimeout/setInterval 的第二个参数取值范围是：[1, 2^31 - 1]，如果超过这个范围则会初始化为 1，即 setTimeout(fn, 0) === setTimeout(fn, 1)。我们知道 setTimeout 的回调函数在 timer 阶段执行，setImmediate 的回调函数在 check 阶段执行，event loop 的开始会先检查 timer 阶段，但是在开始之前到 timer 阶段会消耗一定时间，所以就会出现两种情况：</p>
+<ol>
+<li>timer 前的准备时间超过 1ms，满足  loop-&gt;time &gt;= 1，则执行 timer 阶段（setTimeout）的回调函数</li>
+<li>timer 前的准备时间小于 1ms，则先执行 check 阶段（setImmediate）的回调函数，下一次 event loop 执行 timer 阶段（setTimeout）的回调函数</li>
+</ol>
+<p>再看个例子：</p>
+<pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})conststart=Date.now()while(Date.now()-start&lt;10);
+</code></pre><p>运行结果一定是：</p>
+<pre><code>setTimeout
+setImmediate
+</code></pre><h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>constfs=require(&apos;fs&apos;)fs.readFile(__filename,()=&gt;{setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate
+setTimeout
+</code></pre><p>解释：fs.readFile 的回调函数执行完后：</p>
+<ol>
+<li>注册 setTimeout 的回调函数到 timer 阶段</li>
+<li>注册 setImmediate 的回调函数到 check 阶段</li>
+<li>event loop 从 pool 阶段出来继续往下一个阶段执行，恰好是 check 阶段，所以 setImmediate 的回调函数先执行</li>
+<li>本次 event loop 结束后，进入下一次 event loop，执行 setTimeout 的回调函数</li>
+</ol>
+<p>所以，在 I/O Callbacks 中注册的 setTimeout 和 setImmediate，永远都是 setImmediate 先执行。</p>
+<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)process.nextTick(functiontick(){process.nextTick(tick)})
+</code></pre><p>运行结果：setInterval 永远不会打印出来。</p>
+<p>解释：process.nextTick 会无限循环，将 event loop 阻塞在 microtask 阶段，导致 event loop 上其他 macrotask 阶段的回调函数没有机会执行。</p>
+<p>解决方法通常是用 setImmediate 替代 process.nextTick，如下：</p>
+<pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)setImmediate(functionimmediate(){setImmediate(immediate)})
+</code></pre><p>运行结果：每 100ms 打印一次 setInterval。</p>
+<p>解释：process.nextTick 内执行 process.nextTick 仍然将 tick 函数注册到当前 microtask 的尾部，所以导致 microtask 永远执行不完； setImmediate 内执行 setImmediate 会将 immediate 函数注册到下一次 event loop 的 check 阶段，而不是当前正在执行的 check 阶段，所以给了 event loop 上其他 macrotask 执行的机会。</p>
+<p>再看个例子：</p>
+<pre><code>setImmediate(()=&gt;{console.log(&apos;setImmediate1&apos;)setImmediate(()=&gt;{console.log(&apos;setImmediate2&apos;)})process.nextTick(()=&gt;{console.log(&apos;nextTick&apos;)})})setImmediate(()=&gt;{console.log(&apos;setImmediate3&apos;)})
+</code></pre><p>运行结果：</p>
+<pre><code>setImmediate1
+setImmediate3
+nextTick
+setImmediate2
+</code></pre><p>注意：并不是说 setImmediate 可以完全替代 process.nextTick，process.nextTick 在特定场景下还是无法被替代的，比如我们就想将一些操作放到最近的 microtask 里执行。</p>
+<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>constpromise=Promise.resolve().then(()=&gt;{returnpromise})promise.catch(console.error)
+</code></pre><p>运行结果：</p>
+<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
+    at &lt;anonymous&gt;
+    at process._tickCallback (internal/process/next_tick.js:188:7)
+    at Function.Module.runMain (module.js:667:11)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+</code></pre><p>解释：promise.then 类似于 process.nextTick，都会将回调函数注册到 microtask 阶段。上面代码会导致死循环，类似前面提到的：</p>
+<pre><code>process.nextTick(functiontick(){process.nextTick(tick)})
+</code></pre><p>再看个例子：</p>
+<pre><code>constpromise=Promise.resolve()
+promise.then(()=&gt;{
+  console.log(&apos;promise&apos;)})
+  process.nextTick(()=&gt;{
+      console.log(&apos;nextTick&apos;)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>nextTick
+promise
+</code></pre><p>解释：promise.then 虽然和 process.nextTick 一样，都将回调函数注册到 microtask，但优先级不一样。process.nextTick 的 microtask queue 总是优先于 promise 的 microtask queue 执行。</p>
+<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>setTimeout(()=&gt;{
+    console.log(1)
+},0)
+newPromise((resolve,reject)=&gt;{
+   console.log(2)
+   for(leti=0;i&lt;10000;i++){
+     i===9999&amp;&amp;resolve()
+   }
+   console.log(3)
+}).then(()=&gt;{
+   console.log(4)
+})
+console.log(5)
+</code></pre><p>运行结果：</p>
+<p>解释：Promise 构造函数是同步执行的，所以先打印 2、3，然后打印 5，接下来 event loop 进入执行 microtask 阶段，执行 promise.then 的回调函数打印出 4，然后执行下一个 macrotask，恰好是 timer 阶段的 setTimeout 的回调函数，打印出 1。</p>
+<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>setImmediate(()=&gt;{
+    console.log(1)
+    setTimeout(()=&gt;{
+       console.log(2)
+    },100)
+    setImmediate(()=&gt;{
+       console.log(3)
+    })
+    process.nextTick(
+       ()=&gt;{console.log(4)})
+     })
+     process.nextTick(()=&gt;{
+       console.log(5)
+       setTimeout(()=&gt;{
+        console.log(6)},100)
+        setImmediate(()=&gt;{
+        console.log(7)})
+        process.nextTick(
+        ()=&gt;{console.log(8)})
+        })console.log(9)
+</code></pre><p>运行结果：</p>
+<p>process.nextTick、setTimeout 和 setImmediate 的组合，请读者自己推理吧。</p>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
+<li><a href="https://link.zhihu.com/?target=https%3A//medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c" target="_blank" rel="noopener">https://medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c</a></li>
+<li><a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/57d68794cb6f605d360105bf" target="_blank" rel="noopener">https://cnodejs.org/topic/57d68794cb6f605d360105bf</a></li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/02/CSS如何实现文字两端对齐/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/02/CSS如何实现文字两端对齐/" itemprop="url">CSS如何实现文字两端对齐</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-02T23:22:03+08:00">
+                2017-10-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>最近在工作项目中接触到Web界面设计的问题，要实现文字两端对齐的效果。在网上搜索了一下，差不多都是互相转帖，用的都是类似的技巧：</p>
+<pre><code>text-align:justify;
+text-justify:inter-ideograph;
+</code></pre><p>但问题是，我怎么就看不到效果呢？无论是英文还是中文，在IE和chrome下都不起作用。后来，终于在StackOverflow上找到解决方法了。</p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;UTF-8&quot;&gt;
+        &lt;title&gt;&lt;/title&gt;
+        &lt;style type=&quot;text/css&quot;&gt;
+            .arter li {
+                font-size: 14px;
+                line-height: 24px;
+                color: #4a4a4a;
+            }
+
+            .arter span {
+                height: 24px;
+                line-height: 24px;
+                width: 65px;
+                text-align: justify;
+                display: inline-block;
+                overflow: hidden;
+                vertical-align: top;
+            }
+
+            .arter i {
+                display: inline-block;
+                width: 100%;
+                height: 0;
+            }
+
+
+
+
+            .arter1 li {
+                font-size: 14px;
+                line-height: 24px;
+                color: #4a4a4a;
+            }
+
+
+
+            .arter1 span {
+                height: 24px;
+                line-height: 24px;
+                width: 65px;
+                text-align: justify;
+                display: inline-block;
+                overflow: hidden;
+                vertical-align: top;
+            }
+            .arter1 span:after {
+                content: &quot; &quot;;
+                display: inline-block;
+                width: 100%;
+                height: 0px;
+            }
+        &lt;/style&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+        &lt;ul class=&quot;arter&quot;&gt;
+            &lt;li&gt;&lt;span&gt;作品名称&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 宝贝儿&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;作品类型&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;艺术家&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 张玉瀛&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;风格&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 超现实&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;材质&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 布面油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;题材&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 人物&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;创作时间&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 2011&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;所在位置&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 华东&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;尺寸&lt;i&gt;&lt;/i&gt;&lt;/span&gt;： 78x78cm&lt;/li&gt;
+        &lt;/ul&gt;
+        &lt;br /&gt;&lt;br /&gt;
+        &lt;ul class=&quot;arter1&quot;&gt;
+            &lt;li&gt;&lt;span&gt;作品名称&lt;/span&gt;： 宝贝儿&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;作品类型&lt;/span&gt;： 油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;艺术家&lt;/span&gt;： 张玉瀛&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;风格&lt;/span&gt;： 超现实&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;材质&lt;/span&gt;： 布面油画&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;题材&lt;/span&gt;： 人物&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;创作时间&lt;/span&gt;： 2011&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;所在位置&lt;/span&gt;： 华东&lt;/li&gt;
+            &lt;li&gt;&lt;span&gt;尺寸&lt;/span&gt;： 78x78cm&lt;/li&gt;
+        &lt;/ul&gt;
+    &lt;/body&gt;
+
+&lt;/html&gt;
+</code></pre><p>样式：<br><img src="https://pic1.zhimg.com/v2-b92871dee74e80785026c069073206ab_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-b92871dee74e80785026c069073206ab_hd.jpg" alt=""><br>从效果图可以看到，除了要在块级元素加text-align:justify样式外，还需要在里面加一个空的span元素，并应用样式。另外，对于中文还必须用空格隔开汉字，否则也没有两端对齐的效果。英文每个单词都有空格隔开，所以没问题。</p>
+<p>但是加入HTML元素又违反了结构表现分离的原则，我们可以改用after、before伪元素：</p>
+<pre><code>li:after {
+    content: &quot; &quot;;
+    display: inline-block;
+    width: 100%;
+}
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/30/Pm2-常用配置及命令/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/09/30/Pm2-常用配置及命令/" itemprop="url">pm2 常用配置及命令</a></h1>
         
 
         <div class="post-meta">
@@ -2246,6 +3052,215 @@ foo.bar() // 2
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/08/30/async-await-小技巧/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/08/30/async-await-小技巧/" itemprop="url">async/await 小技巧</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-08-30T11:58:49+08:00">
+                2017-08-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="async-await-小技巧"><a href="#async-await-小技巧" class="headerlink" title="async/await 小技巧"></a>async/await 小技巧</h1><h2 id="sleep-函数"><a href="#sleep-函数" class="headerlink" title="sleep 函数"></a>sleep 函数</h2><p>以前只接使用 <code>setTimeout</code> 和回调函数实现一个 <code>sleep</code> 会有很多的副作用，用起来很不方便。</p>
+<p>所以让 <code>setTimeout</code> 搭配使用 <code>async/await</code></p>
+<pre><code>constsleep=delay=&gt; {
+  returnnewPromise(resolve=&gt; {
+    setTimeout(resolve, delay)
+  })
+}
+
+constfn=async_=&gt; {
+  console.log(&apos;starting....&apos;)
+  awaitsleep(1000)
+  console.log(&apos;after sleeping for 1 second&apos;)
+}
+</code></pre><h2 id="搭配-map-函数"><a href="#搭配-map-函数" class="headerlink" title="搭配 map() 函数"></a>搭配 map() 函数</h2><p>在 <code>map</code> 中引入异步处理:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constasyncFn=data=&gt; {
+  // 异步处理函数
+}
+
+constresults=arr.map(asyncnum=&gt; {
+  awaitasyncFn(num)
+  return++num
+})
+
+console.log(results)
+</code></pre><p>代码执行后的结果 <code>[Promise, Promise, Promise, Promise, Promise]</code> 而且 <code>map</code> 函数并不会等异步函数 <code>asyncFn</code> 执行完毕后再返回结果</p>
+<p>既然 <code>async</code> 执行后会返回一个 <code>Promise</code> 对象，所以可以通过 <code>Promise.all</code> 的状态来判断异步函数的状态:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constasyncFn=data=&gt; {
+  // 异步处理函数
+}
+constp=arr.map(asyncnum=&gt; {
+  awaitasyncFn(num)
+  return++num
+})
+
+Promise.all(p).then(results=&gt; {
+  console.log(results)
+})
+</code></pre><p>这样就能正常返回结果 <code>[2, 3, 4, 5, 6]</code></p>
+<h2 id="使用-await-代替-then-函数"><a href="#使用-await-代替-then-函数" class="headerlink" title="使用 await 代替 then() 函数"></a>使用 await 代替 then() 函数</h2><p>上面的例子最后使用了 <code>Promise.all</code>  还是回到了使用回调函数的方式</p>
+<p>这个也很好解决，只需要在外层再加一个 <code>async</code> 函数</p>
+<pre><code>constmain=async_=&gt; {
+  constresults=awaitPromise.all(arr.map(num=&gt; {
+    awaitasyncFn()
+    return++num
+  }))
+  console.log(results)
+}
+
+main()
+</code></pre><h2 id="搭配-reduce-函数"><a href="#搭配-reduce-函数" class="headerlink" title="搭配 reduce() 函数"></a>搭配 reduce() 函数</h2><p>通过引入 <code>async/await</code> 可以把 <code>reduce</code> 扩展成一个按顺序执行异步函数的工具</p>
+<p><code>reduce</code> 用起来很简单:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constresult=arr.reduce((prev, next) =&gt; {
+  return prev+next
+}, 0)
+
+console.log(result)
+</code></pre><p>像 <code>map</code> 函数一样引入 <code>async/await</code> :</p>
+<pre><code>constarr= [1,2,3,4,5]
+constmain=async_=&gt; {
+  constresult=awaitarr.reduce(async (prev, next) =&gt; {
+    consttmp=await prev
+    return tmp + next
+  }, Promise.resolve(0))
+
+  console.log(result)
+}
+
+main()
+</code></pre><p>而且还可以在 <code>reduce</code> 内部加入异步函数:</p>
+<pre><code>constarr= [1,2,3,4,5]
+constmain=async_=&gt; {
+  constresult=awaitarr.reduce(async (prev, next) =&gt; {
+    consttmp=await prev
+
+    // 异步处理 暂停1sawaitsleep(1000)
+    console.log(tmp + next)
+
+    return tmp + next
+  }, Promise.resolve(0))
+}
+
+main()
+</code></pre><p>上述代码会每隔一秒依次打出 1 3 6 10 15</p>
+<p>参考自</p>
+<blockquote>
+<p><a href="http://2ality.com/2016/10/async-function-tips.html" target="_blank" rel="noopener">http://2ality.com/2016/10/async-function-tips.html</a></p>
+</blockquote>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/08/15/用css让一个容器水平垂直居中/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2614,952 +3629,6 @@ foo.bar() // 2
 <p>这就是一个纯函数，结果对a、b没有任何影响，回头去看reducer，它符合纯函数的所有特征，所以就是一个纯函数<br>为什么必须是纯函数?<br>先告诉你结果吧，如果在reducer中，在原来的state上进行操作，并返回的话，并不会让React重新渲染。 完全不会有任何变化！<br>接下来看下Redux的源码：<br><img src="https://user-gold-cdn.xitu.io/2018/8/22/165609de895ae1ae?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>Redux接收一个给定的state（对象），然后通过循环将state的每一部分传递给每个对应的reducer。如果有发生任何改变，reducer将返回一个新的对象。如果不发生任何变化，reducer将返回旧的state。<br>Redux只通过比较新旧两个对象的存储位置来比较新旧两个对象是否相同。如果你在reducer内部直接修改旧的state对象的属性值，那么新的state和旧的state将都指向同一个对象。因此Redux认为没有任何改变，返回的state将为旧的state。<br>好了，也就是说，从源码的角度来讲，redux要求开发者必须让新的state是全新的对象。那么为什么非要这么麻烦开发者呢？<br>请看下面的例子：尝试比较a和b是否相同<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 12,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">var b = &#123;</span><br><span class="line">    name: &apos;jack&apos;,</span><br><span class="line">    friend: [&apos;sam&apos;,&apos;xiaoming&apos;,&apos;cunsi&apos;],</span><br><span class="line">    years: 13,</span><br><span class="line">    ...//省略n项目</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p> 思路是怎样的？我们需要遍历对象，如果对象的属性是数组，还需要进行递归遍历，去看内容是否一致、是否发生了变化。 这带来的性能损耗是非常巨大的。 有没有更好的办法？<br>有！<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//接上面的例子</span><br><span class="line">a === b  //false</span><br></pre></td></tr></table></figure></p>
 <p> 我不要进行深度比较，只是浅比较，引用值不一样(不是同一个对象),那就是不一样的。 这就是redux的reducer如此设计的原因了</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/06/22/算法的时间复杂度和空间复杂度/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/22/算法的时间复杂度和空间复杂度/" itemprop="url">算法的时间复杂度和空间复杂度</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-22T23:26:28+08:00">
-                2017-06-22
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>1 - 算法</p>
-<p>算法的定义是这样的：解题方案的准确而完善的描述，是一系列解决问题的清晰指令。巴拉巴拉的，虽然是一小句但还是不想看（题外话：有时候吧专业名词记下来面试的时候还是挺有用的），其实就是解决一个问题的完整性描述。只不过这个描述就可能是用不同的方式或者说是“语言”了。</p>
-<p>2 - 算法的效率</p>
-<p>既然算法是解决问题的描述，那么就像一千个人眼中有一千个阿姆雷特他大姨夫一样，解决同一个问题的办法也是多种多样的，只是在这过程中我们所使用/消耗的时间或者时间以外的代价（计算机消耗的则为内存了）不一样。为了更快、更好、更强的发扬奥利奥..哦不，提高算法的效率。所以很多时候一个优秀的算法就在于它与其他实现同一个问题的算法相比，在时间或空间（内存）或者时间和空间（内存）上都得到明显的降低。</p>
-<p>所以呢，算法的效率主要由以下两个复杂度来评估：</p>
-<blockquote>
-<p>时间复杂度：评估执行程序所需的时间。可以估算出程序对处理器的使用程度。<br>空间复杂度：评估执行程序所需的存储空间。可以估算出程序对计算机内存的使用程度。</p>
-</blockquote>
-<p>设计算法时，时间复杂度要比空间复杂度更容易出问题，所以一般情况一下我们只对时间复杂度进行研究。一般面试或者工作的时候没有特别说明的话，复杂度就是指时间复杂度。</p>
-<p>2.0 - 时间复杂度</p>
-<p>接下来我们还需要知道另一个概念：时间频度。这个时候你可能会说：“不是说好一起学算法吗，这些东东是什么？赠品吗？”。非也非也，这是非卖品。</p>
-<p>因为一个算法执行所消耗的时间理论上是不能算出来的，没错正是理论上，so我们任然可以在程序中测试获得。但是我们不可能又没必要对每个算法进行测试，只需要知道大概的哪个算法执行所花费的时间多，哪个花费的时间少就行了。如果一个算法所花费的时间与算法中代码语句执行次数成正比，那么那个算法执行语句越多，它的花费时间也就越多。我们把一个算法中的语句执行次数称为时间频度。通常（ps:很想知道通常是谁）用<code>T(n)</code>表示。</p>
-<p>在时间频度<code>T(n)</code>中，n又代表着问题的规模，当n不断变化时，<code>T(n)</code>也会不断地随之变化。为了了解这个变化的规律，时间复杂度这一概念就被引入了。一般情况下算法基础本操作的重复执行次数为问题规模n的某个函数，用也就是时间频度<code>T(n)</code>。如果有某个辅助函数<code>f(n)</code>，当趋于无穷大的时候，<code>T(n)/f(n)</code>的极限值是不为零的某个常数，那么<code>f(n)</code>是<code>T(n)</code>的同数量级函数，记作<code>T(n)=O(f(n))</code>，被称为算法的渐进时间复杂度，又简称为时间复杂度。</p>
-<p>2.1 - 大O表示法</p>
-<p>用O(n)来体现算法时间复杂度的记法被称作大O表示法</p>
-<p>一般我们我们评估一个算法都是直接评估它的最坏的复杂度。</p>
-<p>大O表示法<code>O(f(n))</code>中的<code>f(n)</code>的值可以为1、n、logn、n^2 等，所以我们将O(1)、O(n)、O(logn)、O( n^2 )分别称为常数阶、线性阶、对数阶和平方阶。下面我们来看看推导大O阶的方法：</p>
-<p>推导大O阶</p>
-<p>推导大O阶有一下三种规则：</p>
-<ol>
-<li>用常数1取代运行时间中的所有加法常数</li>
-<li>只保留最高阶项</li>
-<li>去除最高阶的常数</li>
-</ol>
-<p>举好多栗子</p>
-<ul>
-<li><p>常数阶</p>
-<p>  let sum = 0, n = 10; // 语句执行一次<br>  let sum = (1+n)*n/2; // 语句执行一次<br>  console.log(<code>The sum is : ${sum}</code>) //语句执行一次 </p>
-</li>
-</ul>
-<p>这样的一段代码它的执行次数为 3 ，然后我们套用规则1，则这个算法的时间复杂度为O(1)，也就是常数阶。</p>
-<ul>
-<li><p>线性阶</p>
-<p>  let i =0; // 语句执行一次<br>  while (i &lt; n) { // 语句执行n次 </p>
-<pre><code>console.log(`Current i is ${i}`); //语句执行n次
-i++; // 语句执行n次
-</code></pre><p>  }</p>
-</li>
-</ul>
-<p>这个算法中代码总共执行了 3n + 1次，根据规则 2-&gt;3，因此该算法的时间复杂度是O(n)。</p>
-<ul>
-<li><p>对数阶</p>
-<p>  let number = 1; // 语句执行一次<br>  while (number &lt; n) { // 语句执行logn次</p>
-<pre><code>number *= 2; // 语句执行logn次
-</code></pre><p>  }</p>
-</li>
-</ul>
-<p>上面的算法中，number每次都放大两倍，我们假设这个循环体执行了m次，那么<code>2^m = n</code>即<code>m = logn</code>，所以整段代码执行次数为1 + 2*logn，则<code>f(n) = logn</code>，时间复杂度为O(logn)。</p>
-<ul>
-<li><p>平方阶</p>
-<p>  for (let i = 0; i &lt; n; i++) { // 语句执行n次 </p>
-<pre><code>for (let j = 0; j &lt; n; j++) { // 语句执行n^2次 
-   console.log(&apos;I am here!&apos;); // 语句执行n^2
-}
-</code></pre><p>  }</p>
-</li>
-</ul>
-<p>上面的嵌套循环中，代码共执行 2*n^2 + n，则<code>f(n) = n^2</code>。所以该算法的时间复杂度为O(n^2 )</p>
-<p>常见时间复杂度的比较</p>
-<p>常见的时间复杂度函数相信大家在大学中都已经见过了，这里也不多做解释了：</p>
-<p>O(1)&lt;O(logn)&lt;O(n)&lt;O(nlogn)&lt;O(n²)&lt;O(n³)&lt;O(2ⁿ)&lt;O(n!)</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/06/04/100-100的-canvas-占多少内存/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/06/04/100-100的-canvas-占多少内存/" itemprop="url">100*100的 canvas 占多少内存</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-06-04T18:55:12+08:00">
-                2017-06-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h2><p>100*100的 canvas 占多少内存？</p>
-<h2 id="解题思路"><a href="#解题思路" class="headerlink" title="解题思路"></a>解题思路</h2><p>其实真正的答案是多少我并不清楚，面试过程中面试官也不期待一个准确的答案，而是看你的思考过程。</p>
-<p>如果了解过 Canvas 且做过滤镜相关的工作，可能调用过 <code>imageData = ctx.getImageData(sx, sy, sw, sh);</code> 这个 API。我记得这个 API 返回的是一个 ImageData 数组，包含了 sx, sy, sw, sh 表示的矩形的像素数据。</p>
-<p>而且这个数组是 Uint8 类型的，且四位表示一个像素。</p>
-<p>我在面试的时候只能想起来这些信息。猜想一下，我们在定义颜色的时候就是使用 rgba(r,g,b,a) 四个维度来表示，而且每个像素值就是用十六位 00-ff 表示，即每个维度的范围是 0~255，即 2^8 位，即 1 byte, 也就是 Uint8 能表示的范围。</p>
-<font color="#ff0000"><strong> 所以 100 <em> 100 canvas 占的内存是 100 </em> 100 * 4 bytes = 40,000 bytes。</strong></font>
-
-<h2 id="声明"><a href="#声明" class="headerlink" title="声明"></a>声明</h2><p>这里的答案并不一定准确。</p>
-<h2 id="关于-alpha-的争论"><a href="#关于-alpha-的争论" class="headerlink" title="关于 alpha 的争论"></a>关于 alpha 的争论</h2><p>有同学指出，alpha 不是 0-100 么？我起初也有这样的疑问，不过这篇文章中 <a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FCanvas_API%2FTutorial%2FPixel_manipulation_with_canvas" target="_blank" rel="noopener">developer.mozilla.org/en-US/docs/…</a> 说</p>
-<blockquote>
-<p>The data property returns a Uint8ClampedArray which can be accessed to look at the raw pixel data; each pixel is represented by four one-byte values (red, green, blue, and alpha, in that order; that is, “RGBA” format). Each color component is represented by an integer between 0 and 255.</p>
-</blockquote>
-<p>也就是说即便是 alpha 也是 0-255</p>
-<p>那么如何表示 alpha 呢？</p>
-<p>接下来这段代码中<br><img src="/2017/06/04/100-100的-canvas-占多少内存/166de139a0bb874e.webp" alt=""><br>可以看出，只需要用 0-255 表示 0-100 就可以啦~</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/03/你不知道的-Promise-对象黑科技/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/05/03/你不知道的-Promise-对象黑科技/" itemprop="url">你不知道的 Promise 对象黑科技</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-03T11:10:58+08:00">
-                2017-05-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="Promise-必知必会（十道题）"><a href="#Promise-必知必会（十道题）" class="headerlink" title="Promise 必知必会（十道题）"></a><a href="https://libin1991.github.io/2018/09/25/Promise-%E5%BF%85%E7%9F%A5%E5%BF%85%E4%BC%9A/" target="_blank" rel="noopener">Promise 必知必会（十道题）</a></h2><h2 id="一、resolve-后的执行情况"><a href="#一、resolve-后的执行情况" class="headerlink" title="一、resolve 后的执行情况"></a>一、resolve 后的执行情况</h2><p>无论是 resolve, reject，都会将函数剩余的代码执行完</p>
-<pre><code>const promise = new Promise((resolve, reject) =&gt; {
-    console.log(&apos;mark 1&apos;);
-    resolve(&apos;hello world&apos;);     // reject(&apos;hello world&apos;);
-    console.log(&apos;mark 2&apos;);
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(err =&gt; {
-    console.log(err);
-});
-</code></pre><p>相当于：</p>
-<pre><code>const promise = new Promise((resolve, reject) =&gt; {
-    console.log(&apos;mark 1&apos;);
-    console.log(&apos;mark 2&apos;);
-    resolve(&apos;hello world&apos;);     // reject(&apos;hello world&apos;);
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(err =&gt; {
-    console.log(err);
-});
-</code></pre><p>如果你不想在 resolve 或 reject 后执行剩下的代码段，可以在 resolve 后将其返回<br><img src="https://pic4.zhimg.com/v2-f5b865c8a9df8ce752d057fe177c855e_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-f5b865c8a9df8ce752d057fe177c855e_hd.jpg" alt=""></p>
-<pre><code>const promise = new Promise((resolve, reject) =&gt; {
-    console.log(&apos;mark 1&apos;);
-    return resolve(&apos;hello world&apos;);     // reject(&apos;hello world&apos;);
-    console.log(&apos;mark 2&apos;);             // never be here
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(err =&gt; {
-    console.log(err);
-});
-</code></pre><h2 id="二、串行执行和并行执行："><a href="#二、串行执行和并行执行：" class="headerlink" title="二、串行执行和并行执行："></a>二、串行执行和并行执行：</h2><ol>
-<li>串行执行：有一堆 Promise 对象，它们的执行顺序是固定的，前一个 promise 执行完后，后一个 promise 才开始执行，比如数据库查询，它们往往有前后的因果关系。</li>
-<li>并行执行：有一堆 Promise 对象，它们的执行顺序是不固定的，没有前后因果关系，可以并发地去执行。</li>
-</ol>
-<p>并行执行很好解决，在 Promise中有 all 这个函数支持, Promise.all 方法用于将多个 Promise 实例，包装成一个新的 Promise 实例。当多个 Promise 实例执行完后才去执行最后新的 Promise 实例。</p>
-<pre><code>const datum = [];
-for(let i = 0; i &lt; 10; i++) {
-    datum.push(i);
-}
-
-Promise.all(datum.map(i =&gt; {
-    return new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        console.log(i * 200 + &quot; ms 后执行结束&quot;);
-        resolve(&quot;第 &quot; + (i + 1) + &quot; 个 Promise 执行结束&quot;);
-    }, i * 200);
-    })
-})).then((data) =&gt; {
-    console.log(data);
-});
-</code></pre><p>如果不使用 Promise.all 这个方法的话，你也可以使用像 ES7 的 async/await</p>
-<pre><code>const asyncFun = async () =&gt; {
-    const datum = []
-    for(let i = 0; i &lt; 10; i++) {
-        datum.push(new Promise((resolve, reject) =&gt; {
-            setTimeout(() =&gt; {
-                console.log(i * 200 + &apos;ms 后执行结束&apos;)
-                resolve(&apos;第 &apos; + (i + 1) + &apos; 个 Promise 执行结束&apos;)
-            }, i * 200)
-        }))
-    }
-    const result = []
-    for(let promise of datum) {
-        result.push(await promise)
-    }
-    console.log(result)
-}
-asyncFun()
-</code></pre><p>串行执行：这里提供两种方式</p>
-<pre><code>const datum = [];
-for(let i = 0; i &lt; 10; i++) {
-    datum.push(i);
-}
-
-let serial = Promise.resolve();
-
-for(let i of datum) {
-    serial = serial.then(data =&gt; {
-        console.log(data);
-    return new Promise((resolve, reject) =&gt; {
-        setTimeout(() =&gt; {
-        console.log(i * 200 + &quot; ms 后执行结束&quot;);
-        resolve(&quot;第 &quot; + (i + 1) + &quot; 个 Promise 执行结束&quot;);
-        }, i * 200);
-    })    
-    });
-}
-</code></pre><p>另外可以使用 reduce 来串行：</p>
-<pre><code>const datum = [];
-for(let i = 0; i &lt; 10; i++) {
-    datum.push(i);
-}
-
-datum.reduce((prev, cur) =&gt; {
-    return prev.then(data =&gt; {
-    console.log(data);
-    return new Promise((resolve, reject) =&gt; {
-        setTimeout(() =&gt; {
-        console.log(cur * 200 + &quot; ms 后执行结束&quot;);
-        resolve(&quot;第 &quot; + (cur + 1) + &quot; 个 Promise 执行结束&quot;);
-        }, cur * 200);
-    })    
-    })
-}, Promise.resolve(true));
-</code></pre><h2 id="三、值穿透问题："><a href="#三、值穿透问题：" class="headerlink" title="三、值穿透问题："></a>三、值穿透问题：</h2><pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve(&apos;Hello World!&apos;);
-    }, 1000)
-});
-
-promise.then(&apos;呵呵哒&apos;).then((data) =&gt; {
-    console.log(data);           // Hello World
-})
-</code></pre><p>这是一种值穿透的情况，一般有下面两种情况：<br>promise 已经是 FULFILLED/REJECTED 时，通过 return this 实现的值穿透：<br><img src="https://pic3.zhimg.com/v2-99374235673349f56d708c28511c27d2_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-99374235673349f56d708c28511c27d2_hd.jpg" alt=""></p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve(&apos;Hello World!&apos;);
-    }, 1000)
-});
-
-promise.then(() =&gt; {
-    promise.then().then(null).then(&apos;呵呵哒&apos;).then((res) =&gt; {
-        console.log(res)
-    })
-    promise.catch().catch(null).then(&apos;呵呵哒&apos;).then((res) =&gt; {
-        console.log(res) 
-    })
-})
-</code></pre><p>promise 是 PENDING 时，通过生成新的 promise 加入到父 promise 的 queue，父 promise 有值时调用 callFulfilled-&gt;doResolve 或 callRejected-&gt;doReject（因为 then/catch 传入的参数不是函数）设置子 promise 的状态和值为父 promise 的状态和值。如：<br><img src="https://pic2.zhimg.com/v2-7d3d3728e3b1f90d905d4f4782c1f97a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7d3d3728e3b1f90d905d4f4782c1f97a_hd.jpg" alt=""></p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve(&apos;Hello World!&apos;);
-    }, 1000)
-});
-
-let a = promise.then(&apos;呵呵哒&apos;);
-a.then(res =&gt; {
-    console.log(res);
-});
-
-let b = promise.catch(&apos;呵呵哒&apos;);
-b.then(res =&gt; {
-    console.log(res);
-})
-</code></pre><p>总而言之，当你给 then() 传递一个非函数（比如一个 promise ）值的时候，它实际上会解释为 then(null) ，这会导致之前的 promise 的结果丢失。例如:<br><img src="https://pic1.zhimg.com/v2-14fe675c00c5bc8154d161e3afed0f41_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-14fe675c00c5bc8154d161e3afed0f41_hd.jpg" alt=""></p>
-<pre><code>Promise.resolve(&apos;First Value&apos;).then(Promise.resolve(&apos;Second Value&apos;)).then(null).then((value) =&gt; {
-    console.log(value)    // First Value
-})
-</code></pre><h2 id="四、不要在异步回调函数中使用-throw-Error"><a href="#四、不要在异步回调函数中使用-throw-Error" class="headerlink" title="四、不要在异步回调函数中使用 throw Error"></a>四、不要在异步回调函数中使用 throw Error</h2><p>不仅 reject，抛出的异常也会被作为拒绝状态被 Promise 捕获</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    reject(&apos;This is an error&apos;);
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(error =&gt; {
-    console.log(&apos;handle error: &apos;, error);  //handle error:  Error: This is an error
-})
-</code></pre><p>但是，永远不要在回调队列中抛出异常，因为回调队列脱离了运行上下文环境，异常无法被当前作用域捕获。</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        throw Error(&apos;This is an error&apos;);
-    });
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(error =&gt; {
-    console.log(&apos;handle error: &apos;, error);  // Error: This is an error
-});
-</code></pre><p>简单说来，回调队列指的是 JS 事件循环中的 macrotask 队列，比如 setTimeout setInterval 会插入到 macrotask 中。如果要在回调函数中捕获异常，请使用 reject，永远不要使用 Error。<br>上述的代码应改成：</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        reject(&apos;This is an error&apos;);
-    });
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(error =&gt; {
-    console.log(&apos;handle error: &apos;, error);  // Error: This is an error
-});
-</code></pre><h2 id="五、then-的第二个参数跟-catch-的区别-【面试常问】"><a href="#五、then-的第二个参数跟-catch-的区别-【面试常问】" class="headerlink" title="五、then 的第二个参数跟 catch 的区别 【面试常问】"></a>五、then 的第二个参数跟 catch 的区别 【面试常问】</h2><p>我们都知道 then 的第二参数跟 catch 用法很像，都是用来进行错误处理的，比如下面这段代码：</p>
-<pre><code>let promise1 = new Promise((resolve, reject) =&gt; {
-    reject(&apos;this is an error&apos;);
-});
-
-promise1.then(data =&gt; {
-    console.log(data);
-}, err =&gt; {
-    console.log(&apos;handle err:&apos;, err);    // handle err: this is an error
-});
-
-let promise2 = new Promise((resolve, reject) =&gt; {
-    reject(&apos;this is an error&apos;);
-});
-promise2.then(data =&gt; {
-    console.log(data);
-}).catch(err =&gt; {
-    console.log(&apos;handle err:&apos;, err);    // handle err: this is an error
-});
-</code></pre><p>当时这两者还是区别的，区别于 then 的第二参数无法处理第一参数函数中的错误。</p>
-<pre><code>let promise1 = Promise.resolve();
-promise1.then(() =&gt; {
-    throw Error(&apos;this is a error&apos;);   //UnhandledPromiseRejectionWarning: Unhandled promise rejection
-}, err =&gt; {
-    console.log(err);
-})
-
-let promise2 = Promise.resolve();
-
-promise2.then(() =&gt; {
-    throw Error(&apos;this is a error&apos;);  
-}).catch(err =&gt; {
-    console.log(&apos;handle err:&apos;, err);    //handle err: Error: this is a error
-})
-</code></pre><blockquote>
-<p>当你使用then( resolveHandler, rejectHandler)格式，如果 resolveHandler 自己抛出一个错误 rejectHandler 并不能捕获。第一个 Promise 对象无法处理同级 then 中的函数抛出的异常，所以在一般情况下，最后直接使用 catch 来进行异常捕获比较保险。</p>
-</blockquote>
-<h2 id="六、处理最后-catch-函数中的异常"><a href="#六、处理最后-catch-函数中的异常" class="headerlink" title="六、处理最后 catch 函数中的异常"></a>六、处理最后 catch 函数中的异常</h2><p>一般我们用 catch 来捕捉前面抛出的异常，但是如果试想一下如果最后一个 catch 函数也抛出了异常，应该怎么处理呢?</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    reject(&apos;Hello World&apos;)
-});
-
-promise.catch((err) =&gt; {
-    throw(&apos;Unexpected Error&apos;);   // Uncaught (in promise) Unexpected Error
-})
-</code></pre><p>面对这样的错误，不管以 then 方法或 catch 方法结尾，要是最后一个方法抛出错误，都有可能无法捕捉到（因为 Promise 内部的错误不会冒泡到全局）这里提供两种思路：</p>
-<ul>
-<li><p>拓展 Promise.prototype 的方法，添加一个 done 函数，将错误抛向全局。</p>
-<p>  window.onerror = (err) =&gt; {</p>
-<pre><code>console.log(err);
-</code></pre><p>  }<br>  Promise.prototype.done = function (onFulfilled, onRejected) {</p>
-<pre><code>this.then(onFulfilled, onRejected)
-  .catch(function (reason) {
-    // 抛出一个全局错误
-    setTimeout(() =&gt; { throw reason }, 0);
-  });
-</code></pre><p>  };<br>  let promise = new Promise((resolve, reject) =&gt; {</p>
-<pre><code>reject(&apos;Hello World&apos;)
-</code></pre><p>  });</p>
-<p>  promise.catch((err) =&gt; {</p>
-<pre><code>throw(&apos;Unexpected Error&apos;);     // Uncaught Unexpected Error
-</code></pre><p>  }).done()</p>
-</li>
-</ul>
-<ul>
-<li>在全局添加 unhandledrejection 事件捕获 Promise 异常。</li>
-</ul>
-<p><img src="https://pic3.zhimg.com/v2-b512c7648df6d0d6fefb64d01009c175_b.jpg" alt=""></p>
-<pre><code>window.addEventListener(&quot;unhandledrejection&quot;, (e) =&gt;{
-    console.log(e.reason)
-})    
-
-let promise = new Promise((resolve, reject) =&gt; {
-    reject(&apos;Hello World&apos;)
-});
-
-promise.catch((err) =&gt; {
-    throw(&apos;Unexpected Error&apos;);     // Unexpected Error
-})
-</code></pre><h2 id="七、未捕获的错误可以被恢复"><a href="#七、未捕获的错误可以被恢复" class="headerlink" title="七、未捕获的错误可以被恢复"></a>七、未捕获的错误可以被恢复</h2><pre><code>let promise = new Promise((resolve, reject) =&gt; [
-    reject(&apos;Hello world&apos;)
-]).then(() =&gt; {
-    console.log(&apos;resolve&apos;)
-})
-
-setTimeout(() =&gt; {
-    promise.catch((e) =&gt; {
-        console.log(e)
-    }).then(() =&gt; {
-        console.log(&apos;catch resolve&apos;)
-    })
-}, 1000)
-</code></pre><h2 id="八、resolved-状态的-Promise-不会立即执行"><a href="#八、resolved-状态的-Promise-不会立即执行" class="headerlink" title="八、resolved 状态的 Promise 不会立即执行"></a>八、resolved 状态的 Promise 不会立即执行</h2><pre><code>let i = 0;
-Promise.resolve(&apos;resolved promise&apos;).then(() =&gt; {
-    i += 2
-})
-console.log(i)  // 0
-</code></pre><p>即使是 resolve 的 Promise 调用 then 方法也是异步执行。</p>
-<h2 id="九、结合-async-await-编写同步代码"><a href="#九、结合-async-await-编写同步代码" class="headerlink" title="九、结合 async/await 编写同步代码"></a>九、结合 async/await 编写同步代码</h2><ol>
-<li>async/await 函数可以帮助我们彻底摆脱回调地狱的烦恼，用一种同步的方式来编写异步函数。</li>
-<li>await 后面可以接数值，如果是异步请求的话可以接 Thunk 函数和 Promise 对象。</li>
-</ol>
-<p><img src="https://pic4.zhimg.com/v2-3ca5e16c6ba1743725cc92a7a8e5a7e2_b.jpg" alt=""></p>
-<pre><code>const timeout = (ms) =&gt; {
-    return new Promise((resolve) =&gt; {
-        setTimeout(() =&gt; {
-            resolve(ms + &apos; passed&apos;)
-        }, ms)
-    })
-}
-
-const asyncFunc =  async () =&gt; {
-    const value1 = await timeout(2000)
-    console.log(value1)
-    const value2 = await timeout(2000)
-    console.log(value2)
-}
-
-asyncFunc()
-console.log(&apos;now&apos;)
-</code></pre><h2 id="十、调用-then-方法返回新的-Promise-对象"><a href="#十、调用-then-方法返回新的-Promise-对象" class="headerlink" title="十、调用 then 方法返回新的 Promise 对象"></a>十、调用 then 方法返回新的 Promise 对象</h2><pre><code>let promise1 = new Promise((resolve) =&gt; {
-    resolve(&apos;Hello world&apos;)
-})
-
-let promise2 = promise1.then()
-
-console.log(promise1 === promise2)    // false
-console.log(promise1 instanceof Promise)  // true
-console.log(promise2 instanceof Promise)  // true
-</code></pre><p>每次调用 then 方法后都会返回一个新的 Promise 对象，并不是返回原本的 Promise 对象。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/05/01/实现一个-Virtual-DOM-算法/" itemprop="url">实现一个 Virtual DOM 算法[转]</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:04:50+08:00">
-                2017-05-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"><a href="#virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。" class="headerlink" title=" virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"></a><font color="#dd0000"><strong> virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。</strong></font></h2><h2 id="目录："><a href="#目录：" class="headerlink" title="目录："></a>目录：</h2><ul>
-<li>1 前言</li>
-<li>2 对前端应用状态管理思考</li>
-<li>3 Virtual DOM 算法</li>
-<li>4 算法实现<ul>
-<li>4.1 步骤一：用JS对象模拟DOM树</li>
-<li>4.2 步骤二：比较两棵虚拟DOM树的差异</li>
-<li>4.3 步骤三：把差异应用到真正的DOM树上</li>
-</ul>
-</li>
-<li>5 结语</li>
-<li>6 References</li>
-</ul>
-<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a>1 前言</h2><p>本文会在教你怎么用 300~400 行代码实现一个基本的 Virtual DOM 算法，并且尝试尽量把 Virtual DOM 的算法思路阐述清楚。希望在阅读本文后，能让你深入理解 Virtual DOM 算法，给你现有前端的编程提供一些新的思考。</p>
-<h2 id="2-对前端应用状态管理的思考"><a href="#2-对前端应用状态管理的思考" class="headerlink" title="2 对前端应用状态管理的思考"></a>2 对前端应用状态管理的思考</h2><p>假如现在你需要写一个像下面一样的表格的应用程序，这个表格可以根据不同的字段进行升序或者降序的展示。<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/1.png" alt=""><br>这个应用程序看起来很简单，你可以想出好几种不同的方式来写。最容易想到的可能是，在你的 JavaScript 代码里面存储这样的数据：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var sortKey = &quot;new&quot; // 排序的字段，新增（new）、取消（cancel）、净关注（gain）、累积（cumulate）人数</span><br><span class="line">var sortType = 1 // 升序还是逆序</span><br><span class="line">var data = [&#123;...&#125;, &#123;...&#125;, &#123;..&#125;, ..] // 表格数据</span><br></pre></td></tr></table></figure></p>
-<p>用三个字段分别存储当前排序的字段、排序方向、还有表格数据；然后给表格头部加点击事件：当用户点击特定的字段的时候，根据上面几个字段存储的内容来对内容进行排序，然后用 JS 或者 jQuery 操作 DOM，更新页面的排序状态（表头的那几个箭头表示当前排序状态，也需要更新）和表格内容。</p>
-<p>这样做会导致的后果就是，随着应用程序越来越复杂，需要在JS里面维护的字段也越来越多，需要监听事件和在事件回调用更新页面的DOM操作也越来越多，应用程序会变得非常难维护。后来人们使用了 MVC、MVP 的架构模式，希望能从代码组织方式来降低维护这种复杂应用程序的难度。但是 MVC 架构没办法减少你所维护的状态，也没有降低状态更新你需要对页面的更新操作（前端来说就是DOM操作），你需要操作的DOM还是需要操作，只是换了个地方。</p>
-<p>既然状态改变了要操作相应的DOM元素，为什么不做一个东西可以让视图和状态进行绑定，状态变更了视图自动变更，就不用手动更新页面了。这就是后来人们想出了 MVVM 模式，只要在模版中声明视图组件是和什么状态进行绑定的，双向绑定引擎就会在状态更新的时候自动更新视图（关于MV*模式的内容，可以看<a href="https://github.com/livoras/blog/issues/11" target="_blank" rel="noopener">这篇介绍</a>）。</p>
-<p>MVVM 可以很好的降低我们维护状态 -&gt; 视图的复杂程度（大大减少代码中的视图更新逻辑）。但是这不是唯一的办法，还有一个非常直观的方法，可以大大降低视图更新的操作：一旦状态发生了变化，就用模版引擎重新渲染<strong>整个视图</strong>，然后用新的视图更换掉旧的视图。就像上面的表格，当用户点击的时候，还是在JS里面更新状态，但是页面更新就不用手动操作 DOM 了，直接把整个表格用模版引擎重新渲染一遍，然后设置一下<code>innerHTML</code>就完事了。</p>
-<p>听到这样的做法，经验丰富的你一定第一时间意识这样的做法会导致很多的问题。最大的问题就是这样做会很慢，因为即使一个小小的状态变更都要重新构造整棵 DOM，性价比太低；而且这样做的话，<code>input</code>和<code>textarea</code>的会失去原有的焦点。最后的结论会是：对于局部的小视图的更新，没有问题（Backbone就是这么干的）；但是对于大型视图，如全局应用状态变更的时候，需要更新页面较多局部视图的时候，这样的做法不可取。</p>
-<p><strong>但是这里要明白和记住这种做法</strong>，因为后面你会发现，<strong>其实 Virtual DOM 就是这么做的，只是加了一些特别的步骤来避免了整棵 DOM 树变更</strong>。</p>
-<p>另外一点需要注意的就是，上面提供的几种方法，其实都在解决同一个问题：<strong>维护状态，更新视图</strong>。在一般的应用当中，如果能够很好方案来应对这个问题，那么就几乎降低了大部分复杂性。</p>
-<h2 id="3-Virtual-DOM算法"><a href="#3-Virtual-DOM算法" class="headerlink" title="3 Virtual DOM算法"></a>3 Virtual DOM算法</h2><p>DOM是很慢的。如果我们把一个简单的<code>div</code>元素的属性都打印出来，你会看到：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/2.png" alt=""><br>而这仅仅是第一层。真正的 DOM 元素非常庞大，这是因为标准就是这么设计的。而且操作它们的时候你要小心翼翼，轻微的触碰可能就会导致页面重排，这可是杀死性能的罪魁祸首。</p>
-<p>相对于 DOM 对象，原生的 JavaScript 对象处理起来更快，而且更简单。DOM 树上的结构、属性信息我们都可以很容易地用 JavaScript 对象表示出来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">var element = &#123;</span><br><span class="line">  tagName:&apos;ul&apos;, // 节点标签名</span><br><span class="line">  props: &#123; // DOM的属性，用一个对象存储键值对</span><br><span class="line">    id:&apos;list&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  children: [ // 该节点的子节点</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 1&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 2&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 3&quot;]&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>上面对应的HTML写法是：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
-<p>既然原来 DOM 树的信息都可以用 JavaScript 对象来表示，反过来，你就可以根据这个用 JavaScript 对象表示的树结构来构建一棵真正的DOM树。</p>
-<p>之前的章节所说的，状态变更-&gt;重新渲染整个视图的方式可以稍微修改一下：用 JavaScript 对象表示 DOM 信息和结构，当状态变更的时候，重新渲染这个 JavaScript 的对象结构。当然这样做其实没什么卵用，因为真正的页面其实没有改变。</p>
-<p>但是可以用新渲染的对象树去和旧的树进行对比，记录这两棵树差异。记录下来的不同就是我们需要对页面真正的 DOM 操作，然后把它们应用在真正的 DOM 树上，页面就变更了。这样就可以做到：视图的结构确实是整个全新渲染了，但是最后操作DOM的时候确实只变更有不同的地方。</p>
-<p>这就是所谓的 Virtual DOM 算法。包括几个步骤：</p>
-<ol>
-<li>用 JavaScript 对象结构表示 DOM 树的结构；然后用这个树构建一个真正的 DOM 树，插到文档当中</li>
-<li>当状态变更的时候，重新构造一棵新的对象树。然后用新的树和旧的树进行比较，记录两棵树差异</li>
-<li>把2所记录的差异应用到步骤1所构建的真正的DOM树上，视图就更新了</li>
-</ol>
-<p>Virtual DOM 本质上就是在 JS 和 DOM 之间做了一个缓存。可以类比 CPU 和硬盘，既然硬盘这么慢，我们就在它们之间加个缓存：既然 DOM 这么慢，我们就在它们 JS 和 DOM 之间加个缓存。CPU（JS）只操作内存（Virtual DOM），最后的时候再把变更写入硬盘（DOM）。</p>
-<h2 id="4-算法实现"><a href="#4-算法实现" class="headerlink" title="4 算法实现"></a>4 算法实现</h2><h3 id="4-1-步骤一：用JS对象模拟DOM树"><a href="#4-1-步骤一：用JS对象模拟DOM树" class="headerlink" title="4.1 步骤一：用JS对象模拟DOM树"></a>4.1 步骤一：用JS对象模拟DOM树</h3><p>用 JavaScript 来表示一个 DOM 节点是很简单的事情，你只需要记录它的节点类型、属性，还有子节点：</p>
-<p>element.js<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">functionElement (tagName, props, children) &#123;</span><br><span class="line">  this.tagName= tagName</span><br><span class="line">  this.props= props</span><br><span class="line">  this.children= children</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports=function (tagName, props, children) &#123;</span><br><span class="line">  returnnewElement(tagName, props, children)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>例如上面的 DOM 结构就可以简单的表示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var el =require(&apos;./element&apos;)</span><br><span class="line"></span><br><span class="line">var ul =el(&apos;ul&apos;, &#123;id:&apos;list&apos;&#125;, [</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 1&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 2&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 3&apos;])</span><br><span class="line">])</span><br></pre></td></tr></table></figure></p>
-<p>现在<code>ul</code>只是一个 JavaScript 对象表示的 DOM 结构，页面上并没有这个结构。我们可以根据这个<code>ul</code>构建真正的<code>&lt;ul&gt;</code>：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Element.prototype.render=function () &#123;</span><br><span class="line">  var el =document.createElement(this.tagName) // 根据tagName构建var props =this.propsfor (var propName in props) &#123; // 设置节点的DOM属性var propValue = props[propName]</span><br><span class="line">    el.setAttribute(propName, propValue)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var children =this.children|| []</span><br><span class="line"></span><br><span class="line">  children.forEach(function (child) &#123;</span><br><span class="line">    var childEl = (child instanceofElement)</span><br><span class="line">      ?child.render() // 如果子节点也是虚拟DOM，递归构建DOM节点:document.createTextNode(child) // 如果字符串，只构建文本节点el.appendChild(childEl)</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line">  return el</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p><code>render</code>方法会根据<code>tagName</code>构建一个真正的DOM节点，然后设置这个节点的属性，最后递归地把自己的子节点也构建起来。所以只需要：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">var ulRoot =ul.render()</span><br><span class="line">document.body.appendChild(ulRoot)</span><br></pre></td></tr></table></figure></p>
-<p>上面的<code>ulRoot</code>是真正的DOM节点，把它塞入文档中，这样<code>body</code>里面就有了真正的<code>&lt;ul&gt;</code>的DOM结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
-<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element.js</a>。</p>
-<h3 id="4-2-步骤二：比较两棵虚拟DOM树的差异"><a href="#4-2-步骤二：比较两棵虚拟DOM树的差异" class="headerlink" title="4.2 步骤二：比较两棵虚拟DOM树的差异"></a>4.2 步骤二：比较两棵虚拟DOM树的差异</h3><p>正如你所预料的，比较两棵DOM树的差异是 Virtual DOM 算法最核心的部分，这也是所谓的 Virtual DOM 的 diff 算法。两个树的完全的 diff 算法是一个时间复杂度为 O(n^3) 的问题。但是在前端当中，你很少会跨越层级地移动DOM元素。所以 Virtual DOM 只会对同一个层级的元素进行对比：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/3.png" alt=""><br>上面的<code>div</code>只会和同一层级的<code>div</code>对比，第二层级的只会跟第二层级对比。这样算法复杂度就可以达到 O(n)。</p>
-<h4 id="4-2-1-深度优先遍历，记录差异"><a href="#4-2-1-深度优先遍历，记录差异" class="headerlink" title="4.2.1 深度优先遍历，记录差异"></a>4.2.1 深度优先遍历，记录差异</h4><p>在实际的代码中，会对新旧两棵树进行一个深度优先的遍历，这样每个节点都会有一个唯一的标记：</p>
-<p> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/4.png" alt=""></p>
-<p>在深度优先遍历的时候，每遍历到一个节点就把该节点和新的的树进行对比。如果有差异的话就记录到一个对象里面。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// diff 函数，对比两棵树functiondiff (oldTree, newTree) &#123;</span><br><span class="line">  var index =0// 当前节点的标志var patches = &#123;&#125; // 用来记录每个节点差异的对象dfsWalk(oldTree, newTree, index, patches)</span><br><span class="line">  return patches</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 对两棵树进行深度优先遍历functiondfsWalk (oldNode, newNode, index, patches) &#123;</span><br><span class="line">  // 对比oldNode和newNode的不同，记录下来</span><br><span class="line">  patches[index] = [...]</span><br><span class="line"></span><br><span class="line">  diffChildren(oldNode.children, newNode.children, index, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 遍历子节点functiondiffChildren (oldChildren, newChildren, index, patches) &#123;</span><br><span class="line">  var leftNode =nullvar currentNodeIndex = index</span><br><span class="line">  oldChildren.forEach(function (child, i) &#123;</span><br><span class="line">    var newChild = newChildren[i]</span><br><span class="line">    currentNodeIndex = (leftNode &amp;&amp;leftNode.count) // 计算节点的标识? currentNodeIndex +leftNode.count+1: currentNodeIndex +1dfsWalk(child, newChild, currentNodeIndex, patches) // 深度遍历子节点</span><br><span class="line">    leftNode = child</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>例如，上面的<code>div</code>和新的<code>div</code>有差异，当前的标记是0，那么：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;difference&#125;, &#123;difference&#125;, ...] // 用数组存储新旧节点的不同</span><br></pre></td></tr></table></figure></p>
-<p>同理<code>p</code>是<code>patches[1]</code>，<code>ul</code>是<code>patches[3]</code>，类推。</p>
-<h4 id="4-2-2-差异类型"><a href="#4-2-2-差异类型" class="headerlink" title="4.2.2 差异类型"></a>4.2.2 差异类型</h4><p>上面说的节点的差异指的是什么呢？对 DOM 操作可能会：</p>
-<ol>
-<li>替换掉原来的节点，例如把上面的<code>div</code>换成了<code>section</code></li>
-<li>移动、删除、新增子节点，例如上面<code>div</code>的子节点，把<code>p</code>和<code>ul</code>顺序互换</li>
-<li>修改了节点的属性</li>
-<li>对于文本节点，文本内容可能会改变。例如修改上面的文本节点2内容为<code>Virtual DOM 2</code>。</li>
-</ol>
-<p>所以我们定义了几种差异类型：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var REPLACE = 0</span><br><span class="line">var REORDER = 1</span><br><span class="line">var PROPS = 2</span><br><span class="line">var TEXT = 3</span><br></pre></td></tr></table></figure></p>
-<p>对于节点替换，很简单。判断新旧节点的<code>tagName</code>和是不是一样的，如果不一样的说明需要替换掉。如<code>div</code>换成<code>section</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>如果给<code>div</code>新增了属性<code>id</code>为<code>container</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;, &#123;</span><br><span class="line">  type:PROPS,</span><br><span class="line">  props: &#123;</span><br><span class="line">    id:&quot;container&quot;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>如果是文本节点，如上面的文本节点2，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[2] = [&#123;</span><br><span class="line">  type:TEXT,</span><br><span class="line">  content:&quot;Virtual DOM2&quot;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>那如果把我<code>div</code>的子节点重新排序呢？例如<code>p, ul, div</code>的顺序换成了<code>div, p, ul</code>。这个该怎么对比？如果按照同层级进行顺序对比的话，它们都会被替换掉。如<code>p</code>和<code>div</code>的<code>tagName</code>不同，<code>p</code>会被<code>div</code>所替代。最终，三个节点都会被替换，这样DOM开销就非常大。而实际上是不需要替换节点，而只需要经过节点移动就可以达到，我们只需知道怎么进行移动。</p>
-<p>这牵涉到两个列表的对比算法，需要另外起一个小节来讨论。</p>
-<h4 id="4-2-3-列表对比算法"><a href="#4-2-3-列表对比算法" class="headerlink" title="4.2.3 列表对比算法"></a>4.2.3 列表对比算法</h4><p>假设现在可以英文字母唯一地标识每一个子节点：<br>旧的节点顺序：</p>
-<pre><code>a b c d e f g h i
-</code></pre><p>现在对节点进行了删除、插入、移动的操作。新增<code>j</code>节点，删除<code>e</code>节点，移动<code>h</code>节点：<br>新的节点顺序：</p>
-<pre><code>a b c h d f g i j
-</code></pre><p>现在知道了新旧的顺序，求最小的插入、删除操作（移动可以看成是删除和插入操作的结合）。这个问题抽象出来其实是字符串的最小编辑距离问题（<a href="https://en.wikipedia.org/wiki/Edit_distance" target="_blank" rel="noopener">Edition Distance</a>），最常见的解决算法是 <a href="https://en.wikipedia.org/wiki/Levenshtein_distance" target="_blank" rel="noopener">Levenshtein Distance</a>，通过动态规划求解，时间复杂度为 O(M * N)。但是我们并不需要真的达到最小的操作，我们只需要优化一些比较常见的移动情况，牺牲一定DOM操作，让算法时间复杂度达到线性的（O(max(M, N))。具体算法细节比较多，这里不累述，有兴趣可以参考<a href="https://github.com/livoras/list-diff/blob/master/lib/diff.js" target="_blank" rel="noopener">代码</a>。</p>
-<p>我们能够获取到某个父节点的子节点的操作，就可以记录下来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REORDER,</span><br><span class="line">  moves: [&#123;remove or insert&#125;, &#123;remove or insert&#125;, ...]</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>但是要注意的是，因为<code>tagName</code>是可重复的，不能用这个来进行对比。所以需要给子节点加上唯一标识<code>key</code>，列表对比的时候，使用<code>key</code>进行对比，这样才能复用老的 DOM 树上的节点。</p>
-<p>这样，我们就可以通过深度优先遍历两棵树，每层的节点进行对比，记录下每个节点的差异了。完整 diff 算法代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff.js</a>。</p>
-<h3 id="4-3-步骤三：把差异应用到真正的DOM树上"><a href="#4-3-步骤三：把差异应用到真正的DOM树上" class="headerlink" title="4.3 步骤三：把差异应用到真正的DOM树上"></a>4.3 步骤三：把差异应用到真正的DOM树上</h3><p>因为步骤一所构建的 JavaScript 对象树和<code>render</code>出来真正的DOM树的信息、结构是一样的。所以我们可以对那棵DOM树也进行深度优先的遍历，遍历的时候从步骤二生成的<code>patches</code>对象中找出当前遍历的节点差异，然后进行 DOM 操作。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">functionpatch (node, patches) &#123;</span><br><span class="line">  var walker = &#123;index:0&#125;</span><br><span class="line">  dfsWalk(node, walker, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">functiondfsWalk (node, walker, patches) &#123;</span><br><span class="line">  var currentPatches = patches[walker.index] // 从patches拿出当前节点的差异var len =node.childNodes?node.childNodes.length:0for (var i =0; i &lt; len; i++) &#123; // 深度遍历子节点var child =node.childNodes[i]</span><br><span class="line">    walker.index++dfsWalk(child, walker, patches)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (currentPatches) &#123;</span><br><span class="line">    applyPatches(node, currentPatches) // 对当前节点进行DOM操作</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>applyPatches，根据不同类型的差异对当前节点进行 DOM 操作：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">functionapplyPatches (node, currentPatches) &#123;</span><br><span class="line">  currentPatches.forEach(function (currentPatch) &#123;</span><br><span class="line">    switch (currentPatch.type) &#123;</span><br><span class="line">      caseREPLACE:</span><br><span class="line">        node.parentNode.replaceChild(currentPatch.node.render(), node)</span><br><span class="line">        breakcaseREORDER:</span><br><span class="line">        reorderChildren(node, currentPatch.moves)</span><br><span class="line">        breakcasePROPS:</span><br><span class="line">        setProps(node, currentPatch.props)</span><br><span class="line">        breakcaseTEXT:</span><br><span class="line">        node.textContent=currentPatch.contentbreakdefault:</span><br><span class="line">        thrownewError(&apos;Unknown patch type &apos;+currentPatch.type)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch.js</a>。</p>
-<h2 id="5-结语"><a href="#5-结语" class="headerlink" title="5 结语"></a>5 结语</h2><p>Virtual DOM 算法主要是实现上面步骤的三个函数：<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch</a>。然后就可以实际的进行使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// 1. 构建虚拟DOM</span><br><span class="line">var tree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: blue&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 2. 通过虚拟DOM构建真正的DOM</span><br><span class="line">var root =tree.render()</span><br><span class="line">document.body.appendChild(root)</span><br><span class="line"></span><br><span class="line">// 3. 生成新的虚拟DOMvar newTree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: red&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;), el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 4. 比较两棵虚拟DOM树的不同</span><br><span class="line">var patches =diff(tree, newTree)</span><br><span class="line"></span><br><span class="line">// 5. 在真正的DOM元素上应用变更</span><br><span class="line">patch(root, patches)</span><br></pre></td></tr></table></figure></p>
-<p>当然这是非常粗糙的实践，实际中还需要处理事件监听等；生成虚拟 DOM 的时候也可以加入 JSX 语法。这些事情都做了的话，就可以构造一个简单的ReactJS了。</p>
-<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>，仅供学习。</p>
-<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>。</p>
 
           
         
