@@ -300,6 +300,488 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/03/02/ES6-实现自己的-Promise/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/03/02/ES6-实现自己的-Promise/" itemprop="url">ES6实现自己的 Promise</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-03-02T22:15:53+08:00">
+                2017-03-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、JavaScript异步编程背景"><a href="#一、JavaScript异步编程背景" class="headerlink" title="一、JavaScript异步编程背景"></a>一、JavaScript异步编程背景</h2><p>从去年ES2015发布至今，已经过去了一年多，ES2015发布的新的语言特性中最为流行的也就莫过于Promise了，Promise使得如今JavaScript异步编程如此轻松惬意，甚至慢慢遗忘了曾经那不堪回首的痛楚。其实从JavaScript诞生，JavaScript中的异步编程就已经出现，例如点击鼠标、敲击键盘这些事件的处理函数都是异步的，时间到了2009年，Node.js横空出世，在整个Node.js的实现中，将回调模式的异步编程机制发挥的淋漓尽致，Node的流行也是的越来越多的JavaScripter开始了异步编程，但是回调模式的副作用也慢慢展现在人们眼前，错误处理不够优雅以及嵌套回调带来的“回调地狱”。这些副作用使得人们从回调模式的温柔乡中慢慢清醒过来，开始寻找更为优雅的异步编程模式，路漫漫其修远兮、吾将上下而求索。时间到了2015年，Promise拯救那些苦苦探索的先驱。行使它历史使命的时代似乎已经到来。</p>
+<p>每个事物的诞生有他的历史使命，更有其历史成因，促进其被那些探索的先驱们所发现。了解nodejs或者熟悉浏览器的人都知道，JavaScript引擎是基于事件循环或单线程这两个特性的。更为甚者在浏览器中，更新UI(也就是浏览器重绘、重拍页面布局)和执行JavaScript代码也在一个单线程中，可想而知，一个线程就相当于只有一条马路，如果一辆马车抛锚在路上了阻塞了马路，那么别的马车也就拥堵在了那儿，这个单线程容易被阻塞是一个道理，单线程也只能允许某一时间点只能够执行一段代码。同时，JavaScript没有想它的哥哥姐姐们那么财大气粗，像Java或者C++，一个线程不够，那么再加一个线程，这样就能够同时执行多段代码了，但是这样就会带来的隐患就是状态不容易维护，JavaScript选择了单线程非阻塞式的方式，也就是异步编程的方式，就像上面的马车抛锚在了路上，那么把马车推到路边的维修站，让其他马车先过去，等马车修好了再回到马路上继续行驶，这就是单线程非阻塞方式。正如Promise的工作方式一样，通过Promise去向服务器发起一个请求，毕竟请求有网络开销，不可能马上就返回请求结果的，这个时候Promise就处于pending状态，但是其并不会阻塞其他代码的执行，当请求返回时，修改Promise状态为fulfilled或者rejected（失败请求）。同时执行绑定到这两个状态上面的“处理函数”。这就是异步编程的模式，也就是Promise兢兢业业的工作方式，在下面一个部分将详细讨论Promise。</p>
+<h2 id="二、Promise基础"><a href="#二、Promise基础" class="headerlink" title="二、Promise基础"></a>二、Promise基础</h2><p>怎么一句话解释Promise呢？Promise可以代指那些尚未完成的一些操作，但是其在未来的某个时间会返回某一特定的结果。</p>
+<p>当创建一个Promise实例后，其代表一个未知的值，在将来的某个时间会返回一个成功的返回值，或者失败的返回值，我们可以为这些返回值添加处理函数，当值返回时，处理函数被调用。Promise总是处于下面三种状态之一：</p>
+<ul>
+<li>pending： Promise的初始状态，也就是未被fulfilled或者rejected的状态。</li>
+<li>fulfilled： 意味着promise代指的操作已经成功完成。</li>
+<li>rejected：意味着promise代指的操作由于某些原因失败。</li>
+</ul>
+<p>一个处于pending状态的promise可能由于某个成功返回值而发展为fulfilled状态，也有可能因为某些错误而进入rejected状态，无论是进入fulfilled状态或者rejected状态，绑定到这两种状态上面的处理函数就会被执行。并且进入fulfilled或者rejected状态也就不能再返回pending状态了。<br><img src="https://pic4.zhimg.com/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_hd.jpg" alt=""></p>
+<h2 id="三、边学边写"><a href="#三、边学边写" class="headerlink" title="三、边学边写"></a>三、边学边写</h2><p>上面说了那么多，其实都是铺垫。接下来我们就开始实现自己的Promise对象。go go go！！！</p>
+<h2 id="第一步：Promise构造函数"><a href="#第一步：Promise构造函数" class="headerlink" title="第一步：Promise构造函数"></a>第一步：Promise构造函数</h2><p>Promise有三种状态，pending、fulfilled、rejected。</p>
+<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+</code></pre><p>有了三种状态后，那么我们怎么创建一个Promise实例呢？</p>
+<blockquote>
+<p>const promise = new Promise(executor) // 创建Promise的语法</p>
+</blockquote>
+<p>通过上面生成promise语法我们知道，Promise实例是调用Promise构造函数通过new操作符生成的。这个构造函数我们可以先这样写：</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING // 创建一个promise时，首先进行状态初始化。pending
+        this.result = undefined // result属性用来缓存promise的返回结果，可以是成功的返回结果，或失败的返回结果
+    }
+}
+</code></pre><p>我们可以看到上面构造函数接受的参数executor。它是一个函数，并且接受其他两个函数（resolve和reject）作为参数，当resolve函数调用后，promise的状态转化为fulfilled，并且执行成功返回的处理函数（不用着急后面会说到怎么添加处理函数）。当reject函数调用后，promise状态转化为rejected，并且执行失败返回的处理函数。</p>
+<p>现在我们的代码大概是这样的：</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING 
+        this.result = undefined
+        executor(data =&gt; resolveProvider(this, data), err =&gt; rejectProvider(this, err))
+    }
+}
+
+function resolveProvider(promise, data) {
+    if (promise.status !== PENDING) return false
+    promise.status = FULFILLED
+}
+function rejectProvider(promise, data) {
+    if (promise.status !== PENDING) return false
+    promise.status = FULFILLED
+}
+</code></pre><p>Dont Repeat Yourselt！！！我们可以看到上面代码后面两个函数基本相同，其实我们可以把它整合成一个函数，在结合高阶函数的使用。</p>
+<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+}
+class Promise {
+    constructor(executor) {
+        this.status = PENDING 
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+}
+</code></pre><p>现在我们的代码就看上去简洁多了。</p>
+<h2 id="第二步：为Promise添加处理函数"><a href="#第二步：为Promise添加处理函数" class="headerlink" title="第二步：为Promise添加处理函数"></a>第二步：为Promise添加处理函数</h2><p>其实通过 <code>new Promise(executor)</code>已经可以生成一个Promise实例了，甚至我们可以通过传递到executor中的resolve和reject方法来改变promise状态，但是！现在的promise依然没啥卵用！！！因为我们并没有给它添加成功和失败返回的处理函数。</p>
+<p>首先我们需要给我们的promise增加两个属性，successListener和failureListener用来分别缓存成功处理函数和失败处理函数。</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING
+         this.successListener = []
+         this.failureListener = []
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+}
+</code></pre><p>怎么添加处理函数呢？ECMASCRIPT标准中说到，我们可以通过promise原型上面的then方法为promise添加成功处理函数和失败处理函数，可以通过catch方法为promise添加失败处理函数。</p>
+<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    switch(status) {
+        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
+        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
+    }
+}
+class Promise {
+    constructor(executor) {
+        this.status = PENDING
+        this.successListener = []
+        this.failurelistener = []
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+    /**
+     * Promise原型上面的方法
+     */
+    then(...args) {
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(args[0])
+                this.failurelistener.push(args[1])
+                break
+            }
+            case FULFILLED: {
+                args[0](this.result)
+                break
+            }
+            case REJECTED: {
+                args[1](this.result)
+            }
+        }
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><p>我们现在的Promise基本初具雏形了。甚至可以运用到一些简单的场景中了。举个例子。</p>
+<pre><code>/*创建一个延时resolve的pormise*/
+new Promise((resolve, reject) =&gt; {setTimeout(() =&gt; resolve(5), 2000)}).then(data =&gt; console.log(data)) // 5
+/*创建一个及时resolve的promise*/
+new Promise((resolve, reject) =&gt; resolve(5)).then(data =&gt; console.log(data)) // 5
+/*链式调用then方法还不能够使用！*/
+new Promise(resolve=&gt; resolve(5)).then(data =&gt; data).then(data =&gt; console.log(data))
+// Uncaught TypeError: Cannot read property &apos;then&apos; of undefined
+</code></pre><h2 id="第三步：Promise的链式调用"><a href="#第三步：Promise的链式调用" class="headerlink" title="第三步：Promise的链式调用"></a>第三步：Promise的链式调用</h2><p>Promise需要实现链式调用，我们需要再次回顾下then方法的定义：</p>
+<blockquote>
+<p>then方法为pormise添加成功和失败的处理函数，同时then方法返回一个新的promise对象，这个新的promise对象resolve处理函数的返回值，或者当没有提供处理函数时直接resolve原始的值。</p>
+</blockquote>
+<p>可以看出，promise能够链式调用归功于then方法返回一个全新的promise，并且resolve处理函数的返回值，当然，如果then方法的处理函数本身就返回一个promise，那么久不用我们自己手动生成一个promise了。了解了这些，就开始动手写代码了。</p>
+<pre><code>const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
+const noop = () =&gt; {}
+
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    // 同上面代码
+}
+
+class Promise {
+    constructor(executor) {
+        // 同上面代码
+    }
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                const result = fn(data)
+                if (isPromise(result)) {
+                    Object.assign(child, result)
+                } else {
+                    statusProvider(child, FULFILLED)(result)
+                }   
+            } else if(!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(handler(args[0]))
+                this.failurelistener.push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><p>首先我们写了一个isPromise方法，用于判断一个对象是否是promise。就是判断对象是否有一个<code>then</code>方法，免责声明为了实现上的简单，我们不区分thenable和promise的区别，但是我们应该是知道。所有的promise都是thenable的，而并不是所有的thenable对象都是promise。（thenable对象是指带有一个then方法的对象，该then方法其实就是一个executor。）isPromise的作用就是用于判断then方法返回值是否是一个promise，如果是promise，就直接返回该promise，如果不是，就新生成一个promise并返回该promise。</p>
+<p>由于需要链式调用，我们对successListener和failureListener中处理函数进行了重写，并不是直接push进去then方法接受的参数函数了，因为then方法需要返回一个promise，所以当then方法里面的处理函数被执行的同时，我们也需要对then方法返回的这个promise进行处理，要么resolve，要么reject掉。当然，大部分情况都是需要resolve掉的，只有当then方法没有添加第二个参数函数，同时调用then方法的promise就是rejected的时候，才需要把then方法返回的pormise进行reject处理，也就是调用<code>statusProvider(child, REJECTED)(data)</code>.</p>
+<p>toy Promise实现的完整代码：</p>
+<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+
+const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
+const noop = () =&gt; {}
+
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    switch(status) {
+        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
+        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
+    }
+}
+
+class Promise {
+    constructor(executor) {
+        this.status = PENDING
+        this.successListener = []
+        this.failurelistener = []
+        this.result = undefined 
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+    /**
+     * Promise原型上面的方法
+     */
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                const result = fn(data)
+                if (isPromise(result)) {
+                    Object.assign(child, result)
+                } else {
+                    statusProvider(child, FULFILLED)(result)
+                }   
+            } else if(!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(handler(args[0]))
+                this.failurelistener.push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><h2 id="四、怎么让我们的toy-Promise变强健"><a href="#四、怎么让我们的toy-Promise变强健" class="headerlink" title="四、怎么让我们的toy Promise变强健"></a>四、怎么让我们的toy Promise变强健</h2><ol>
+<li>在ECMAScript标准中，Promise构造函数上面还提供了一些静态方法，比如<code>Promise.resolve</code>、<code>Promise.reject</code>、<code>Promsie.all</code>、<code>Promise.race</code>。当我们有了上面的基础实现后，为我们的toy Promise添加上面这些新的功能一定能让其更加实用。</li>
+<li>在我们的基本实现中，我们并没有区分thenable对象，其实<code>Promise.resolve</code>和<code>then</code>方法都可以接受一个thenable对象，并把该thenable对象转化为一个promise对象，如果想让我们的toy Promise用于生产的话，这也是要考虑的。</li>
+<li>为了让我们的toy Promise变得更强壮，我们需要拥有强健的错误处理机制，比如验证executor必须是一个函数、then方法的参数只能是函数或者undefined或null，又比如executor和then方法中抛出的错误并不能够被window.onerror监测到，而只能够通过错误处理函数来处理，这也是需要考虑的因素。</li>
+<li>如果我们的Promise polyfill是考虑支持多平台，那么首要考虑的就是浏览器环境或Node.js环境，其实在这两个平台，原生Promise都是支持两个事件的。就拿浏览器端举例：</li>
+</ol>
+<ul>
+<li><code>unhandledrejection</code>: 在一个事件循环中，如果我们没有对promise返回的错误进行处理，那么就会在window对象上面触发该事件。</li>
+<li><code>rejectionhandled</code>:如果在一个事件循环后，我们才去对promise返回的错误进行处理，那么就会在window对象上面监听到此事件。</li>
+</ul>
+<p>关于这两个事件以及node.js平台上面类似的事件请参考Nicholas C. Zakas新书</p>
+<p>Promise能够很棒的处理异步编程，要想学好它我认为最好的方法就是亲自动手去实现一个自己的Promise。</p>
+<p>完整code：</p>
+<pre><code>/**
+ * 2016.09.19
+ */
+const PENDING = &apos;PENDING&apos; // Promise 的初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+
+const isThenable = data =&gt; data &amp;&amp; data.then &amp;&amp; typeof data.then === &apos;function&apos;
+const isPromise = object =&gt; isThenable(object) &amp;&amp; (&apos;catch&apos; in object) &amp;&amp; typeof object.catch === &apos;function&apos;
+const noop = () =&gt; {}
+const range = n =&gt; n === 0 ? [] : [n, ...range(n - 1)]
+
+// resolve function
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    promise.listeners[status].forEach(fn =&gt; fn(data))
+}
+
+class APromise {
+    constructor(executor) {
+        if (typeof executor !== &apos;function&apos;) {
+            throw new TypeError(`Promise resolver ${executor.toString()} is not a function`)
+        }
+        this.status = PENDING
+        this.listeners = {
+            FULFILLED: [],
+            REJECTED: []
+        }
+        this.result = undefined
+
+        try {
+            executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+        } catch (e) {
+            statusProvider(this, REJECTED)(e)
+        }
+    }
+    // prototype method
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                try {
+                    const result = fn(data)
+                    if (isThenable(result)) {
+                        isPromise(result) ? Object.assign(child, result) : Object.assign(child, new this.constructor(result.then))
+                    } else {
+                        statusProvider(child, FULFILLED)(result)
+                    }
+                } catch (e) {
+                    statusProvider(child, REJECTED)(e)
+                }
+            } else if (!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.listeners[FULFILLED].push(handler(args[0]))
+                this.listeners[REJECTED].push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+
+APromise.resolve = data =&gt; {
+    if (isPromise(data)) return data
+    return isThenable(data) ? new APromise(data.then) : new APromise((resolve, reject) =&gt; resolve(data))
+}
+
+APromise.reject = err =&gt; new APromise((resolve, reject) =&gt; reject(err))
+
+APromise.all = promises =&gt; {
+    const length = promises.length
+    const result = new APromise(noop)
+    let count = 0
+    const values = range(length)
+
+    promises.forEach((p, i) =&gt; {
+        p.then(data =&gt; {
+            values[i] = data
+            count++
+            if (count === length) statusProvider(result, FULFILLED)(values)
+        }, statusProvider(result, REJECTED))
+    })
+    return result
+}
+
+APromise.race = promises =&gt; {
+    const result = new APromise(noop)
+    promises.forEach((p, i) =&gt; {
+        p.then(statusProvider(result, FULFILLED), statusProvider(result, REJECTED))
+    })
+    return result
+}
+
+export default APromise
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/03/01/原生-JS-汇总/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2751,444 +3233,6 @@ console.log(add(1, 2)); // 3
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/02/JS-继承/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2016/11/02/JS-继承/" itemprop="url">JS 继承</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-11-02T22:49:01+08:00">
-                2016-11-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
-<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-function Child(name) {
-    this.name = name;
-}
-
-Child.prototype = new Parent(&apos;father&apos;);
-Child.prototype.constructor = Child;
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();    // child name: son
-</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
-<p>这种方法存在两个缺点：</p>
-<ol>
-<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
-<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
-</ol>
-<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomthing = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      // child name: son
-child.doSomthing();   // TypeError: child.doSomthing is not a function
-</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
-<p>缺点：</p>
-<ol>
-<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
-</ol>
-<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();      
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();       // child name: son
-child.doSomething();   // parent do something!
-</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
-<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
-<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
-<pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);      // 第二次调用
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();         // 第一次调用
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      
-child.doSomething();   
-</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
-<pre><code>Child.prototype = Parent.prototype;
-</code></pre><p>这样写显然是不对的：</p>
-<ol>
-<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
-<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
-</ol>
-<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
-<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function create(proto) {
-    function F(){}
-    F.prototype = proto;
-    F.prototype.construtor = F;
-    return new F();
-}
-
-Child.prototype = create(Parent.prototype);
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-Child.prototype.construtor = Child;
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();    // parent name: father
-
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();     // child name: son
-</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
-<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
-<pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function inheritPrototype(Parent, Child) {
-    Child.prototype = Object.create(Parent.prototype);   //修改
-    Child.prototype.construtor = Child;
-}
-
-inheritPrototype(Parent, Child);
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();      // parent name: father
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();       // child name: son
-</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
-<pre><code>class Parent {
-    constructor(name) {
-    this.name = name;
-    }
-    doSomething() {
-    console.log(&apos;parent do something!&apos;);
-    }
-    sayName() {
-    console.log(&apos;parent name:&apos;, this.name);
-    }
-}
-
-class Child extends Parent {
-    constructor(name, parentName) {
-    super(parentName);
-    this.name = name;
-    }
-    sayName() {
-     console.log(&apos;child name:&apos;, this.name);
-    }
-}
-
-const child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();            // child name: son
-child.doSomething();        // parent do something!
-
-const parent = new Parent(&apos;father&apos;);
-parent.sayName();           // parent name: father
-</code></pre><p>JavaScript前端开发</p>
-<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
-<pre><code>/**
- * JavaScript(ES5)中实现继承的几种方法
- */
-
-// 定义基类Person
-function Person(name, age) {
-  this.name = name;
-  this.age = age;
-}
-
-// 共享数据
-Person.prototype.LEGS_NUM = 2;
-
-// 共享方法
-Person.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
-};
-
-Person.prototype.walk = function () {
-  console.log(this.name + &apos; is walking...&apos;);
-};
-
-// Student子类
-function Student(name, age, className) {
-  // 调用父类
-  Person.call(this, name, age);
-  this.className = className;
-}
-
-// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
-// Student.prototype = Person.prototype;
-
-// 2⃣️ 方法二：Student.prototype为Person的实例
-// Student.prototype = new Person();
-
-// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
-Student.prototype = Object.create(Person.prototype);
-
-Student.prototype.constructor = Student;
-
-// 覆盖父类的info方法
-Student.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
-};
-
-// Student类的共享方法
-Student.prototype.learn = function (subject) {
-  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
-};
-
-// 测试,创建一个Student的实例
-var microzz = new Student(&apos;Microzz&apos;, 22, 5);
-microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
-console.log(microzz.LEGS_NUM); // 2
-microzz.walk(); // Microzz is walking...
-microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
-console.log(microzz.__proto__.__proto__ === Person.prototype); // true
-console.log(microzz.__proto__ === Student.prototype); // true
-console.log(microzz.__proto__.constructor === Student); // true
-</code></pre><p>三种方法比较</p>
-<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>1⃣️这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>2⃣️第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>3⃣️第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
-<pre><code>if (!Object.create) {
-  Object.prototype.create = function (proto) {
-    function F() {}
-    F.prototype = proto;
-    return new F;
-  }
-}
-</code></pre><p>这样在ES5中就完美实现了继承😄</p>
-<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
-<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
-<p>代码</p>
-<pre><code>// 基类 Person
-class Person {
-  // 父类的构造方法
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-    // 共享变量
-    this.LEGS_NUM = 2;
-  }
-  // 父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
-  }
-
-  // 父类的walk方法
-  walk() {
-    console.log(this.name + &apos; is walking...&apos;);
-  }
-
-}
-
-// 子类 Student
-class Student extends Person {
-  constructor(name, age, className) {
-    // 调用基类的构造方法
-    super(name, age);
-    this.className = className;
-  }
-
-  // 覆盖父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
-  }
-}
-
-// 实例化一个Student的实例
-let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
-stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
-stu.walk(); // Zhaohui is walking...
-console.log(stu.LEGS_NUM); // 2
-console.log(stu instanceof Student); // true
-console.log(stu instanceof Person); // true
-</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了😄</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/10/31/26个精选的JavaScript面试问题/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -5254,7 +5298,7 @@ console.log(uncurryingCost(100, 200, 300)()); // 600
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">89</span>
+                  <span class="site-state-item-count">90</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
