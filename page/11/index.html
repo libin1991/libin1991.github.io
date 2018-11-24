@@ -300,6 +300,1002 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/08/31/JavaScript-中的-this/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2015/08/31/JavaScript-中的-this/" itemprop="url">JavaScript 中的 this !</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-08-31T22:53:27+08:00">
+                2015-08-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>在 js 中，this 这个上下文总是变化莫测，很多时候出现 bug 总是一头雾水，其实，只要分清楚不同的情况下如何执行就 ok 了。</p>
+<p><img src="https://pic4.zhimg.com/v2-3068deaab983c4e925d5b325985ce9e9_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3068deaab983c4e925d5b325985ce9e9_hd.jpg" alt=""></p>
+<h2 id="全局执行"><a href="#全局执行" class="headerlink" title="全局执行"></a>全局执行</h2><p>首先，我们在全局环境中看看它的 this 是什么：</p>
+<p>first. 浏览器：</p>
+<pre><code>console.log(this);
+
+// Window {speechSynthesis: SpeechSynthesis, caches: CacheStorage, localStorage: Storage, sessionStorage: Storage, webkitStorageInfo: DeprecatedStorageInfo…}
+</code></pre><p>可以看到打印出了 window 对象；</p>
+<p>second. node：</p>
+<pre><code>console.log(this);
+
+// global
+</code></pre><p>可以看到打印出了 global 对象；</p>
+<p>总结：在全局作用域中它的 this 执行当前的全局对象（浏览器端是 Window，node 中是 global）。</p>
+<h2 id="函数中执行"><a href="#函数中执行" class="headerlink" title="函数中执行"></a>函数中执行</h2><h2 id="纯粹的函数调用"><a href="#纯粹的函数调用" class="headerlink" title="纯粹的函数调用"></a>纯粹的函数调用</h2><p>这是最普通的函数使用方法了：</p>
+<pre><code>function test() {
+  console.log(this);
+};
+
+test();
+
+// Window {speechSynthesis: SpeechSynthesis, caches: CacheStorage, localStorage: Storage, sessionStorage: Storage, webkitStorageInfo: DeprecatedStorageInfo…}
+</code></pre><p>我们可以看到，一个函数被直接调用的时候，属于全局调用，这时候它的 this 指向 全局对象；</p>
+<p>严格模式 ‘use strict’;</p>
+<p>如果在严格模式的情况下执行纯粹的函数调用，那么这里的的 this 并不会指向全局，而是 undefined，这样的做法是为了消除 js 中一些不严谨的行为：</p>
+<pre><code>&apos;use strict&apos;;
+function test() {
+  console.log(this);
+};
+
+test();
+
+// undefined
+</code></pre><p>当然，把它放在一个立即执行函数中会更好，避免了污染全局：</p>
+<pre><code>(function (){
+  &quot;use strict&quot;;
+　console.log(this);
+})();
+
+// undefined
+</code></pre><h2 id="作为对象的方法调用"><a href="#作为对象的方法调用" class="headerlink" title="作为对象的方法调用"></a>作为对象的方法调用</h2><p>当一个函数被当作一个对象的方法调用的时候：</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;,
+  foo: function() {
+    console.log(this.name);
+  }
+}
+
+obj.foo();
+
+// &apos;qiutc&apos;
+</code></pre><p>这时候，this 指向当前的这个对象；</p>
+<p>当然，我们还可以这么做：</p>
+<pre><code>function test() {
+  console.log(this.name);
+}
+var obj = {
+  name: &apos;qiutc&apos;,
+  foo: test
+}
+
+obj.foo();
+
+// &apos;qiutc&apos;
+</code></pre><p>同样不变，因为在 js 中一切都是对象，函数也是一个对象，对于 test ，它只是一个函数名，函数的引用，它指向这个函数，当 foo = test，foo 同样也指向了这个函数。</p>
+<p>如果把对象的方法赋值给一个变量，然后直接调用这个变量呢：</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;,
+  foo: function() {
+    console.log(this);
+  }
+}
+
+var test = obj.foo;
+test();
+
+// Window
+</code></pre><p>可以看到，这时候 this 执行了全局，当我们把 test = obj.foo ，test 直接指向了一个函数的引用，这时候，其实和 obj 这个对象没有关系了，所以，它是被当作一个普通函数来直接调用，因此，this 指向全局对象。</p>
+<p>一些坑</p>
+<p>我们经常在回调函数里面会遇到一些坑：</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;,
+  foo: function() {
+    console.log(this);
+  },
+  foo2: function() {
+    console.log(this);   //Object {name: &quot;qiutc&quot;...}
+    setTimeout(this.foo, 1000);   // window 对象
+  }
+}
+
+obj.foo2();
+</code></pre><p><img src="https://pic1.zhimg.com/v2-2099857fcaab02a66d655f172d12cf82_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-2099857fcaab02a66d655f172d12cf82_hd.jpg" alt=""></p>
+<p>执行这段代码我们会发现两次打印出来的 this 是不一样的：</p>
+<p>关于setTimeout的this指向：<a href="https://link.zhihu.com/?target=https%3A//www.talkingcoder.com/article/6356947525374513523" target="_blank" rel="noopener">https://www.talkingcoder.com/article/6356947525374513523</a></p>
+<pre><code>第一次是 foo2 中直接打印 this，这里指向 obj 这个对象，我们毋庸置疑；
+</code></pre><p>但是在 setTimeout 中执行的 this.foo，却指向了全局对象，这里不是把它当作函数的方法使用吗？这一点经常让很多初学者疑惑；<br>其实，setTimeout 也只是一个函数而已，函数必然有可能需要参数，我们把 this.foo 当作一个参数传给 setTimeout 这个函数，就像它需要一个 fun 参数，在传入参数的时候，其实做了个这样的操作 fun = this.foo，看到没有，这里我们直接把 fun 指向 this.foo 的引用；执行的时候其实是执行了 fun() 所以已经和 obj 无关了，它是被当作普通函数直接调用的，因此 this 指向全局对象。</p>
+<p>这个问题是很多异步回调函数中普遍会碰到的；</p>
+<p>解决</p>
+<p>为了解决这个问题，我们可以利用 闭包 的特性来处理：</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;,
+  foo: function() {
+    console.log(this);
+  },
+  foo2: function() {
+    console.log(this);
+    var _this = this;
+    setTimeout(function() {
+      console.log(this);  // Window
+
+      console.log(_this);  // Object {name: &quot;qiutc&quot;}
+    }, 1000);
+  }
+}
+
+obj.foo2();
+</code></pre><p>可以看到直接用 this 仍然是 Window；因为 foo2 中的 this 是指向 obj，我们可以先用一个变量 _this 来储存，然后在回调函数中使用 _this，就可以指向当前的这个对象了；</p>
+<p>setTimeout 的另一个坑</p>
+<p>之前啊说过，如果直接执行回调函数而没有绑定作用域，那么它的 this 是指向全局对象(window)，在严格模式下会指向 undefined，然而在 setTimeout 中的回调函数在严格模式下却表现出不同：</p>
+<pre><code>&apos;use strict&apos;;
+
+function foo() {
+  console.log(this);
+}
+
+setTimeout(foo, 1);
+
+// window
+</code></pre><p>按理说我们加了严格模式，foo 调用也没有指定 this，应该是出来 undefined，但是这里仍然出现了全局对象，难道是严格模式失效了吗？</p>
+<p>并不，即使在严格模式下，setTimeout 方法在调用传入函数的时候，如果这个函数没有指定了的 this，那么它会做一个隐式的操作—-自动地注入全局上下文，等同于调用 foo.apply(window) 而非 foo()；</p>
+<p>当然，如果我们在传入函数的时候已经指定 this，那么就不会被注入全局对象，比如： setTimeout(foo.bind(obj), 1);；</p>
+<p><a href="https://link.zhihu.com/?target=http%3A//stackoverflow.com/questions/21957030/why-is-window-still-defined-in-this-strict-mode-code" target="_blank" rel="noopener">http://stackoverflow.com/questions/21957030/why-is-window-still-defined-in-this-strict-mode-code</a></p>
+<h2 id="作为一个构造函数使用"><a href="#作为一个构造函数使用" class="headerlink" title="作为一个构造函数使用"></a>作为一个构造函数使用</h2><p>在 js 中，为了实现类，我们需要定义一些构造函数，在调用一个构造函数的时候需要加上 new 这个关键字：</p>
+<pre><code>function Person(name) {
+  this.name = name;
+  console.log(this);
+}
+
+var p = new Person(&apos;qiutc&apos;);
+
+// Person {name: &quot;qiutc&quot;}
+</code></pre><p>我们可以看到当作构造函数调用时，this 指向了这个构造函数调用时候实例化出来的对象；</p>
+<p>当然，构造函数其实也是一个函数，如果我们把它当作一个普通函数执行，这个 this 仍然执行全局：</p>
+<pre><code>function Person(name) {
+  this.name = name;
+  console.log(this);
+}
+
+var p = Person(&apos;qiutc&apos;);
+
+// Window
+</code></pre><p>其区别在于，如何调用函数（new）。</p>
+<h2 id="箭头函数"><a href="#箭头函数" class="headerlink" title="箭头函数"></a>箭头函数</h2><p>在 ES6 的新规范中，加入了箭头函数，它和普通函数最不一样的一点就是 this 的指向了，还记得在上文中（作为对象的方法调用-一些坑-解决）我们使用闭包来解决 this 的指向问题吗，如果用上了箭头函数就可以更完美的解决了：</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;,
+  foo: function() {
+    console.log(this);
+  },
+  foo2: function() {
+    console.log(this);
+    setTimeout(() =&gt; {
+      console.log(this);  // Object {name: &quot;qiutc&quot;}
+    }, 1000);
+  }
+}
+
+obj.foo2();
+</code></pre><p>可以看到，在 setTimeout 执行的函数中，本应该打印出在 Window，但是在这里 this 却指向了 obj，原因就在于，给 setTimeout 传入的函数（参数）是一个箭头函数：</p>
+<blockquote>
+<p>函数体内的this对象，就是定义时所在的对象，而不是使用时所在的对象。</p>
+</blockquote>
+<p>根据例子我们理解一下这句话：<br>在 obj.foo2() 执行的时候，当前的 this 指向 obj；在执行 setTimeout 时候，我们先是定义了一个匿名的箭头函数，关键点就在这，箭头函数内的 this 执行定义时所在的对象，就是指向定义这个箭头函数时作用域内的 this，也就是 obj.foo2 中的 this，即 obj；所以在执行箭头函数的时候，它的 this -&gt; obj.foo2 中的 this -&gt; obj；</p>
+<p>简单来说， 箭头函数中的 this 只和定义它时候的作用域的 this 有关，而与在哪里以及如何调用它无关，同时它的 this 指向是不可改变的。</p>
+<h2 id="call-apply-bind"><a href="#call-apply-bind" class="headerlink" title="call, apply, bind"></a>call, apply, bind</h2><p>在 js 中，函数也是对象，同样也有一些方法，这里我们介绍三个方法，他们可以更改函数中的 this 指向：</p>
+<ul>
+<li>call</li>
+</ul>
+<p>fun.call(thisArg[, arg1[, arg2[, …]]])</p>
+<p>它会立即执行函数，第一个参数是指定执行函数中 this 的上下文，后面的参数是执行函数需要传入的参数；</p>
+<ul>
+<li>apply</li>
+</ul>
+<p>fun.apply(thisArg[, [arg1, arg2, …]])</p>
+<p>它会立即执行函数，第一个参数是指定执行函数中 this 的上下文，第二个参数是一个数组，是传给执行函数的参数（与 call 的区别）；</p>
+<ul>
+<li>bind</li>
+</ul>
+<p>var foo = fun.bind(thisArg[, arg1[, arg2[, …]]]);</p>
+<p>它不会执行函数，而是返回一个新的函数，这个新的函数被指定了 this 的上下文，后面的参数是执行函数需要传入的参数；</p>
+<p>这三个函数其实大同小异，总的目的就是去指定一个函数的上下文（this），我们以 call 函数为例；</p>
+<p>为一个普通函数指定 this</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;
+};
+
+function foo() {
+  console.log(this);
+}
+
+foo.call(obj);
+
+// Object {name: &quot;qiutc&quot;}
+</code></pre><p>可以看到，在执行 foo.call(obj) 的时候，函数内的 this 指向了 obj 这个对象，成功；</p>
+<p>为对象中的方法指定一个 this</p>
+<pre><code>var obj = {
+  name: &apos;qiutc&apos;,
+  foo: function () {
+    console.log(this);
+  }
+}
+
+var obj2 = {
+  name: &apos;tcqiu222222&apos;
+};
+
+obj.foo.call(obj2);
+
+// Object {name: &quot;tcqiu222222&quot;}
+</code></pre><p>可以看到，执行函数的时候这里的 this 指向了 obj2，成功；</p>
+<p>为构造函数指定 this</p>
+<pre><code>function Person(name) {
+  this.name = name;
+  console.log(this);
+}
+
+var obj = {
+  name: &apos;qiutc2222222&apos;
+};
+
+var p = new Person.call(obj, &apos;qiutc&apos;);
+
+// Uncaught TypeError: Person.call is not a constructor(…)
+</code></pre><p>这里报了个错，原因是我们去 new 了 Person.call 函数，而非 Person ，这里的函数不是一个构造函数；</p>
+<p>换成 bind 试试：</p>
+<pre><code>function Person(name) {
+  this.name = name;
+  console.log(this);
+}
+
+var obj = {
+  name: &apos;qiutc2222222&apos;
+};
+
+var Person2 = Person.bind(obj);
+
+var p = new Person2(&apos;qiutc&apos;);
+
+// Person {name: &quot;qiutc&quot;}
+
+console.log(obj);
+
+// Object {name: &quot;qiutc2222222&quot;}
+</code></pre><p>打印出来的是 Person 实例化出来的对象，而和 obj 没有关系，而 obj 也没有发生变化，说明，我们给 Person 指定 this 上下文并没有生效；</p>
+<p>因此可以得出： 使用 bind 给一个构造函数指定 this，在 new 这个构造函数的时候，bind 函数所指定的 this 并不会生效；</p>
+<p>当然 bind 不仅可以指定 this ，还能传入参数，我们来试试这个操作：</p>
+<pre><code>function Person(name) {
+  this.name = name;
+  console.log(this);
+}
+
+var obj = {
+  name: &apos;qiutc2222222&apos;
+};
+
+var Person2 = Person.bind(obj, &apos;qiutc111111&apos;);
+
+var p = new Person2(&apos;qiutc&apos;);
+
+// Person {name: &quot;qiutc111111&quot;}
+</code></pre><p>可以看到，虽然指定 this 不起作用，但是传入参数还是起作用了；</p>
+<p>为箭头函数指定 this</p>
+<p>我们来定义一个全局下的箭头函数，因此这个箭头函数中的 this 必然会指向全局对象，如果用 call 方法改变 this 呢：</p>
+<pre><code>var afoo = (a) =&gt; {
+  console.log(a);
+  console.log(this);
+}
+
+afoo(1);
+
+// 1
+// Window
+
+var obj = {
+  name: &apos;qiutc&apos;
+};
+
+afoo.call(obj, 2);
+
+// 2
+// Window
+</code></pre><p>可以看到，这里的 call 指向 this 的操作并没有成功，所以可以得出： 箭头函数中的 this 在定义它的时候已经决定了（执行定义它的作用域中的 this），与如何调用以及在哪里调用它无关，包括 (call, apply, bind) 等操作都无法改变它的 this。</p>
+<p>只要记住箭头函数大法好，不变的 this。</p>
+<p>Function.prototype.call</p>
+<ul>
+<li>格式:fx.call( thisArg [，arg1，arg2，… ] );</li>
+</ul>
+<ol>
+<li><p>call的传参个数不限,第一个数表示调用函数(fx)函数体内this的指向.从第二个参数开始依次按序传入函数.</p>
+<p> var age = 40;<br> var xiaoMing = {</p>
+<pre><code>age:30
+</code></pre><p> };<br> var xiaoLi = {</p>
+<pre><code>age: 20
+</code></pre><p> };<br> var getAge = function(){</p>
+<pre><code>console.log(this.age);
+</code></pre><p> };<br>  getAge.call( xiaoMing );  //30 表示函数this指向xiaoMing<br> getAge.call(xiaoLi);  //20  表示函数this指向xiaoLi<br> getAge.call(undefined);//40  getAge.call(undefined)==getAge.call(null)<br> getAge.call(null);//40<br> getAge(); //40</p>
+</li>
+</ol>
+<p>如果我们传入fx.call()的第一个参数数为null,那么表示函数fx体内this指向宿主对象,在浏览器是Window对象,这也解释了getAge.call(undefined);//40。</p>
+<p>在此基础我们可以理解为 getAge()相当于getAge.call(null/undefined),扩展到所有函数,<br>fx()==fx.call(null) == fx.call(undefined)</p>
+<p>值得注意的是严格模式下有点区别: this指向null</p>
+<pre><code>var getAge = function(){
+&apos;use strict&apos;
+console.log(this.age);
+};
+getAge(null);//报错 age未定义
+</code></pre><p>再来理解this的使用</p>
+<p>this的常用场景:</p>
+<ul>
+<li><p>this位于一个对象的方法内,此时this指向该对象</p>
+<p>  var name = ‘window’;</p>
+<p>  var Student = {</p>
+<pre><code>name : &apos;kobe&apos;,
+getName: function () {
+    console.log(this == Student); //true
+    console.log(this.name);  //kobe
+}
+</code></pre><p>  }</p>
+<p>  Student.getName();</p>
+<p>  var name = ‘window’;<br>  var Student = {</p>
+<pre><code>name : &apos;kobe&apos;,
+getName: function () {
+            var name=100;
+    console.log(this == Student); //true
+    console.log(this.name);  //kobe
+}
+</code></pre><p>  }<br>  Student.getName();   //getName取得是Student 的name</p>
+</li>
+</ul>
+<ul>
+<li><p>this位于一个普通的函数内,表示this指向全局对象,(浏览器是window)</p>
+<p>  var name = ‘window’;</p>
+<p>  var getName = function () {</p>
+<pre><code>var name = &apos;kobe&apos;;  //迷惑性而已
+return this.name;
+</code></pre><p>  }</p>
+<p>  console.log(  getName() ); //window</p>
+</li>
+</ul>
+<ul>
+<li><p>this使用在构造函数(构造器)里面,表示this指向的是那个返回的对象.</p>
+<p>  var name = ‘window’;<br>  //构造器<br>  var Student = function () {</p>
+<pre><code>this.name = &apos;student&apos;;
+</code></pre><p>  }</p>
+<p>  var s1 = new Student();<br>  console.log(s1.name);  //student</p>
+</li>
+</ul>
+<p>注意: 如果构造器返回的也是一个Object的对象(其他类型this指向不变遵循之前那个规律),这时候this指的是返回的这个Objec.</p>
+<pre><code>var name = &apos;window&apos;;
+//构造器
+var Student = function () {
+    this.name = &apos;student&apos;;
+    return {
+        name: &apos;boyStudent&apos;
+    }
+}
+
+var s1 = new Student();
+console.log(s1.name);  //boyStudent
+</code></pre><ul>
+<li><p>this指向失效问题</p>
+<p>  var name = ‘window’;</p>
+<p>  var Student = {</p>
+<pre><code>name : &apos;kobe&apos;,
+getName: function () {        
+    console.log(this.name);  
+}
+</code></pre><p>  }</p>
+<p>  Student.getName(); // kobe<br>  var s1 = Student.getName;<br>  s1(); //window</p>
+</li>
+</ul>
+<p>原因: 此时s1是一个函数</p>
+<pre><code>function () {        
+        console.log(this.name);  
+    }
+</code></pre><p>对一个基本的函数,前面提过this在基本函数中指的是window.</p>
+<ul>
+<li>在开发中我们经常使用的this缓存法 ,缓存当前作用域下this到另外一个环境域下使用</li>
+</ul>
+<blockquote>
+<p>最后理解apply的用法 Function.prototype.apply</p>
+</blockquote>
+<p>格式: fx.apply(thisArg [，argArray] ); // 参数数组，argArray</p>
+<ol>
+<li>apply与call的作用是一样的,只是传参方式不同,</li>
+<li><p>apply接受两个参数,第一个也是fx函数体内this的指向,用法与call第一个参数一致.第二个参数是数组或者类数组,apply就是把这个数组元素传入函数fx.</p>
+<p> var add = function (a ,b ,c) {</p>
+<pre><code>console.log(a +b +c);
+</code></pre><p> }</p>
+<p> add.apply(null , [1,2,3]); // 6</p>
+</li>
+</ol>
+<p>再吃透这个题目就ok</p>
+<pre><code>var a=10;
+var foo={
+  a:20,
+  bar:function(){
+      var a=30;
+      return this.a;
+    }
+}
+foo.bar()
+//20
+(foo.bar)()
+//20
+(foo.bar=foo.bar)()
+//10
+(foo.bar,foo.bar)()
+//10
+</code></pre><p>上题注解：</p>
+<h2 id="时刻牢记：作用域链查找遵循”就近原则”；"><a href="#时刻牢记：作用域链查找遵循”就近原则”；" class="headerlink" title="时刻牢记：作用域链查找遵循”就近原则”；"></a>时刻牢记：作用域链查找遵循”就近原则”；</h2><h2 id="this谁调用就指向谁。"><a href="#this谁调用就指向谁。" class="headerlink" title="this谁调用就指向谁。"></a>this谁调用就指向谁。</h2><pre><code>var a=10;
+var foo={
+  a:20,
+  bar:function(){
+      var a=30;  //this 指向 foo  ：console.log( this == foo) //true
+      return this.a;
+    }
+}
+
+
+foo.bar()   
+//20
+// foo.bar()    // foo调用，this指向foo , 此时的 this 指的是foo，所以是20 
+
+
+(foo.bar)()
+//20
+//第一步：
+(function(){
+   var a=30; 
+   return this.a;
+})()    //作用域链向上查找,this 指向外一层的对象foo
+
+
+
+(foo.bar=foo.bar)()
+//10
+foo.bar=foo.bar,【睁大眼睛，是单等号赋值】就是普通的复制,一个匿名函数赋值给一个全局变量,你可以把右边的foo.bar换成b,
+即(b = foo.bar)(),博客里面【this指向失效问题】说过普通的函数里面的this指向window,自然this.a == 10
+
+
+
+
+
+(foo.bar,foo.bar)()  //逗号表达式
+//10
+//(foo.bar,foo.bar)是一个小括号表达式,小括号表达式会依次创建两个匿名函数,并返回最后一个的匿名函数值,
+(foo.bar,foo.bar) 得到的是这个函数
+ function(){
+     var a=30;
+     console.log( this == foo); //如果不是很了解this的指向就加这个代码进行检测
+     return this.a;
+   }
+ ,这个是匿名函数,匿名函数的this指的是widnow,那么this.a = 10
+
+
+this可谓是JavaScript中的开发神器，使用得当的话不仅有事半功倍的效果，而且代码的逼格也更高。但是既然是神器，如果你没有足够的功力的话，那么就不要使用它，否则就有可能自毁身亡。曾几何时，我偶然得到这个神器，之后，，，自残，，，自残，，，再自残...再自残了那么多次后，终于可以拥有强大功力持此神器行走江湖了。接下来，我就为大家来传授传说中神器的使用秘诀。
+咳咳。。
+入正题。
+this是什么？this表示当前运行方法的主体。
+注意：函数中的this指向和当前函数在哪定义的话或者在哪执行都没有任何的关系。为啥这样说，请仔细阅读下面的秘籍大全。
+神器秘籍大全：
+
+秘籍一：自制行函数里面的this永远都是window
+var inner = &quot;window&quot;;
+var obj = {inner : &quot;obj&quot;,
+          fn : (function () {console.log(this.inner)})()
+}
+
+
+上面浏览器在运行该程序时，会自动运行obj.fn里面的方法，因为obj.fn是一个自制行函数，当执行该函数时，程序会输出window。
+额，为什么输出不是obj？
+因为人家规定自制行函数里面的this是window,所以其实this.inner就是window.inner，因此这个inner是定义在全局变量的，它的值是&quot;window&quot;。
+
+秘籍二：元素绑定事件驱动方法运行，方法里的this表示当前绑定的元素
+var oDiv = document.getElementsByTagName(&quot;div&quot;)[0];
+oDiv.onclick=function(){
+    console.log(this);   //当用鼠标点击该元素，则输出oDiv元素的集合
+ };
+这个好理解，元素绑定某个行为执行的方法，就相当于把这个方法也绑定在这个元素上，所以this也就指向元素本身。
+
+秘籍三：方法执行，看方法名前面是否有&quot;.&quot;，有的话&quot;.&quot;前面是谁this就是谁，没有的话this就是window
+
+var obj={fn:fn};
+function fn(){console.log(this)}
+fn.prototype.aa=function(){console.log(this)};
+var f=new fn;
+fn();  //window..
+obj.fn(); //Object..
+fn.prototype.aa(); //fn.prototype
+f.aa(); //f
+
+记住此秘籍！！！
+
+秘籍四：在构造函数模式中,函数体中的this是当前类的一个实例
+function Fn(){
+    this.x = 100;
+    console.log(this);  // 实例 f
+}
+var f = new Fn;
+构造函数生成的实例，故构造函数里的this当然是指向当前这个实例了。
+
+秘籍五（大招）：call/apply来改变this的指向
+var oDiv = document.getElementsByTagName(&quot;div&quot;)[0];
+function fn() {
+    console.log(this);
+}
+fn.call(oDiv);
+fn.call(oDiv); //执行这个语句后，fn里面的this指向oDiv元素，applay用法与call类似。
+此大招一出来，上面四个秘籍都无效了。
+</code></pre><h2 id="五个典型的-JavaScript-面试题"><a href="#五个典型的-JavaScript-面试题" class="headerlink" title="五个典型的 JavaScript 面试题"></a>五个典型的 JavaScript 面试题</h2><h2 id="问题1-范围（Scope）"><a href="#问题1-范围（Scope）" class="headerlink" title="问题1: 范围（Scope）"></a>问题1: 范围（Scope）</h2><p>思考以下代码：<br><img src="https://pic4.zhimg.com/v2-3427ee7904e86825dc800f37b5dd76a1_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3427ee7904e86825dc800f37b5dd76a1_hd.jpg" alt=""></p>
+<p>控制台（console）会打印出什么？</p>
+<p>答案</p>
+<p>上述代码会打印出5。</p>
+<p>这个问题的陷阱就是，在立即执行函数表达式（IIFE）中，有两个命名，但是其中变量是通过关键词var来声明的。这就意味着a是这个函数的局部变量。与此相反，b是在全局作用域下的。</p>
+<p>这个问题另一个陷阱就是，在函数中他没有使用”严格模式” (‘use strict’;)。如果 严格模式 开启，那么代码就会报出未捕获引用错误（Uncaught ReferenceError）：b没有定义。记住，严格模式要求你在需要使用全局变量时，明确地引用该变量。因此，你需要像下面这么写：<br><img src="https://pic3.zhimg.com/v2-d2990958fbb99d5fe5b7c2f99fd67fc1_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-d2990958fbb99d5fe5b7c2f99fd67fc1_hd.jpg" alt=""></p>
+<h2 id="问题2-创建-“原生（native）”-方法"><a href="#问题2-创建-“原生（native）”-方法" class="headerlink" title="问题2: 创建 “原生（native）” 方法"></a>问题2: 创建 “原生（native）” 方法</h2><p>在String对象上定义一个repeatify函数。这个函数接受一个整数参数，来明确字符串需要重复几次。这个函数要求字符串重复指定的次数。举个例子：<br><img src="https://pic2.zhimg.com/v2-9a26df01a60f8a3020e339a2cdc022dc_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-9a26df01a60f8a3020e339a2cdc022dc_hd.jpg" alt=""></p>
+<p>应该打印出hellohellohello.</p>
+<p>答案</p>
+<p>一种可能的实现如下所示：<br><img src="https://pic3.zhimg.com/v2-323205969d7c319efb3257e962fc0e13_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-323205969d7c319efb3257e962fc0e13_hd.jpg" alt=""></p>
+<p>这个问题测试了开发人员对于JavaScript中继承的掌握，以及prototype这个属性。这也验证了开发人员是否有能力扩展原生数据类型的功能（虽然不应该这么做）。</p>
+<p>这个问题的另一个重点是验证你是否意识到并知道如何避免覆盖已经存在的函数。这可以通过在自定义函数之前判断该函数是否存在来做到。<br><img src="https://pic3.zhimg.com/v2-145aeeefc3c8949329552b22fa9434b3_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-145aeeefc3c8949329552b22fa9434b3_hd.jpg" alt=""></p>
+<p>当你需要为旧浏览器实现向后兼容的函数时，这一技巧十分有用。</p>
+<h2 id="问题3-变量提升（Hoisting）"><a href="#问题3-变量提升（Hoisting）" class="headerlink" title="问题3: 变量提升（Hoisting）"></a>问题3: 变量提升（Hoisting）</h2><p>执行以下代码会有什么结果？为什么？<br><img src="https://pic2.zhimg.com/v2-76ce0e2d75c2302991e408d087476a59_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-76ce0e2d75c2302991e408d087476a59_hd.jpg" alt=""></p>
+<p>答案</p>
+<p>这段代码的执行结果是 undefined 和 2。</p>
+<p>这个结果的原因是，变量和函数都被提升了（hoisted）。因此，在a被打印的时候，它已经在函数作用域中存在（即它已经被声明了），但是它的值依然是 undefined。换言之，上述代码和以下代码是等价的。<br><img src="https://pic4.zhimg.com/v2-e5d341549dabe574215e26dbf0535ae8_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-e5d341549dabe574215e26dbf0535ae8_hd.jpg" alt=""></p>
+<h2 id="问题4-this-在-JavaScript-中是如何工作的"><a href="#问题4-this-在-JavaScript-中是如何工作的" class="headerlink" title="问题4: this 在 JavaScript 中是如何工作的"></a>问题4: this 在 JavaScript 中是如何工作的</h2><p>以下代码的结果是什么？请解释你的答案。<br><img src="https://pic4.zhimg.com/v2-c7109c7158a7800b48c57ce5fcfd889a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-c7109c7158a7800b48c57ce5fcfd889a_hd.jpg" alt=""></p>
+<p>答案</p>
+<p>上面的代码打印出 Aurelio De Rosa 和 John Doe。原因是在 JavaScript 中，一个函数的上下文环境，也就是this关键词所引用对象，是依赖于函数是如何被调用的，而不是依赖于函数如何被定义的。</p>
+<p>在第一个 console.log() 调用中， getFullname() 是作为 obj.prop 的函数被调用的。因此，这里的上下文环境指向后者并且函数返回this对象的 fullname 属性。相反，当 getFullname() 被赋为test变量的值时，那个语境指向全局对象(window)。这是因为，test被隐式设置为全局对象的属性。因此，函数调用返回 window 的 fullname 属性值，在此段代码中，这个值是通过第一行赋值语句设置的。</p>
+<h2 id="问题5-call-和-apply"><a href="#问题5-call-和-apply" class="headerlink" title="问题5: call() 和 apply()"></a>问题5: call() 和 apply()</h2><p>修复上一个问题，让最后一个 console.log() 打印出 Aurelio De Rosa。</p>
+<p>答案</p>
+<p>要解决这个问题，可以通过为函数 call() 或者 apply() 强制函数调用的上下文环境。如果你不知道 call() 和 apply() 之间的区别，我推荐阅读文章“ function.call 和 function.apply 之间有和区别?”。在以下代码中，我会用 call()，但是在这里，用 apply() 也可以获得相同的结果：<br><img src="https://pic4.zhimg.com/v2-6dd929db46959a48071adb146a84ba56_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-6dd929db46959a48071adb146a84ba56_hd.jpg" alt=""></p>
+<h2 id="常见面试："><a href="#常见面试：" class="headerlink" title="常见面试："></a>常见面试：</h2><pre><code>下面列举一些简单的实例 总结一下this的一些用法：
+
+
+1.方法中的this会指向当前执行该方法的对象 如：
+
+var name = &quot;window&quot;
+
+var Tom = {
+
+  name:&quot;Tom&quot;;
+
+  show:function(){alert(this.name)}
+
+}
+
+Tom.show();   //Tom
+
+
+
+2.方法中的this不会指向声明它的对象 如下
+
+
+var Bob={
+  name:&quot;Bob&quot;,
+  show:function(){alert(this.name);}
+  };
+
+var Tom={
+  name:&quot;Tom&quot;,
+  show:Bob.show
+  };
+
+Tom.show() ;   //Tom
+
+因为尽管alert(this.name)是在Bob对象环境中声明的
+
+
+但该方法是由Tom对象调用执行所以this总是会指向当前执行的对象，而不是声明的对象
+
+
+
+
+
+3.将方法复制给变量时，执行时仍然会以Tom对象区调用该方法
+
+
+var name=&quot;window&quot;;
+var Tom={
+  name:&quot;Tom&quot;.
+  show:function(){alert(this.name)}
+  };
+
+var fun=Tom.show();
+fun();              //Tom
+
+可以看出赋值后再调用，并不影响调用其方法的对象
+
+
+
+4.将对象赋值给变量后，再调用方法，执行的对象仍然是Tom
+
+var name=&quot;window&quot;;
+var Tom={
+  name:&quot;Tom&quot;,
+  show:function(){alert(this.name)},
+  wait:function(){
+             var that=this;
+             that.show();
+         }
+  };
+
+Tom.wait();  //Tom
+
+这里that赋值了当前执行的对象，并让它继续调用show，
+所以show方法中alert(this.name)自然而然的指向了Tom
+可以把上面的 &quot;that赋值对象 然后调用方法&quot; 这个过程看做成执行对象
+的延迟，就是让Tom加班的意思
+
+
+
+
+ 5.另一种 指明调用方法的对象 的办法 如下：
+
+
+var name = &quot;window&quot;;
+var Bob= {
+    name:&quot;Bob&quot;,
+    show:function(){alert(this.name);}
+    };
+
+ var Tom= {name: &quot;Tom&quot;};
+ Bob.show();                   //Bob
+ Bob.show.apply();             //window
+ Bob.show.apply(Tom);          //Tom
+
+ 当然call()也差不多类似
+
+
+
+6.下面来个特殊的例子
+
+var name=&quot;window&quot;;
+var Tom={
+  name:&quot;Tom&quot;,
+  show:function(){alert(this.name)},
+  wait:function(){
+             var fun=this.show;
+             fun();
+         }
+  };
+
+Tom.wait();  //window
+
+上面也是赋值方法后，再调用，可是执行的对象却改成了window对象
+
+解释：
+
+在函数体内把方法赋值给变量再调用会导致对象更改为Window对象
+执行fun时，可以看做是一种方法调用的延迟行为，延迟调用方法会使得执行的对象
+变为全局对象也就是window对象
+
+
+下面我们来看看其他几种延迟方式，导致对象被更改为window的例子
+
+
+
+7.匿名函数的延迟
+
+var name=&quot;window&quot;;
+var Tom={
+  name:&quot;Tom&quot;,
+  show:function(){alert(this.name)},
+  wait:function(){!function(call){call();}(this.show)}
+  }
+
+Tom.wait();    //Window
+
+
+
+
+8.setTimeout、setInterval函数延迟
+这里只以setTimeout为例子
+
+var name=&quot;window&quot;;
+var Tom={
+  name:&quot;Tom&quot;,
+  show:function(){alert(this.name)},
+  wait:function(){setTimeout(this.show,1000)}
+  }
+
+Tom.wait();    //window
+
+
+
+9. 在延迟的环境下 尝试让Tom加班（对象也跟着延迟）
+
+var name=&quot;window&quot;;
+var Tom={  name:&quot;Tom&quot;,
+show:function(){alert(this.name)},
+wait:function(){setTimeout(Tom.show,1000)}  }
+
+Tom.wait();    //window  
+
+
+
+上面中this对象改成了Tom，尝试让Tom加班，但是结果仍然为Window对象
+因为Tom.show放在第一个参数里，延迟的执行使得执行的对象变为window对象
+而不再是Tom对象，如何让执行对象Tom在延迟当不被变更呢？下面给你答案
+
+
+ 10.虽然延迟会导致方法的执行对象被更改为Window 但也有办法防止执行对象更改 如下
+
+
+var name=&quot;window&quot;
+var  Tom ={  
+    name : &quot;Tom&quot;,  
+    show : function(){alert(this.name);},  
+    wait:  function(){
+    var that=this;
+    setTimeout(function(){that.show()},1000)}  
+          }
+
+Tom.wait();    //Tom 
+
+如果不能理解上面的代码，你就当做Tom对象也跟着函数一起延迟就好了
+而第9个例子没有成功延迟，是因为没有变量保存对象使得执行对象没有跟着延迟
+
+
+
+
+
+11.eval函数的延迟
+
+对于eval比较特殊
+
+在eval环境下，执行的对象就是当前作用域的对象 如下
+
+
+var name=&quot;window&quot;;
+var Bob={
+  name:&quot;Bob&quot;,
+  showName: function(){ eval(&quot;alert(this.name)&quot;); }
+  };
+
+Bob.showName(); //Bob
+
+
+
+
+
+
+
+
+12.eval函数的环境下，不会受到延迟而影响函数执行的对象
+
+之所以eval特殊是因为eval不受延迟的影响
+
+var name=&quot;window&quot;;
+var that;
+var Tom={
+  name:&quot;Tom&quot;,
+  show:function(){alert(this.name)},
+  wait:function(){that=this;setTimeout(&quot;that.show()&quot;,1000)}
+  }
+
+Tom.wait();    //Tom
+
+
+
+也许你会觉得上面的代码没有eval函数的身影
+其实setTimeout函数的第一个参数就是eval环境
+他会指向当前执行作用域的执行对象，忽略延迟方法延迟调用
+
+
+
+如果能把上面12个例子都理解了，那么this将成为你的一把有力的刀，挥舞在你代码中
+当然如果不能理解，那么像闭包一样 尽量的少用！
+</code></pre><p>函数是JavaScript世界里的第一公民，换句话来说，就是我们如果可以精通JavaScript函数的使用，那么对JavaScript的运用可以更游刃有余了。熟悉JavaScript的人应该都知道，同样的函数，以不同的方式调用的话，受影响最大的应该是  this 。下面我们来说说JavaScript函数的各种调用模式。</p>
+<p>一、普通函数的调用模式</p>
+<p>　　所谓普通函数的调用模式，也是JavaScript函数的最简单的一种调用模式，直接就是函数名后接一个  ()  实现调用，看下面代码：</p>
+<pre><code>function func(){
+    console.log(this === window);  //true
+}
+func();
+</code></pre><p>　　上面代码，我们用function关键字声明了一个 func 函数，并且在函数体内打印 this===window，然后我们直接调用函数func，我们可以看到控制台是直接打印出 true ，也就是说，函数的这种普通调用模式，函数体内的  this  是指向全局环境 window 的。不清楚这点的同学，可以能会遇到这样的一个bug：</p>
+<pre><code>var color = &apos;gg&apos;;
+var obj = {
+    color : &apos;red&apos;,
+    show : function(){
+        function func1(){
+            console.log(this.color);  //gg
+        }
+        func1();
+    }
+}
+obj.show(); 
+</code></pre><p>　　我们在全局环境下声明了一个变量 color 和一个对象 obj ，在对象 obj 里面我们还声明了一个 color 属性 为 ‘red’，一个 show 方法。而且在 show 方法里面呢，我们还声明了一个函数 func1 并且调用了 func1，func1 的作用是打印 this.color。最后我们运行代码  obj.show();   调用obj里面的show方法。不清楚函数的普通调用模式的特点的同学可能会认为此时在控制台答应出来的会是  ‘red’ 。实际上此时在控制台答应出来的应该是  gg  。因为函数  func1  的调用模式是 普通函数调用模式（即使它是在  obj  的  show  方法里面调用的），所以此时函数体内的  this  是指向 全局环境window 的，所以就打印了全局环境下的变量  color 。</p>
+<p>　　可能有些同学会问：如果我们希望  func1  函数打印出来的是 ‘red’ 呢，应该怎么改？其实很简单，因为  obj.color  才是 ‘red’ ，所以我们只需要把  指向  obj  的  this 引入到函数 func1  里面就行了： </p>
+<pre><code>var color = &apos;gg&apos;;
+var obj = {
+    color : &apos;red&apos;,
+    show : function(){
+        var that = this;
+        function func1(){
+            console.log(that.color);  //red
+        }
+        func1();
+    }
+}
+obj.show();
+var color = &apos;gg&apos;;
+var obj = {
+    color : &apos;red&apos;,
+    show : function(){
+        var func1=function(){
+            console.log(this.color);  //red
+        }.bind(this);
+        func1();
+    }
+}
+obj.show();
+</code></pre><p>　　在上面的代码中，因为  show  里面的   this  指向   obj   的，所以我们在  show  里面声明一个变量  that = this;用来把指向  obj  的  this  引入到  func1 中，然后再把 func1 函数体内的  this.color  改为  that.color ,此时在控制台打印出来的就是我们想要的 ‘red’ 了。</p>
+<p>　　可能现在又有同学会问：为什么   show   里面的  this  是指向  obj 的呢？这就是我们要说的JavaScript函数的第二种调用模式：方法调用模式</p>
+<p>二、方法调用模式</p>
+<p>　　方法调用模式，简单来说就是把一个 JavaScript函数作为一个对象的方法来调用，当一个函数被保存为一个对象的属性是，我们就把它称为方法，例如上文的  obj  对象里的  show  ，当一个方法被调用时，函数体里面的   this  就会绑定到这个对象，例如上文的 show 里面的  this  。方法调用模式也很容易辨别：obj.show()，对象名 . 属性名 () ；代码的话可以参考上文的  obj  代码 ，博主就不多写了。记住：方法的调用是可以在函数体内通过  this  访问自己所属的那个对象的。</p>
+<p>三、构造器调用模式</p>
+<p>博主认为构造器调用模式是相对于其他模式来说较为复杂点的调用模式了。通过关键字  new  可以把一个函数作为构造器来调用。关键字  new  可以改变函数的返回值：</p>
+<pre><code>function func2(name){
+    this.name = name;
+}
+
+name;   //undefined
+
+//普通函数调用模式
+var foo = func2(&apos;afei&apos;);
+foo;  //undefined
+name;   //afei
+
+
+//构造器调用模式
+var bar = new func2(&apos;lizefei&apos;);
+bar.__proto__ === func2.prototype;  //true
+bar;  //{name:&apos;lizefei&apos;}
+bar.name;  //&apos;lizefei&apos;
+</code></pre><p>　　在上示代码中我们声明了一个函数 func2 ，分别用两种不同的调用模式去调用它。因为函数  func2  并没有显式返回值，所以作为普通函数去调用时，它什么也没有返回，所以  foo  的值是  undefined  。因为普通调用模式的   this   是指向 全局环境   window  的，所以  func2(‘afei’);  后，全局环境下就多了一个  name 变量且等于 ‘afei’。</p>
+<p>　　func2  作为构造器调用时，我们可以看到，它返回的是一个对象，因为关键字  new  使得函数在调用是发生了如下的特殊变化：</p>
+<ol>
+<li>　　创建了一个新对象，而且这个新对象是链接到 func2  的  prototype  属性的</li>
+<li>　　把函数里的  this  指向了这个新对象</li>
+<li>　　如果没有显式的返回值，新对象作为构造器func2的返回值进行返回（所以bar 是 {name:’lizefei’}）</li>
+</ol>
+<p>这样子我们就可以看出构造器的作用：通过函数的调用来初始化新创建出来的对象。在JavaScript的面向对象编程里面，这个可是相当重要的。</p>
+<p>　　因为在函数的声明上，在未来作为构造器调用的函数和普通函数的声明没什么区别，所以导致后来的开发者很容易因为调用模式的错误导致程序出问题。所以开发者们都默契地约定，用来做构造器调用的函数的函数名的第一个字符应该大写，例如：Person，People。这样子后来的开发者一看到函数名就知道要用构造器调用模式调用此函数了。</p>
+<p>四、使用apply()和call()方法调用</p>
+<p>　　这种调用的模式是为了更灵活控制函数运行的上下文环境而诞生的。简单的说就是为了灵活控制函数体内  this  的值。</p>
+<p>　　apply 和 call这两个方法的第一个参数都是要传递被函数上下文的对象（简单点说就是要绑定给函数  this  的对象）。其他参数就有所不同了：</p>
+<p>　　apply方法的第二个参数是一个数组，数组里面的值将作为函数调用的参数；</p>
+<p>　　call方法，从第二个参数起（包括第二个参数），剩下的参数都是作为函数调用的参数；</p>
+<p>　　让我们看看栗子：</p>
+<pre><code>var obj = {
+    name :&apos;afei&apos;
+}
+function say(ag1,ag2){
+    console.log(ag1+&apos;:&apos;+ag2+&quot; &quot;+ this.name);
+}
+say.apply(obj,[&apos;apply方法&apos;,&apos;hello&apos;]); //apply方法:hello afei
+say.call(obj,&apos;call方法&apos;,&apos;hi&apos;); //call方法:hi afei
+</code></pre><p>　　正如栗子所示，我们把对象 obj  作为函数  say  的上下文来调用函数  say  ，所以函数里的  this  是指向 对象  obj  的。在apply方法里，我们通过数组  [‘apply方法’,’hello’]  给  say  方法传递了两个参数（’apply方法’ 和 ‘hello’），所以打印出来是：  apply方法:hello afei。</p>
+<p>　　同理  call 也是一样，而且函数传递的方式通过上面的代码也一目了然我，博主就不多做解释了。</p>
+<p>　　另外，博主还听说apply和call这两个方法除了传递参数的方式不一样，执行的速度还是apply 比 call 要快呢。不过博主就没有实验过。</p>
+<p>五、总结</p>
+<p>　　在JavaScript里面，函数只要的调用模式就是这几种了（在ES6里面还有一种很奇怪很特殊的函数调用模式，叫做’标签模板‘，在这里博主也不多说了，有空另更），只要掌握了这几种主要的调用模式，那么日后再也不用担心  this 的值变来变去了。</p>
+<p>　　上文如果有漏的、有错误的地方，望各位小伙伴指出，小弟虚心向学。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/08/30/JS中的this的七种使用场景/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2303,234 +3299,6 @@ content: counter(m, circle)
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/01/02/十大经典排序算法/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/01/02/十大经典排序算法/" itemprop="url">十大经典排序算法</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-01-02T19:53:53+08:00">
-                2015-01-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="算法概述"><a href="#算法概述" class="headerlink" title="算法概述"></a>算法概述</h3><h4 id="算法分类"><a href="#算法分类" class="headerlink" title="算法分类"></a>算法分类</h4><p>十种常见排序算法可以分为两大类：</p>
-<blockquote>
-<p><strong>非线性时间比较类排序</strong>：通过比较来决定元素间的相对次序，由于其时间复杂度不能突破O(nlogn)，因此称为非线性时间比较类排序。<br><strong>线性时间非比较类排序</strong>：不通过比较来决定元素间的相对次序，它可以突破基于比较排序的时间下界，以线性时间运行，因此称为线性时间非比较类排序。 </p>
-</blockquote>
-<p><img src="/2015/01/02/十大经典排序算法/849589-20180402132530342-980121409.png" alt=""></p>
-<h4 id="算法复杂度"><a href="#算法复杂度" class="headerlink" title="算法复杂度"></a>算法复杂度</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20180402133438219-1946132192.png" alt=""></p>
-<p><strong>相关概念</strong></p>
-<blockquote>
-<p><strong>稳定</strong>：如果a原本在b前面，而a=b，排序之后a仍然在b的前面。<br><strong>不稳定</strong>：如果a原本在b的前面，而a=b，排序之后 a 可能会出现在 b 的后面。<br><strong>时间复杂度</strong>：对排序数据的总的操作次数。反映当n变化时，操作次数呈现什么规律。<br><strong>空间复杂度：</strong>是指算法在计算机内执行时所需存储空间的度量，它也是数据规模n的函数。 </p>
-</blockquote>
-<h3 id="1、冒泡排序（Bubble-Sort）"><a href="#1、冒泡排序（Bubble-Sort）" class="headerlink" title="1、冒泡排序（Bubble Sort）"></a>1、冒泡排序（Bubble Sort）</h3><p>冒泡排序是一种简单的排序算法。它重复地走访过要排序的数列，一次比较两个元素，如果它们的顺序错误就把它们交换过来。走访数列的工作是重复地进行直到没有再需要交换，也就是说该数列已经排序完成。这个算法的名字由来是因为越小的元素会经由交换慢慢“浮”到数列的顶端。 </p>
-<h4 id="1-1-算法描述"><a href="#1-1-算法描述" class="headerlink" title="1.1 算法描述"></a>1.1 算法描述</h4><ul>
-<li>比较相邻的元素。如果第一个比第二个大，就交换它们两个；</li>
-<li>对每一对相邻元素作同样的工作，从开始第一对到结尾的最后一对，这样在最后的元素应该会是最大的数；</li>
-<li>针对所有的元素重复以上的步骤，除了最后一个；</li>
-<li>重复步骤1~3，直到排序完成。</li>
-</ul>
-<p><strong>1.2 动图演示</strong></p>
-<p><img src="/2015/01/02/十大经典排序算法/849589-20171015223238449-2146169197.gif" alt=""></p>
-<h4 id="1-3-代码实现"><a href="#1-3-代码实现" class="headerlink" title="1.3 代码实现"></a>1.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">function bubbleSort(arr) &#123;</span><br><span class="line">    var len = arr.length;</span><br><span class="line">    for (var i = 0; i &lt; len - 1; i++) &#123;</span><br><span class="line">        for (var j = 0; j &lt; len - 1 - i; j++) &#123;</span><br><span class="line">            if (arr[j] &gt; arr[j+1]) &#123;        // 相邻元素两两对比</span><br><span class="line">                var temp = arr[j+1];        // 元素交换</span><br><span class="line">                arr[j+1] = arr[j];</span><br><span class="line">                arr[j] = temp;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h3 id="2、选择排序（Selection-Sort）"><a href="#2、选择排序（Selection-Sort）" class="headerlink" title="2、选择排序（Selection Sort）"></a>2、选择排序（Selection Sort）</h3><p>选择排序(Selection-sort)是一种简单直观的排序算法。它的工作原理：首先在未排序序列中找到最小（大）元素，存放到排序序列的起始位置，然后，再从剩余未排序元素中继续寻找最小（大）元素，然后放到已排序序列的末尾。以此类推，直到所有元素均排序完毕。 </p>
-<h4 id="2-1-算法描述"><a href="#2-1-算法描述" class="headerlink" title="2.1 算法描述"></a>2.1 算法描述</h4><p>n个记录的直接选择排序可经过n-1趟直接选择排序得到有序结果。具体算法描述如下：</p>
-<ul>
-<li>初始状态：无序区为R[1..n]，有序区为空；</li>
-<li>第i趟排序(i=1,2,3…n-1)开始时，当前有序区和无序区分别为R[1..i-1]和R(i..n）。该趟排序从当前无序区中-选出关键字最小的记录 R[k]，将它与无序区的第1个记录R交换，使R[1..i]和R[i+1..n)分别变为记录个数增加1个的新有序区和记录个数减少1个的新无序区；</li>
-<li>n-1趟结束，数组有序化了。</li>
-</ul>
-<h4 id="2-2-动图演示"><a href="#2-2-动图演示" class="headerlink" title="2.2 动图演示"></a><strong>2.2 动图演示</strong></h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015224719590-1433219824.gif" alt=""></p>
-<h4 id="2-3-代码实现"><a href="#2-3-代码实现" class="headerlink" title="2.3 代码实现"></a>2.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">function selectionSort(arr) &#123;</span><br><span class="line">    var len = arr.length;</span><br><span class="line">    var minIndex, temp;</span><br><span class="line">    for (var i = 0; i &lt; len - 1; i++) &#123;</span><br><span class="line">        minIndex = i;</span><br><span class="line">        for (var j = i + 1; j &lt; len; j++) &#123;</span><br><span class="line">            if (arr[j] &lt; arr[minIndex]) &#123;     // 寻找最小的数</span><br><span class="line">                minIndex = j;                 // 将最小数的索引保存</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        temp = arr[i];</span><br><span class="line">        arr[i] = arr[minIndex];</span><br><span class="line">        arr[minIndex] = temp;</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="2-4-算法分析"><a href="#2-4-算法分析" class="headerlink" title="2.4 算法分析"></a>2.4 算法分析</h4><p>表现最稳定的排序算法之一，因为无论什么数据进去都是O(n2)的时间复杂度，所以用到它的时候，数据规模越小越好。唯一的好处可能就是不占用额外的内存空间了吧。理论上讲，选择排序可能也是平时排序一般人想到的最多的排序方法了吧。</p>
-<h3 id="3、插入排序（Insertion-Sort）"><a href="#3、插入排序（Insertion-Sort）" class="headerlink" title="3、插入排序（Insertion Sort）"></a>3、插入排序（Insertion Sort）</h3><p>插入排序（Insertion-Sort）的算法描述是一种简单直观的排序算法。它的工作原理是通过构建有序序列，对于未排序数据，在已排序序列中从后向前扫描，找到相应位置并插入。</p>
-<h4 id="3-1-算法描述"><a href="#3-1-算法描述" class="headerlink" title="3.1 算法描述"></a>3.1 算法描述</h4><p>一般来说，插入排序都采用in-place在数组上实现。具体算法描述如下：</p>
-<ul>
-<li>从第一个元素开始，该元素可以认为已经被排序；</li>
-<li>取出下一个元素，在已经排序的元素序列中从后向前扫描；</li>
-<li>如果该元素（已排序）大于新元素，将该元素移到下一位置；</li>
-<li>重复步骤3，直到找到已排序的元素小于或者等于新元素的位置；</li>
-<li>将新元素插入到该位置后；</li>
-<li>重复步骤2~5。</li>
-</ul>
-<h4 id="3-2-动图演示"><a href="#3-2-动图演示" class="headerlink" title="3.2 动图演示"></a>3.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015225645277-1151100000.gif" alt=""></p>
-<h4 id="3-2-代码实现"><a href="#3-2-代码实现" class="headerlink" title="3.2 代码实现"></a>3.2 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">function insertionSort(arr) &#123;</span><br><span class="line">    var len = arr.length;</span><br><span class="line">    var preIndex, current;</span><br><span class="line">    for (var i = 1; i &lt; len; i++) &#123;</span><br><span class="line">        preIndex = i - 1;</span><br><span class="line">        current = arr[i];</span><br><span class="line">        while (preIndex &gt;= 0 &amp;&amp; arr[preIndex] &gt; current) &#123;</span><br><span class="line">            arr[preIndex + 1] = arr[preIndex];</span><br><span class="line">            preIndex--;</span><br><span class="line">        &#125;</span><br><span class="line">        arr[preIndex + 1] = current;</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="3-4-算法分析"><a href="#3-4-算法分析" class="headerlink" title="3.4 算法分析"></a>3.4 算法分析</h4><p>插入排序在实现上，通常采用in-place排序（即只需用到O(1)的额外空间的排序），因而在从后向前扫描过程中，需要反复把已排序元素逐步向后挪位，为最新元素提供插入空间。</p>
-<h3 id="4、希尔排序（Shell-Sort）"><a href="#4、希尔排序（Shell-Sort）" class="headerlink" title="4、希尔排序（Shell Sort）"></a>4、希尔排序（Shell Sort）</h3><p>1959年Shell发明，第一个突破O(n2)的排序算法，是简单插入排序的改进版。它与插入排序的不同之处在于，它会优先比较距离较远的元素。希尔排序又叫<strong>缩小增量排序</strong>。</p>
-<h4 id="4-1-算法描述"><a href="#4-1-算法描述" class="headerlink" title="4.1 算法描述"></a>4.1 算法描述</h4><p>先将整个待排序的记录序列分割成为若干子序列分别进行直接插入排序，具体算法描述：</p>
-<ul>
-<li>选择一个增量序列t1，t2，…，tk，其中ti&gt;tj，tk=1；</li>
-<li>按增量序列个数k，对序列进行k 趟排序；</li>
-<li>每趟排序，根据对应的增量ti，将待排序列分割成若干长度为m 的子序列，分别对各子表进行直接插入排序。仅增量因子为1 时，整个序列作为一个表来处理，表长度即为整个序列的长度。</li>
-</ul>
-<h4 id="4-2-动图演示"><a href="#4-2-动图演示" class="headerlink" title="4.2 动图演示"></a>4.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20180331170017421-364506073.gif" alt=""></p>
-<h4 id="4-3-代码实现"><a href="#4-3-代码实现" class="headerlink" title="4.3 代码实现"></a>4.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">function shellSort(arr) &#123;</span><br><span class="line">    var len = arr.length,</span><br><span class="line">        temp,</span><br><span class="line">        gap = 1;</span><br><span class="line">    while (gap &lt; len / 3) &#123;          // 动态定义间隔序列</span><br><span class="line">        gap = gap * 3 + 1;</span><br><span class="line">    &#125;</span><br><span class="line">    for (gap; gap &gt; 0; gap = Math.floor(gap / 3)) &#123;</span><br><span class="line">        for (var i = gap; i &lt; len; i++) &#123;</span><br><span class="line">            temp = arr[i];</span><br><span class="line">            for (var j = i-gap; j &gt; 0 &amp;&amp; arr[j]&gt; temp; j-=gap) &#123;</span><br><span class="line">                arr[j + gap] = arr[j];</span><br><span class="line">            &#125;</span><br><span class="line">            arr[j + gap] = temp;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="4-4-算法分析"><a href="#4-4-算法分析" class="headerlink" title="4.4 算法分析"></a>4.4 算法分析</h4><p>希尔排序的核心在于间隔序列的设定。既可以提前设定好间隔序列，也可以动态的定义间隔序列。动态定义间隔序列的算法是《算法（第4版）》的合著者Robert Sedgewick提出的。　</p>
-<h3 id="5、归并排序（Merge-Sort）"><a href="#5、归并排序（Merge-Sort）" class="headerlink" title="5、归并排序（Merge Sort）"></a>5、归并排序（Merge Sort）</h3><p>归并排序是建立在归并操作上的一种有效的排序算法。该算法是采用分治法（Divide and Conquer）的一个非常典型的应用。将已有序的子序列合并，得到完全有序的序列；即先使每个子序列有序，再使子序列段间有序。若将两个有序表合并成一个有序表，称为2-路归并。 </p>
-<h4 id="5-1-算法描述"><a href="#5-1-算法描述" class="headerlink" title="5.1 算法描述"></a>5.1 算法描述</h4><ul>
-<li>把长度为n的输入序列分成两个长度为n/2的子序列；</li>
-<li>对这两个子序列分别采用归并排序；</li>
-<li>将两个排序好的子序列合并成一个最终的排序序列。</li>
-</ul>
-<h4 id="5-2-动图演示"><a href="#5-2-动图演示" class="headerlink" title="5.2 动图演示"></a>5.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015230557043-37375010.gif" alt=""></p>
-<h4 id="5-3-代码实现"><a href="#5-3-代码实现" class="headerlink" title="5.3 代码实现"></a>5.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">function mergeSort(arr) &#123;  // 采用自上而下的递归方法</span><br><span class="line">    var len = arr.length;</span><br><span class="line">    if (len &lt; 2) &#123;</span><br><span class="line">        return arr;</span><br><span class="line">    &#125;</span><br><span class="line">    var middle = Math.floor(len / 2),</span><br><span class="line">        left = arr.slice(0, middle),</span><br><span class="line">        right = arr.slice(middle);</span><br><span class="line">    return merge(mergeSort(left), mergeSort(right));</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">function merge(left, right) &#123;</span><br><span class="line">    var result = [];</span><br><span class="line"> </span><br><span class="line">    while (left.length&gt;0 &amp;&amp; right.length&gt;0) &#123;</span><br><span class="line">        if (left[0] &lt;= right[0]) &#123;</span><br><span class="line">            result.push(left.shift());</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            result.push(right.shift());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    while (left.length)</span><br><span class="line">        result.push(left.shift());</span><br><span class="line"> </span><br><span class="line">    while (right.length)</span><br><span class="line">        result.push(right.shift());</span><br><span class="line"> </span><br><span class="line">    return result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="5-4-算法分析"><a href="#5-4-算法分析" class="headerlink" title="5.4 算法分析"></a>5.4 算法分析</h4><p>归并排序是一种稳定的排序方法。和选择排序一样，归并排序的性能不受输入数据的影响，但表现比选择排序好的多，因为始终都是O(nlogn）的时间复杂度。代价是需要额外的内存空间。</p>
-<h3 id="6、快速排序（Quick-Sort）"><a href="#6、快速排序（Quick-Sort）" class="headerlink" title="6、快速排序（Quick Sort）"></a>6、快速排序（Quick Sort）</h3><p>快速排序的基本思想：通过一趟排序将待排记录分隔成独立的两部分，其中一部分记录的关键字均比另一部分的关键字小，则可分别对这两部分记录继续进行排序，以达到整个序列有序。</p>
-<h4 id="6-1-算法描述"><a href="#6-1-算法描述" class="headerlink" title="6.1 算法描述"></a>6.1 算法描述</h4><p>快速排序使用分治法来把一个串（list）分为两个子串（sub-lists）。具体算法描述如下：</p>
-<ul>
-<li>从数列中挑出一个元素，称为 “基准”（pivot）；</li>
-<li>重新排序数列，所有元素比基准值小的摆放在基准前面，所有元素比基准值大的摆在基准的后面（相同的数可以到任一边）。在这个分区退出之后，该基准就处于数列的中间位置。这个称为分区（partition）操作；</li>
-<li>递归地（recursive）把小于基准值元素的子数列和大于基准值元素的子数列排序。</li>
-</ul>
-<h4 id="6-2-动图演示"><a href="#6-2-动图演示" class="headerlink" title="6.2 动图演示"></a>6.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015230936371-1413523412.gif" alt=""></p>
-<h4 id="6-3-代码实现"><a href="#6-3-代码实现" class="headerlink" title="6.3 代码实现"></a>6.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">function quickSort(arr, left, right) &#123;</span><br><span class="line">    var len = arr.length,</span><br><span class="line">        partitionIndex,</span><br><span class="line">        left = typeof left != &apos;number&apos; ? 0 : left,</span><br><span class="line">        right = typeof right != &apos;number&apos; ? len - 1 : right;</span><br><span class="line"> </span><br><span class="line">    if (left &lt; right) &#123;</span><br><span class="line">        partitionIndex = partition(arr, left, right);</span><br><span class="line">        quickSort(arr, left, partitionIndex-1);</span><br><span class="line">        quickSort(arr, partitionIndex+1, right);</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">function partition(arr, left ,right) &#123;     // 分区操作</span><br><span class="line">    var pivot = left,                      // 设定基准值（pivot）</span><br><span class="line">        index = pivot + 1;</span><br><span class="line">    for (var i = index; i &lt;= right; i++) &#123;</span><br><span class="line">        if (arr[i] &lt; arr[pivot]) &#123;</span><br><span class="line">            swap(arr, i, index);</span><br><span class="line">            index++;</span><br><span class="line">        &#125;       </span><br><span class="line">    &#125;</span><br><span class="line">    swap(arr, pivot, index - 1);</span><br><span class="line">    return index-1;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">function swap(arr, i, j) &#123;</span><br><span class="line">    var temp = arr[i];</span><br><span class="line">    arr[i] = arr[j];</span><br><span class="line">    arr[j] = temp;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h3 id="7、堆排序（Heap-Sort）"><a href="#7、堆排序（Heap-Sort）" class="headerlink" title="7、堆排序（Heap Sort）"></a>7、堆排序（Heap Sort）</h3><p>堆排序（Heapsort）是指利用堆这种数据结构所设计的一种排序算法。堆积是一个近似完全二叉树的结构，并同时满足堆积的性质：即子结点的键值或索引总是小于（或者大于）它的父节点。</p>
-<h4 id="7-1-算法描述"><a href="#7-1-算法描述" class="headerlink" title="7.1 算法描述"></a>7.1 算法描述</h4><ul>
-<li>将初始待排序关键字序列(R1,R2….Rn)构建成大顶堆，此堆为初始的无序区；</li>
-<li>将堆顶元素R[1]与最后一个元素R[n]交换，此时得到新的无序区(R1,R2,……Rn-1)和新的有序区(Rn),且满足R[1,2…n-1]&lt;=R[n]；</li>
-<li>由于交换后新的堆顶R[1]可能违反堆的性质，因此需要对当前无序区(R1,R2,……Rn-1)调整为新堆，然后再次将R[1]与无序区最后一个元素交换，得到新的无序区(R1,R2….Rn-2)和新的有序区(Rn-1,Rn)。不断重复此过程直到有序区的元素个数为n-1，则整个排序过程完成。</li>
-</ul>
-<h4 id="7-2-动图演示"><a href="#7-2-动图演示" class="headerlink" title="7.2 动图演示"></a>7.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015231308699-356134237.gif" alt=""></p>
-<h4 id="7-3-代码实现"><a href="#7-3-代码实现" class="headerlink" title="7.3 代码实现"></a>7.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">var len;    // 因为声明的多个函数都需要数据长度，所以把len设置成为全局变量</span><br><span class="line"> </span><br><span class="line">function buildMaxHeap(arr) &#123;   // 建立大顶堆</span><br><span class="line">    len = arr.length;</span><br><span class="line">    for (var i = Math.floor(len/2); i &gt;= 0; i--) &#123;</span><br><span class="line">        heapify(arr, i);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">function heapify(arr, i) &#123;     // 堆调整</span><br><span class="line">    var left = 2 * i + 1,</span><br><span class="line">        right = 2 * i + 2,</span><br><span class="line">        largest = i;</span><br><span class="line"> </span><br><span class="line">    if (left &lt; len &amp;&amp; arr[left] &gt; arr[largest]) &#123;</span><br><span class="line">        largest = left;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    if (right &lt; len &amp;&amp; arr[right] &gt; arr[largest]) &#123;</span><br><span class="line">        largest = right;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    if (largest != i) &#123;</span><br><span class="line">        swap(arr, i, largest);</span><br><span class="line">        heapify(arr, largest);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">function swap(arr, i, j) &#123;</span><br><span class="line">    var temp = arr[i];</span><br><span class="line">    arr[i] = arr[j];</span><br><span class="line">    arr[j] = temp;</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">function heapSort(arr) &#123;</span><br><span class="line">    buildMaxHeap(arr);</span><br><span class="line"> </span><br><span class="line">    for (var i = arr.length - 1; i &gt; 0; i--) &#123;</span><br><span class="line">        swap(arr, 0, i);</span><br><span class="line">        len--;</span><br><span class="line">        heapify(arr, 0);</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h3 id="8、计数排序（Counting-Sort）"><a href="#8、计数排序（Counting-Sort）" class="headerlink" title="8、计数排序（Counting Sort）"></a>8、计数排序（Counting Sort）</h3><p>计数排序不是基于比较的排序算法，其核心在于将输入的数据值转化为键存储在额外开辟的数组空间中。 作为一种线性时间复杂度的排序，计数排序要求输入的数据必须是有确定范围的整数。</p>
-<h4 id="8-1-算法描述"><a href="#8-1-算法描述" class="headerlink" title="8.1 算法描述"></a>8.1 算法描述</h4><ul>
-<li>找出待排序的数组中最大和最小的元素；</li>
-<li>统计数组中每个值为i的元素出现的次数，存入数组C的第i项；</li>
-<li>对所有的计数累加（从C中的第一个元素开始，每一项和前一项相加）；</li>
-<li>反向填充目标数组：将每个元素i放在新数组的第C(i)项，每放一个元素就将C(i)减去1。</li>
-</ul>
-<h4 id="8-2-动图演示"><a href="#8-2-动图演示" class="headerlink" title="8.2 动图演示"></a>8.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015231740840-6968181.gif" alt=""></p>
-<h4 id="8-3-代码实现"><a href="#8-3-代码实现" class="headerlink" title="8.3 代码实现"></a>8.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function countingSort(arr, maxValue) &#123;</span><br><span class="line">    var bucket = new Array(maxValue + 1),</span><br><span class="line">        sortedIndex = 0;</span><br><span class="line">        arrLen = arr.length,</span><br><span class="line">        bucketLen = maxValue + 1;</span><br><span class="line"> </span><br><span class="line">    for (var i = 0; i &lt; arrLen; i++) &#123;</span><br><span class="line">        if (!bucket[arr[i]]) &#123;</span><br><span class="line">            bucket[arr[i]] = 0;</span><br><span class="line">        &#125;</span><br><span class="line">        bucket[arr[i]]++;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    for (var j = 0; j &lt; bucketLen; j++) &#123;</span><br><span class="line">        while(bucket[j] &gt; 0) &#123;</span><br><span class="line">            arr[sortedIndex++] = j;</span><br><span class="line">            bucket[j]--;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="8-4-算法分析"><a href="#8-4-算法分析" class="headerlink" title="8.4 算法分析"></a>8.4 算法分析</h4><p>计数排序是一个稳定的排序算法。当输入的元素是 n 个 0到 k 之间的整数时，时间复杂度是O(n+k)，空间复杂度也是O(n+k)，其排序速度快于任何比较排序算法。当k不是很大并且序列比较集中时，计数排序是一个很有效的排序算法。</p>
-<h3 id="9、桶排序（Bucket-Sort）"><a href="#9、桶排序（Bucket-Sort）" class="headerlink" title="9、桶排序（Bucket Sort）"></a>9、桶排序（Bucket Sort）</h3><p>桶排序是计数排序的升级版。它利用了函数的映射关系，高效与否的关键就在于这个映射函数的确定。桶排序 (Bucket sort)的工作的原理：假设输入数据服从均匀分布，将数据分到有限数量的桶里，每个桶再分别排序（有可能再使用别的排序算法或是以递归方式继续使用桶排序进行排）。</p>
-<h4 id="9-1-算法描述"><a href="#9-1-算法描述" class="headerlink" title="9.1 算法描述"></a>9.1 算法描述</h4><ul>
-<li>设置一个定量的数组当作空桶；</li>
-<li>遍历输入数据，并且把数据一个一个放到对应的桶里去；</li>
-<li>对每个不是空的桶进行排序；</li>
-<li>从不是空的桶里把排好序的数据拼接起来。 </li>
-</ul>
-<h4 id="9-2-图片演示"><a href="#9-2-图片演示" class="headerlink" title="9.2 图片演示"></a>9.2 图片演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015232107090-1920702011.png" alt=""></p>
-<h4 id="9-3-代码实现"><a href="#9-3-代码实现" class="headerlink" title="9.3 代码实现"></a>9.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">function bucketSort(arr, bucketSize) &#123;</span><br><span class="line">    if (arr.length === 0) &#123;</span><br><span class="line">      return arr;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    var i;</span><br><span class="line">    var minValue = arr[0];</span><br><span class="line">    var maxValue = arr[0];</span><br><span class="line">    for (i = 1; i &lt; arr.length; i++) &#123;</span><br><span class="line">      if (arr[i] &lt; minValue) &#123;</span><br><span class="line">          minValue = arr[i];                // 输入数据的最小值</span><br><span class="line">      &#125; else if (arr[i] &gt; maxValue) &#123;</span><br><span class="line">          maxValue = arr[i];                // 输入数据的最大值</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    // 桶的初始化</span><br><span class="line">    var DEFAULT_BUCKET_SIZE = 5;            // 设置桶的默认数量为5</span><br><span class="line">    bucketSize = bucketSize || DEFAULT_BUCKET_SIZE;</span><br><span class="line">    var bucketCount = Math.floor((maxValue - minValue) / bucketSize) + 1;  </span><br><span class="line">    var buckets = new Array(bucketCount);</span><br><span class="line">    for (i = 0; i &lt; buckets.length; i++) &#123;</span><br><span class="line">        buckets[i] = [];</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    // 利用映射函数将数据分配到各个桶中</span><br><span class="line">    for (i = 0; i &lt; arr.length; i++) &#123;</span><br><span class="line">        buckets[Math.floor((arr[i] - minValue) / bucketSize)].push(arr[i]);</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    arr.length = 0;</span><br><span class="line">    for (i = 0; i &lt; buckets.length; i++) &#123;</span><br><span class="line">        insertionSort(buckets[i]);                      // 对每个桶进行排序，这里使用了插入排序</span><br><span class="line">        for (var j = 0; j &lt; buckets[i].length; j++) &#123;</span><br><span class="line">            arr.push(buckets[i][j]);                     </span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"> </span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="9-4-算法分析"><a href="#9-4-算法分析" class="headerlink" title="9.4 算法分析"></a>9.4 算法分析</h4><p>桶排序最好情况下使用线性时间O(n)，桶排序的时间复杂度，取决与对各个桶之间数据进行排序的时间复杂度，因为其它部分的时间复杂度都为O(n)。很显然，桶划分的越小，各个桶之间的数据越少，排序所用的时间也会越少。但相应的空间消耗就会增大。 </p>
-<h3 id="10、基数排序（Radix-Sort）"><a href="#10、基数排序（Radix-Sort）" class="headerlink" title="10、基数排序（Radix Sort）"></a>10、基数排序（Radix Sort）</h3><p>基数排序是按照低位先排序，然后收集；再按照高位排序，然后再收集；依次类推，直到最高位。有时候有些属性是有优先级顺序的，先按低优先级排序，再按高优先级排序。最后的次序就是高优先级高的在前，高优先级相同的低优先级高的在前。</p>
-<h4 id="10-1-算法描述"><a href="#10-1-算法描述" class="headerlink" title="10.1 算法描述"></a>10.1 算法描述</h4><ul>
-<li>取得数组中的最大数，并取得位数；</li>
-<li>arr为原始数组，从最低位开始取每个位组成radix数组；</li>
-<li>对radix进行计数排序（利用计数排序适用于小范围数的特点）；</li>
-</ul>
-<h4 id="10-2-动图演示"><a href="#10-2-动图演示" class="headerlink" title="10.2 动图演示"></a>10.2 动图演示</h4><p><img src="/2015/01/02/十大经典排序算法/849589-20171015232453668-1397662527.gif" alt=""> </p>
-<h4 id="10-3-代码实现"><a href="#10-3-代码实现" class="headerlink" title="10.3 代码实现"></a>10.3 代码实现</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">// LSD Radix Sort</span><br><span class="line">var counter = [];</span><br><span class="line">function radixSort(arr, maxDigit) &#123;</span><br><span class="line">    var mod = 10;</span><br><span class="line">    var dev = 1;</span><br><span class="line">    for (var i = 0; i &lt; maxDigit; i++, dev *= 10, mod *= 10) &#123;</span><br><span class="line">        for(var j = 0; j &lt; arr.length; j++) &#123;</span><br><span class="line">            var bucket = parseInt((arr[j] % mod) / dev);</span><br><span class="line">            if(counter[bucket]==null) &#123;</span><br><span class="line">                counter[bucket] = [];</span><br><span class="line">            &#125;</span><br><span class="line">            counter[bucket].push(arr[j]);</span><br><span class="line">        &#125;</span><br><span class="line">        var pos = 0;</span><br><span class="line">        for(var j = 0; j &lt; counter.length; j++) &#123;</span><br><span class="line">            var value = null;</span><br><span class="line">            if(counter[j]!=null) &#123;</span><br><span class="line">                while ((value = counter[j].shift()) != null) &#123;</span><br><span class="line">                      arr[pos++] = value;</span><br><span class="line">                &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    return arr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h4 id="10-4-算法分析"><a href="#10-4-算法分析" class="headerlink" title="10.4 算法分析"></a>10.4 算法分析</h4><p>基数排序基于分别排序，分别收集，所以是稳定的。但基数排序的性能比桶排序要略差，每一次关键字的桶分配都需要O(n)的时间复杂度，而且分配之后得到新的关键字序列又需要O(n)的时间复杂度。假如待排数据可以分为d个关键字，则基数排序的时间复杂度将是O(d*2n) ，当然d要远远小于n，因此基本上还是线性级别的。</p>
-<p>基数排序的空间复杂度为O(n+k)，其中k为桶的数量。一般来说n&gt;&gt;k，因此额外空间需要大概n个左右。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2585,7 +3353,7 @@ content: counter(m, circle)
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">112</span>
+                  <span class="site-state-item-count">113</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -2598,7 +3366,7 @@ content: counter(m, circle)
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">87</span>
+                  <span class="site-state-item-count">89</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

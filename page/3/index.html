@@ -1018,6 +1018,329 @@ private WebView Wv;
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/25/Koa-session和cookie/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/25/Koa-session和cookie/" itemprop="url">Koa session和cookie</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-25T17:37:57+08:00">
+                2018-08-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="从http协议的无状态性说起"><a href="#从http协议的无状态性说起" class="headerlink" title="从http协议的无状态性说起"></a>从http协议的无状态性说起</h2><p>HTTP是一种无状态协议。关于这个无状态之前我也不太理解，因为HTTP底层是TCP，既然是TCP，就是长连接，这个过程是保持连接状态的，又为什么说http是无状态的呢？先来搞清楚这两个概念：</p>
+<h3 id="无连接和无状态"><a href="#无连接和无状态" class="headerlink" title="无连接和无状态"></a>无连接和无状态</h3><blockquote>
+<p>无连接</p>
+</blockquote>
+<p>每次连接只处理一个请求，服务端处理完客户端一次请求，等到客户端作出回应之后便断开连接；</p>
+<blockquote>
+<p>无状态</p>
+</blockquote>
+<p>是指服务端对于客户端每次发送的请求都认为它是一个新的请求，上一次会话和下一次会话没有联系；</p>
+<p>无连接的维度是连接，无状态的维度是请求；http是基于tcp的，而从http1.1开始默认使用持久连接；在这个连接过程中，客户端可以向服务端发送多次请求，但是各个请求之间的并没有什么联系；这样来考虑，就很好理解无状态这个概念了。</p>
+<h3 id="持久连接"><a href="#持久连接" class="headerlink" title="持久连接"></a>持久连接</h3><blockquote>
+<p>持久连接，本质上是客户端与服务器通信的时候，建立一个持久化的TCP连接，这个连接不会随着请求结束而关闭，通常会保持连接一段时间。`</p>
+</blockquote>
+<p>现有的持久连接类型有两种：HTTP/1.0+的 <strong> keep-alive </strong>和HTTP/1.1的<strong> persistent </strong>。</p>
+<ul>
+<li>HTTP/1.0+的keep-alive</li>
+</ul>
+<p>先来开一张图：<br><img src="/2018/08/25/Koa-session和cookie/1.webp" alt=""><br>这张图是请求<a href="http://www.baidu.com时的请求头信息。这里面我们需要注意的是：" target="_blank" rel="noopener">www.baidu.com时的请求头信息。这里面我们需要注意的是：</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">connection: keep-alive</span><br></pre></td></tr></table></figure></p>
+<p>我们每次发送一个HTTP请求，会附带一个connection:keep-alive，这个参数就是声明一个持久连接。</p>
+<ul>
+<li>HTTP/1.1的persistent</li>
+</ul>
+<p>HTTP/1.1的持久连接默认是开启的，只有首部中包含connection：close，才会事务结束之后关闭连接。当然服务器和客户端仍可以随时关闭持久连接。</p>
+<p>当发送了connection：close首部之后客户端就没有办法在那条连接上发送更多的请求了。当然根据持久连接的特性，一定要传输正确的content-length。</p>
+<p>还有根据HTTP/1.1的特性，是不应该和HTTP/1.0客户端建立持久连接的。最后，一定要做好重发的准备。</p>
+<h3 id="http无状态"><a href="#http无状态" class="headerlink" title="http无状态"></a>http无状态</h3><p>OK，首先来明确下，这个状态的主体指的是什么？应该是信息，这些信息是由服务端所维护的与客户端交互的信息（也称为状态信息）；<br>因为HTTP本身是不保存任何用户的状态信息的，所以HTTP是无状态的协议。</p>
+<h3 id="如何保持状态信息"><a href="#如何保持状态信息" class="headerlink" title="如何保持状态信息"></a>如何保持状态信息</h3><p>在聊这个这个问题之前，我们来考虑下为什么http自己不来做这个事情：也就是让http变成有状态的。</p>
+<blockquote>
+<p>http本身来实现状态维护</p>
+</blockquote>
+<p>从上面关于无状态的理解，如果现在需要让http自己变成有状态的，就意味着http协议需要保存交互的状态信息；暂且不说这种方式是否合适，但从维护状态信息这一点来说，代价就很高，因为既然保存了状态信息，那后续的一些行为必定也会受到状态信息的影响。</p>
+<p>从历史角度来说，最初的http协议只是用来浏览静态文件的，无状态协议已经足够，这样实现的负担也很轻。但是随着web技术的不断发展，越来越多的场景需要状态信息能够得以保存；一方面是http本身不会去改变它的这种无状态的特性（至少目前是这样的），另一方面业务场景又迫切的需要保持状态；那么这个时候就需要来“装饰”一下http，引入一些其他机制来实现有状态。</p>
+<blockquote>
+<p>cookie和session体系</p>
+</blockquote>
+<p>通过引入cookie和session体系机制来维护状态信息。即用户第一次访问服务器的时候，服务器响应报头通常会出现一个Set-Cookie响应头，这里其实就是在本地设置一个cookie，当用户再次访问服务器的时候，http会附带这个cookie过去，cookie中存有sessionId这样的信息来到服务器这边确认是否属于同一次会话。</p>
+<h2 id="Cookie"><a href="#Cookie" class="headerlink" title="Cookie"></a>Cookie</h2><p>cookie是由服务器发送给客户端（浏览器）的小量信息，以{key：value}的形式存在。</p>
+<h3 id="Cookie机制原理"><a href="#Cookie机制原理" class="headerlink" title="Cookie机制原理"></a>Cookie机制原理</h3><p>客户端请求服务器时，如果服务器需要记录该用户状态，就使用response向客户端浏览器颁发一个Cookie。而客户端浏览器会把Cookie保存起来。当浏览器再请求 服务器时，浏览器把请求的网址连同该Cookie一同提交给服务器。服务器通过检查该Cookie来获取用户状态。</p>
+<blockquote>
+<p>cookie 是存储于访问者的计算机中的变量。可以让我们用同一个浏览器访问同一个域名的时候共享数据。</p>
+</blockquote>
+<blockquote>
+<p>HTTP 是无状态协议。简单地说，当你浏览了一个页面，然后转到同一个网站的另一个页面，服务器无法认识到这是同一个浏览器在访问同一个网站。每一次的访问，都是没有任何   关系的。</p>
+</blockquote>
+<h4 id="Koa-Cookie-的使用"><a href="#Koa-Cookie-的使用" class="headerlink" title="Koa Cookie 的使用"></a>Koa Cookie 的使用</h4><p>1、Koa 中设置 Cookie 的值<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ctx.cookies.set(name, value, [options])</span><br></pre></td></tr></table></figure></p>
+<p>通过options 设置 cookie name 的value :</p>
+<table>
+<thead>
+<tr>
+<th>options 名称</th>
+<th style="text-align:left">options 值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>maxAge</td>
+<td style="text-align:left">一个数字表示从 Date.now() 得到的毫秒数</td>
+</tr>
+<tr>
+<td>expires</td>
+<td style="text-align:left">cookie 过期的Date</td>
+</tr>
+<tr>
+<td>path</td>
+<td style="text-align:left">cookie 路径, 默认是’/‘</td>
+</tr>
+<tr>
+<td>domain</td>
+<td style="text-align:left">cookie 域名,可以访问该Cookie的域名。如果设置为“.baidu.com”，则所有以“baidu.com”结尾的域名都可以访问该Cookie；第一个字符必须为“.”</td>
+</tr>
+<tr>
+<td>secure</td>
+<td style="text-align:left">安全 cookie    默认 false，设置成 true 表示只有 https 可以访问</td>
+</tr>
+<tr>
+<td>httpOnly</td>
+<td style="text-align:left">是否只是服务器可访问 cookie, 默认是true</td>
+</tr>
+<tr>
+<td>overwrite</td>
+<td style="text-align:left">一个布尔值，表示是否覆盖以前设置的同名的 cookie (默认是 false). 如果是 true, 在同一个请求中设置相同名称的所有 Cookie（不管路径或域） 是否在设置此 Cookie 时从Set-Cookie 标头中过滤掉。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Cookie属性"><a href="#Cookie属性" class="headerlink" title="Cookie属性"></a>Cookie属性</h3><blockquote>
+<p>name</p>
+</blockquote>
+<p>cookie的名字，Cookie一旦创建，名称便不可更改</p>
+<blockquote>
+<p>value</p>
+</blockquote>
+<p>cookie值</p>
+<blockquote>
+<p>comment</p>
+</blockquote>
+<p>该Cookie的用处说明。浏览器显示Cookie信息的时候显示该说明</p>
+<blockquote>
+<p>maxAge</p>
+</blockquote>
+<p>Cookie失效的时间，单位秒。</p>
+<ul>
+<li><p>正数，则超过maxAge秒之后失效。</p>
+</li>
+<li><p>负数，该Cookie为临时Cookie，关闭浏览器即失效，浏览器也不会以任何形式保存该Cookie。</p>
+</li>
+<li><p>为0，表示删除该Cookie。</p>
+</li>
+</ul>
+<blockquote>
+<p>path</p>
+</blockquote>
+<p>该Cookie的使用路径。例如：</p>
+<ul>
+<li>path=/，说明本域名下contextPath都可以访问该Cookie。</li>
+<li>path=/app/，则只有contextPath为“/app”的程序可以访问该Cookie</li>
+</ul>
+<p>path设置时，其以“/”结尾.</p>
+<blockquote>
+<p>secure</p>
+</blockquote>
+<p>该Cookie是否仅被使用安全协议传输。这里的安全协议包括HTTPS，SSL等。默认为false。</p>
+<h3 id="从请求中获取Cookie"><a href="#从请求中获取Cookie" class="headerlink" title="从请求中获取Cookie"></a>从请求中获取Cookie</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ctx.cookies.get(&apos;name&apos;);</span><br></pre></td></tr></table></figure>
+<h3 id="Cookie同源与跨域"><a href="#Cookie同源与跨域" class="headerlink" title="Cookie同源与跨域"></a>Cookie同源与跨域</h3><p>我们知道浏览器的同源策略：</p>
+<blockquote>
+<p>URL由协议、域名、端口和路径组成，如果两个URL的协议、域名和端口相同，则表示他们同源。浏览器的同源策略，限制了来自不同源的”document”或脚本，对当前”document”读取或设置某些属性。</p>
+</blockquote>
+<p>对于Cookie来说，Cookie的同源只关注域名，是忽略协议和端口的。所以一般情况下，<a href="https://localhost:80/和http://localhost:8080/的Cookie是共享的。" target="_blank" rel="noopener">https://localhost:80/和http://localhost:8080/的Cookie是共享的。</a></p>
+<p>Cookie是不可跨域的；在没有经过任何处理的情况下，二级域名不同也是不行的。(wenku.baidu.com和baike.baidu.com)。</p>
+<h3 id="Cookie数量-amp-大小限制及处理策略"><a href="#Cookie数量-amp-大小限制及处理策略" class="headerlink" title="Cookie数量&amp;大小限制及处理策略"></a>Cookie数量&amp;大小限制及处理策略</h3><table>
+<thead>
+<tr>
+<th>–</th>
+<th>IE6.0</th>
+<th>IE7.0/8.0</th>
+<th>Opera</th>
+<th>FF</th>
+<th>Safari</th>
+<th>Chrome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>个数/个</td>
+<td>20/域</td>
+<td>50/域</td>
+<td>30/域</td>
+<td>50/域</td>
+<td>无限制</td>
+<td>53/域</td>
+</tr>
+<tr>
+<td>大小/Byte</td>
+<td>4095</td>
+<td>4095</td>
+<td>4096</td>
+<td>4097</td>
+<td>4097</td>
+<td>4097</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Koa-中设置中文-Cookie"><a href="#Koa-中设置中文-Cookie" class="headerlink" title="Koa 中设置中文 Cookie"></a>Koa 中设置中文 Cookie</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 转换成 base64 字符串：aGVsbG8sIHdvcmxkIQ==</span><br><span class="line">console.log(new Buffer(&apos;hello, world!&apos;).toString(&apos;base64&apos;));</span><br><span class="line"></span><br><span class="line">// 还原 base64 字符串：hello, world!</span><br><span class="line">console.log(new Buffer(&apos;aGVsbG8sIHdvcmxkIQ==&apos;, &apos;base64&apos;).toString());</span><br></pre></td></tr></table></figure>
+<h3 id="eg"><a href="#eg" class="headerlink" title="eg"></a>eg</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line">var Koa=require(&apos;koa&apos;),</span><br><span class="line">    router = require(&apos;koa-router&apos;)(),</span><br><span class="line">    render = require(&apos;koa-art-template&apos;),</span><br><span class="line">    path=require(&apos;path&apos;);</span><br><span class="line"></span><br><span class="line">var app=new Koa();</span><br><span class="line"></span><br><span class="line">//配置 koa-art-template模板引擎</span><br><span class="line">render(app, &#123;</span><br><span class="line">    root: path.join(__dirname, &apos;views&apos;),   // 视图的位置</span><br><span class="line">    extname: &apos;.html&apos;,  // 后缀名</span><br><span class="line">    debug: process.env.NODE_ENV !== &apos;production&apos;  //是否开启调试模式</span><br><span class="line"></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">router.get(&apos;/&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //正常就这样配置就可以使用了</span><br><span class="line">    /*</span><br><span class="line">     ctx.cookies.set(&apos;userinfo&apos;,&apos;zhangsan&apos;,&#123;</span><br><span class="line">        maxAge:60*1000*60</span><br><span class="line">     &#125;);</span><br><span class="line">    * */</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    ctx.cookies.set(&apos;userinfo&apos;,&apos;zhangsan2222&apos;,&#123;</span><br><span class="line">        maxAge:60*1000*60,</span><br><span class="line"></span><br><span class="line">       // path:&apos;/news&apos;,  /*配置可以访问的页面*/</span><br><span class="line">        //domain:&apos;.baidu.com&apos;  /*正常情况不要设置 默认就是当前域下面的所有页面都可以方法*/</span><br><span class="line"></span><br><span class="line">        httpOnly:false,  //true表示这个cookie只有服务器端可以访问，false表示客户端（js），服务器端都可以访问</span><br><span class="line">        /*</span><br><span class="line">            a.baidu.com</span><br><span class="line">            b.baidu.com  共享cookie的数据</span><br><span class="line">            express基础教程</span><br><span class="line">        * */</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    let list=&#123;</span><br><span class="line">        name:&apos;张三&apos;</span><br><span class="line">    &#125;</span><br><span class="line">    await ctx.render(&apos;index&apos;,&#123;</span><br><span class="line">        list:list</span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.get(&apos;/about&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    ctx.cookies.set(&apos;userinfo&apos;,&apos;zhangsan33333&apos;,&#123;</span><br><span class="line">        maxAge:60*1000*60,</span><br><span class="line">        path:&apos;/news&apos;</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    ctx.body=&quot;这是关于我们&quot;;</span><br><span class="line">&#125;)</span><br><span class="line">//接收post提交的数据</span><br><span class="line">router.get(&apos;/news&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    var userinfo=ctx.cookies.get(&apos;userinfo&apos;);</span><br><span class="line"></span><br><span class="line">    console.log(userinfo);</span><br><span class="line">    let app=&#123;</span><br><span class="line">        name:&apos;张三11&apos;</span><br><span class="line">    &#125;;</span><br><span class="line">    await ctx.render(&apos;news&apos;,&#123;</span><br><span class="line">        list:app</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.get(&apos;/shop&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    var userinfo=ctx.cookies.get(&apos;userinfo&apos;);</span><br><span class="line"></span><br><span class="line">    console.log(userinfo);</span><br><span class="line">   ctx.body=&apos;这是一个商品页面&apos;+userinfo;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.use(router.routes());   /*启动路由*/</span><br><span class="line">app.use(router.allowedMethods());</span><br><span class="line">app.listen(3000);</span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="Session"><a href="#Session" class="headerlink" title="Session"></a>Session</h2><p>session 是另一种记录客户状态的机制，不同的是 Cookie 保存在客户端浏览器中，而session 保存在服务器上。</p>
+<p>Cookie机制弥补了HTTP协议无状态的不足。在Session出现之前，基本上所有的网站都采用Cookie来跟踪会话。</p>
+<p>与Cookie不同的是，session是以服务端保存状态的。</p>
+<h3 id="session机制原理"><a href="#session机制原理" class="headerlink" title="session机制原理"></a>session机制原理</h3><p>当浏览器访问服务器并发送第一次请求时，服务器端会创建一个session 对象，生成一个类似于key,value 的键值对， 然后将key(cookie)返回到浏览器(客户)端，浏览器下次再访问时，携带 key(cookie)，找到对应的 session(value)。 客户的信息都保存在session 中</p>
+<p>当客户端请求创建一个session的时候，服务器会先检查这个客户端的请求里是否已包含了一个session标识 - sessionId，</p>
+<ul>
+<li>如果已包含这个sessionId，则说明以前已经为此客户端创建过session，服务器就按照sessionId把这个session检索出来使用（如果检索不到，可能会新建一个）</li>
+<li>如果客户端请求不包含sessionId，则为此客户端创建一个session并且生成一个与此session相关联的sessionId</li>
+</ul>
+<p>sessionId的值一般是一个既不会重复，又不容易被仿造的字符串，这个sessionId将被在本次响应中返回给客户端保存。保存sessionId的方式大多情况下用的是cookie。</p>
+<h3 id="koa-session-的使用"><a href="#koa-session-的使用" class="headerlink" title="koa-session 的使用:"></a>koa-session 的使用:</h3><blockquote>
+<p>安装    express-session</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm	install	koa-session --save</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>引入express-session</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">const session = require(&apos;koa-session&apos;);</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>设置官方文档提供的中间件</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">app.keys = [&apos;some secret hurr&apos;];   /*cookie的签名*/</span><br><span class="line">const CONFIG = &#123;</span><br><span class="line">    key: &apos;koa:sess&apos;, /** 默认 */</span><br><span class="line">    maxAge: 10000,  /*  cookie的过期时间        【需要修改】  */</span><br><span class="line">    overwrite: true, /** (boolean) can overwrite or not (default true)    没有效果，默认 */</span><br><span class="line">    httpOnly: true, /**  true表示只有服务器端可以获取cookie */</span><br><span class="line">    signed: true, /** 默认 签名 */</span><br><span class="line">    rolling: true, /** 在每次请求时强行设置 cookie，这将重置 cookie 过期时间（默认：false） 【需要修改】 */</span><br><span class="line">    renew: false, /** 快要过期的时候重新设置      【需要修改】*/</span><br><span class="line">&#125;;</span><br><span class="line">app.use(session(CONFIG, app));</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>使用</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//设置值 </span><br><span class="line">ctx.session.username = &quot;张三&quot;;</span><br><span class="line"></span><br><span class="line">//获取值 </span><br><span class="line">ctx.session.username</span><br></pre></td></tr></table></figure>
+<h3 id="eg-1"><a href="#eg-1" class="headerlink" title="eg"></a>eg</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">var Koa=require(&apos;koa&apos;),</span><br><span class="line">    router = require(&apos;koa-router&apos;)(),</span><br><span class="line">    render = require(&apos;koa-art-template&apos;),</span><br><span class="line">    path=require(&apos;path&apos;),</span><br><span class="line">    session = require(&apos;koa-session&apos;);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">var app=new Koa();</span><br><span class="line"></span><br><span class="line">//配置 koa-art-template模板引擎</span><br><span class="line">render(app, &#123;</span><br><span class="line">    root: path.join(__dirname, &apos;views&apos;),   // 视图的位置</span><br><span class="line">    extname: &apos;.html&apos;,  // 后缀名</span><br><span class="line">    debug: process.env.NODE_ENV !== &apos;production&apos;  //是否开启调试模式</span><br><span class="line">&#125;);</span><br><span class="line">//配置session的中间件</span><br><span class="line">app.keys = [&apos;some secret hurr&apos;];   /*cookie的签名*/</span><br><span class="line">const CONFIG = &#123;</span><br><span class="line">    key: &apos;koa:sess&apos;, /** 默认 */</span><br><span class="line">    maxAge: 10000,  /*  cookie的过期时间        【需要修改】  */</span><br><span class="line">    overwrite: true, /** (boolean) can overwrite or not (default true)    没有效果，默认 */</span><br><span class="line">    httpOnly: true, /**  true表示只有服务器端可以获取cookie */</span><br><span class="line">    signed: true, /** 默认 签名 */</span><br><span class="line">    rolling: true, /** 在每次请求时强行设置 cookie，这将重置 cookie 过期时间（默认：false） 【需要修改】 */</span><br><span class="line">    renew: false, /** (boolean) renew session when session is nearly expired      【需要修改】*/</span><br><span class="line">&#125;;</span><br><span class="line">app.use(session(CONFIG, app));</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">router.get(&apos;/&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //获取session</span><br><span class="line">    console.log(ctx.session.userinfo);</span><br><span class="line">    await ctx.render(&apos;index&apos;,&#123;</span><br><span class="line">        list:&#123;</span><br><span class="line">            name:&apos;张三&apos;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.get(&apos;/news&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //获取session</span><br><span class="line">    console.log(ctx.session.userinfo);</span><br><span class="line">    ctx.body=&quot;登录成功&quot;;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">router.get(&apos;/login&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //设置session</span><br><span class="line">    ctx.session.userinfo=&apos;张三&apos;;</span><br><span class="line">    ctx.body=&quot;登录成功&quot;;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">app.use(router.routes());   /*启动路由*/</span><br><span class="line">app.use(router.allowedMethods());</span><br><span class="line">app.listen(3000);</span><br></pre></td></tr></table></figure>
+<h3 id="Cookie-和-Session-区别"><a href="#Cookie-和-Session-区别" class="headerlink" title="Cookie 和 Session 区别"></a>Cookie 和 Session 区别</h3><p>1、cookie 数据存放在客户的浏览器上，session 数据放在服务器上。</p>
+<p>2、cookie 不是很安全，别人可以分析存放在本地的 COOKIE 并进行 COOKIE 欺骗考虑到安全应当使用 session。</p>
+<p>3、session 会在一定时间内保存在服务器上。当访问增多，会比较占用你服务器的性能考虑到减轻服务器性能方面，应当使用 COOKIE。</p>
+<p>4、单个 cookie 保存的数据不能超过 4K，很多浏览器都限制一个站点最多保存 20 个 cookie。    </p>
+<p>这两种是一样的；如果session不存在，就新建一个；如果是false的话，标识如果不存在就返回null；</p>
+<h3 id="生命周期"><a href="#生命周期" class="headerlink" title="生命周期"></a>生命周期</h3><p>session的生命周期指的是创建session对象到销毁的过程。会依据session对象设置的存活时间，在达到session时间后将session对象销毁。session生成后，只要用户继续访问，服务器就会更新session的最后访问时间，并维护该session。</p>
+<p>之前在单进程应用中，session我一般是存在内存中的，不会做持久化操作或者说使用三方的服务来存session信息，如<strong>redis</strong>。但是在分布式场景下，这种存在本机内存中的方式显然是不适用的，因为session无法共享。这个后面说。</p>
+<h3 id="session的有效期"><a href="#session的有效期" class="headerlink" title="session的有效期"></a>session的有效期</h3><p>session一般在内存中存放，内存空间本身大小就有一定的局限性，因此session需要采用一种过期删除的机制来确保session信息不会一直累积，来防止内存溢出的发生。</p>
+<p>session的超时时间可以通过maxInactiveInterval属性来设置。</p>
+<p>如果我们想让session失效的话，也可以当通过调用session的invalidate()来完成。</p>
+<h3 id="分布式session"><a href="#分布式session" class="headerlink" title="分布式session"></a>分布式session</h3><p>首先是为什么会有这样的概念出现？</p>
+<p>先考虑这样一个问题，现在我的应用需要部署在3台机器上。是不是出现这样一种情况，我第一次登陆，请求去了机器1，然后再机器1上创建了一个session；但是我第二次访问时，请求被路由到机器2了，但是机器2上并没有我的session信息，所以得重新登录。当然这种可以通过nginx的IP HASH负载策略来解决。对于同一个IP请求都会去同一个机器。</p>
+<p>但是业务发展的越来越大，拆分的越来越多，机器数不断增加；很显然那种方案就不行了。那么这个时候就需要考虑是不是应该将session信息放在一个独立的机器上，所以分布式session要解决的问题其实就是分布式环境下的session共享的问题。<br> <img src="/2018/08/25/Koa-session和cookie/2.webp" alt=""><br>上图中的关于session独立部署的方式有很多种，可以是一个独立的数据库服务，也可以是一个缓存服务(redis，目前比较常用的一种方式，即使用Redis来作为session缓存服务器)。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/24/async-并发执行和继发执行/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3025,366 +3348,6 @@ exportfunction thunkActionCreator(payload){
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/30/关于-ES6-中-Promise-的面试题/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/07/30/关于-ES6-中-Promise-的面试题/" itemprop="url">关于 ES6 中 Promise 的面试题</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-30T20:16:20+08:00">
-                2018-07-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="说明"><a href="#说明" class="headerlink" title="说明"></a>说明</h3><p>最近在复习 Promise 的知识，所以就做了一些题，这里挑出几道题，大家一起看看吧。</p>
-<h3 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h3><pre><code>const promise = newPromise((resolve, reject) =&gt; {
-    console.log(1);
-    resolve();
-    console.log(2);
-})
-
-promise.then(() =&gt; {
-    console.log(3);
-})
-
-console.log(4);
-</code></pre><h3 id="解析"><a href="#解析" class="headerlink" title="解析"></a>解析</h3><p>首先 Promise 新建后立即执行，所以会先输出 1，2，而 <code>Promise.then()</code> 内部的代码在 当次 事件循环的 结尾 立刻执行 ，所以会继续输出4，最后输出3。</p>
-<h3 id="答案"><a href="#答案" class="headerlink" title="答案"></a>答案</h3><pre><code>1243
-</code></pre><h3 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h3><pre><code>const promise = newPromise((resolve, reject) =&gt; {
-    resolve(&apos;success1&apos;);
-    reject(&apos;error&apos;);
-    resolve(&apos;success2&apos;);
-});
-
-promise.then((res) =&gt; {
-    console.log(&apos;then:&apos;, res);
-}).catch((err) =&gt; {
-    console.log(&apos;catch:&apos;, err);
-})
-</code></pre><h3 id="解析-1"><a href="#解析-1" class="headerlink" title="解析"></a>解析</h3><p><code>resolve 函数</code>将 Promise 对象的状态从<code>“未完成”变为“成功”</code>（即从 <code>pending 变为 resolved</code>），在异步操作成功时调用，并将异步操作的结果，作为参数传递出去；</p>
-<p><code>reject 函数</code>将 Promise 对象的状态从<code>“未完成”变为“失败”</code>（即从 <code>pending 变为 rejected</code>），在异步操作失败时调用，并将异步操作报出的错误，作为参数传递出去。</p>
-<p>而一旦状态改变，就不会再变。<br>所以 代码中的<code>reject(&#39;error&#39;);</code> 不会有作用。</p>
-<p>Promise 只能 resolve 一次，剩下的调用都会被忽略。<br>所以 第二次的 <code>resolve(&#39;success2&#39;);</code> 也不会有作用。</p>
-<h3 id="答案-1"><a href="#答案-1" class="headerlink" title="答案"></a>答案</h3><pre><code>then: success1
-</code></pre><h3 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h3><pre><code>Promise.resolve(1)
-  .then(2)
-  .then(Promise.resolve(3))
-  .then(console.log)
-</code></pre><h3 id="解析-2"><a href="#解析-2" class="headerlink" title="解析"></a>解析</h3><p><code>Promise.resolve</code> 方法的参数如果是一个原始值，或者是一个不具有 <code>then</code> 方法的对象，则 <code>Promise.resolve</code> 方法返回一个新的 <code>Promise</code> 对象，状态为<code>resolved</code>，<code>Promise.resolve</code> 方法的参数，会同时传给回调函数。</p>
-<p><code>then</code> 方法接受的参数是函数，而如果传递的并非是一个函数，它实际上会将其解释为 <code>then(null)</code>，这就会导致前一个 <code>Promise</code> 的结果会穿透下面。</p>
-<h3 id="答案-2"><a href="#答案-2" class="headerlink" title="答案"></a>答案</h3><pre><code>1
-</code></pre><h3 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h3><p>红灯三秒亮一次，绿灯一秒亮一次，黄灯2秒亮一次；如何让三个灯不断交替重复亮灯？（用Promse实现）三个亮灯函数已经存在：</p>
-<pre><code>functionred() {
-    console.log(&apos;red&apos;);
-}
-functiongreen() {
-    console.log(&apos;green&apos;);
-}
-functionyellow() {
-    console.log(&apos;yellow&apos;);
-}
-</code></pre><h3 id="解析-3"><a href="#解析-3" class="headerlink" title="解析"></a>解析</h3><p>红灯三秒亮一次，绿灯一秒亮一次，黄灯2秒亮一次，意思就是3秒，执行一次 red 函数，2秒执行一次 green 函数，1秒执行一次 yellow 函数，不断交替重复亮灯，意思就是按照这个顺序一直执行这3个函数，这步可以就利用递归来实现。</p>
-<h3 id="答案-3"><a href="#答案-3" class="headerlink" title="答案"></a>答案</h3><pre><code>functionred() {
-    console.log(&apos;red&apos;);
-}
-functiongreen() {
-    console.log(&apos;green&apos;);
-}
-functionyellow() {
-    console.log(&apos;yellow&apos;);
-}
-
-var light = function (timmer, cb) {
-    returnnewPromise(function (resolve, reject) {
-        setTimeout(function () {
-            cb();
-            resolve();
-        }, timmer);
-    });
-};
-
-var step = function () {
-    Promise.resolve().then(function () {
-        return light(3000, red);
-    }).then(function () {
-        return light(2000, green);
-    }).then(function () {
-        return light(1000, yellow);
-    }).then(function () {
-        step();
-    });
-}
-
-step();
-</code></pre><p>这个答案，看上去已经很不错了，不过经小伙伴提醒，如果一直这么递归下去，会有栈溢出的问题，对于这个问题，其他小伙伴有什么优化建议的话，可以在评论区展示出来。</p>
-<h3 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h3><p>实现 mergePromise 函数，把传进去的数组按顺序先后执行，并且把返回的数据先后放到数组 data 中。</p>
-<pre><code>const timeout = ms =&gt;newPromise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve();
-    }, ms);
-});
-
-const ajax1 = () =&gt; timeout(2000).then(() =&gt; {
-    console.log(&apos;1&apos;);
-    return1;
-});
-
-const ajax2 = () =&gt; timeout(1000).then(() =&gt; {
-    console.log(&apos;2&apos;);
-    return2;
-});
-
-const ajax3 = () =&gt; timeout(2000).then(() =&gt; {
-    console.log(&apos;3&apos;);
-    return3;
-});
-
-const mergePromise = ajaxArray =&gt; {
-    // 在这里实现你的代码
-
-};
-
-mergePromise([ajax1, ajax2, ajax3]).then(data =&gt; {
-    console.log(&apos;done&apos;);
-    console.log(data); // data 为 [1, 2, 3]
-});
-
-// 要求分别输出// 1// 2// 3// done// [1, 2, 3]
-</code></pre><h3 id="解析-4"><a href="#解析-4" class="headerlink" title="解析"></a>解析</h3><p>首先 <code>ajax1 、ajax2、ajax3</code> 都是函数，只是这些函数执行后会返回一个 <code>Promise</code>，按题目的要求我们只要顺序执行这三个函数就好了，然后把结果放到 <code>data</code> 中，但是这些函数里都是异步操作，想要按顺序执行，然后输出 1，2，3并没有那么简单，看个例子。</p>
-<pre><code>functionA() {
-    setTimeout(function () {
-        console.log(&apos;a&apos;);
-    }, 3000);
-}
-
-functionB() {
-    setTimeout(function () {
-        console.log(&apos;b&apos;);
-    }, 1000);
-}
-
-A();
-B();
-
-// b// a
-</code></pre><p>例子中我们是按顺序执行的 <code>A</code>，<code>B</code> 但是输出的结果却是 <code>b</code>，<code>a</code> 对于这些异步函数来说，并不会按顺序执行完一个，再执行后一个。<br>这道题就是考用 <code>Promise</code> 控制异步流程，我们要想办法，让这些函数，一个执行完之后，再执行下一个，看答案吧。</p>
-<h3 id="答案-4"><a href="#答案-4" class="headerlink" title="答案"></a>答案</h3><pre><code>// 保存数组中的函数执行后的结果var data = [];
-
-// Promise.resolve方法调用时不带参数，直接返回一个resolved状态的 Promise 对象。var sequence = Promise.resolve();
-
-ajaxArray.forEach(function (item) {
-    // 第一次的 then 方法用来执行数组中的每个函数，// 第二次的 then 方法接受数组中的函数执行后返回的结果，// 并把结果添加到 data 中，然后把 data 返回。
-    sequence = sequence.then(item).then(function (res) {
-        data.push(res);
-        return data;
-    });
-})
-
-// 遍历结束后，返回一个 Promise，也就是 sequence， 他的 [[PromiseValue]] 值就是 data，// 而 data（保存数组中的函数执行后的结果） 也会作为参数，传入下次调用的 then 方法中。return sequence;
-</code></pre><h3 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h3><p>以下代码最后输出什么？</p>
-<pre><code>const first = () =&gt; (newPromise((resolve, reject) =&gt; {
-    console.log(3);
-    let p = newPromise((resolve, reject) =&gt; {
-        console.log(7);
-        setTimeout(() =&gt; {
-            console.log(5);
-            resolve(6);
-        }, 0)
-        resolve(1);
-    });
-    resolve(2);
-    p.then((arg) =&gt; {
-        console.log(arg);
-    });
-
-}));
-
-first().then((arg) =&gt; {
-    console.log(arg);
-});
-console.log(4);
-</code></pre><h3 id="解析-5"><a href="#解析-5" class="headerlink" title="解析"></a>解析</h3><p>这道题就其实和 <code>Promise</code> 的关系不太大，主要是需要理解 JS执行机制，才能很好的解决这道题，对于 JS 执行机制不了解的朋友推荐看看这篇文章</p>
-<p><a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F59e85eebf265da430d571f89" target="_blank" rel="noopener">这一次，彻底弄懂 JavaScript 执行机制</a></p>
-<h4 id="第一轮事件循环"><a href="#第一轮事件循环" class="headerlink" title="第一轮事件循环"></a>第一轮事件循环</h4><p>先执行宏任务，主script ，new Promise立即执行，输出【3】，</p>
-<p>执行 p 这个new Promise 操作，输出【7】，</p>
-<p>发现 setTimeout，将回调放入下一轮任务队列（Event Queue），p 的 then，姑且叫做 then1，放入微任务队列，发现 first 的 then，叫 then2，放入微任务队列。执行<code>console.log(4)</code>，输出【4】，宏任务执行结束。</p>
-<p>再执行微任务，执行 then1，输出【1】，</p>
-<p>执行 then2，输出【2】。</p>
-<p>到此为止，第一轮事件循环结束。开始执行第二轮。</p>
-<h4 id="第二轮事件循环"><a href="#第二轮事件循环" class="headerlink" title="第二轮事件循环"></a>第二轮事件循环</h4><p>先执行宏任务里面的，也就是 setTimeout 的回调，输出【5】。<br><code>resolve(6)</code> 不会生效，因为 p 这个 Promise 的状态一旦改变就不会在改变了。</p>
-<h3 id="答案-5"><a href="#答案-5" class="headerlink" title="答案"></a>答案</h3><pre><code>374125
-</code></pre><h3 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h3><p>有 8 个图片资源的 url，已经存储在数组 <code>urls</code> 中（即<code>urls = [&#39;http://example.com/1.jpg&#39;, ...., &#39;http://example.com/8.jpg&#39;]）</code>，而且已经有一个函数 <code>function loadImg</code>，输入一个 url 链接，返回一个 Promise，该 Promise 在图片下载完成的时候 resolve，下载失败则 reject。<br>但是我们要求，任意时刻，同时下载的链接数量不可以超过 3 个。<br>请写一段代码实现这个需求，要求尽可能快速地将所有图片下载完成。</p>
-<pre><code>var urls = [&apos;https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/gray.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/Particle.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.png&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic2.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.gif&apos;, &apos;https://user-gold-cdn.xitu.io/2018/10/29/166be40ccc434be0?w=600&amp;h=342&amp;f=png&amp;s=122185&apos;];
-functionloadImg(url) {
-    returnnewPromise((resolve, reject) =&gt; {
-        const img = new Image()
-        img.onload = function () {
-            console.log(&apos;一张图片加载完成&apos;);
-            resolve();
-        }
-        img.onerror = reject
-        img.src = url
-    })
-};
-</code></pre><h3 id="解析-6"><a href="#解析-6" class="headerlink" title="解析"></a>解析</h3><p>题目的意思是需要我们这么做，先并发请求 3 张图片，当一张图片加载完成后，又会继续发起一张图片的请求，让并发数保持在 3 个，直到需要加载的图片都全部发起请求。</p>
-<p>用 Promise 来实现就是，先并发请求3个图片资源，这样可以得到 3 个 Promise，组成一个数组，就叫<code>promises</code> 吧，然后不断的调用 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fpromise%23Promise-race" target="_blank" rel="noopener">Promise.race</a> 来返回最快改变状态的 Promise，然后从数组（<code>promises</code>）中删掉这个 Promise 对象，再加入一个新的 Promise，直到全部的 url 被取完，最后再使用 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fpromise%23Promise-all" target="_blank" rel="noopener">Promise.all</a> 来处理一遍数组（<code>promises</code>）中没有改变状态的 Promise。</p>
-<h3 id="答案-6"><a href="#答案-6" class="headerlink" title="答案"></a>答案</h3><pre><code>var urls = [&apos;https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/gray.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/Particle.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.png&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic2.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.gif&apos;, &apos;https://user-gold-cdn.xitu.io/2018/10/29/166be40ccc434be0?w=600&amp;h=342&amp;f=png&amp;s=122185&apos;];
-functionloadImg(url) {
-    returnnewPromise((resolve, reject) =&gt; {
-        const img = new Image()
-        img.onload = function () {
-            console.log(&apos;一张图片加载完成&apos;);
-            resolve();
-        }
-        img.onerror = reject
-        img.src = url
-    })
-};
-
-functionlimitLoad(urls, handler, limit) {
-    // 对数组做一个拷贝const sequence = [].concat(urls)
-    let promises = [];
-
-    //并发请求到最大数
-    promises = sequence.splice(0, limit).map((url, index) =&gt; {
-        // 这里返回的 index 是任务在 promises 的脚标，用于在 Promise.race 之后找到完成的任务脚标return handler(url).then(() =&gt; {
-            return index
-        }); 
-    });
-
-    // 利用数组的 reduce 方法来以队列的形式执行return sequence.reduce((last, url, currentIndex) =&gt; {
-        return last.then(() =&gt; {
-            // 返回最快改变状态的 PromisereturnPromise.race(promises)
-        }).catch(err =&gt; {
-            // 这里的 catch 不仅用来捕获 前面 then 方法抛出的错误// 更重要的是防止中断整个链式调用console.error(err)
-        }).then((res) =&gt; {
-            // 用新的 Promise 替换掉最快改变状态的 Promise
-            promises[res] = handler(sequence[currentIndex]).then(() =&gt; { return res });
-        })
-    }, Promise.resolve()).then(() =&gt; {
-        returnPromise.all(promises)
-    })
-
-}
-limitLoad(urls, loadImg, 3)
-
-/*
-因为 limitLoad 函数也返回一个 Promise，所以当 所有图片加载完成后，可以继续链式调用
-
-limitLoad(urls, loadImg, 3).then(() =&gt; {
-    console.log(&apos;所有图片加载完成&apos;);
-}).catch(err =&gt; {
-    console.error(err);
-})
-*/
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3439,7 +3402,7 @@ limitLoad(urls, loadImg, 3).then(() =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">112</span>
+                  <span class="site-state-item-count">113</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3452,7 +3415,7 @@ limitLoad(urls, loadImg, 3).then(() =&gt; {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">87</span>
+                  <span class="site-state-item-count">89</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
