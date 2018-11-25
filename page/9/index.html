@@ -300,6 +300,296 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/02/Promise-必知必会/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/04/02/Promise-必知必会/" itemprop="url">Promise 必知必会</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-02T23:18:00+08:00">
+                2017-04-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="你不知道的-Promise-对象黑科技"><a href="#你不知道的-Promise-对象黑科技" class="headerlink" title="你不知道的 Promise 对象黑科技"></a><a href="https://zhuanlan.zhihu.com/p/30735250" target="_blank" rel="noopener">你不知道的 Promise 对象黑科技</a></h2><p>Promise 想必大家都十分熟悉，想想就那么几个 api，可是你真的了解 Promise 吗？本文根据 Promise 的一些知识点总结了十道题，看看你能做对几道。</p>
+<p>以下 promise 均指代 Promise 实例，环境是 Node.js。</p>
+<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  console.log(1)
+  resolve()
+  console.log(2)
+})
+promise.then(() =&gt; {
+  console.log(3)
+})
+console.log(4)
+</code></pre><p>运行结果：</p>
+<pre><code>1
+2
+4
+3
+</code></pre><p>解释：Promise 构造函数是同步执行的，promise.then 中的函数是异步执行的。</p>
+<h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  setTimeout(() =&gt; {
+    resolve(&apos;success&apos;)
+  }, 1000)
+})
+console.log(promise)
+promise
+  .then(() =&gt; {
+    console.log(promise)
+    throw new Error(&apos;error!!!&apos;)
+  })
+  .catch(err =&gt; {
+    console.log(promise)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>Promise { &lt;pending&gt; }
+Promise { &apos;success&apos; }
+Promise { &apos;success&apos; }
+</code></pre><p>解释：promise 有 3 种状态：pending、fulfilled 和 rejected。状态改变只能是 pending-&gt;fulfilled 或者 pending-&gt;rejected，状态一旦改变则不能再变。</p>
+<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  resolve(&apos;success1&apos;)
+  reject(&apos;error&apos;)
+  resolve(&apos;success2&apos;)
+})
+
+promise
+  .then((res) =&gt; {
+    console.log(&apos;then: &apos;, res)
+  })
+  .catch((err) =&gt; {
+    console.log(&apos;catch: &apos;, err)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>then: success1
+</code></pre><p>解释：构造函数中的 resolve 或 reject 只有第一次执行有效，多次调用没有任何作用，呼应代码二结论：promise 状态一旦改变则不能再变。</p>
+<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>Promise.resolve(1)
+  .then((res) =&gt; {
+    console.log(res)
+    return 2
+  })
+  .catch((err) =&gt; {
+    return 3
+  })
+  .then((res) =&gt; {
+    console.log(res)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>1
+2
+</code></pre><p>解释：promise 可以链式调用。提起链式调用我们通常会想到通过 return this 实现，不过 Promise 并不是这样实现的。promise 每次调用 .then 或者 .catch 都会返回一个新的 promise，从而实现了链式调用。</p>
+<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>const promise = new Promise((resolve, reject) =&gt; {
+  setTimeout(() =&gt; {
+    console.log(&apos;once&apos;)
+    resolve(&apos;success&apos;)
+  }, 1000)
+})
+
+const start = Date.now()
+promise.then((res) =&gt; {
+  console.log(res, Date.now() - start)
+})
+promise.then((res) =&gt; {
+  console.log(res, Date.now() - start)
+})
+</code></pre><p>运行结果：</p>
+<pre><code>once
+success 1005
+success 1007
+</code></pre><p>解释：promise 的 .then 或者 .catch 可以被调用多次，但这里 Promise 构造函数只执行一次。或者说 promise 内部状态一经改变，并且有了一个值，那么后续每次调用 .then 或者 .catch 都会直接拿到该值。</p>
+<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>Promise.resolve()
+  .then(() =&gt; {
+    return new Error(&apos;error!!!&apos;)
+  })
+  .then((res) =&gt; {
+    console.log(&apos;then: &apos;, res)
+  })
+  .catch((err) =&gt; {
+    console.log(&apos;catch: &apos;, err)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>then: Error: error!!!
+    at Promise.resolve.then (...)
+    at ...
+</code></pre><p>解释：.then 或者 .catch 中 return 一个 error 对象并不会抛出错误，所以不会被后续的 .catch 捕获，需要改成其中一种：</p>
+<ol>
+<li>return Promise.reject(new Error(‘error!!!’))</li>
+<li>throw new Error(‘error!!!’)</li>
+</ol>
+<p>因为返回任意一个非 promise 的值都会被包裹成 promise 对象，即 return new Error(‘error!!!’) 等价于 return Promise.resolve(new Error(‘error!!!’))。</p>
+<h2 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h2><pre><code>const promise = Promise.resolve()
+  .then(() =&gt; {
+    return promise
+  })
+promise.catch(console.error)
+</code></pre><p>运行结果：</p>
+<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
+    at &lt;anonymous&gt;
+    at process._tickCallback (internal/process/next_tick.js:188:7)
+    at Function.Module.runMain (module.js:667:11)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+</code></pre><p>解释：.then 或 .catch 返回的值不能是 promise 本身，否则会造成死循环。类似于：</p>
+<pre><code>process.nextTick(function tick () {
+  console.log(&apos;tick&apos;)
+  process.nextTick(tick)
+})
+</code></pre><h2 id="题目八"><a href="#题目八" class="headerlink" title="题目八"></a>题目八</h2><pre><code>Promise.resolve(1)
+  .then(2)
+  .then(Promise.resolve(3))
+  .then(console.log)
+</code></pre><p>运行结果：</p>
+<pre><code>1
+</code></pre><p>解释：.then 或者 .catch 的参数期望是函数，传入非函数则会发生值穿透。</p>
+<h2 id="题目九"><a href="#题目九" class="headerlink" title="题目九"></a>题目九</h2><pre><code>Promise.resolve()
+  .then(function success (res) {
+    throw new Error(&apos;error&apos;)
+  }, function fail1 (e) {
+    console.error(&apos;fail1: &apos;, e)
+  })
+  .catch(function fail2 (e) {
+    console.error(&apos;fail2: &apos;, e)
+  })
+</code></pre><p>运行结果：</p>
+<pre><code>fail2: Error: error
+    at success (...)
+    at ...
+</code></pre><p>解释：.then 可以接收两个参数，第一个是处理成功的函数，第二个是处理错误的函数。.catch 是 .then 第二个参数的简便写法，但是它们用法上有一点需要注意：.then 的第二个处理错误的函数捕获不了第一个处理成功的函数抛出的错误，而后续的 .catch 可以捕获之前的错误。当然以下代码也可以：</p>
+<pre><code>Promise.resolve()
+  .then(function success1 (res) {
+    throw new Error(&apos;error&apos;)
+  }, function fail1 (e) {
+    console.error(&apos;fail1: &apos;, e)
+  })
+  .then(function success2 (res) {
+  }, function fail2 (e) {
+    console.error(&apos;fail2: &apos;, e)
+  })
+</code></pre><h2 id="题目十"><a href="#题目十" class="headerlink" title="题目十"></a>题目十</h2><pre><code>process.nextTick(() =&gt; {
+  console.log(&apos;nextTick&apos;)
+})
+Promise.resolve()
+  .then(() =&gt; {
+    console.log(&apos;then&apos;)
+  })
+setImmediate(() =&gt; {
+  console.log(&apos;setImmediate&apos;)
+})
+console.log(&apos;end&apos;)
+</code></pre><p>运行结果：</p>
+<pre><code>end
+nextTick
+then
+setImmediate
+</code></pre><p>解释：process.nextTick 和 promise.then 都属于 microtasks，而 setImmediate 属于 macrotasks，在事件循环的 check 阶段执行。事件循环的每个阶段（macrotasks）之间都会执行 microtasks，事件循环的开始会先执行一次 microtasks。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/03/02/ES6-实现自己的-Promise/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -4803,434 +5093,6 @@ $.ajax({
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/08/14/JavaScript函数柯里化/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2016/08/14/JavaScript函数柯里化/" itemprop="url">JavaScript函数柯里化</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-08-14T20:00:52+08:00">
-                2016-08-14
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="什么是柯里化？"><a href="#什么是柯里化？" class="headerlink" title="什么是柯里化？"></a>什么是柯里化？</h2><h2 id="官方的说法"><a href="#官方的说法" class="headerlink" title="官方的说法"></a>官方的说法</h2><p>在计算机科学中，<a href="http://link.zhihu.com/?target=https%3A//zh.wikipedia.org/wiki/%25E6%259F%25AF%25E9%2587%258C%25E5%258C%2596" target="_blank" rel="noopener">柯里化</a>（英语：<code>Currying</code>），又译为<code>卡瑞化</code>或<code>加里化</code>，是把接受多个参数的函数变换成接受一个单一参数（最初函数的第一个参数）的函数，并且返回接受余下的参数而且返回结果的新函数的技术。这个技术由<code>克里斯托弗·斯特雷奇</code>以逻辑学家<code>哈斯凯尔·加里</code>命名的，尽管它是<code>Moses Schönfinkel</code>和<code>戈特洛布·弗雷格发明的</code>。</p>
-<p>在直觉上，柯里化声称如果你固定某些参数，你将得到接受余下参数的一个函数。</p>
-<p>在理论计算机科学中，柯里化提供了在简单的理论模型中，比如：只接受一个单一参数的<code>lambda</code>演算中，研究带有多个参数的函数的方式。</p>
-<p>函数柯里化的对偶是<code>Uncurrying</code>，一种使用匿名单参数函数来实现多参数函数的方法。</p>
-<h2 id="方便的理解"><a href="#方便的理解" class="headerlink" title="方便的理解"></a>方便的理解</h2><blockquote>
-<p>Currying概念其实很简单，只传递给函数一部分参数来调用它，让它返回一个函数去处理剩下的参数。</p>
-</blockquote>
-<p>如果我们需要实现一个求三个数之和的函数：</p>
-<pre><code>function add(x, y, z) {
-  return x + y + z;
-}
-console.log(add(1, 2, 3)); // 6
-var add = function(x) {
-  return function(y) {
-    return function(z) {
-      return x + y + z;
-    }
-  }
-}
-
-var addOne = add(1);
-var addOneAndTwo = addOne(2);
-var addOneAndTwoAndThree = addOneAndTwo(3);
-
-console.log(addOneAndTwoAndThree);
-</code></pre><p>这里我们定义了一个<code>add</code>函数，它接受一个参数并返回一个新的函数。调用<code>add</code>之后，返回的函数就通过闭包的方式记住了<code>add</code>的第一个参数。一次性地调用它实在是有点繁琐，好在我们可以使用一个特殊的<code>curry</code>帮助函数（<code>helper function</code>）使这类函数的定义和调用更加容易。</p>
-<p>用<code>ES6</code>的箭头函数，我们可以将上面的<code>add</code>实现成这样：</p>
-<pre><code>const add = x =&gt; y =&gt; z =&gt; x + y + z;
-</code></pre><p>好像使用箭头函数更清晰了许多。</p>
-<h2 id="偏函数？"><a href="#偏函数？" class="headerlink" title="偏函数？"></a>偏函数？</h2><p>来看这个函数：</p>
-<pre><code>function ajax(url, data, callback) {
-  // ..
-}
-</code></pre><p>有这样的一个场景：我们需要对多个不同的接口发起<code>HTTP</code>请求，有下列两种做法：</p>
-<ul>
-<li>在调用<code>ajax()</code>函数时，传入全局<code>URL</code>常量。</li>
-<li>创建一个已经预设<code>URL</code>实参的函数引用。</li>
-</ul>
-<p>下面我们创建一个新函数，其内部仍然发起<code>ajax()</code>请求，此外在等待接收另外两个实参的同时，我们手动将<code>ajax()</code>第一个实参设置成你关心的<code>API</code>地址。</p>
-<p>对于第一种做法，我们可能产生如下调用方式：</p>
-<pre><code>function ajaxTest1(data, callback) {
-  ajax(&apos;http://www.test.com/test1&apos;, data, callback);
-}
-
-function ajaxTest2(data, callback) {
-  ajax(&apos;http://www.test.com/test2&apos;, data, callback);
-}
-</code></pre><p>对于这两个类似的函数，我们还可以提取出如下的模式：</p>
-<pre><code>function beginTest(callback) {
-  ajaxTest1({
-    data: GLOBAL_TEST_1,
-  }, callback);
-}
-</code></pre><p>相信您已经看到了这样的模式：我们在函数调用现场（<code>function call-site</code>），将实参应用（<code>apply</code>） 于形参。如你所见，我们一开始仅应用了部分实参 —— 具体是将实参应用到<code>URL</code>形参 —— 剩下的实参稍后再应用。</p>
-<p>上述概念即为偏函数的定义，偏函数一个减少函数参数个数的过程；这里的参数个数指的是希望传入的形参的数量。我们通过<code>ajaxTest1()</code>把原函数<code>ajax()</code>的参数个数从<code>3</code>个减少到了<code>2</code>个。</p>
-<p>我们这样定义一个<code>partial()</code>函数：</p>
-<pre><code>function partial(fn, ...presetArgs) {
-  return function partiallyApplied(...laterArgs) {
-    return fn(...presetArgs, ...laterArgs);
-  }
-}
-</code></pre><p><code>partial()</code>函数接收<code>fn</code>参数，来表示被我们偏应用实参（<code>partially apply</code>）的函数。接着，<code>fn</code>形参之后，<code>presetArgs</code>数组收集了后面传入的实参，保存起来稍后使用。</p>
-<p>我们创建并<code>return</code>了一个新的内部函数（为了清晰明了，我们把它命名为<code>partiallyApplied(..)</code>），该函数中，<code>laterArgs</code>数组收集了全部实参。</p>
-<p>使用箭头函数，则更为简洁：</p>
-<pre><code>var partial =
-  (fn, ...presetArgs) =&gt;
-    (...laterArgs) =&gt;
-      fn(...presetArgs, ...laterArgs);
-</code></pre><p>使用偏函数的这种模式，我们重构之前的代码：</p>
-<pre><code>function ajax(url, data, callback) {
-  // ..
-}
-
-var ajaxTest1 = partial(ajax, &apos;http://www.test.com/test1&apos;);
-var ajaxTest2 = partial(ajax, &apos;http://www.test.com/test1&apos;);
-</code></pre><p>再次思考<code>beginTest()</code>函数，我们使用<code>partial()</code>来重构它应该怎么做呢？</p>
-<pre><code>function ajax(url, data, callback) {
-  // ..
-}
-
-// 版本1
-var beginTest = partial(ajax, &apos;http://www.test.com/test1&apos;, {
-  data: GLOBAL_TEST_1,
-});
-
-// 版本2
-var ajaxTest1 = partial(ajax, &apos;http://www.test.com/test1&apos;);
-var beginTest = partial(ajaxTest1, {
-  data: GLOBAL_TEST_1,
-});
-</code></pre><h2 id="一次传一个"><a href="#一次传一个" class="headerlink" title="一次传一个"></a>一次传一个</h2><p>相信你已经在上述例子中看到了版本2比起版本1的优势所在了，没错，柯里化就是：将一个带有多个参数的函数转换为一次一个的函数的过程。每次调用函数时，它只接受一个参数，并返回一个函数，直到传递所有参数为止。</p>
-<blockquote>
-<p>The process of converting a function that takes multiple arguments into a function that takes them one at a time.</p>
-<p>Each time the function is called it only accepts one argument and returns a function that takes one argument until all arguments are passed.</p>
-</blockquote>
-<p>假设我们已经创建了一个柯里化版本的<code>ajax()</code>函数<code>curriedAjax()</code>：</p>
-<pre><code>curriedAjax(&apos;http://www.test.com/test1&apos;)
-  ({
-    data: GLOBAL_TEST_1,
-  })
-  (function callback(data) {
-    // dosomething
-  });
-</code></pre><p>我们将三次调用分别拆解开来，这也许有助于我们理解整个过程：</p>
-<pre><code>var ajaxTest1 = curriedAjax(&apos;http://www.test.com/test1&apos;);
-
-var beginTest = ajaxTest1({
-  data: GLOBAL_TEST_1,
-});
-
-var ajaxCallback = beginTest(function callback(data) {
-  // dosomething
-});
-</code></pre><h2 id="实现柯里化"><a href="#实现柯里化" class="headerlink" title="实现柯里化"></a>实现柯里化</h2><p>那么，我们如何来实现一个自动的柯里化的函数呢？</p>
-<pre><code>var currying = function(fn) {
-  var args = [];
-
-  return function() {
-    if (arguments.length === 0) {
-      return fn.apply(this, args); // 没传参数时，调用这个函数
-    } else {
-      [].push.apply(args, arguments); // 传入了参数，把参数保存下来
-      return arguments.callee; // 返回这个函数的引用
-    }
-  }
-}
-</code></pre><p>调用上述<code>currying()</code>函数：</p>
-<pre><code>var cost = (function() {
-  var money = 0;
-  return function() {
-    for (var i = 0; i &lt; arguments.length; i++) {
-      money += arguments[i];
-    }
-    return money;
-  }
-})();
-
-var cost = currying(cost);
-
-cost(100); // 传入了参数，不真正求值
-cost(200); // 传入了参数，不真正求值
-cost(300); // 传入了参数，不真正求值
-
-console.log(cost()); // 求值并且输出600
-</code></pre><p>上述函数是我之前的<a href="http://link.zhihu.com/?target=https%3A//github.com/xingbofeng/JavaScript-design-patterns/blob/master/ch3-%25E9%2597%25AD%25E5%258C%2585%25E5%2592%258C%25E9%25AB%2598%25E9%2598%25B6%25E5%2587%25BD%25E6%2595%25B0/ch3-%25E9%2597%25AD%25E5%258C%2585%25E5%2592%258C%25E9%25AB%2598%25E9%2598%25B6%25E5%2587%25BD%25E6%2595%25B0.md%23currying" target="_blank" rel="noopener">JavaScript设计模式与开发实践读书笔记之闭包与高阶函数</a>所写的<code>currying</code>版本，现在仔细思考后发现仍旧有一些问题。</p>
-<blockquote>
-<p>我们在使用柯里化时，要注意同时为函数预传的参数的情况。</p>
-</blockquote>
-<p>因此把上述柯里化函数更改如下：</p>
-<pre><code>var currying = function(fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
-
-  return function() {
-    if (arguments.length === 0) {
-      return fn.apply(this, args); // 没传参数时，调用这个函数
-    } else {
-      [].push.apply(args, arguments); // 传入了参数，把参数保存下来
-      return arguments.callee; // 返回这个函数的引用
-    }
-  }
-}
-</code></pre><p>使用实例：</p>
-<pre><code>var cost = (function() {
-  var money = 0;
-  return function() {
-    for (var i = 0; i &lt; arguments.length; i++) {
-      money += arguments[i];
-    }
-    return money;
-  }
-})();
-
-var cost = currying(cost, 100);
-cost(200); // 传入了参数，不真正求值
-cost(300); // 传入了参数，不真正求值
-
-console.log(cost()); // 求值并且输出600
-</code></pre><p>你可能会觉得每次都要在最后调用一下不带参数的<code>cost()</code>函数比较麻烦，并且在<code>cost()</code>函数都要使用<code>arguments</code>参数不符合你的预期。我们知道函数都有一个<code>length</code>属性，表明函数期望接受的参数个数。因此我们可以充分利用预传参数的这个特点。</p>
-<p>借鉴自<a href="http://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog" target="_blank" rel="noopener">mqyqingfeng</a>：</p>
-<pre><code>function sub_curry(fn) {
-  var args = [].slice.call(arguments, 1);
-  return function() {
-    return fn.apply(this, args.concat([].slice.call(arguments)));
-  };
-}
-
-function curry(fn, length) {
-
-  length = length || fn.length;
-
-  var slice = Array.prototype.slice;
-
-  return function() {
-    if (arguments.length &lt; length) {
-      var combined = [fn].concat(slice.call(arguments));
-      return curry(sub_curry.apply(this, combined), length - arguments.length);
-    } else {
-      return fn.apply(this, arguments);
-    }
-  };
-}
-</code></pre><p>在上述函数中，我们在currying的返回函数中，每次把<code>arguments.length</code>和<code>fn.length</code>作比较，一旦<code>arguments.length</code>达到了<code>fn.length</code>的数量，我们就去调用<code>fn</code>(<code>return fn.apply(this, arguments);</code>)</p>
-<p>验证：</p>
-<pre><code>var fn = curry(function(a, b, c) {
-  return [a, b, c];
-});
-
-fn(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
-fn(&quot;a&quot;, &quot;b&quot;)(&quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
-fn(&quot;a&quot;)(&quot;b&quot;)(&quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
-fn(&quot;a&quot;)(&quot;b&quot;, &quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
-</code></pre><h2 id="bind方法的实现"><a href="#bind方法的实现" class="headerlink" title="bind方法的实现"></a>bind方法的实现</h2><p>使用柯里化，能够很方便地借用<code>call()</code>或者<code>apply()</code>实现<code>bind()</code>方法的<code>polyfill</code>。</p>
-<pre><code>Function.prototype.bind = Function.prototype.bind || function(context) {
-  var me = this;
-  var args = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    var innerArgs = Array.prototype.slice.call(arguments);
-    var finalArgs = args.concat(innerArgs);
-    return me.apply(contenxt, finalArgs);
-  }
-}
-</code></pre><p>上述函数有的问题在于不能兼容构造函数。我们通过判断this指向的对象的原型属性，来判断这个函数是否通过<code>new</code>作为构造函数调用，来使得上述<code>bind</code>方法兼容构造函数。</p>
-<p><a href="http://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind" target="_blank" rel="noopener">Function.prototype.bind() by MDN</a>如下说到：</p>
-<blockquote>
-<p>绑定函数适用于用new操作符 new 去构造一个由目标函数创建的新的实例。当一个绑定函数是用来构建一个值的，原来提供的 this 就会被忽略。然而, 原先提供的那些参数仍然会被前置到构造函数调用的前面。</p>
-</blockquote>
-<p>这是<a href="http://link.zhihu.com/?target=https%3A//book.douban.com/subject/10733304/" target="_blank" rel="noopener">基于MVC的JavaScript Web富应用开发</a>的<code>bind()</code>方法实现：</p>
-<pre><code>Function.prototype.bind = function(oThis) {
-  if (typeof this !== &quot;function&quot;) {
-    throw new TypeError(&quot;Function.prototype.bind - what is trying to be bound is not callable&quot;);
-  }
-
-  var aArgs = Array.prototype.slice.call(arguments, 1),
-    fToBind = this,
-    fNOP = function() {},
-    fBound = function() {
-      return fToBind.apply(
-        this instanceof fNOP &amp;&amp; oThis ? this : oThis || window,
-        aArgs.concat(Array.prototype.slice.call(arguments))
-      );
-    };
-
-  fNOP.prototype = this.prototype;
-  fBound.prototype = new fNOP();
-
-  return fBound;
-};
-</code></pre><h2 id="反柯里化（uncurrying）"><a href="#反柯里化（uncurrying）" class="headerlink" title="反柯里化（uncurrying）"></a>反柯里化（uncurrying）</h2><p>可能遇到这种情况：拿到一个柯里化后的函数，却想要它柯里化之前的版本，这本质上就是想将类似<code>f(1)(2)(3)</code>的函数变回类似<code>g(1,2,3)</code>的函数。</p>
-<p>下面是简单的<code>uncurrying</code>的实现方式：</p>
-<pre><code>function uncurrying(fn) {
-  return function(...args) {
-    var ret = fn;
-
-    for (let i = 0; i &lt; args.length; i++) {
-      ret = ret(args[i]); // 反复调用currying版本的函数
-    }
-
-    return ret; // 返回结果
-  };
-}
-</code></pre><blockquote>
-<p>注意，不要以为uncurrying后的函数和currying之前的函数一模一样，它们只是行为类似！</p>
-</blockquote>
-<pre><code>var currying = function(fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
-
-  return function() {
-    if (arguments.length === 0) {
-      return fn.apply(this, args); // 没传参数时，调用这个函数
-    } else {
-      [].push.apply(args, arguments); // 传入了参数，把参数保存下来
-      return arguments.callee; // 返回这个函数的引用
-    }
-  }
-}
-
-function uncurrying(fn) {
-  return function(...args) {
-    var ret = fn;
-
-    for (let i = 0; i &lt; args.length; i++) {
-      ret = ret(args[i]); // 反复调用currying版本的函数
-    }
-
-    return ret; // 返回结果
-  };
-}
-
-var cost = (function() {
-  var money = 0;
-  return function() {
-    for (var i = 0; i &lt; arguments.length; i++) {
-      money += arguments[i];
-    }
-    return money;
-  }
-})();
-
-var curryingCost = currying(cost);
-var uncurryingCost = uncurrying(curryingCost);
-console.log(uncurryingCost(100, 200, 300)()); // 600
-</code></pre><h2 id="柯里化或偏函数有什么用？"><a href="#柯里化或偏函数有什么用？" class="headerlink" title="柯里化或偏函数有什么用？"></a>柯里化或偏函数有什么用？</h2><p>无论是柯里化还是偏应用，我们都能进行部分传值，而传统函数调用则需要预先确定所有实参。如果你在代码某一处只获取了部分实参，然后在另一处确定另一部分实参，这个时候柯里化和偏应用就能派上用场。</p>
-<p>另一个最能体现柯里化应用的的是，当函数只有一个形参时，我们能够比较容易地组合它们（<code>单一职责原则（Single responsibility principle）</code>）。因此，如果一个函数最终需要三个实参，那么它被柯里化以后会变成需要三次调用，每次调用需要一个实参的函数。当我们组合函数时，这种单元函数的形式会让我们处理起来更简单。</p>
-<p>归纳下来，主要为以下常见的三个用途：</p>
-<ul>
-<li>延迟计算</li>
-<li>参数复用</li>
-<li>动态生成函数</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -5285,7 +5147,7 @@ console.log(uncurryingCost(100, 200, 300)()); // 600
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">113</span>
+                  <span class="site-state-item-count">114</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -5298,7 +5160,7 @@ console.log(uncurryingCost(100, 200, 300)()); // 600
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">90</span>
+                  <span class="site-state-item-count">92</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
