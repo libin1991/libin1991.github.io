@@ -300,6 +300,582 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/02/JS之call和apply-bind的模拟实现/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/09/02/JS之call和apply-bind的模拟实现/" itemprop="url">JS之call和apply,bind的模拟实现</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-02T22:39:16+08:00">
+                2017-09-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="call"><a href="#call" class="headerlink" title="call"></a>call</h2><p>一句话介绍 call：</p>
+<blockquote>
+<p>call() 方法在使用一个指定的 this 值和若干个指定的参数值的前提下调用某个函数或方法。</p>
+</blockquote>
+<p>举个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+bar.call(foo); // 1
+</code></pre><p>注意两点：</p>
+<ol>
+<li>call 改变了 this 的指向，指向到 foo</li>
+<li>bar 函数执行了</li>
+</ol>
+<h2 id="模拟实现第一步"><a href="#模拟实现第一步" class="headerlink" title="模拟实现第一步"></a>模拟实现第一步</h2><p>那么我们该怎么模拟实现这两个效果呢？</p>
+<p>试想当调用 call 的时候，把 foo 对象改造成如下：</p>
+<pre><code>var foo = {
+    value: 1,
+    bar: function() {
+        console.log(this.value)
+    }
+};
+
+foo.bar(); // 1
+</code></pre><p>这个时候 this 就指向了 foo，是不是很简单呢？</p>
+<p>但是这样却给 foo 对象本身添加了一个属性，这可不行呐！</p>
+<p>不过也不用担心，我们用 delete 再删除它不就好了~</p>
+<p>所以我们模拟的步骤可以分为：</p>
+<ol>
+<li>将函数设为对象的属性</li>
+<li>执行该函数</li>
+<li>删除该函数</li>
+</ol>
+<p>以上个例子为例，就是：</p>
+<pre><code>// 第一步
+foo.fn = bar
+// 第二步
+foo.fn()
+// 第三步
+delete foo.fn
+</code></pre><p>fn 是对象的属性名，反正最后也要删除它，所以起成什么都无所谓。</p>
+<p>根据这个思路，我们可以尝试着去写第一版的 call2 函数：</p>
+<pre><code>// 第一版
+Function.prototype.call2 = function(context) {
+    // 首先要获取调用call的函数，用this可以获取
+    context.fn = this;
+    context.fn();
+    delete context.fn;
+}
+
+// 测试一下
+var foo = {
+    value: 1
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+bar.call2(foo); // 1
+</code></pre><p>正好可以打印 1 哎！是不是很开心！(～￣▽￣)～</p>
+<h2 id="模拟实现第二步"><a href="#模拟实现第二步" class="headerlink" title="模拟实现第二步"></a>模拟实现第二步</h2><p>最一开始也讲了，call 函数还能给定参数执行函数。举个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    console.log(name)
+    console.log(age)
+    console.log(this.value);
+}
+
+bar.call(foo, &apos;kevin&apos;, 18);
+// kevin
+// 18
+// 1
+</code></pre><p>注意：传入的参数并不确定，这可咋办？</p>
+<p>不急，我们可以从 Arguments 对象中取值，取出第二个到最后一个参数，然后放到一个数组里。</p>
+<p>比如这样：</p>
+<pre><code>// 以上个例子为例，此时的arguments为：
+// arguments = {
+//      0: foo,
+//      1: &apos;kevin&apos;,
+//      2: 18,
+//      length: 3
+// }
+// 因为arguments是类数组对象，所以可以用for循环
+var args = [];
+for(var i = 1, len = arguments.length; i &lt; len; i++) {
+    args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+}
+
+// 执行后 args为 [foo, &apos;kevin&apos;, 18]
+</code></pre><p>不定长的参数问题解决了，我们接着要把这个参数数组放到要执行的函数的参数里面去。</p>
+<pre><code>// 将数组里的元素作为多个参数放进函数的形参里
+context.fn(args.join(&apos;,&apos;))
+// (O_o)??
+// 这个方法肯定是不行的啦！！！
+</code></pre><p>也许有人想到用 ES6 的方法，不过 call 是 ES3 的方法，我们为了模拟实现一个 ES3 的方法，要用到ES6的方法，好像……，嗯，也可以啦。但是我们这次用 eval 方法拼成一个函数，类似于这样：</p>
+<pre><code>eval(&apos;context.fn(&apos; + args +&apos;)&apos;)
+</code></pre><p>这里 args 会自动调用 Array.toString() 这个方法。</p>
+<p>所以我们的第二版克服了两个大问题，代码如下：</p>
+<pre><code>// 第二版
+Function.prototype.call2 = function(context) {
+    context.fn = this;
+    var args = [];
+    for(var i = 1, len = arguments.length; i &lt; len; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+    eval(&apos;context.fn(&apos; + args +&apos;)&apos;);
+    delete context.fn;
+}
+
+// 测试一下
+var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    console.log(name)
+    console.log(age)
+    console.log(this.value);
+}
+
+bar.call2(foo, &apos;kevin&apos;, 18); 
+// kevin
+// 18
+// 1
+</code></pre><p>(๑•̀ㅂ•́) ✧</p>
+<h2 id="模拟实现第三步"><a href="#模拟实现第三步" class="headerlink" title="模拟实现第三步"></a>模拟实现第三步</h2><p>模拟代码已经完成 80%，还有两个小点要注意：</p>
+<p>1.this 参数可以传 null，当为 null 的时候，视为指向 window</p>
+<p>举个例子：</p>
+<pre><code>var value = 1;
+
+function bar() {
+    console.log(this.value);
+}
+
+bar.call(null); // 1
+</code></pre><p>虽然这个例子本身不使用 call，结果依然一样。</p>
+<p>2.函数是可以有返回值的！</p>
+<p>举个例子：</p>
+<pre><code>var obj = {
+    value: 1
+}
+
+function bar(name, age) {
+    return {
+        value: this.value,
+        name: name,
+        age: age
+    }
+}
+
+console.log(bar.call(obj, &apos;kevin&apos;, 18));
+// Object {
+//    value: 1,
+//    name: &apos;kevin&apos;,
+//    age: 18
+// }
+</code></pre><p>不过都很好解决，让我们直接看第三版也就是最后一版的代码：</p>
+<pre><code>// 第三版
+Function.prototype.call2 = function (context) {
+    var context = context || window;
+    context.fn = this;
+
+    var args = [];
+    for(var i = 1, len = arguments.length; i &lt; len; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+
+    var result = eval(&apos;context.fn(&apos; + args +&apos;)&apos;);
+
+    delete context.fn
+    return result;
+}
+
+// 测试一下
+var value = 2;
+
+var obj = {
+    value: 1
+}
+
+function bar(name, age) {
+    console.log(this.value);
+    return {
+        value: this.value,
+        name: name,
+        age: age
+    }
+}
+
+bar.call(null); // 2
+
+console.log(bar.call2(obj, &apos;kevin&apos;, 18));
+// 1
+// Object {
+//    value: 1,
+//    name: &apos;kevin&apos;,
+//    age: 18
+// }
+</code></pre><p>到此，我们完成了 call 的模拟实现，给自己一个赞 ｂ（￣▽￣）ｄ</p>
+<h2 id="apply的模拟实现"><a href="#apply的模拟实现" class="headerlink" title="apply的模拟实现"></a>apply的模拟实现</h2><p>apply 的实现跟 call 类似，在这里直接给代码，代码来自于知乎 @郑航的实现：</p>
+<pre><code>Function.prototype.apply = function (context, arr) {
+    var context = Object(context) || window;
+    context.fn = this;
+
+    var result;
+    if (!arr) {
+        result = context.fn();
+    }
+    else {
+        var args = [];
+        for (var i = 0, len = arr.length; i &lt; len; i++) {
+            args.push(&apos;arr[&apos; + i + &apos;]&apos;);
+        }
+        result = eval(&apos;context.fn(&apos; + args + &apos;)&apos;)
+    }
+
+    delete context.fn
+    return result;
+}
+</code></pre><p><img src="https://pic1.zhimg.com/v2-23784bc5e0ab2bdcb4b879e5d28617c6_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-23784bc5e0ab2bdcb4b879e5d28617c6_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-9374916fd3f03dab5836b9fc4057070a_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-9374916fd3f03dab5836b9fc4057070a_hd.jpg" alt=""></p>
+<p><img src="https://pic3.zhimg.com/v2-7fe454d5cfd72880650f53a4f50c93cd_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-7fe454d5cfd72880650f53a4f50c93cd_hd.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/v2-4f15656852b764a859194a3d7156ea99_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4f15656852b764a859194a3d7156ea99_hd.jpg" alt=""></p>
+<pre><code>类数组转对象
+在上面的例子中已经提到了一种类数组转数组的方法，再补充三个：
+var arrayLike = {0: &apos;name&apos;, 1: &apos;age&apos;, 2: &apos;sex&apos;, length: 3 }
+// 1. slice
+Array.prototype.slice.call(arrayLike); // [&quot;name&quot;, &quot;age&quot;, &quot;sex&quot;] 
+// 2. splice
+Array.prototype.splice.call(arrayLike, 0); // [&quot;name&quot;, &quot;age&quot;, &quot;sex&quot;] 
+// 3. ES6 Array.from
+Array.from(arrayLike); // [&quot;name&quot;, &quot;age&quot;, &quot;sex&quot;] 
+// 4. apply
+Array.prototype.concat.apply([], arrayLike)   
+
+
+
+
+要说到类数组对象，Arguments 对象就是一个类数组对象。
+在客户端 JavaScript 中，一些 DOM 方法(document.getElementsByTagName()等)也返回类数组对象。
+
+
+传递参数
+将参数从一个函数传递到另一个函数
+// 使用 apply 将 foo 的参数传递给 bar
+function foo() {
+    bar.apply(this, arguments);
+}
+function bar(a, b, c) {
+   console.log(a, b, c);
+}
+
+foo(1, 2, 3)
+
+
+
+
+强大的ES6
+使用ES6的 ... 运算符，我们可以轻松转成数组。
+function func(...arguments) {
+    console.log(arguments); // [1, 2, 3]
+}
+
+func(1, 2, 3);
+</code></pre><h2 id="bind"><a href="#bind" class="headerlink" title="bind"></a>bind</h2><p>一句话介绍 bind:</p>
+<blockquote>
+<p>bind() 方法会创建一个新函数。当这个新函数被调用时，bind() 的第一个参数将作为它运行时的 this，之后的一序列参数将会在传递的实参前传入作为它的参数。(来自于 MDN )</p>
+</blockquote>
+<p>由此我们可以首先得出 bind 函数的两个特点：</p>
+<ol>
+<li>返回一个函数</li>
+<li>可以传入参数</li>
+</ol>
+<h2 id="返回函数的模拟实现"><a href="#返回函数的模拟实现" class="headerlink" title="返回函数的模拟实现"></a>返回函数的模拟实现</h2><p>从第一个特点开始，我们举个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+// 返回了一个函数
+var bindFoo = bar.bind(foo); 
+
+bindFoo(); // 1
+</code></pre><p>关于指定 this 的指向，我们可以使用 call 或者 apply 实现，关于 call 和 apply 的模拟实现，可以查看<a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/11" target="_blank" rel="noopener">《JavaScript深入之call和apply的模拟实现》</a>。我们来写第一版的代码：</p>
+<pre><code>// 第一版
+Function.prototype.bind2 = function (context) {
+    var self = this;
+    return function () {
+        self.apply(context);
+    }
+
+}
+</code></pre><h2 id="传参的模拟实现"><a href="#传参的模拟实现" class="headerlink" title="传参的模拟实现"></a>传参的模拟实现</h2><p>接下来看第二点，可以传入参数。这个就有点让人费解了，我在 bind 的时候，是否可以传参呢？我在执行 bind 返回的函数的时候，可不可以传参呢？让我们看个例子：</p>
+<pre><code>var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    console.log(this.value);
+    console.log(name);
+    console.log(age);
+
+}
+
+var bindFoo = bar.bind(foo, &apos;daisy&apos;);
+bindFoo(&apos;18&apos;);
+// 1
+// daisy
+// 18
+</code></pre><p>函数需要传 name 和 age 两个参数，竟然还可以在 bind 的时候，只传一个 name，在执行返回的函数的时候，再传另一个参数 age!</p>
+<p>这可咋办？不急，我们用 arguments 进行处理：</p>
+<pre><code>// 第二版
+Function.prototype.bind2 = function (context) {
+
+    var self = this;
+    // 获取bind2函数从第二个参数到最后一个参数
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    return function () {
+        // 这个时候的arguments是指bind返回的函数传入的参数
+        var bindArgs = Array.prototype.slice.call(arguments);
+        self.apply(context, args.concat(bindArgs));
+    }
+
+}
+</code></pre><h2 id="构造函数效果的模拟实现"><a href="#构造函数效果的模拟实现" class="headerlink" title="构造函数效果的模拟实现"></a>构造函数效果的模拟实现</h2><p>完成了这两点，最难的部分到啦！因为 bind 还有一个特点，就是</p>
+<blockquote>
+<p>一个绑定函数也能使用new操作符创建对象：这种行为就像把原函数当成构造器。提供的 this 值被忽略，同时调用时的参数被提供给模拟函数。</p>
+</blockquote>
+<p>也就是说当 bind 返回的函数作为构造函数的时候，bind 时指定的 this 值会失效，但传入的参数依然生效。举个例子：</p>
+<pre><code>var value = 2;
+
+var foo = {
+    value: 1
+};
+
+function bar(name, age) {
+    this.habit = &apos;shopping&apos;;
+    console.log(this.value);
+    console.log(name);
+    console.log(age);
+}
+
+bar.prototype.friend = &apos;kevin&apos;;
+
+var bindFoo = bar.bind(foo, &apos;daisy&apos;);
+
+var obj = new bindFoo(&apos;18&apos;);
+// undefined
+// daisy
+// 18
+console.log(obj.habit);
+console.log(obj.friend);
+// shopping
+// kevin
+</code></pre><p>注意：尽管在全局和 foo 中都声明了 value 值，最后依然返回了 undefind，说明绑定的 this 失效了，如果大家了解 new 的模拟实现，就会知道这个时候的 this 已经指向了 obj。</p>
+<p>(哈哈，我这是为我的下一篇文章<a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/13" target="_blank" rel="noopener">《JavaScript深入系列之new的模拟实现》</a>打广告)。</p>
+<p>所以我们可以通过修改返回的函数的原型来实现，让我们写一下：</p>
+<pre><code>// 第三版
+Function.prototype.bind2 = function (context) {
+    var self = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var fBound = function () {
+        var bindArgs = Array.prototype.slice.call(arguments);
+        // 当作为构造函数时，this 指向实例，此时结果为 true，将绑定函数的 this 指向该实例，可以让实例获得来自绑定函数的值
+        // 以上面的是 demo 为例，如果改成 `this instanceof fBound ? null : context`，实例只是一个空对象，将 null 改成 this ，实例会具有 habit 属性
+        // 当作为普通函数时，this 指向 window，此时结果为 false，将绑定函数的 this 指向 context
+        self.apply(this instanceof fBound ? this : context, args.concat(bindArgs));
+    }
+    // 修改返回函数的 prototype 为绑定函数的 prototype，实例就可以继承绑定函数的原型中的值
+    fBound.prototype = this.prototype;
+    return fBound;
+}
+</code></pre><p>如果对原型链稍有困惑，可以查看<a href="https://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog/issues/2" target="_blank" rel="noopener">《JavaScript深入之从原型到原型链》</a>。</p>
+<h2 id="构造函数效果的优化实现"><a href="#构造函数效果的优化实现" class="headerlink" title="构造函数效果的优化实现"></a>构造函数效果的优化实现</h2><p>但是在这个写法中，我们直接将 fBound.prototype = this.prototype，我们直接修改 fBound.prototype 的时候，也会直接修改绑定函数的 prototype。这个时候，我们可以通过一个空函数来进行中转：</p>
+<pre><code>// 第四版
+Function.prototype.bind2 = function (context) {
+
+    var self = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var fNOP = function () {};
+
+    var fBound = function () {
+        var bindArgs = Array.prototype.slice.call(arguments);
+        self.apply(this instanceof fNOP ? this : context, args.concat(bindArgs));
+    }
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+    return fBound;
+}
+</code></pre><p>到此为止，大的问题都已经解决，给自己一个赞！o(￣▽￣)ｄ</p>
+<h2 id="三个小问题"><a href="#三个小问题" class="headerlink" title="三个小问题"></a>三个小问题</h2><p>接下来处理些小问题:</p>
+<p>1.apply 这段代码跟 MDN 上的稍有不同</p>
+<p>在 MDN 中文版讲 bind 的模拟实现时，apply 这里的代码是：</p>
+<pre><code>self.apply(this instanceof self ? this : context || this, args.concat(bindArgs))
+</code></pre><p>多了一个关于 context 是否存在的判断，然而这个是错误的！</p>
+<p>举个例子：</p>
+<pre><code>var value = 2;
+var foo = {
+    value: 1,
+    bar: bar.bind(null)
+};
+
+function bar() {
+    console.log(this.value);
+}
+
+foo.bar() // 2
+</code></pre><p>以上代码正常情况下会打印 2，如果换成了 context || this，这段代码就会打印 1！</p>
+<p>所以这里不应该进行 context 的判断，大家查看 MDN 同样内容的英文版，就不存在这个判断！</p>
+<p>2.调用 bind 的不是函数咋办？</p>
+<p>不行，我们要报错！</p>
+<pre><code>if (typeof this !== &quot;function&quot;) {
+  throw new Error(&quot;Function.prototype.bind - what is trying to be bound is not callable&quot;);
+}
+</code></pre><p>3.我要在线上用</p>
+<p>那别忘了做个兼容：</p>
+<pre><code>Function.prototype.bind = Function.prototype.bind || function () {
+    ……
+};
+</code></pre><p>当然最好是用 <a href="https://link.zhihu.com/?target=https%3A//github.com/es-shims/es5-shim" target="_blank" rel="noopener">es5-shim</a> 啦。</p>
+<h2 id="最终代码"><a href="#最终代码" class="headerlink" title="最终代码"></a>最终代码</h2><p>所以最最后的代码就是：</p>
+<pre><code>Function.prototype.bind2 = function (context) {
+
+    if (typeof this !== &quot;function&quot;) {
+      throw new Error(&quot;Function.prototype.bind - what is trying to be bound is not callable&quot;);
+    }
+
+    var self = this;
+    var args = Array.prototype.slice.call(arguments, 1);
+
+    var fNOP = function () {};
+
+    var fBound = function () {
+        var bindArgs = Array.prototype.slice.call(arguments);
+        self.apply(this instanceof fNOP ? this : context, args.concat(bindArgs));
+    }
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+    return fBound;
+}
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/08/30/async-await-小技巧/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2781,359 +3357,6 @@ $ npm bin
 <h1 id="包的发布包的发布"><a href="#包的发布包的发布" class="headerlink" title="包的发布包的发布"></a><a href="#包的发布">包的发布</a>包的发布</h1><p>通过使用 <code>npm init</code> 可以根据交互式回答产生一个符合标准的 <code>package.json</code>。创建一个 <code>index.js</code> 作为包的接口,一个简单的包就制作完成了。<br>在发布前,我们还需要获得一个账号用于今后维护自己的包,使用 <code>npm adduser</code> 根据提示完成账号的创建<br>完成后可以使用 <code>npm whoami</code> 检测是否已经取得了账号。<br>接下来,在 <code>package.json</code> 所在目录下运行 <code>npm publish</code>，稍等片刻就可以完成发布了，打开浏览器，访问 <a href="http://search.npmjs.org/" target="_blank" rel="noopener">NPM搜索</a> 就可以找到自己刚刚发布的包了。现在我们可以在世界的任意一台计算机上使用 <code>npm install neveryumodule</code> 命令来安装它。<br>如果你的包将来有更新,只需要在 <code>package.json</code> 文件中修改 <code>version</code> 字段,然后重新使用 <code>npm publish</code>命令就行了。<br>如果你对已发布的包不满意，可以使用 <code>npm unpublish</code> 命令来取消发布。</p>
 <p><em>需要说明的是： <code>json</code> 文件不能有注释</em></p>
 <h3 id="常用命令"><a href="#常用命令" class="headerlink" title="常用命令"></a>常用命令</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">package.json 好处</span><br><span class="line"> 1.以json文件格式定义项目所依赖的包；</span><br><span class="line"> 2.确定每个包的使用版本；</span><br><span class="line"> 3.项目构建可重复，多人协助公用一套基础代码；</span><br><span class="line"> 4.npm init 初始化 【必须含有的两个：name 和 version】</span><br><span class="line">   &#123;</span><br><span class="line">     &quot;name&quot;: &quot;react-redux-webpack&quot;,</span><br><span class="line">     &quot;version&quot;: &quot;1.1.0&quot;,</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">devDependencies    ：开发环境和测试环境所依赖的包列表</span><br><span class="line">dependencies       ：在生产环境使用的依赖包列表</span><br><span class="line"></span><br><span class="line">    dependencies下记录的是项目在运行时必须依赖的插件，常见的例如react jquery等，即及时项目打包好了、上线了，</span><br><span class="line">   这些也是需要用的，否则程序无法正常执行。</span><br><span class="line">    devDependencies下记录的是项目在开发过程中使用的插件，例如这里我们开发过程中需要使用webpack打包，</span><br><span class="line">    而我在工作中使用fis3打包，但是一旦项目打包发布、上线了之后，webpack和fis3就都没有用了，可卸磨杀驴。</span><br><span class="line"></span><br><span class="line">本地安装 npm install --save|--save-dev 分别写入  dependencies|devDependencies 中；</span><br><span class="line">简写：     npm i -S pkg      |  npm i -D pkg</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">包（package)和模块（module）</span><br><span class="line">包：package.json 文件所描述的文件夹或者文件，符合CommonJS规范</span><br><span class="line">模块：任何被node.js中的require所载入的文件</span><br><span class="line"></span><br><span class="line">~ 会匹配最近的小版本依赖包，比如~1.2.3会匹配所有1.2.x版本，但是不包括1.3.0</span><br><span class="line">^ 会匹配最新的大版本依赖包，比如^1.2.3会匹配所有1.x.x的包，包括1.3.0，但是不包括2.0.0</span><br><span class="line">* 这意味着安装最新版本的依赖包</span><br><span class="line"></span><br><span class="line">常用命令:</span><br><span class="line">    npm init -y    //强制生成</span><br><span class="line">	npm init //在项目中引导创建一个package.json文件</span><br><span class="line">	npm search mkdir   //寻找包使用npm search命令</span><br><span class="line">	npm help //查看某条命令的详细帮助 </span><br><span class="line">	npm root //查看包的安装路径</span><br><span class="line">	npm config //管理npm的配置路径</span><br><span class="line">	npm prefix -g   //查看全局安装的包位置  -g全局</span><br><span class="line">	npm cache  //管理模块的缓存 ,可以使用下面命令，偶尔清楚一下缓存：      eg: npm cache clean</span><br><span class="line">	npm info webpack   //查看webpack 版本信息</span><br><span class="line">	npm install pkg //安装模块 简写：npm i pkg   ,带版本:  npm install underscore@1.8.2</span><br><span class="line">	npm uninstall //卸载模块   eg: npm uninstall webpack</span><br><span class="line">	npm update   // 更新模块   npm update underscore</span><br><span class="line">	npm outdated  //检查模块是否已经过时</span><br><span class="line">	npm ls   //查看安装的模块 </span><br><span class="line">	npm list  //可以查看全局路径下的所有包    eg:   npm list --global</span><br><span class="line">	          //也可以使用--depth=0来缩短返回的结果   eg:     npm list -g --depth=0</span><br><span class="line">	npm stop  //停止模块</span><br><span class="line">	npm restart  //重新启动模块</span><br><span class="line">	npm test //测试模块 </span><br><span class="line">	npm version //查看模块版本</span><br><span class="line">	npm publish //发布模块</span><br><span class="line"></span><br><span class="line">简写:</span><br><span class="line">	npm i – 安装包</span><br><span class="line">	npm i -g – 安装包到全局下</span><br><span class="line">	npm un – 删除本地下包</span><br><span class="line">	npm up – 更新包</span><br><span class="line">	npm t – 运行测试</span><br><span class="line">	npm ls – 罗列已经安装包</span><br><span class="line">	npm ll or npm la – 罗列包时显示额外信息</span><br><span class="line"></span><br><span class="line">    npm i express momemt lodash mongoose  webpack   //也可以一次安装多个包</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    yarn cache clean   //删除电脑上所有 yarn 安装的缓存</span><br><span class="line">    yarn   //命令安装项目相关依赖</span><br><span class="line">    yarn cache dir //获取缓存文件夹地址</span><br></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/18/简化版的vue-router/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/04/18/简化版的vue-router/" itemprop="url">简化版的vue-router</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-18T15:12:24+08:00">
-                2017-04-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>本文旨在介绍<code>vue-router</code>的实现思路，并动手实现一个简化版的<code>vue-router</code>。<br>我们先来看一下一般项目中对<code>vue-router</code>最基本的一个使用，可以看到，这里定义了四个路由组件,我们只要在根<code>vue</code>实例中注入该<code>router</code>对象就可以使用了.</p>
-<pre><code>import VueRouter from&apos;vue-router&apos;;
-import Home from&apos;@/components/Home&apos;;
-import A from&apos;@/components/A&apos;;
-import B from&apos;@/components/B&apos;import C from&apos;@/components/C&apos;
-
-Vue.use(VueRouter)
-
-export default new VueRouter.Router({
-  // mode: &apos;history&apos;,
-  routes: [
-    {
-      path: &apos;/&apos;,
-      component: Home
-    },
-    {
-      path: &apos;/a&apos;,
-      component: A
-    },
-    {
-      path: &apos;/b&apos;,
-      component: B
-    },
-    {
-      path: &apos;/c&apos;,
-      component: C
-    }
-  ]
-})
-</code></pre><p><code>vue-router</code>提供两个全局组件，<code>router-view</code>和<code>router-link</code>，前者是用于路由组件的占位，后者用于点击时跳转到指定路由。此外组件内部可以通过<code>this.$router.push</code>,<code>this.$rouer.replace</code>等api实现路由跳转。本文将实现上述两个全局组件以及<code>push</code>和<code>replace</code>两个api，调用的时候支持<code>params</code>传参，并且支持<code>hash</code>和<code>history</code>两种模式，忽略其余api、嵌套路由、异步路由、<code>abstract</code>路由以及导航守卫等高级功能的实现，这样有助于理解<code>vue-router</code>的核心原理。本文的最终代码不建议在生产环境使用，只做一个学习用途，下面我们就来一步步实现它。</p>
-<h3 id="install实现"><a href="#install实现" class="headerlink" title="install实现"></a>install实现</h3><p>任何一个<code>vue</code>插件都要实现一个<code>install</code>方法，通过<code>Vue.use</code>调用插件的时候就是在调用插件的<code>install</code>方法，那么路由的<code>install</code>要做哪些事情呢？首先我们知道 我们会用<code>new</code>关键字生成一个<code>router</code>实例，就像前面的代码实例一样，然后将其挂载到根<code>vue</code>实例上，那么作为一个全局路由，我们当然需要在各个组件中都可以拿到这个<code>router</code>实例。另外我们使用了全局组件<code>router-view</code>和<code>router-link</code>，由于<code>install</code>会接收到<code>Vue</code>构造函数作为实参，方便我们调用<code>Vue.component</code>来注册全局组件。因此，在<code>install</code>中主要就做两件事，给各个组件都挂载<code>router</code>实例，以及实现<code>router-view</code>和<code>router-link</code>两个全局组件。下面是代码：</p>
-<pre><code>const install = (Vue) =&gt; {
-
-  if (this._Vue) {
-    return;
-  };
-  Vue.mixin({
-    beforeCreate() {
-      if (this.$options &amp;&amp; this.$options.router) {
-        this._routerRoot = this;
-        this._router = this.$options.router;
-        Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
-      } else {
-        this._routerRoot = (this.$parent &amp;&amp; this.$parent._routerRoot) || this
-      }
-
-      Object.defineProperty(this, &apos;$router&apos;, {
-        get() {
-          returnthis._routerRoot._router;
-        }
-      })
-
-      Object.defineProperty(this, &apos;$route&apos;, {
-        get() {
-          return {
-            current: this._routerRoot._routeHistory.current,
-            ...this._routerRoot._router.route
-          };
-        }
-      })
-    }
-  });
-
-  Vue.component(&apos;router-view&apos;, {
-    render(h) { ... }
-  })
-
-  Vue.component(&apos;router-link&apos;, {    
-    props: {
-      to: String,
-      tag: String,
-    },
-    render(h) { ... }
-  })
-  this._Vue = Vue;
-}
-</code></pre><p>这里的<code>this</code>代表的就是<code>vue-router</code>对象，它有两个属性暴露出来供外界调用，一个是<code>install</code>，一个是<code>Router</code>构造函数，这样可以保证插件的正确安装以及路由实例化。我们先忽略<code>Router</code>构造函数，来看<code>install</code>，上面代码中的<code>this._Vue</code>是个开始没有定义的属性，他的目的是防止多次安装。我们使用<code>Vue.mixin</code>对每个组件的<code>beforeCreate</code>钩子做全局混入，目的是让每个组件实例共享<code>router</code>实例，即通过<code>this.$router</code>拿到路由实例，通过<code>this.$route</code>拿到路由状态。需要重点关注的是这行代码：</p>
-<pre><code>Vue.util.defineReactive(this, &apos;_routeHistory&apos;, this._router.history)
-</code></pre><p>这行代码利用<code>vue</code>的响应式原理，对根<code>vue</code>实例注册了一个<code>_routeHistory</code>属性，指向路由实例的<code>history</code>对象，这样<code>history</code>也变成了响应式的。因此一旦路由的<code>history</code>发生变化，用到这个值的组件就会触发<code>render</code>函数重新渲染，这里的组件就是<code>router-view</code>。从这里可以窥察到<code>vue-router</code>实现的一个基本思路。上述的代码中对于两个全局组件的<code>render</code>函数的实现，因为会依赖于<code>router</code>对象，我们先放一放，稍后再来实现它们，下面我们分析一下<code>Router</code>构造函数。</p>
-<h3 id="Router构造函数"><a href="#Router构造函数" class="headerlink" title="Router构造函数"></a>Router构造函数</h3><p>经过刚才的分析，我们知道<code>router</code>实例需要有一个<code>history</code>对象，需要一个保存当前路由状态的对象<code>route</code>，另外很显然还需要接受路由配置表<code>routes</code>，根据<code>routes</code>需要一个路由映射表<code>routerMap</code>来实现组件搜索，还需要一个变量<code>mode</code>判断是什么模式下的路由，需要实现<code>push</code>和<code>replace</code>两个api，代码如下：</p>
-<pre><code>const Router = function (options) {
-  this.routes = options.routes; // 存放路由配置this.mode = options.mode || &apos;hash&apos;;
-  this.route = Object.create(null), // 生成路由状态this.routerMap = createMap(this.routes) // 生成路由表this.history = new RouterHistory(); // 实例化路由历史对象this.init(); // 初始化
-}
-
-Router.prototype.push = (options) =&gt; { ... }
-
-Router.prototype.replace = (options) =&gt; { ... }
-
-Router.prototype.init = () =&gt; { ... }
-</code></pre><p>我们看一下路由表<code>routerMap</code>的实现，由于不考虑嵌套等其他情况，实现很简单，如下：</p>
-<pre><code>const createMap = (routes) =&gt; {
-  let resMap = Object.create(null);
-  routes.forEach(route =&gt; {
-    resMap[route[&apos;path&apos;]] = route[&apos;component&apos;];
-  })
-  return resMap;
-}
-</code></pre><p><code>RouterHistory</code>的实现也很简单，根据前面分析，我们只需要一个<code>current</code>属性就可以，如下：</p>
-<pre><code>const RouterHistory = function (mode) {
-  this.current = null; 
-}
-</code></pre><p>有了路由表和<code>history</code>，<code>router-view</code>的实现就很容易了，如下：</p>
-<pre><code>Vue.component(&apos;router-view&apos;, {
-    render(h) {
-      let routerMap = this._self.$router.routerMap;
-      return h(routerMap[this._self.$route.current])
-    }
-  })
-</code></pre><p>这里的<code>this</code>是一个<code>renderProxy</code>实例，他有一个属性<code>_self</code>可以拿到当前的组件实例，进而访问到<code>routerMap</code>，可以看到路由实例<code>history</code>的<code>current</code>本质上就是我们配置的路由表中的<code>path</code>。</p>
-<p>接下来我们看一下<code>Router</code>要做哪些初始化工作。对于<code>hash</code>路由而言，url上<code>hash</code>值的改变不会引起页面刷新，但是可以触发一个<code>hashchange</code>事件。由于路由<code>history.current</code>初始为<code>null</code>，因此匹配不到任何一个路由，所以会导致页面刷新加载不出任何路由组件。基于这两点，在<code>init</code>方法中，我们需要实现对页面加载完成的监听，以及<code>hash</code>变化的监听。对于<code>history</code>路由，为了实现浏览器前进后退时准确渲染对应组件，还要监听一个<code>popstate</code>事件。代码如下:</p>
-<pre><code>Router.prototype.init = function () {
-
-  if (this.mode === &apos;hash&apos;) {
-    fixHash()
-    window.addEventListener(&apos;hashchange&apos;, () =&gt; {
-      this.history.current = getHash();
-    })
-    window.addEventListener(&apos;load&apos;, () =&gt; {
-      this.history.current = getHash();
-    })
-  }
-
-  if (this.mode === &apos;history&apos;) {
-    removeHash(this);
-    window.addEventListener(&apos;load&apos;, () =&gt; {
-      this.history.current = location.pathname;
-    })
-    window.addEventListener(&apos;popstate&apos;, (e) =&gt; {
-      if (e.state) {
-        this.history.current = e.state.path;
-      }
-    })
-  }
-
-}
-</code></pre><p>当启用<code>hash</code>模式的时候，我们要检测url上是否存在<code>hash</code>值，没有的话强制赋值一个默认<code>path</code>，<code>hash</code>路由时会根据<code>hash</code>值作为<code>key</code>来查找路由表。<code>fixHash</code>和<code>getHash</code>实现如下：</p>
-<pre><code>const fixHash = () =&gt; {
-  if (!location.hash) {
-    location.hash = &apos;/&apos;;
-  }
-}
-const getHash = () =&gt; {
-  return location.hash.slice(1) || &apos;/&apos;;
-}
-</code></pre><p>这样在刷新页面和<code>hash</code>改变的时候，<code>current</code>可以得到赋值和更新，页面能根据<code>hash</code>值准确渲染路由。<code>history</code>模式也是一样的道理，只是它通过<code>location.pathname</code>作为<code>key</code>搜索路由组件，另外<code>history</code>模式需要去除url上可能存在的<code>hash</code>,<code>removeHash</code>实现如下：</p>
-<pre><code>const removeHash = (route) =&gt; {
-  let url = location.href.split(&apos;#&apos;)[1]
-  if (url) {
-    route.current = url;
-    history.replaceState({}, null, url)
-  }
-}
-</code></pre><p>我们可以看到当浏览器后退的时候，<code>history</code>模式会触发<code>popstate</code>事件，这个时候是通过<code>state</code>状态去获取<code>path</code>的，那么<code>state</code>状态从哪里来呢，答案是从<code>window.history</code>对象的<code>pushState</code>和<code>replaceState</code>而来，这两个方法正好可以用来实现<code>router</code>的<code>push</code>方法和<code>replace</code>方法，我们看一下这里它们的实现：</p>
-<pre><code>Router.prototype.push = (options) =&gt; {
-  this.history.current = options.path;
-  if (this.mode === &apos;history&apos;) {
-    history.pushState({
-      path: options.path
-    }, null, options.path);
-  } elseif (this.mode === &apos;hash&apos;) {
-    location.hash = options.path;
-  }
-  this.route.params = {
-    ...options.params
-  }
-}
-
-Router.prototype.replace = (options) =&gt; {
-  this.history.current = options.path;
-  if (this.mode === &apos;history&apos;) {
-    history.replaceState({
-      path: options.path
-    }, null, options.path);
-  } elseif (this.mode === &apos;hash&apos;) {
-    location.replace(`#${options.path}`)
-  }
-  this.route.params = {
-    ...options.params
-  }
-}
-</code></pre><p><code>pushState</code>和<code>replaceState</code>能够实现改变url的值但不引起页面刷新，从而不会导致新请求发生，<code>pushState</code>会生成一条历史记录而<code>replaceState</code>不会，后者只是替换当前url。在这两个方法执行的时候将<code>path</code>存入<code>state</code>，这就使得<code>popstate</code>触发的时候可以拿到路径从而触发组件渲染了。我们在组件内按照如下方式调用，会将<code>params</code>写入<code>router</code>实例的<code>route</code>属性中，从而在跳转后的组件<code>B</code>内通过<code>this.$route.params</code>可以访问到传参。</p>
-<pre><code>this.$router.push({
-    path: &apos;/b&apos;,
-    params: {
-      id: 55
-    }
- });
-</code></pre><h3 id="router-link实现"><a href="#router-link实现" class="headerlink" title="router-link实现"></a>router-link实现</h3><p><code>router-view</code>的实现很简单，前面已经说过。最后，我们来看一下<code>router-link</code>的实现,先放上代码：</p>
-<pre><code>Vue.component(&apos;router-link&apos;, {    
-    props: {
-      to: String,
-      tag: String,
-    },
-
-    render(h) {
-      let mode = this._self.$router.mode;
-      let tag = this.tag || &apos;a&apos;;
-      let routerHistory = this._self.$router.history;
-      return h(tag, {
-        attrs: tag === &apos;a&apos; ? {
-          href: mode === &apos;hash&apos; ? &apos;#&apos; + this.to : this.to,
-
-        } : {},
-        on: {
-          click: (e) =&gt; {
-            if (this.to === routerHistory.current) {
-              e.preventDefault();
-              return;
-            }
-            routerHistory.current = this.to;
-            switch (mode) {
-              case&apos;hash&apos;:
-                if (tag === &apos;a&apos;) return;
-                location.hash = this.to;
-                break;
-              case&apos;history&apos;:
-                history.pushState({
-                  path: this.to
-                }, null, this.to);
-                break;
-              default:
-            }
-            e.preventDefault();
-          }
-        },
-        style: {
-          cursor: &apos;pointer&apos;
-        }
-      }, this.$slots.default)
-    }
-  })
-</code></pre><p><code>router-link</code>可以接受两个属性，<code>to</code>表示要跳转的路由路径，<code>tag</code>表示<code>router-link</code>要渲染的标签名，默认<code>a</code>为标签。如果是<code>a</code>标签，我们为其添加一个<code>href</code>属性。我们给标签绑定<code>click</code>事件，如果检测到本次跳转为当前路由的话什么都不做直接返回，并且阻止默认行为，否则根据<code>to</code>更换路由。<code>hash</code>模式下并且是<code>a</code>标签时候可以直接利用浏览器的默认行为完成url上<code>hash</code>的替换，否者重新为<code>location.hash</code>赋值。<code>history</code>模式下则利用<code>pushState</code>去更新url。</p>
-<p>以上实现就是一个简单的vue-router.</p>
 
           
         

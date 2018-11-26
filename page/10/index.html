@@ -300,6 +300,479 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/09/16/前端代码异常监控实战/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/09/16/前端代码异常监控实战/" itemprop="url">前端代码异常监控实战</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-09-16T11:22:33+08:00">
+                2016-09-16
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="把前端监控做到极致-掘金"><a href="#把前端监控做到极致-掘金" class="headerlink" title="把前端监控做到极致 - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a52f138f265da3e5b32a41b" target="_blank" rel="noopener">把前端监控做到极致 - 掘金</a></h2><h2 id="线上压缩代码-定位错误-掘金"><a href="#线上压缩代码-定位错误-掘金" class="headerlink" title="线上压缩代码-定位错误 - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a4f6886518825734216b352" target="_blank" rel="noopener">线上压缩代码-定位错误 - 掘金</a></h2><p>生产环境没有source-map文件，上报的错误都不好定位，这里实现一个简单的错误定位脚本</p>
+<p>1、获取压缩代码错误信息（行数、列数、错误信息，错误文件）</p>
+<h2 id="这里通过控制台看错误信息"><a href="#这里通过控制台看错误信息" class="headerlink" title="这里通过控制台看错误信息"></a>这里通过控制台看错误信息</h2><pre><code>window.addEventListener(&apos;error&apos;, function (e) {
+    console.debug(&apos;lineno: &apos;, e.lineno, &apos; colno: &apos;, e.colno)
+    console.debug(&apos;errorMessage:&apos;, e.message)
+    console.debug(&apos;errorFile:&apos;, e.filename)
+}, true)
+</code></pre><p>我们写一段错误的代码（single.vue的片段）</p>
+<pre><code>method: {
+   test (option) {
+        const data = option.test
+        const dataTest = option.data.test
+        return data + dataTest
+    }
+}, 
+created () {
+    // 设置异步错误的原因是，同步的错误会被vue捕获
+    setTimeout(() =&gt; {
+        this.test({
+          testOption: 1
+        })
+    }, 300)
+}
+</code></pre><p>在浏览器中运行，报错结果如下<br><img src="https://pic4.zhimg.com/v2-c3b8a3d91b6ee6040dbf18e06ec3431a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-c3b8a3d91b6ee6040dbf18e06ec3431a_hd.jpg" alt=""></p>
+<p>得到错误信息：</p>
+<ul>
+<li>错误行数：1</li>
+<li>错误列数：59236</li>
+<li>错误信息：cannot read property ‘test’ of undefined</li>
+<li>错误文件：0.0a77f.js</li>
+</ul>
+<p>2、定位错误的node脚本<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">## 安装依赖source-map</span><br><span class="line"></span><br><span class="line"> npm install source-map</span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">    node脚本如下（map/index.js）</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> // 读取文件</span><br><span class="line">var fs = require(&apos;fs&apos;)</span><br><span class="line">// souceMap处理文件</span><br><span class="line">var SourceMapConsumer = require(&apos;source-map&apos;).SourceMapConsumer</span><br><span class="line">// 启动构建进程（已构建则不需要）</span><br><span class="line">var exec = require(&apos;child_process&apos;).exec</span><br><span class="line"></span><br><span class="line">var lineno = process.argv[2] || 0   // 第一个参数为行数</span><br><span class="line">var columnno = process.argv[3] || 0 // 第二个参数为列数</span><br><span class="line">var fileName = process.argv[4] || &apos;&apos; // 第三个参数为错误文件（错误文件名就好）</span><br><span class="line"></span><br><span class="line">// 构建有map的线上代码</span><br><span class="line">// node build onlineMap为构建命令</span><br><span class="line">exec(&apos;node build onlineMap&apos;, function () &#123;</span><br><span class="line"> // 读取错误文件的map文件</span><br><span class="line"> var consumer = new SourceMapConsumer(fs.readFileSync(&apos;./dist/&apos; + fileName + &apos;.map&apos;, &apos;utf8&apos;))</span><br><span class="line">  // 输出map的错误信息</span><br><span class="line">  console.log(consumer.originalPositionFor(&#123;</span><br><span class="line">    line: +lineno,      // +是为了转化为数字</span><br><span class="line">    column: +columnno</span><br><span class="line">  &#125;))</span><br><span class="line">&#125;)</span><br><span class="line">`</span><br><span class="line"></span><br><span class="line">    运行node脚本</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> node map 1 59236 0.0a77f.js</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>效果如下：</p>
+</blockquote>
+<p><img src="https://pic1.zhimg.com/v2-cf68e7b673405c90fe024bf48dfb42c7_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-cf68e7b673405c90fe024bf48dfb42c7_hd.jpg" alt=""></p>
+<p>结合控制台输出的信息，就可以定位到错误代码了</p>
+<p>我们再来看一下，给代码开启source-map，看错误信息是否一致</p>
+<p><img src="https://pic3.zhimg.com/v2-5319b431cef161a0a07ba46f8b0e6a02_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-5319b431cef161a0a07ba46f8b0e6a02_hd.jpg" alt=""><br>错误代码的位置定位是准确的，证明可行。</p>
+<p>3、后续扩展思路</p>
+<h2 id="目前实现的是比较简单的脚本，所以存在一些问题："><a href="#目前实现的是比较简单的脚本，所以存在一些问题：" class="headerlink" title="目前实现的是比较简单的脚本，所以存在一些问题："></a>目前实现的是比较简单的脚本，所以存在一些问题：</h2><ul>
+<li>需要当前构建内容和线上是一致的</li>
+<li>操作比较繁琐</li>
+</ul>
+<p>优化思路如下：</p>
+<p><img src="https://pic4.zhimg.com/v2-a8b63ecc364c66c8bf4bbec9880f8c23_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-a8b63ecc364c66c8bf4bbec9880f8c23_hd.jpg" alt=""></p>
+<p>后续优化慢慢补充~</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>之前在对公司的前端代码脚本错误进行排查，试图降低 JS Error 的错误量，结合自己之前的经验对这方面内容进行了实践并总结，下面就此谈谈我对前端代码异常监控的一些见解。</p>
+<p>本文大致围绕下面几点展开讨论：</p>
+<ol>
+<li>JS 处理异常的方式</li>
+<li>上报方式</li>
+<li>异常监控上报常见问题</li>
+</ol>
+<h2 id="JS-异常处理"><a href="#JS-异常处理" class="headerlink" title="JS 异常处理"></a>JS 异常处理</h2><p>对于 Javascript 而言，我们面对的仅仅只是异常，异常的出现不会直接导致 JS 引擎崩溃，最多只会使当前执行的任务终止。</p>
+<ol>
+<li>当前代码块将作为一个任务压入任务队列中，JS 线程会不断地从任务队列中提取任务执行。</li>
+<li>当任务执行过程中出现异常，且异常没有捕获处理，则会一直沿着调用栈一层层向外抛出，最终终止当前任务的执行。</li>
+<li><p>JS 线程会继续从任务队列中提取下一个任务继续执行。</p>
+ <script>
+   error
+   console.log('永远不会执行');
+ </script>
+ <script>
+   console.log('我继续执行')
+ </script>
+
+
+</li>
+</ol>
+<p><img src="https://pic2.zhimg.com/v2-7a136ce7674914bcd7b7f42986d0c5bc_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7a136ce7674914bcd7b7f42986d0c5bc_hd.jpg" alt=""></p>
+<p>在对脚本错误进行上报之前，我们需要对异常进行处理，程序需要先感知到脚本错误的发生，然后再谈异常上报。</p>
+<p>脚本错误一般分为两种：语法错误，运行时错误。</p>
+<p>下面就谈谈几种异常监控的处理方式：</p>
+<h2 id="try-catch-异常处理"><a href="#try-catch-异常处理" class="headerlink" title="try-catch 异常处理"></a>try-catch 异常处理</h2><p>try-catch 在我们的代码中经常见到，通过给代码块进行 try-catch 进行包装后，当代码块发生出错时 catch 将能捕捉到错误的信息，页面也将可以继续执行。</p>
+<p>但是 try-catch 处理异常的能力有限，只能捕获捉到运行时非异步错误，对于语法错误和异步错误就显得无能为力，捕捉不到。</p>
+<h2 id="示例：运行时错误"><a href="#示例：运行时错误" class="headerlink" title="示例：运行时错误"></a>示例：运行时错误</h2><pre><code>try {
+  error    // 未定义变量 
+} catch(e) {
+  console.log(&apos;我知道错误了&apos;);
+  console.log(e);
+}
+</code></pre><p><img src="https://pic3.zhimg.com/v2-dc8ba7e4b9e56127799c11b46cf7068d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-dc8ba7e4b9e56127799c11b46cf7068d_hd.jpg" alt=""></p>
+<p>然而对于语法错误和异步错误就捕捉不到了。</p>
+<h2 id="示例：语法错误"><a href="#示例：语法错误" class="headerlink" title="示例：语法错误"></a>示例：语法错误</h2><pre><code>try {
+  var error = &apos;error&apos;；   // 大写分号
+} catch(e) {
+  console.log(&apos;我感知不到错误&apos;);
+  console.log(e);
+}
+</code></pre><p><img src="https://pic3.zhimg.com/v2-8ddf6acf0f42c4b08ba8b73798b863a0_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8ddf6acf0f42c4b08ba8b73798b863a0_hd.jpg" alt=""></p>
+<p>一般语法错误在编辑器就会体现出来，常表现的错误信息为： Uncaught SyntaxError: Invalid or unexpected token xxx 这样。但是这种错误会直接抛出异常，常使程序崩溃，一般在编码时候容易观察得到。</p>
+<h2 id="示例：异步错误"><a href="#示例：异步错误" class="headerlink" title="示例：异步错误"></a>示例：异步错误</h2><pre><code>try {
+  setTimeout(() =&gt; {
+    error        // 异步错误
+  })
+} catch(e) {
+  console.log(&apos;我感知不到错误&apos;);
+  console.log(e);
+}
+</code></pre><p><img src="https://pic4.zhimg.com/v2-0ed67a00e3c7762e74975bebbbc88274_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-0ed67a00e3c7762e74975bebbbc88274_hd.jpg" alt=""></p>
+<p>除非你在 setTimeout 函数中再套上一层 try-catch，否则就无法感知到其错误，但这样代码写起来比较啰嗦。</p>
+<h2 id="window-onerror-异常处理"><a href="#window-onerror-异常处理" class="headerlink" title="window.onerror 异常处理"></a>window.onerror 异常处理</h2><p>window.onerror 捕获异常能力比 try-catch 稍微强点，无论是异步还是非异步错误，onerror 都能捕获到运行时错误。</p>
+<p>示例：运行时同步错误</p>
+<pre><code>/**
+ * @param {String}  msg    错误信息
+ * @param {String}  url    出错文件
+ * @param {Number}  row    行号
+ * @param {Number}  col    列号
+ * @param {Object}  error  错误详细信息
+ */
+ window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道错误了&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+error;
+</code></pre><p>示例：异步错误</p>
+<pre><code>window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道异步错误了&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+setTimeout(() =&gt; {
+  error;
+});
+</code></pre><p><img src="https://pic3.zhimg.com/v2-8bfdbb4ef72e1fe0ee29f42708d1184d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8bfdbb4ef72e1fe0ee29f42708d1184d_hd.jpg" alt=""></p>
+<p>然而 window.onerror 对于语法错误还是无能为力，所以我们在写代码的时候要尽可能避免语法错误的，不过一般这样的错误会使得整个页面崩溃，还是比较容易能够察觉到的。</p>
+<p>在实际的使用过程中，onerror 主要是来捕获预料之外的错误，而 try-catch 则是用来在可预见情况下监控特定的错误，两者结合使用更加高效。</p>
+<p>需要注意的是，window.onerror 函数只有在返回 true 的时候，异常才不会向上抛出，否则即使是知道异常的发生控制台还是会显示 Uncaught Error: xxxxx。</p>
+<p><img src="https://pic3.zhimg.com/v2-875235a4876ea8429f12e7aaf2f19588_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-875235a4876ea8429f12e7aaf2f19588_hd.jpg" alt=""></p>
+<p>关于 window.onerror 还有两点需要值得注意</p>
+<ol>
+<li>对于 onerror 这种全局捕获，最好写在所有 JS 脚本的前面，因为你无法保证你写的代码是否出错，如果写在后面，一旦发生错误的话是不会被 onerror 捕获到的。</li>
+<li>另外 onerror 是无法捕获到网络异常的错误。</li>
+</ol>
+<p>当我们遇到 <code>&lt;img src=&quot;./404.png&quot;&gt;</code> 报 404 网络请求异常的时候，onerror 是无法帮助我们捕获到异常的。</p>
+<pre><code>&lt;script&gt;
+  window.onerror = function (msg, url, row, col, error) {
+    console.log(&apos;我知道异步错误了&apos;);
+    console.log({
+      msg,  url,  row, col, error
+    })
+    return true;
+  };
+&lt;/script&gt;
+&lt;img src=&quot;./404.png&quot;&gt;
+</code></pre><p><img src="https://pic3.zhimg.com/v2-81341c443f078b6526e0c6031dd40953_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-81341c443f078b6526e0c6031dd40953_hd.jpg" alt=""></p>
+<p>由于网络请求异常不会事件冒泡，因此必须在捕获阶段将其捕捉到才行，但是这种方式虽然可以捕捉到网络请求的异常，但是无法判断 HTTP 的状态是 404 还是其他比如 500 等等，所以还需要配合服务端日志才进行排查分析才可以。</p>
+<pre><code>&lt;script&gt;
+window.addEventListener(&apos;error&apos;, (msg, url, row, col, error) =&gt; {
+  console.log(&apos;我知道 404 错误了&apos;);
+  console.log(
+    msg, url, row, col, error
+  );
+  return true;
+}, true);
+&lt;/script&gt;
+&lt;img src=&quot;./404.png&quot; alt=&quot;&quot;&gt;
+</code></pre><p><img src="https://pic4.zhimg.com/v2-6d1c1196acd800a4a4475ee6847ee82a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-6d1c1196acd800a4a4475ee6847ee82a_hd.jpg" alt=""></p>
+<p>这点知识还是需要知道，要不然用户访问网站，图片 CDN 无法服务，图片加载不出来而开发人员没有察觉就尴尬了。</p>
+<h2 id="Promise-错误"><a href="#Promise-错误" class="headerlink" title="Promise 错误"></a>Promise 错误</h2><p>通过 Promise 可以帮助我们解决异步回调地狱的问题，但是一旦 Promise 实例抛出异常而你没有用 catch 去捕获的话，onerror 或 try-catch 也无能为力，无法捕捉到错误。</p>
+<pre><code>window.addEventListener(&apos;error&apos;, (msg, url, row, col, error) =&gt; {
+  console.log(&apos;我感知不到 promise 错误&apos;);
+  console.log(
+    msg, url, row, col, error
+  );
+}, true);
+Promise.reject(&apos;promise error&apos;);
+new Promise((resolve, reject) =&gt; {
+  reject(&apos;promise error&apos;);
+});
+new Promise((resolve) =&gt; {
+  resolve();
+}).then(() =&gt; {
+  throw &apos;promise error&apos;
+});
+</code></pre><p><img src="https://pic4.zhimg.com/v2-1ce580bb2344474b1df1517f2d11aa40_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-1ce580bb2344474b1df1517f2d11aa40_hd.jpg" alt=""></p>
+<p>虽然在写 Promise 实例的时候养成最后写上 catch 函数是个好习惯，但是代码写多了就容易糊涂，忘记写 catch。</p>
+<p>所以如果你的应用用到很多的 Promise 实例的话，特别是你在一些基于 promise 的异步库比如 axios 等一定要小心，因为你不知道什么时候这些异步请求会抛出异常而你并没有处理它，所以你最好添加一个 Promise 全局异常捕获事件 <strong>unhandledrejection</strong>。</p>
+<pre><code>window.addEventListener(&quot;unhandledrejection&quot;, function(e){
+  e.preventDefault()
+  console.log(&apos;我知道 promise 的错误了&apos;);
+  console.log(e.reason);
+  return true;
+});
+Promise.reject(&apos;promise error&apos;);
+new Promise((resolve, reject) =&gt; {
+  reject(&apos;promise error&apos;);
+});
+new Promise((resolve) =&gt; {
+  resolve();
+}).then(() =&gt; {
+  throw &apos;promise error&apos;
+});
+</code></pre><p><img src="https://pic2.zhimg.com/v2-115d494f26e4f8e2172e1f3b4cb6094f_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-115d494f26e4f8e2172e1f3b4cb6094f_hd.jpg" alt=""></p>
+<p>当然，如果你的应用没有做 Promise 全局异常处理的话，那很可能就像某乎首页这样：</p>
+<p><img src="https://pic2.zhimg.com/v2-37c6bc3763c147a4c97bdde688a59a5c_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-37c6bc3763c147a4c97bdde688a59a5c_hd.jpg" alt=""></p>
+<h2 id="异常上报方式"><a href="#异常上报方式" class="headerlink" title="异常上报方式"></a>异常上报方式</h2><p>监控拿到报错信息之后，接下来就需要将捕捉到的错误信息发送到信息收集平台上，常用的发送形式主要有两种:</p>
+<ol>
+<li>通过 Ajax 发送数据</li>
+<li>动态创建 img 标签的形式</li>
+</ol>
+<p>实例 - 动态创建 img 标签进行上报</p>
+<pre><code>function report(error) {
+  var reportUrl = &apos;http://xxxx/report&apos;;
+  new Image().src = reportUrl + &apos;error=&apos; + error;
+}
+</code></pre><h2 id="监控上报常见问题"><a href="#监控上报常见问题" class="headerlink" title="监控上报常见问题"></a>监控上报常见问题</h2><p>下述例子我全部放在我的 github 上，读者可以自行查阅，后面不再赘述。</p>
+<pre><code>git clone https://github.com/happylindz/blog.git
+cd blog/code/jserror/
+npm install
+</code></pre><h2 id="Script-error-脚本错误是什么"><a href="#Script-error-脚本错误是什么" class="headerlink" title="Script error 脚本错误是什么"></a>Script error 脚本错误是什么</h2><p>因为我们在线上的版本，经常做静态资源 CDN 化，这就会导致我们常访问的页面跟脚本文件来自不同的域名，这时候如果没有进行额外的配置，就会容易产生 Script error。</p>
+<p><img src="https://pic3.zhimg.com/v2-840f71bf7014767132b47ad2c6a37238_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-840f71bf7014767132b47ad2c6a37238_hd.jpg" alt=""></p>
+<p>可通过 <code>npm run nocors</code> 查看效果。</p>
+<p>Script error 是浏览器在同源策略限制下产生的，浏览器处于对安全性上的考虑，当页面引用非同域名外部脚本文件时中抛出异常的话，此时本页面是没有权利知道这个报错信息的，取而代之的是输出 Script error 这样的信息。</p>
+<p><img src="https://pic2.zhimg.com/v2-fc3941d89716f96374576d0426ff4ccb_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-fc3941d89716f96374576d0426ff4ccb_hd.jpg" alt=""></p>
+<p>这样做的目的是避免数据泄露到不安全的域中，举个简单的例子，</p>
+<pre><code>&lt;script src=&quot;xxxx.com/login.html&quot;&gt;&lt;/script&gt;
+</code></pre><p>上面我们并没有引入一个 js 文件，而是一个 html，这个 html 是银行的登录页面，如果你已经登录了，那 login 页面就会自动跳转到 <code>Welcome xxx...</code>，如果未登录则跳转到 <code>Please Login...</code>，那么报错也会是 <code>Welcome xxx... is not defined，Please Login... is not defined</code>，通过这些信息可以判断一个用户是否登录他的帐号，给入侵者提供了十分便利的判断渠道，这是相当不安全的。</p>
+<p>介绍完背景后，那么我们应该去解决这个问题？</p>
+<p>首先可以想到的方案肯定是同源化策略，将 JS 文件内联到 html 或者放到同域下，虽然能简单有效地解决 script error 问题，但是这样无法利用好文件缓存和 CDN 的优势，不推荐使用。正确的方法应该是从根本上解决 script error 的错误。</p>
+<h2 id="跨源资源共享机制-CORS"><a href="#跨源资源共享机制-CORS" class="headerlink" title="跨源资源共享机制( CORS )"></a>跨源资源共享机制( CORS )</h2><p>首先为页面上的 script 标签添加 crossOrigin 属性</p>
+<pre><code>// http://localhost:8080/index.html
+&lt;script&gt;
+  window.onerror = function (msg, url, row, col, error) {
+    console.log(&apos;我知道错误了，也知道错误信息&apos;);
+    console.log({
+      msg,  url,  row, col, error
+    })
+    return true;
+  };
+&lt;/script&gt;
+&lt;script src=&quot;http://localhost:8081/test.js&quot; crossorigin&gt;&lt;/script&gt;
+
+// http://localhost:8081/test.js
+setTimeout(() =&gt; {
+  console.log(error);
+});
+</code></pre><p>当你修改完前端代码后，你还需要额外给后端在响应头里加上 <code>Access-Control-Allow-Origin: localhost:8080</code>，这里我以 Koa 为例。</p>
+<pre><code>const Koa = require(&apos;koa&apos;);
+const path = require(&apos;path&apos;);
+const cors = require(&apos;koa-cors&apos;);
+const app = new Koa();
+
+app.use(cors());
+app.use(require(&apos;koa-static&apos;)(path.resolve(__dirname, &apos;./public&apos;)));
+
+app.listen(8081, () =&gt; {
+  console.log(&apos;koa app listening at 8081&apos;)
+});
+</code></pre><p><img src="https://pic1.zhimg.com/v2-9717062e56340cef40ee67b438b2ba95_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-9717062e56340cef40ee67b438b2ba95_hd.jpg" alt=""></p>
+<p>读者可通过 <code>npm run cors</code> 详细的跨域知识我就不展开了，有兴趣可以看看我之前写的文章：<a href="https://link.zhihu.com/?target=https%3A//github.com/happylindz/blog/issues/3" target="_blank" rel="noopener">跨域，你需要知道的全在这里</a></p>
+<p>你以为这样就完了吗？并没有，下面就说一些 Script error 你不常遇见的点：</p>
+<p>我们都知道 JSONP 是用来跨域获取数据的，并且兼容性良好，在一些应用中仍然会使用到，所以你的项目中可能会用这样的代码：</p>
+<pre><code>// http://localhost:8080/index.html
+window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道错误了，但不知道错误信息&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+function jsonpCallback(data) {
+  console.log(data);
+}
+const url = &apos;http://localhost:8081/data?callback=jsonpCallback&apos;;
+const script = document.createElement(&apos;script&apos;);
+script.src = url;
+document.body.appendChild(script);
+</code></pre><p>因为返回的信息会当做脚本文件来执行，一旦返回的脚本内容出错了，也是无法捕捉到错误的信息。</p>
+<p><img src="https://pic4.zhimg.com/v2-01afbf8a4ba1fc4fdd9a22b884f9a8d8_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-01afbf8a4ba1fc4fdd9a22b884f9a8d8_hd.jpg" alt=""></p>
+<p>解决办法也不难，跟之前一样，在添加动态添加脚本的时候加上 crossOrigin，并且在后端配上相应的 CORS 字段即可.</p>
+<pre><code>const script = document.createElement(&apos;script&apos;);
+script.crossOrigin = &apos;anonymous&apos;;
+script.src = url;
+document.body.appendChild(script);
+</code></pre><p>读者可以通过 <code>npm run jsonp</code> 查看效果</p>
+<p><img src="https://pic4.zhimg.com/v2-ab0b67a7e6b5afabf281b792ca2d6bd2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-ab0b67a7e6b5afabf281b792ca2d6bd2_hd.jpg" alt=""></p>
+<p>知道原理之后你可能会觉得没什么，不就是给每个动态生成的脚本添加 crossOrigin 字段嘛，但是在实际工程中，你可能是面向很多库来编程，比如使用 jQuery，Seajs 或者 webpack 来异步加载脚本，许多库封装了异步加载脚本的能力，以 jQeury 为例你可能是这样来触发异步脚本。</p>
+<pre><code>$.ajax({
+  url: &apos;http://localhost:8081/data&apos;,
+  dataType: &apos;jsonp&apos;,
+  success: (data) =&gt; {
+    console.log(data);
+  }
+})
+</code></pre><p>假如这些库中没有提供 crossOrigin 的能力的话(jQuery jsonp 可能有，假装你不知道)，那你只能去修改人家写的源代码了，所以我这里提供一个思路，就是去劫持 document.createElement，从根源上去为每个动态生成的脚本添加 crossOrigin 字段。</p>
+<pre><code>document.createElement = (function() {
+  const fn = document.createElement.bind(document);
+  return function(type) {
+    const result = fn(type);
+    if(type === &apos;script&apos;) {
+      result.crossOrigin = &apos;anonymous&apos;;
+    }
+    return result;
+  }
+})();
+window.onerror = function (msg, url, row, col, error) {
+  console.log(&apos;我知道错误了，也知道错误信息&apos;);
+  console.log({
+    msg,  url,  row, col, error
+  })
+  return true;
+};
+$.ajax({
+  url: &apos;http://localhost:8081/data&apos;,
+  dataType: &apos;jsonp&apos;,
+  success: (data) =&gt; {
+    console.log(data);
+  }
+})
+</code></pre><p>效果也是一样的，读者可以通过 <code>npm run jsonpjq</code> 来查看效果：</p>
+<p><img src="https://pic4.zhimg.com/v2-30d51a96cdb3286edd1e5a88e9f794bb_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-30d51a96cdb3286edd1e5a88e9f794bb_hd.jpg" alt=""></p>
+<p>这样重写 createElement 理论上没什么问题，但是入侵了原本的代码，不保证一定不会出错，在工程上还是需要多尝试下看看再使用，可能存在兼容性上问题，如果你觉得会出现什么问题的话也欢迎留言讨论下。</p>
+<p>关于 Script error 的问题就写到这里，如果你理解了上面的内容，基本上绝大部分的 Script error 都能迎刃而解。</p>
+<h2 id="window-onerror-能否捕获-iframe-的错误"><a href="#window-onerror-能否捕获-iframe-的错误" class="headerlink" title="window.onerror 能否捕获 iframe 的错误"></a>window.onerror 能否捕获 iframe 的错误</h2><p>当你的页面有使用 iframe 的时候，你需要对你引入的 iframe 做异常监控的处理，否则一旦你引入的 iframe 页面出现了问题，你的主站显示不出来，而你却浑然不知。</p>
+<p>首先需要强调，父窗口直接使用 window.onerror 是无法直接捕获，如果你想要捕获 iframe 的异常的话，有分好几种情况。</p>
+<p>如果你的 iframe 页面和你的主站是同域名的话，直接给 iframe 添加 onerror 事件即可。</p>
+<pre><code>&lt;iframe src=&quot;./iframe.html&quot; frameborder=&quot;0&quot;&gt;&lt;/iframe&gt;
+&lt;script&gt;
+  window.frames[0].onerror = function (msg, url, row, col, error) {
+    console.log(&apos;我知道 iframe 的错误了，也知道错误信息&apos;);
+    console.log({
+      msg,  url,  row, col, error
+    })
+    return true;
+  };
+&lt;/script&gt;
+</code></pre><p>读者可以通过 <code>npm run iframe</code> 查看效果：</p>
+<p><img src="https://pic2.zhimg.com/v2-3edcb5686e27ab11f5f3c9c1644986d0_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-3edcb5686e27ab11f5f3c9c1644986d0_hd.jpg" alt=""></p>
+<p>如果你嵌入的 iframe 页面和你的主站不是同个域名的，但是 iframe 内容不属于第三方，是你可以控制的，那么可以通过与 iframe 通信的方式将异常信息抛给主站接收。与 iframe 通信的方式有很多，常用的如：postMessage，hash 或者 name 字段跨域等等，这里就不展开了，感兴趣的话可以看：<a href="https://link.zhihu.com/?target=https%3A//github.com/happylindz/blog/issues/3" target="_blank" rel="noopener">跨域，你需要知道的全在这里</a></p>
+<p>如果是非同域且网站不受自己控制的话，除了通过控制台看到详细的错误信息外，没办法捕获，这是出于安全性的考虑，你引入了一个百度首页，人家页面报出的错误凭啥让你去监控呢，这会引出很多安全性的问题。</p>
+<h2 id="压缩代码如何定位到脚本异常位置"><a href="#压缩代码如何定位到脚本异常位置" class="headerlink" title="压缩代码如何定位到脚本异常位置"></a>压缩代码如何定位到脚本异常位置</h2><p>线上的代码几乎都经过了压缩处理，几十个文件打包成了一个并丑化代码，当我们收到 <code>a is not defined</code> 的时候，我们根本不知道这个变量 a 究竟是什么含义，此时报错的错误日志显然是无效的。</p>
+<p>第一想到的办法是利用 sourcemap 定位到错误代码的具体位置，详细内容可以参考：<a href="https://link.zhihu.com/?target=https%3A//github.com/joeyguo/blog/issues/14" target="_blank" rel="noopener">Sourcemap 定位脚本错误</a></p>
+<p>另外也可以通过在打包的时候，在每个合并的文件之间添加几行空格，并相应加上一些注释，这样在定位问题的时候很容易可以知道是哪个文件报的错误，然后再通过一些关键词的搜索，可以快速地定位到问题的所在位置。</p>
+<h2 id="收集异常信息量太多，怎么办"><a href="#收集异常信息量太多，怎么办" class="headerlink" title="收集异常信息量太多，怎么办"></a>收集异常信息量太多，怎么办</h2><p>如果你的网站访问量很大，假如网页的 PV 有 1kw，那么一个必然的错误发送的信息就有 1kw 条，我们可以给网站设置一个采集率：</p>
+<pre><code>Reporter.send = function(data) {
+  // 只采集 30%
+  if(Math.random() &lt; 0.3) {
+    send(data)      // 上报错误信息
+  }
+}
+</code></pre><p>这个采集率可以通过具体实际的情况来设定，方法多样化，可以使用一个随机数，也可以具体根据用户的某些特征来进行判定。</p>
+<h3 id="错误上报的方法："><a href="#错误上报的方法：" class="headerlink" title="错误上报的方法："></a>错误上报的方法：</h3><ul>
+<li>一：Ajax上传，Ajax上报就是在上文注释错误捕获的地方发起Ajax请求，来向服务器发送错误信息。</li>
+<li>二：利用Image对象发送信息(new Image()).src=”<a href="http://post.error.com?data=xxx&quot;" target="_blank" rel="noopener">http://post.error.com?data=xxx&quot;</a></li>
+<li>跨域js文件错误是否可以捕获：<br>   答案是可以，错误提示是   script error<br>解决办法，跨域js文件获取是有限制的，如果想获取其他域下的js错误需要在script标签里添加crossorigin属性，然后服务器端要设置header(‘Access-Control-Allow-Origin: *’),或者 指定域名。</li>
+</ul>
+<p>上面差不多是我对前端代码监控的一些理解，说起来容易，但是一旦在工程化运用，难免需要考虑到兼容性等种种问题，读者可以通过自己的具体情况进行调整，前端代码异常监控对于我们的网站的稳定性起着至关重要的作用。如若文中所有不对的地方，还望指正。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/08/14/JavaScript函数柯里化/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2564,311 +3037,6 @@ function strictFunc(){
           
             <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br><span class="line">482</span><br><span class="line">483</span><br><span class="line">484</span><br><span class="line">485</span><br><span class="line">486</span><br><span class="line">487</span><br><span class="line">488</span><br><span class="line">489</span><br><span class="line">490</span><br><span class="line">491</span><br><span class="line">492</span><br><span class="line">493</span><br><span class="line">494</span><br><span class="line">495</span><br><span class="line">496</span><br><span class="line">497</span><br><span class="line">498</span><br><span class="line">499</span><br><span class="line">500</span><br><span class="line">501</span><br><span class="line">502</span><br><span class="line">503</span><br><span class="line">504</span><br><span class="line">505</span><br><span class="line">506</span><br><span class="line">507</span><br><span class="line">508</span><br><span class="line">509</span><br><span class="line">510</span><br><span class="line">511</span><br><span class="line">512</span><br><span class="line">513</span><br><span class="line">514</span><br><span class="line">515</span><br><span class="line">516</span><br><span class="line">517</span><br><span class="line">518</span><br><span class="line">519</span><br><span class="line">520</span><br><span class="line">521</span><br><span class="line">522</span><br><span class="line">523</span><br><span class="line">524</span><br><span class="line">525</span><br><span class="line">526</span><br><span class="line">527</span><br><span class="line">528</span><br><span class="line">529</span><br><span class="line">530</span><br><span class="line">531</span><br><span class="line">532</span><br><span class="line">533</span><br><span class="line">534</span><br><span class="line">535</span><br><span class="line">536</span><br><span class="line">537</span><br><span class="line">538</span><br><span class="line">539</span><br><span class="line">540</span><br><span class="line">541</span><br><span class="line">542</span><br><span class="line">543</span><br><span class="line">544</span><br><span class="line">545</span><br><span class="line">546</span><br><span class="line">547</span><br><span class="line">548</span><br><span class="line">549</span><br><span class="line">550</span><br><span class="line">551</span><br><span class="line">552</span><br><span class="line">553</span><br><span class="line">554</span><br><span class="line">555</span><br><span class="line">556</span><br><span class="line">557</span><br><span class="line">558</span><br><span class="line">559</span><br><span class="line">560</span><br><span class="line">561</span><br><span class="line">562</span><br><span class="line">563</span><br><span class="line">564</span><br><span class="line">565</span><br><span class="line">566</span><br><span class="line">567</span><br><span class="line">568</span><br><span class="line">569</span><br><span class="line">570</span><br><span class="line">571</span><br><span class="line">572</span><br><span class="line">573</span><br><span class="line">574</span><br><span class="line">575</span><br><span class="line">576</span><br><span class="line">577</span><br><span class="line">578</span><br><span class="line">579</span><br><span class="line">580</span><br><span class="line">581</span><br><span class="line">582</span><br><span class="line">583</span><br><span class="line">584</span><br><span class="line">585</span><br><span class="line">586</span><br><span class="line">587</span><br><span class="line">588</span><br><span class="line">589</span><br><span class="line">590</span><br><span class="line">591</span><br><span class="line">592</span><br><span class="line">593</span><br><span class="line">594</span><br><span class="line">595</span><br><span class="line">596</span><br><span class="line">597</span><br><span class="line">598</span><br><span class="line">599</span><br><span class="line">600</span><br><span class="line">601</span><br><span class="line">602</span><br><span class="line">603</span><br><span class="line">604</span><br><span class="line">605</span><br><span class="line">606</span><br><span class="line">607</span><br><span class="line">608</span><br><span class="line">609</span><br><span class="line">610</span><br><span class="line">611</span><br><span class="line">612</span><br><span class="line">613</span><br><span class="line">614</span><br><span class="line">615</span><br><span class="line">616</span><br><span class="line">617</span><br><span class="line">618</span><br><span class="line">619</span><br><span class="line">620</span><br><span class="line">621</span><br><span class="line">622</span><br><span class="line">623</span><br><span class="line">624</span><br><span class="line">625</span><br><span class="line">626</span><br><span class="line">627</span><br><span class="line">628</span><br><span class="line">629</span><br><span class="line">630</span><br><span class="line">631</span><br><span class="line">632</span><br><span class="line">633</span><br><span class="line">634</span><br><span class="line">635</span><br><span class="line">636</span><br><span class="line">637</span><br><span class="line">638</span><br><span class="line">639</span><br><span class="line">640</span><br><span class="line">641</span><br><span class="line">642</span><br><span class="line">643</span><br><span class="line">644</span><br><span class="line">645</span><br><span class="line">646</span><br><span class="line">647</span><br><span class="line">648</span><br><span class="line">649</span><br><span class="line">650</span><br><span class="line">651</span><br><span class="line">652</span><br><span class="line">653</span><br><span class="line">654</span><br><span class="line">655</span><br><span class="line">656</span><br><span class="line">657</span><br><span class="line">658</span><br><span class="line">659</span><br><span class="line">660</span><br><span class="line">661</span><br><span class="line">662</span><br><span class="line">663</span><br><span class="line">664</span><br><span class="line">665</span><br><span class="line">666</span><br><span class="line">667</span><br><span class="line">668</span><br><span class="line">669</span><br><span class="line">670</span><br><span class="line">671</span><br><span class="line">672</span><br><span class="line">673</span><br><span class="line">674</span><br><span class="line">675</span><br><span class="line">676</span><br><span class="line">677</span><br><span class="line">678</span><br><span class="line">679</span><br><span class="line">680</span><br><span class="line">681</span><br><span class="line">682</span><br><span class="line">683</span><br><span class="line">684</span><br><span class="line">685</span><br><span class="line">686</span><br><span class="line">687</span><br></pre></td><td class="code"><pre><span class="line">;</span><br><span class="line">(function() &#123;</span><br><span class="line">	&apos;use strict&apos;;</span><br><span class="line">	//构造函数</span><br><span class="line">	function FastClick(layer, options) &#123;</span><br><span class="line">		var oldOnClick;</span><br><span class="line">		options = options || &#123;&#125;;</span><br><span class="line"></span><br><span class="line">		//是否开始追踪click事件</span><br><span class="line">		this.trackingClick = false;</span><br><span class="line"></span><br><span class="line">		//存储第一次按下时间戳</span><br><span class="line">		this.trackingClickStart = 0;</span><br><span class="line"></span><br><span class="line">		//目标元素</span><br><span class="line">		this.targetElement = null;</span><br><span class="line"></span><br><span class="line">		//存放坐标值X</span><br><span class="line">		this.touchStartX = 0;</span><br><span class="line"></span><br><span class="line">		//存放坐标值Y</span><br><span class="line">		this.touchStartY = 0;</span><br><span class="line"></span><br><span class="line">		//主要hack iOS4下的一个怪异问题</span><br><span class="line">		this.lastTouchIdentifier = 0;</span><br><span class="line"></span><br><span class="line">		//用于区分是click还是Touchmove，若出点移动超过该值则视为touchmove</span><br><span class="line">		this.touchBoundary = options.touchBoundary || 10;</span><br><span class="line"></span><br><span class="line">		// 绑定了FastClick的元素，一般是是body</span><br><span class="line">		this.layer = layer;</span><br><span class="line"></span><br><span class="line">		//双击最小点击时间差</span><br><span class="line">		this.tapDelay = options.tapDelay || 200;</span><br><span class="line"></span><br><span class="line">		//长按最大时间</span><br><span class="line">		this.tapTimeout = options.tapTimeout || 700;</span><br><span class="line"></span><br><span class="line">		//如果是属于不需要处理的元素类型，则直接返回</span><br><span class="line">		if(FastClick.notNeeded(layer)) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//语法糖，兼容一些用不了 Function.prototype.bind 的旧安卓</span><br><span class="line">		//所以后面不走 layer.addEventListener(&apos;click&apos;, this.onClick.bind(this), true);</span><br><span class="line">		function bind(method, context) &#123;</span><br><span class="line">			return function() &#123;</span><br><span class="line">				return method.apply(context, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		var methods = [&apos;onMouse&apos;, &apos;onClick&apos;, &apos;onTouchStart&apos;, &apos;onTouchMove&apos;, &apos;onTouchEnd&apos;, &apos;onTouchCancel&apos;];</span><br><span class="line">		var context = this;</span><br><span class="line">		for(var i = 0, l = methods.length; i &lt; l; i++) &#123;</span><br><span class="line">			context[methods[i]] = bind(context[methods[i]], context);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//安卓则做额外处理</span><br><span class="line">		if(deviceIsAndroid) &#123;</span><br><span class="line">			layer.addEventListener(&apos;mouseover&apos;, this.onMouse, true);</span><br><span class="line">			layer.addEventListener(&apos;mousedown&apos;, this.onMouse, true);</span><br><span class="line">			layer.addEventListener(&apos;mouseup&apos;, this.onMouse, true);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		layer.addEventListener(&apos;click&apos;, this.onClick, true);</span><br><span class="line">		layer.addEventListener(&apos;touchstart&apos;, this.onTouchStart, false);</span><br><span class="line">		layer.addEventListener(&apos;touchmove&apos;, this.onTouchMove, false);</span><br><span class="line">		layer.addEventListener(&apos;touchend&apos;, this.onTouchEnd, false);</span><br><span class="line">		layer.addEventListener(&apos;touchcancel&apos;, this.onTouchCancel, false);</span><br><span class="line"></span><br><span class="line">		// 兼容不支持 stopImmediatePropagation 的浏览器(比如 Android 2)</span><br><span class="line">		if(!Event.prototype.stopImmediatePropagation) &#123;</span><br><span class="line">			layer.removeEventListener = function(type, callback, capture) &#123;</span><br><span class="line">				var rmv = Node.prototype.removeEventListener;</span><br><span class="line">				if(type === &apos;click&apos;) &#123;</span><br><span class="line">					rmv.call(layer, type, callback.hijacked || callback, capture);</span><br><span class="line">				&#125; else &#123;</span><br><span class="line">					rmv.call(layer, type, callback, capture);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">			layer.addEventListener = function(type, callback, capture) &#123;</span><br><span class="line">				var adv = Node.prototype.addEventListener;</span><br><span class="line">				if(type === &apos;click&apos;) &#123;</span><br><span class="line">					//留意这里 callback.hijacked 中会判断 event.propagationStopped 是否为真来确保（安卓的onMouse事件）只执行一次</span><br><span class="line">					//在 onMouse 事件里会给 event.propagationStopped 赋值 true</span><br><span class="line">					adv.call(layer, type, callback.hijacked || (callback.hijacked = function(event) &#123;</span><br><span class="line">						if(!event.propagationStopped) &#123;</span><br><span class="line">							callback(event);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;), capture);</span><br><span class="line">				&#125; else &#123;</span><br><span class="line">					adv.call(layer, type, callback, capture);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 如果layer直接在DOM上写了 onclick 方法，那我们需要把它替换为 addEventListener 绑定形式</span><br><span class="line">		if(typeof layer.onclick === &apos;function&apos;) &#123;</span><br><span class="line">			oldOnClick = layer.onclick;</span><br><span class="line">			layer.addEventListener(&apos;click&apos;, function(event) &#123;</span><br><span class="line">				oldOnClick(event);</span><br><span class="line">			&#125;, false);</span><br><span class="line">			layer.onclick = null;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * Windows Phone 8.1 fakes user agent string to look like Android and iPhone.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsWindowsPhone = navigator.userAgent.indexOf(&quot;Windows Phone&quot;) &gt;= 0;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * Android requires exceptions.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsAndroid = navigator.userAgent.indexOf(&apos;Android&apos;) &gt; 0 &amp;&amp; !deviceIsWindowsPhone;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * iOS requires exceptions.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsIOS = /iP(ad|hone|od)/.test(navigator.userAgent) &amp;&amp; !deviceIsWindowsPhone;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * iOS 4 requires an exception for select elements.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsIOS4 = deviceIsIOS &amp;&amp; (/OS 4_\d(_\d)?/).test(navigator.userAgent);</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * iOS 6.0-7.* requires the target element to be manually derived</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsIOSWithBadTarget = deviceIsIOS &amp;&amp; (/OS [6-7]_\d/).test(navigator.userAgent);</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * BlackBerry requires exceptions.</span><br><span class="line">	 *</span><br><span class="line">	 * @type boolean</span><br><span class="line">	 */</span><br><span class="line">	var deviceIsBlackBerry10 = navigator.userAgent.indexOf(&apos;BB10&apos;) &gt; 0;</span><br><span class="line"></span><br><span class="line">	//判断元素是否要保留穿透功能</span><br><span class="line">	FastClick.prototype.needsClick = function(target) &#123;</span><br><span class="line">		switch(target.nodeName.toLowerCase()) &#123;</span><br><span class="line"></span><br><span class="line">			// disabled的input</span><br><span class="line">			case &apos;button&apos;:</span><br><span class="line">			case &apos;select&apos;:</span><br><span class="line">			case &apos;textarea&apos;:</span><br><span class="line">				if(target.disabled) &#123;</span><br><span class="line">					return true;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				break;</span><br><span class="line">			case &apos;input&apos;:</span><br><span class="line"></span><br><span class="line">				// file组件必须通过原生click事件点击才有效</span><br><span class="line">				if((deviceIsIOS &amp;&amp; target.type === &apos;file&apos;) || target.disabled) &#123;</span><br><span class="line">					return true;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				break;</span><br><span class="line">			case &apos;label&apos;:</span><br><span class="line">			case &apos;iframe&apos;:</span><br><span class="line">			case &apos;video&apos;:</span><br><span class="line">				return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//元素带了名为“bneedsclick”的class也返回true</span><br><span class="line">		return(/\bneedsclick\b/).test(target.className);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//判断给定元素是否需要通过合成click事件来模拟聚焦</span><br><span class="line">	FastClick.prototype.needsFocus = function(target) &#123;</span><br><span class="line">		switch(target.nodeName.toLowerCase()) &#123;</span><br><span class="line">			case &apos;textarea&apos;:</span><br><span class="line">				return true;</span><br><span class="line">			case &apos;select&apos;:</span><br><span class="line">				return !deviceIsAndroid; //iOS下的select得走穿透点击才行</span><br><span class="line">			case &apos;input&apos;:</span><br><span class="line">				switch(target.type) &#123;</span><br><span class="line">					case &apos;button&apos;:</span><br><span class="line">					case &apos;checkbox&apos;:</span><br><span class="line">					case &apos;file&apos;:</span><br><span class="line">					case &apos;image&apos;:</span><br><span class="line">					case &apos;radio&apos;:</span><br><span class="line">					case &apos;submit&apos;:</span><br><span class="line">						return false;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				return !target.disabled &amp;&amp; !target.readOnly;</span><br><span class="line">			default:</span><br><span class="line">				//带有名为“bneedsfocus”的class则返回true</span><br><span class="line">				return(/\bneedsfocus\b/).test(target.className);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//合成一个click事件并在指定元素上触发</span><br><span class="line">	FastClick.prototype.sendClick = function(targetElement, event) &#123;</span><br><span class="line">		var clickEvent, touch;</span><br><span class="line"></span><br><span class="line">		// 在一些安卓机器中，得让页面所存在的 activeElement（聚焦的元素，比如input）失焦，否则合成的click事件将无效</span><br><span class="line">		if(document.activeElement &amp;&amp; document.activeElement !== targetElement) &#123;</span><br><span class="line">			document.activeElement.blur();</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		touch = event.changedTouches[0];</span><br><span class="line"></span><br><span class="line">		// 合成(Synthesise) 一个 click 事件</span><br><span class="line">		// 通过一个额外属性确保它能被追踪（tracked）</span><br><span class="line">		clickEvent = document.createEvent(&apos;MouseEvents&apos;);</span><br><span class="line">		clickEvent.initMouseEvent(this.determineEventType(targetElement), true, true, window, 1, touch.screenX, touch.screenY, touch.clientX, touch.clientY, false, false, false, false, 0, null);</span><br><span class="line">		clickEvent.forwardedTouchEvent = true; // fastclick的内部变量，用来识别click事件是原生还是合成的</span><br><span class="line">		targetElement.dispatchEvent(clickEvent); //立即触发其click事件</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.determineEventType = function(targetElement) &#123;</span><br><span class="line"></span><br><span class="line">		//安卓设备下 Select 无法通过合成的 click 事件被展开，得改为 mousedown</span><br><span class="line">		if(deviceIsAndroid &amp;&amp; targetElement.tagName.toLowerCase() === &apos;select&apos;) &#123;</span><br><span class="line">			return &apos;mousedown&apos;;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return &apos;click&apos;;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//设置元素聚焦事件</span><br><span class="line">	FastClick.prototype.focus = function(targetElement) &#123;</span><br><span class="line">		var length;</span><br><span class="line"></span><br><span class="line">		// 组件建议通过setSelectionRange(selectionStart, selectionEnd)来设定光标范围（注意这样还没有聚焦</span><br><span class="line">		// 要等到后面触发 sendClick 事件才会聚焦）</span><br><span class="line">		// 另外 iOS7 下有些input元素(比如 date datetime month) 的 selectionStart 和 selectionEnd 特性是没有整型值的，</span><br><span class="line">		// 导致会抛出一个关于 setSelectionRange 的模糊错误，它们需要改用 focus 事件触发</span><br><span class="line">		if(deviceIsIOS &amp;&amp; targetElement.setSelectionRange &amp;&amp; targetElement.type.indexOf(&apos;date&apos;) !== 0 &amp;&amp; targetElement.type !== &apos;time&apos; &amp;&amp; targetElement.type !== &apos;month&apos;) &#123;</span><br><span class="line">			length = targetElement.value.length;</span><br><span class="line">			targetElement.setSelectionRange(length, length);</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			//直接触发其focus事件</span><br><span class="line">			targetElement.focus();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 检查target是否一个滚动容器里的子元素，如果是则给它加个标记</span><br><span class="line">	 */</span><br><span class="line">	FastClick.prototype.updateScrollParent = function(targetElement) &#123;</span><br><span class="line">		var scrollParent, parentElement;</span><br><span class="line"></span><br><span class="line">		scrollParent = targetElement.fastClickScrollParent;</span><br><span class="line"></span><br><span class="line">		// Attempt to discover whether the target element is contained within a scrollable layer. Re-check if the</span><br><span class="line">		// target element was moved to another parent.</span><br><span class="line">		if(!scrollParent || !scrollParent.contains(targetElement)) &#123;</span><br><span class="line">			parentElement = targetElement;</span><br><span class="line">			do &#123;</span><br><span class="line">				if(parentElement.scrollHeight &gt; parentElement.offsetHeight) &#123;</span><br><span class="line">					scrollParent = parentElement;</span><br><span class="line">					targetElement.fastClickScrollParent = parentElement;</span><br><span class="line">					break;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				parentElement = parentElement.parentElement;</span><br><span class="line">			&#125; while (parentElement);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 给滚动容器加个标志fastClickLastScrollTop，值为其当前垂直滚动偏移</span><br><span class="line">		if(scrollParent) &#123;</span><br><span class="line">			scrollParent.fastClickLastScrollTop = scrollParent.scrollTop;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	/**</span><br><span class="line">	 * 返回目标元素</span><br><span class="line">	 */</span><br><span class="line">	FastClick.prototype.getTargetElementFromEventTarget = function(eventTarget) &#123;</span><br><span class="line"></span><br><span class="line">		// 一些较老的浏览器，target 可能会是一个文本节点，得返回其DOM节点</span><br><span class="line">		if(eventTarget.nodeType === Node.TEXT_NODE) &#123;</span><br><span class="line">			return eventTarget.parentNode;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return eventTarget;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchStart = function(event) &#123;</span><br><span class="line">		var targetElement, touch, selection;</span><br><span class="line"></span><br><span class="line">		// 多指触控的手势则忽略</span><br><span class="line">		if(event.targetTouches.length &gt; 1) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		targetElement = this.getTargetElementFromEventTarget(event.target); //一些较老的浏览器，target 可能会是一个文本节点，得返回其DOM节点</span><br><span class="line">		touch = event.targetTouches[0];</span><br><span class="line"></span><br><span class="line">		if(deviceIsIOS) &#123; //IOS处理</span><br><span class="line"></span><br><span class="line">			// 若用户已经选中了一些内容（比如选中了一段文本打算复制），则忽略</span><br><span class="line">			selection = window.getSelection();</span><br><span class="line">			if(selection.rangeCount &amp;&amp; !selection.isCollapsed) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			if(!deviceIsIOS4) &#123; //是否IOS4</span><br><span class="line"></span><br><span class="line">				//怪异特性处理——若click事件回调打开了一个alert/confirm，用户下一次tap页面的其它地方时，新的touchstart和touchend</span><br><span class="line">				//事件会拥有同一个touch.identifier（新的 touch event 会跟上一次触发alert点击的 touch event 一样），</span><br><span class="line">				//为避免将新的event当作之前的event导致问题，这里需要禁用默认事件</span><br><span class="line">				//另外chrome的开发工具启用&apos;Emulate touch events&apos;后，iOS UA下的 identifier 会变成0，所以要做容错避免调试过程也被禁用事件了</span><br><span class="line">				if(touch.identifier &amp;&amp; touch.identifier === this.lastTouchIdentifier) &#123;</span><br><span class="line">					event.preventDefault();</span><br><span class="line">					return false;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				this.lastTouchIdentifier = touch.identifier;</span><br><span class="line"></span><br><span class="line">				// 如果target是一个滚动容器里的一个子元素(使用了 -webkit-overflow-scrolling: touch) ，而且满足:</span><br><span class="line">				// 1) 用户非常快速地滚动外层滚动容器</span><br><span class="line">				// 2) 用户通过tap停止住了这个快速滚动</span><br><span class="line">				// 这时候最后的&apos;touchend&apos;的event.target会变成用户最终手指下的那个元素</span><br><span class="line">				// 所以当快速滚动开始的时候，需要做检查target是否滚动容器的子元素，如果是，做个标记</span><br><span class="line">				// 在touchend时检查这个标记的值（滚动容器的scrolltop）是否改变了，如果是则说明页面在滚动中，需要取消fastclick处理</span><br><span class="line">				this.updateScrollParent(targetElement);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		this.trackingClick = true; //做个标志表示开始追踪click事件了</span><br><span class="line">		this.trackingClickStart = event.timeStamp; //标记下touch事件开始的时间戳</span><br><span class="line">		this.targetElement = targetElement;</span><br><span class="line"></span><br><span class="line">		//标记touch起始点的页面偏移值</span><br><span class="line">		this.touchStartX = touch.pageX;</span><br><span class="line">		this.touchStartY = touch.pageY;</span><br><span class="line"></span><br><span class="line">		// this.lastClickTime 是在 touchend 里标记的事件时间戳</span><br><span class="line">		// this.tapDelay 为常量 200 （ms）</span><br><span class="line">		// 此举用来避免 phantom 的双击（200ms内快速点了两次）触发 click</span><br><span class="line">		// 反正200ms内的第二次点击会禁止触发点击的默认事件</span><br><span class="line">		if((event.timeStamp - this.lastClickTime) &lt; this.tapDelay) &#123;</span><br><span class="line">			event.preventDefault();</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return true;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//判断是否移动了</span><br><span class="line">	//this.touchBoundary是常量，值为10</span><br><span class="line">	//如果touch已经移动了10个偏移量单位，则应当作为移动事件处理而非click事件</span><br><span class="line">	FastClick.prototype.touchHasMoved = function(event) &#123;</span><br><span class="line">		var touch = event.changedTouches[0],</span><br><span class="line">			boundary = this.touchBoundary;</span><br><span class="line"></span><br><span class="line">		if(Math.abs(touch.pageX - this.touchStartX) &gt; boundary || Math.abs(touch.pageY - this.touchStartY) &gt; boundary) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return false;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchMove = function(event) &#123;</span><br><span class="line">		//不是需要被追踪click的事件则忽略</span><br><span class="line">		if(!this.trackingClick) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 如果target突然改变了，或者用户其实是在移动手势而非想要click</span><br><span class="line">		// 则应该清掉this.trackingClick和this.targetElement，告诉后面的事件你们也不用处理了</span><br><span class="line">		if(this.targetElement !== this.getTargetElementFromEventTarget(event.target) || this.touchHasMoved(event)) &#123;</span><br><span class="line">			this.trackingClick = false;</span><br><span class="line">			this.targetElement = null;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return true;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//找到label标签所映射的组件，方便让用户点label的时候直接激活该组件</span><br><span class="line">	FastClick.prototype.findControl = function(labelElement) &#123;</span><br><span class="line"></span><br><span class="line">		// 有缓存则直接读缓存着的</span><br><span class="line">		if(labelElement.control !== undefined) &#123;</span><br><span class="line">			return labelElement.control;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 获取指向的组件</span><br><span class="line">		if(labelElement.htmlFor) &#123;</span><br><span class="line">			return document.getElementById(labelElement.htmlFor);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 没有for属性则激活页面第一个组件（labellable 元素）</span><br><span class="line">		return labelElement.querySelector(&apos;button, input:not([type=hidden]), keygen, meter, output, progress, select, textarea&apos;);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchEnd = function(event) &#123;</span><br><span class="line">		var forElement, trackingClickStart, targetTagName, scrollParent, touch, targetElement = this.targetElement;</span><br><span class="line"></span><br><span class="line">		if(!this.trackingClick) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 避免 phantom 的双击（200ms内快速点了两次）触发 click</span><br><span class="line">		// 我们在 ontouchstart 里已经做过一次判断了（仅仅禁用默认事件），这里再做一次判断</span><br><span class="line">		if((event.timeStamp - this.lastClickTime) &lt; this.tapDelay) &#123;</span><br><span class="line">			this.cancelNextClick = true; //该属性会在 onMouse 事件中被判断，为true则彻底禁用事件和冒泡</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//this.tapTimeout是常量，值为700</span><br><span class="line">		//识别是否为长按事件，如果是（大于700ms）则忽略</span><br><span class="line">		if((event.timeStamp - this.trackingClickStart) &gt; this.tapTimeout) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 得重置为false，避免input事件被意外取消</span><br><span class="line">		// 例子见 https://github.com/ftlabs/fastclick/issues/156</span><br><span class="line">		this.cancelNextClick = false;</span><br><span class="line"></span><br><span class="line">		this.lastClickTime = event.timeStamp; //标记touchend时间，方便下一次的touchstart做双击校验</span><br><span class="line"></span><br><span class="line">		trackingClickStart = this.trackingClickStart;</span><br><span class="line">		//重置 this.trackingClick 和 this.trackingClickStart</span><br><span class="line">		this.trackingClick = false;</span><br><span class="line">		this.trackingClickStart = 0;</span><br><span class="line"></span><br><span class="line">		// iOS 6.0-7.*版本下有个问题 —— 如果layer处于transition或scroll过程，event所提供的target是不正确的</span><br><span class="line">		// 所以咱们得重找 targetElement（这里通过 document.elementFromPoint 接口来寻找）</span><br><span class="line">		if(deviceIsIOSWithBadTarget) &#123; //iOS 6.0-7.*版本</span><br><span class="line">			touch = event.changedTouches[0]; //手指离开前的触点</span><br><span class="line"></span><br><span class="line">			// 有些情况下 elementFromPoint 里的参数是预期外/不可用的, 所以还得避免 targetElement 为 null</span><br><span class="line">			targetElement = document.elementFromPoint(touch.pageX - window.pageXOffset, touch.pageY - window.pageYOffset) || targetElement;</span><br><span class="line">			// target可能不正确需要重找，但fastClickScrollParent是不会变的</span><br><span class="line">			targetElement.fastClickScrollParent = this.targetElement.fastClickScrollParent;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		targetTagName = targetElement.tagName.toLowerCase();</span><br><span class="line">		if(targetTagName === &apos;label&apos;) &#123; //是label则激活其指向的组件</span><br><span class="line">			forElement = this.findControl(targetElement);</span><br><span class="line">			if(forElement) &#123;</span><br><span class="line">				this.focus(targetElement);</span><br><span class="line">				//安卓直接返回（无需合成click事件触发，因为点击和激活元素不同，不存在点透）</span><br><span class="line">				if(deviceIsAndroid) &#123;</span><br><span class="line">					return false;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				targetElement = forElement;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; else if(this.needsFocus(targetElement)) &#123; //非label则识别是否需要focus的元素</span><br><span class="line"></span><br><span class="line">			//手势停留在组件元素时长超过100ms，则置空this.targetElement并返回</span><br><span class="line">			//（而不是通过调用this.focus来触发其聚焦事件，走的原生的click/focus事件触发流程）</span><br><span class="line">			//这也是为何文章开头提到的问题中，稍微久按一点（超过100ms）textarea是可以把光标定位在正确的地方的原因</span><br><span class="line">			//另外iOS下有个意料之外的bug——如果被点击的元素所在文档是在iframe中的，手动调用其focus的话，</span><br><span class="line">			//会发现你往其中输入的text是看不到的（即使value做了更新），so这里也直接返回</span><br><span class="line">			if((event.timeStamp - trackingClickStart) &gt; 100 || (deviceIsIOS &amp;&amp; window.top !== window &amp;&amp; targetTagName === &apos;input&apos;)) &#123;</span><br><span class="line">				this.targetElement = null;</span><br><span class="line">				return false;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			this.focus(targetElement);</span><br><span class="line">			this.sendClick(targetElement, event); //立即触发其click事件，而无须等待300ms</span><br><span class="line"></span><br><span class="line">			//iOS4下的 select 元素不能禁用默认事件（要确保它能被穿透），否则不会打开select目录</span><br><span class="line">			//有时候 iOS6/7 下（VoiceOver开启的情况下）也会如此</span><br><span class="line">			if(!deviceIsIOS || targetTagName !== &apos;select&apos;) &#123;</span><br><span class="line">				this.targetElement = null;</span><br><span class="line">				event.preventDefault();</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			return false;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if(deviceIsIOS &amp;&amp; !deviceIsIOS4) &#123;</span><br><span class="line"></span><br><span class="line">			// 滚动容器的垂直滚动偏移改变了，说明是容器在做滚动而非点击，则忽略</span><br><span class="line">			scrollParent = targetElement.fastClickScrollParent;</span><br><span class="line">			if(scrollParent &amp;&amp; scrollParent.fastClickLastScrollTop !== scrollParent.scrollTop) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 查看元素是否无需处理的白名单内（比如加了名为“needsclick”的class）</span><br><span class="line">		// 不是白名单的则照旧预防穿透处理，立即触发合成的click事件</span><br><span class="line">		if(!this.needsClick(targetElement)) &#123;</span><br><span class="line">			event.preventDefault();</span><br><span class="line">			this.sendClick(targetElement, event);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return false;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.prototype.onTouchCancel = function() &#123;</span><br><span class="line">		this.trackingClick = false;</span><br><span class="line">		this.targetElement = null;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//用于决定是否允许穿透事件（触发layer的click默认事件）</span><br><span class="line">	FastClick.prototype.onMouse = function(event) &#123;</span><br><span class="line"></span><br><span class="line">		// touch事件一直没触发</span><br><span class="line">		if(!this.targetElement) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if(event.forwardedTouchEvent) &#123; //触发的click事件是合成的</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 编程派生的事件所对应元素事件可以被允许</span><br><span class="line">		// 确保其没执行过 preventDefault 方法（event.cancelable 不为 true）即可</span><br><span class="line">		if(!event.cancelable) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 需要做预防穿透处理的元素，或者做了快速（200ms）双击的情况</span><br><span class="line">		if(!this.needsClick(this.targetElement) || this.cancelNextClick) &#123;</span><br><span class="line">			//停止当前默认事件和冒泡</span><br><span class="line">			if(event.stopImmediatePropagation) &#123;</span><br><span class="line">				event.stopImmediatePropagation();</span><br><span class="line">			&#125; else &#123;</span><br><span class="line"></span><br><span class="line">				// 不支持 stopImmediatePropagation 的设备(比如Android 2)做标记，</span><br><span class="line">				// 确保该事件回调不会执行（见126行）</span><br><span class="line">				event.propagationStopped = true;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			// 取消事件和冒泡</span><br><span class="line">			event.stopPropagation();</span><br><span class="line">			event.preventDefault();</span><br><span class="line"></span><br><span class="line">			return false;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//允许穿透</span><br><span class="line">		return true;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//click事件常规都是touch事件衍生来的，也排在touch后面触发。</span><br><span class="line">	//对于那些我们在touch事件过程没有禁用掉默认事件的event来说，我们还需要在click的捕获阶段进一步</span><br><span class="line">	//做判断决定是否要禁掉点击事件（防穿透）</span><br><span class="line">	FastClick.prototype.onClick = function(event) &#123;</span><br><span class="line">		var permitted;</span><br><span class="line"></span><br><span class="line">		// 如果还有 trackingClick 存在，可能是某些UI事件阻塞了touchEnd 的执行</span><br><span class="line">		if(this.trackingClick) &#123;</span><br><span class="line">			this.targetElement = null;</span><br><span class="line">			this.trackingClick = false;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 依旧是对 iOS 怪异行为的处理 —— 如果用户点击了iOS模拟器里某个表单中的一个submit元素</span><br><span class="line">		// 或者点击了弹出来的键盘里的“Go”按钮，会触发一个“伪”click事件（target是一个submit-type的input元素）</span><br><span class="line">		if(event.target.type === &apos;submit&apos; &amp;&amp; event.detail === 0) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		permitted = this.onMouse(event);</span><br><span class="line"></span><br><span class="line">		if(!permitted) &#123; //如果点击是被允许的，将this.targetElement置空可以确保onMouse事件里不会阻止默认事件</span><br><span class="line">			this.targetElement = null;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		//没有多大意义</span><br><span class="line">		return permitted;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//销毁Fastclick所注册的监听事件。是给外部实例去调用的</span><br><span class="line">	FastClick.prototype.destroy = function() &#123;</span><br><span class="line">		var layer = this.layer;</span><br><span class="line"></span><br><span class="line">		if(deviceIsAndroid) &#123;</span><br><span class="line">			layer.removeEventListener(&apos;mouseover&apos;, this.onMouse, true);</span><br><span class="line">			layer.removeEventListener(&apos;mousedown&apos;, this.onMouse, true);</span><br><span class="line">			layer.removeEventListener(&apos;mouseup&apos;, this.onMouse, true);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		layer.removeEventListener(&apos;click&apos;, this.onClick, true);</span><br><span class="line">		layer.removeEventListener(&apos;touchstart&apos;, this.onTouchStart, false);</span><br><span class="line">		layer.removeEventListener(&apos;touchmove&apos;, this.onTouchMove, false);</span><br><span class="line">		layer.removeEventListener(&apos;touchend&apos;, this.onTouchEnd, false);</span><br><span class="line">		layer.removeEventListener(&apos;touchcancel&apos;, this.onTouchCancel, false);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	//是否没必要使用到 Fastclick 的检测</span><br><span class="line">	FastClick.notNeeded = function(layer) &#123;</span><br><span class="line">		var metaViewport;</span><br><span class="line">		var chromeVersion;</span><br><span class="line">		var blackberryVersion;</span><br><span class="line">		var firefoxVersion;</span><br><span class="line"></span><br><span class="line">		// 不支持触摸的设备</span><br><span class="line">		if(typeof window.ontouchstart === &apos;undefined&apos;) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 获取Chrome版本号，若非Chrome则返回0</span><br><span class="line">		chromeVersion = +(/Chrome\/([0-9]+)/.exec(navigator.userAgent) || [, 0])[1];</span><br><span class="line"></span><br><span class="line">		if(chromeVersion) &#123;</span><br><span class="line"></span><br><span class="line">			if(deviceIsAndroid) &#123; //安卓</span><br><span class="line">				metaViewport = document.querySelector(&apos;meta[name=viewport]&apos;);</span><br><span class="line"></span><br><span class="line">				if(metaViewport) &#123;</span><br><span class="line">					// 安卓下，带有 user-scalable=&quot;no&quot; 的 meta 标签的 chrome 是会自动禁用 300ms 延迟的，所以无需 Fastclick</span><br><span class="line">					if(metaViewport.content.indexOf(&apos;user-scalable=no&apos;) !== -1) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line">					// 安卓Chrome 32 及以上版本，若带有 width=device-width 的 meta 标签也是无需 FastClick 的</span><br><span class="line">					if(chromeVersion &gt; 31 &amp;&amp; document.documentElement.scrollWidth &lt;= window.outerWidth) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				// 其它的就肯定是桌面级的 Chrome 了，更不需要 FastClick 啦</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		if(deviceIsBlackBerry10) &#123; //黑莓，和上面安卓同理，就不写注释了</span><br><span class="line">			blackberryVersion = navigator.userAgent.match(/Version\/([0-9]*)\.([0-9]*)/);</span><br><span class="line"></span><br><span class="line">			if(blackberryVersion[1] &gt;= 10 &amp;&amp; blackberryVersion[2] &gt;= 3) &#123;</span><br><span class="line">				metaViewport = document.querySelector(&apos;meta[name=viewport]&apos;);</span><br><span class="line"></span><br><span class="line">				if(metaViewport) &#123;</span><br><span class="line">					if(metaViewport.content.indexOf(&apos;user-scalable=no&apos;) !== -1) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line"></span><br><span class="line">					if(document.documentElement.scrollWidth &lt;= window.outerWidth) &#123;</span><br><span class="line">						return true;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// 带有 -ms-touch-action: none / manipulation 特性的 IE10 会禁用双击放大，也没有 300ms 时延</span><br><span class="line">		if(layer.style.msTouchAction === &apos;none&apos; || layer.style.touchAction === &apos;manipulation&apos;) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// Firefox检测，同上</span><br><span class="line">		firefoxVersion = +(/Firefox\/([0-9]+)/.exec(navigator.userAgent) || [, 0])[1];</span><br><span class="line"></span><br><span class="line">		if(firefoxVersion &gt;= 27) &#123;</span><br><span class="line"></span><br><span class="line">			metaViewport = document.querySelector(&apos;meta[name=viewport]&apos;);</span><br><span class="line">			if(metaViewport &amp;&amp; (metaViewport.content.indexOf(&apos;user-scalable=no&apos;) !== -1 || document.documentElement.scrollWidth &lt;= window.outerWidth)) &#123;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		// IE11 推荐使用没有“-ms-”前缀的 touch-action 样式特性名</span><br><span class="line">		if(layer.style.touchAction === &apos;none&apos; || layer.style.touchAction === &apos;manipulation&apos;) &#123;</span><br><span class="line">			return true;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		return false;</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	FastClick.attach = function(layer, options) &#123;</span><br><span class="line">		return new FastClick(layer, options);</span><br><span class="line">	&#125;;</span><br><span class="line"></span><br><span class="line">	if(typeof define === &apos;function&apos; &amp;&amp; typeof define.amd === &apos;object&apos; &amp;&amp; define.amd) &#123;</span><br><span class="line"></span><br><span class="line">		// AMD. Register as an anonymous module.</span><br><span class="line">		define(function() &#123;</span><br><span class="line">			return FastClick;</span><br><span class="line">		&#125;);</span><br><span class="line">	&#125; else if(typeof module !== &apos;undefined&apos; &amp;&amp; module.exports) &#123;</span><br><span class="line">		module.exports = FastClick.attach;</span><br><span class="line">		module.exports.FastClick = FastClick;</span><br><span class="line">	&#125; else &#123;</span><br><span class="line">		window.FastClick = FastClick;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;());</span><br></pre></td></tr></table></figure>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=&quot;en&quot;&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;</span><br><span class="line">		&lt;title&gt;Demo&lt;/title&gt;</span><br><span class="line">		&lt;script src=&quot;./fastclick.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">		&lt;style&gt;</span><br><span class="line">			div &#123;</span><br><span class="line">				width: 200px;</span><br><span class="line">				background: red;Y</span><br><span class="line">				margin: 0 auto;</span><br><span class="line">				height: 200px;</span><br><span class="line">				color: wheat;</span><br><span class="line">				font-size: 25px;</span><br><span class="line">				display: flex;</span><br><span class="line">				justify-content: center;</span><br><span class="line">				align-items: center;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div id=&quot;main&quot;&gt;FastClick&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">		&lt;script&gt;</span><br><span class="line">			FastClick.attach(document.body);</span><br><span class="line">			document.getElementById(&quot;main&quot;).addEventListener(&quot;click&quot;, function(event) &#123;</span><br><span class="line">				console.log(event.target.innerText)</span><br><span class="line">			&#125;, false)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/09/29/浅说-XSS-和-CSRF/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/09/29/浅说-XSS-和-CSRF/" itemprop="url">浅说 XSS 和 CSRF</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-09-29T12:06:38+08:00">
-                2015-09-29
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>在 Web 安全领域中，XSS 和 CSRF 是最常见的攻击方式。本文将会简单介绍 XSS 和 CSRF 的攻防问题。</p>
-<blockquote>
-<p>声明：本文的示例仅用于演示相关的攻击原理</p>
-</blockquote>
-<h2 id="XSS"><a href="#XSS" class="headerlink" title="XSS"></a>XSS</h2><p>XSS，即 Cross Site Script，中译是跨站脚本攻击；其原本缩写是 CSS，但为了和层叠样式表(Cascading Style Sheet)有所区分，因而在安全领域叫做 XSS。</p>
-<p>XSS 攻击是指攻击者在网站上注入恶意的客户端代码，通过恶意脚本对客户端网页进行篡改，从而在用户浏览网页时，对用户浏览器进行控制或者获取用户隐私数据的一种攻击方式。</p>
-<p>攻击者对客户端网页注入的恶意脚本一般包括 JavaScript，有时也会包含 HTML 和 Flash。有很多种方式进行 XSS 攻击，但它们的共同点为：将一些隐私数据像 cookie、session 发送给攻击者，将受害者重定向到一个由攻击者控制的网站，在受害者的机器上进行一些恶意操作。</p>
-<p>XSS攻击可以分为3类：反射型（非持久型）、存储型（持久型）、基于DOM。</p>
-<h4 id="反射型"><a href="#反射型" class="headerlink" title="反射型"></a>反射型</h4><p>反射型 XSS 只是简单地把用户输入的数据 “反射” 给浏览器，这种攻击方式往往需要攻击者诱使用户点击一个恶意链接，或者提交一个表单，或者进入一个恶意网站时，注入脚本进入被攻击者的网站。</p>
-<p>看一个示例。我先准备一个如下的静态页：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" alt="反射型xss1"></a></p>
-<p>恶意链接的地址指向了 <code>localhost:8001/?q=111&amp;p=222</code>。然后，我再启一个简单的 Node 服务处理恶意链接的请求：</p>
-<pre><code>consthttp=require(&apos;http&apos;);
-functionhandleReequest(req, res) {
-    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
-    res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
-    res.write(&apos;&lt;script&gt;alert(&quot;反射型 XSS 攻击&quot;)&lt;/script&gt;&apos;);
-    res.end();
-}
-
-constserver=newhttp.Server();
-server.listen(8001, &apos;127.0.0.1&apos;);
-server.on(&apos;request&apos;, handleReequest);
-</code></pre><p>当用户点击恶意链接时，页面跳转到攻击者预先准备的页面，会发现在攻击者的页面执行了 js 脚本：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" alt="执行脚本"></a></p>
-<p>这样就产生了反射型 XSS 攻击。攻击者可以注入任意的恶意脚本进行攻击，可能注入恶作剧脚本，或者注入能获取用户隐私数据(如cookie)的脚本，这取决于攻击者的目的。</p>
-<h4 id="存储型"><a href="#存储型" class="headerlink" title="存储型"></a>存储型</h4><p>存储型 XSS 会把用户输入的数据 “存储” 在服务器端，当浏览器请求数据时，脚本从服务器上传回并执行。这种 XSS 攻击具有很强的稳定性。</p>
-<p>比较常见的一个场景是攻击者在社区或论坛上写下一篇包含恶意 JavaScript 代码的文章或评论，文章或评论发表后，所有访问该文章或评论的用户，都会在他们的浏览器中执行这段恶意的 JavaScript 代码。</p>
-<p>举一个示例。</p>
-<p>先准备一个输入页面：</p>
-<pre><code>&lt;input type=&quot;text&quot; id=&quot;input&quot;&gt;
-&lt;button id=&quot;btn&quot;&gt;Submit&lt;/button&gt;   
-
-&lt;script&gt;
-    const input = document.getElementById(&apos;input&apos;);
-    const btn = document.getElementById(&apos;btn&apos;);
-
-    let val;
-
-    input.addEventListener(&apos;change&apos;, (e) =&gt; {
-        val = e.target.value;
-    }, false);
-
-    btn.addEventListener(&apos;click&apos;, (e) =&gt; {
-        fetch(&apos;http://localhost:8001/save&apos;, {
-            method: &apos;POST&apos;,
-            body: val
-        });
-    }, false);
-&lt;/script&gt;     
-</code></pre><p>启动一个 Node 服务监听 <code>save</code> 请求。为了简化，用一个变量来保存用户的输入：</p>
-<pre><code>consthttp=require(&apos;http&apos;);
-
-let userInput =&apos;&apos;;
-
-functionhandleReequest(req, res) {
-    constmethod=req.method;
-    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
-    res.setHeader(&apos;Access-Control-Allow-Headers&apos;, &apos;Content-Type&apos;)
-
-    if (method ===&apos;POST&apos;&amp;&amp;req.url===&apos;/save&apos;) {
-        let body =&apos;&apos;;
-        req.on(&apos;data&apos;, chunk=&gt; {
-            body += chunk;
-        });
-
-        req.on(&apos;end&apos;, () =&gt; {
-            if (body) {
-                userInput = body;
-            }
-            res.end();
-        });
-    } else {
-        res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
-        res.write(userInput);
-        res.end();
-    }
-}
-
-constserver=newhttp.Server();
-server.listen(8001, &apos;127.0.0.1&apos;);
-
-server.on(&apos;request&apos;, handleReequest);
-</code></pre><p>当用户点击提交按钮将输入信息提交到服务端时，服务端通过 <code>userInput</code> 变量保存了输入内容。当用户通过 <code>http://localhost:8001/${id}</code> 访问时，服务端会返回与 <code>id</code> 对应的内容(本示例简化了处理)。如果用户输入了恶意脚本内容，则其他用户访问该内容时，恶意脚本就会在浏览器端执行：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" alt="存储型xss"></a></p>
-<h4 id="基于DOM"><a href="#基于DOM" class="headerlink" title="基于DOM"></a>基于DOM</h4><p>基于 DOM 的 XSS 攻击是指通过恶意脚本修改页面的 DOM 结构，是纯粹发生在客户端的攻击。</p>
-<p>看如下代码：</p>
-<pre><code>&lt;h2&gt;XSS: &lt;/h2&gt;
-&lt;inputtype=&quot;text&quot;id=&quot;input&quot;&gt;
-&lt;buttonid=&quot;btn&quot;&gt;Submit&lt;/button&gt;
-&lt;divid=&quot;div&quot;&gt;&lt;/div&gt;
-&lt;script&gt;constinput=document.getElementById(&apos;input&apos;);constbtn=document.getElementById(&apos;btn&apos;);constdiv=document.getElementById(&apos;div&apos;);let val;input.addEventListener(&apos;change&apos;, (e) =&gt; {        val =e.target.value;    }, false);btn.addEventListener(&apos;click&apos;, () =&gt; {div.innerHTML=`&lt;ahref=${val}&gt;testLink&lt;/a&gt;`    }, false);&lt;/script&gt;
-</code></pre><p>点击 <code>Submit</code> 按钮后，会在当前页面插入一个链接，其地址为用户的输入内容。如果用户在输入时构造了如下内容：</p>
-<pre><code>&apos;&apos; onclick=alert(/xss/)
-</code></pre><p>用户提交之后，页面代码就变成了：</p>
-<pre><code>&lt;ahrefonlick=&quot;alert(/xss/)&quot;&gt;testLink&lt;/a&gt;
-</code></pre><p>此时，用户点击生成的链接，就会执行对应的脚本：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" alt="dom-xss"></a></p>
-<h3 id="XSS-攻击的防范"><a href="#XSS-攻击的防范" class="headerlink" title="XSS 攻击的防范"></a>XSS 攻击的防范</h3><p>现在主流的浏览器内置了防范 XSS 的措施，例如 <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP" target="_blank" rel="noopener">CSP</a>。但对于开发者来说，也应该寻找可靠的解决方案来防止 XSS 攻击。</p>
-<h4 id="HttpOnly-防止劫取-Cookie"><a href="#HttpOnly-防止劫取-Cookie" class="headerlink" title="HttpOnly 防止劫取 Cookie"></a>HttpOnly 防止劫取 Cookie</h4><p>HttpOnly 最早由微软提出，至今已经成为一个标准。浏览器将禁止页面的Javascript 访问带有 HttpOnly 属性的Cookie。</p>
-<p>上文有说到，攻击者可以通过注入恶意脚本获取用户的 Cookie 信息。通常 Cookie 中都包含了用户的登录凭证信息，攻击者在获取到 Cookie 之后，则可以发起 Cookie 劫持攻击。所以，严格来说，HttpOnly 并非阻止 XSS 攻击，而是能阻止 XSS 攻击后的 Cookie 劫持攻击。</p>
-<h4 id="输入检查"><a href="#输入检查" class="headerlink" title="输入检查"></a>输入检查</h4><p><strong>不要相信用户的任何输入。</strong> 对于用户的任何输入要进行检查、过滤和转义。建立可信任的字符和 HTML 标签白名单，对于不在白名单之列的字符或者标签进行过滤或编码。</p>
-<p>在 XSS 防御中，输入检查一般是检查用户输入的数据中是否包含 <code>&lt;</code>，<code>&gt;</code> 等特殊字符，如果存在，则对特殊字符进行过滤或编码，这种方式也称为 XSS Filter。</p>
-<p>而在一些前端框架中，都会有一份 <code>decodingMap</code>， 用于对用户输入所包含的特殊字符或标签进行编码或过滤，如 <code>&lt;</code>，<code>&gt;</code>，<code>script</code>，防止 XSS 攻击：</p>
-<pre><code>// vuejs 中的 decodingMap
-// 在 vuejs 中，如果输入带 script 标签的内容，会直接过滤掉
-const decodingMap = {
-  &apos;&amp;lt;&apos;: &apos;&lt;&apos;,
-  &apos;&amp;gt;&apos;: &apos;&gt;&apos;,
-  &apos;&amp;quot;&apos;: &apos;&quot;&apos;,
-  &apos;&amp;amp;&apos;: &apos;&amp;&apos;,
-  &apos;&amp;#10;&apos;: &apos;\n&apos;
-}
-</code></pre><h4 id="输出检查"><a href="#输出检查" class="headerlink" title="输出检查"></a>输出检查</h4><p>用户的输入会存在问题，服务端的输出也会存在问题。一般来说，除富文本的输出外，在变量输出到 HTML 页面时，可以使用编码或转义的方式来防御 XSS 攻击。例如利用 <a href="https://github.com/punkave/sanitize-html" target="_blank" rel="noopener">sanitize-html</a> 对输出内容进行有规则的过滤之后再输出到页面中。</p>
-<h2 id="CSRF"><a href="#CSRF" class="headerlink" title="CSRF"></a>CSRF</h2><p>CSRF，即 Cross Site Request Forgery，中译是跨站请求伪造，是一种劫持受信任用户向服务器发送非预期请求的攻击方式。</p>
-<p>通常情况下，CSRF 攻击是攻击者借助受害者的 Cookie 骗取服务器的信任，可以在受害者毫不知情的情况下以受害者名义伪造请求发送给受攻击服务器，从而在并未授权的情况下执行在权限保护之下的操作。</p>
-<p>在举例子之前，先说说浏览器的 Cookie 策略。</p>
-<h3 id="浏览器的-Cookie-策略"><a href="#浏览器的-Cookie-策略" class="headerlink" title="浏览器的 Cookie 策略"></a>浏览器的 Cookie 策略</h3><p>Cookie 是服务器发送到用户浏览器并保存在本地的一小块数据，它会在浏览器下次向同一服务器再发起请求时被携带并发送到服务器上。Cookie 主要用于以下三个方面：</p>
-<ul>
-<li>会话状态管理（如用户登录状态、购物车、游戏分数或其它需要记录的信息）</li>
-<li>个性化设置（如用户自定义设置、主题等）</li>
-<li>个性化设置（如用户自定义设置、主题等）</li>
-</ul>
-<p>而浏览器所持有的 Cookie 分为两种：</p>
-<ul>
-<li>Session Cookie(会话期 Cookie)：会话期 Cookie 是最简单的Cookie，它不需要指定过期时间（Expires）或者有效期（Max-Age），它仅在会话期内有效，浏览器关闭之后它会被自动删除。</li>
-<li><p>Permanent Cookie(持久性 Cookie)：与会话期 Cookie 不同的是，持久性 Cookie 可以指定一个特定的过期时间（Expires）或有效期（Max-Age）。</p>
-<p>  res.setHeader(‘Set-Cookie’, [‘mycookie=222’, ‘test=3333; expires=Sat, 21 Jul 2018 00:00:00 GMT;’]);</p>
-</li>
-</ul>
-<p>上述代码创建了两个 Cookie：<code>mycookie</code> 和 <code>test</code>，前者属于会话期 Cookie，后者则属于持久性 Cookie。当我们去查看 Cookie 相关的属性时，不同的浏览器对会话期 Cookie 的 <code>Expires</code> 属性值会不一样：</p>
-<p>Firefox：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" alt="firefox cookie"></a></p>
-<p>Chrome:</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" alt="chrome cookie"></a></p>
-<p>此外，每个 Cookie 都会有与之关联的域，这个域的范围一般通过 <code>donmain</code> 属性指定。如果 Cookie 的域和页面的域相同，那么我们称这个 Cookie 为第一方 Cookie（first-party cookie），如果 Cookie 的域和页面的域不同，则称之为第三方 Cookie（third-party cookie）。一个页面包含图片或存放在其他域上的资源（如图片）时，第一方的 Cookie 也只会发送给设置它们的服务器。</p>
-<h3 id="通过-Cookie-进行-CSRF-攻击"><a href="#通过-Cookie-进行-CSRF-攻击" class="headerlink" title="通过 Cookie 进行 CSRF 攻击"></a>通过 Cookie 进行 CSRF 攻击</h3><p>假设有一个 bbs 站点：<code>http://www.c.com</code>，当登录后的用户发起如下 GET 请求时，会删除 ID 指定的帖子：</p>
-<pre><code>http://www.c.com:8002/content/delete/:id
-</code></pre><p>如发起 <code>http://www.c.com:8002/content/delete/87343</code> 请求时，会删除 id 为 87343 的帖子。当用户登录之后，会设置如下 cookie：</p>
-<pre><code>res.setHeader(&apos;Set-Cookie&apos;, [&apos;user=22333; expires=Sat, 21 Jul 2018 00:00:00 GMT;&apos;]);
-</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" alt="user"></a></p>
-<p><code>user</code> 对应的值是用户 ID。然后构造一个页面 A：</p>
-<pre><code>&lt;p&gt;CSRF 攻击者准备的网站：&lt;/p&gt;
-&lt;img src=&quot;http://www.c.com:8002/content/delete/87343&quot;&gt;
-</code></pre><p>页面 A 使用了一个 <code>img</code> 标签，其地址指向了删除用户帖子的链接：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" alt="A"></a></p>
-<p>可以看到，当登录用户访问攻击者的网站时，会向 <code>www.c.com</code> 发起一个删除用户帖子的请求。此时若用户在切换到 <code>www.c.com</code> 的帖子页面刷新，会发现ID 为 87343 的帖子已经被删除。</p>
-<p>由于 Cookie 中包含了用户的认证信息，当用户访问攻击者准备的攻击环境时，攻击者就可以对服务器发起 CSRF 攻击。在这个攻击过程中，攻击者借助受害者的 Cookie 骗取服务器的信任，但并不能拿到 Cookie，也看不到 Cookie 的内容。而对于服务器返回的结果，由于浏览器同源策略的限制，攻击者也无法进行解析。因此，攻击者无法从返回的结果中得到任何东西，他所能做的就是给服务器发送请求，以执行请求中所描述的命令，在服务器端直接改变数据的值，而非窃取服务器中的数据。</p>
-<p>但若 CSRF 攻击的目标并不需要使用 Cookie，则也不必顾虑浏览器的 Cookie 策略了。</p>
-<h3 id="CSRF-攻击的防范"><a href="#CSRF-攻击的防范" class="headerlink" title="CSRF 攻击的防范"></a>CSRF 攻击的防范</h3><p>当前，对 CSRF 攻击的防范措施主要有如下几种方式。</p>
-<h4 id="验证码"><a href="#验证码" class="headerlink" title="验证码"></a>验证码</h4><p>验证码被认为是对抗 CSRF 攻击最简洁而有效的防御方法。</p>
-<p>从上述示例中可以看出，CSRF 攻击往往是在用户不知情的情况下构造了网络请求。而验证码会强制用户必须与应用进行交互，才能完成最终请求。因为通常情况下，验证码能够很好地遏制 CSRF 攻击。</p>
-<p>但验证码并不是万能的，因为出于用户考虑，不能给网站所有的操作都加上验证码。因此，验证码只能作为防御 CSRF 的一种辅助手段，而不能作为最主要的解决方案。</p>
-<h4 id="Referer-Check"><a href="#Referer-Check" class="headerlink" title="Referer Check"></a>Referer Check</h4><p>根据 HTTP 协议，在 HTTP 头中有一个字段叫 Referer，它记录了该 HTTP 请求的来源地址。通过 Referer Check，可以检查请求是否来自合法的”源”。</p>
-<p>比如，如果用户要删除自己的帖子，那么先要登录 <code>www.c.com</code>，然后找到对应的页面，发起删除帖子的请求。此时，Referer 的值是 <code>http://www.c.com</code>；当请求是从 <code>www.a.com</code> 发起时，Referer 的值是 <code>http://www.a.com</code> 了。因此，要防御 CSRF 攻击，只需要对于每一个删帖请求验证其 Referer 值，如果是以 <code>www.c.com</code> 开头的域名，则说明该请求是来自网站自己的请求，是合法的。如果 Referer 是其他网站的话，则有可能是 CSRF 攻击，可以拒绝该请求。</p>
-<p>针对上文的例子，可以在服务端增加如下代码：</p>
-<pre><code>if (req.headers.referer!==&apos;http://www.c.com:8002/&apos;) {
-    res.write(&apos;csrf 攻击&apos;);
-    return;
-}
-</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" alt="referer check"></a></p>
-<p>Referer Check 不仅能防范 CSRF 攻击，另一个应用场景是 “防止图片盗链”。</p>
-<h4 id="添加-token-验证"><a href="#添加-token-验证" class="headerlink" title="添加 token 验证"></a>添加 token 验证</h4><p>CSRF 攻击之所以能够成功，是因为攻击者可以完全伪造用户的请求，该请求中所有的用户验证信息都是存在于 Cookie 中，因此攻击者可以在不知道这些验证信息的情况下直接利用用户自己的 Cookie 来通过安全验证。要抵御 CSRF，关键在于在请求中放入攻击者所不能伪造的信息，并且该信息不存在于 Cookie 之中。可以在 HTTP 请求中以参数的形式加入一个随机产生的 token，并在服务器端建立一个拦截器来验证这个 token，如果请求中没有 token 或者 token 内容不正确，则认为可能是 CSRF 攻击而拒绝该请求。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了 XSS 和 CSRF 的攻击原理和防御措施。当然，在 Web 安全领域，除了这两种常见的攻击方式，也存在这 SQL 注入等其它攻击方式，这不在本文的讨论范围之内，如果你对其感兴趣，可以阅读<a href="https://zhuanlan.zhihu.com/p/23569276" target="_blank" rel="noopener">SQL注入技术专题</a>的专栏详细了解相关信息。最后，总结一下 XSS 攻击和 CSRF 攻击的常见防御措施：</p>
-<ol>
-<li>防御 XSS 攻击</li>
-</ol>
-<ul>
-<li>HttpOnly 防止劫取 Cookie</li>
-<li>用户的输入检查</li>
-<li>服务端的输出检查</li>
-</ul>
-<ol start="2">
-<li>防御 CSRF 攻击</li>
-</ol>
-<ul>
-<li>验证码</li>
-<li>Referer Check</li>
-<li>Token 验证</li>
-</ul>
-<p>&lt;完&gt;</p>
-<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
-<li><a href="https://developer.mozilla.org/zh-CN/docs/Glossary/Cross-site_scripting" target="_blank" rel="noopener">Cross-site scripting</a></li>
-<li><a href="https://www.ibm.com/developerworks/cn/web/1102_niugang_csrf/index.html" target="_blank" rel="noopener">CSRF 攻击的应对之道</a></li>
-<li>《白帽子讲 Web 安全》</li>
-</ul>
-
           
         
       
