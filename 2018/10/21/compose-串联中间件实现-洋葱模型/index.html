@@ -86,18 +86,18 @@
 
 
 
-<meta name="description" content="前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 compose 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打">
+<meta name="description" content="koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 co">
 <meta name="keywords" content="koa,node,express">
 <meta property="og:type" content="article">
-<meta property="og:title" content="compose-串联中间件实现(洋葱模型)">
+<meta property="og:title" content="Koa2 compose-串联中间件实现(洋葱模型)">
 <meta property="og:url" content="http://yoursite.com/2018/10/21/compose-串联中间件实现-洋葱模型/index.html">
 <meta property="og:site_name" content="LuckDay">
-<meta property="og:description" content="前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 compose 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打">
+<meta property="og:description" content="koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 co">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2018-11-26T12:12:19.260Z">
+<meta property="og:updated_time" content="2018-11-27T12:33:05.211Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="compose-串联中间件实现(洋葱模型)">
-<meta name="twitter:description" content="前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 compose 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打">
+<meta name="twitter:title" content="Koa2 compose-串联中间件实现(洋葱模型)">
+<meta name="twitter:description" content="koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）前言Koa 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 Express 支持了异步，所以编码时经常使用 async/await，提高了可读性，使代码变得更优雅，上一篇文章 NodeJS 进阶 —— Koa 源码分析，也对 “洋葱模型” 和实现它的 compose 进行分析，由于个人觉得 co">
 
 
 
@@ -133,7 +133,7 @@
 
 
 
-  <title>compose-串联中间件实现(洋葱模型) | LuckDay</title>
+  <title>Koa2 compose-串联中间件实现(洋葱模型) | LuckDay</title>
   
 
 
@@ -318,7 +318,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">compose-串联中间件实现(洋葱模型)</h1>
+          <h1 class="post-title" itemprop="name headline">Koa2 compose-串联中间件实现(洋葱模型)</h1>
         
 
         <div class="post-meta">
@@ -368,7 +368,7 @@
       
 
       
-        <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa</code> 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 <code>Express</code> 支持了异步，所以编码时经常使用 <code>async/await</code>，提高了可读性，使代码变得更优雅，上一篇文章 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.pandashen.com%2F2018%2F09%2F02%2F20180902141819%2F" target="_blank" rel="noopener">NodeJS 进阶 —— Koa 源码分析</a>，也对 “洋葱模型” 和实现它的 <code>compose</code> 进行分析，由于个人觉得 <code>compose</code> 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打算用四种方式来实现 <code>compose</code>。</p>
+        <h2 id="koa2-一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）"><a href="#koa2-一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）" class="headerlink" title="koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）"></a><a href="https://github.com/HCThink/h-blog/blob/master/source/koa2/readme.md" target="_blank" rel="noopener">koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）</a></h2><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa</code> 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 <code>Express</code> 支持了异步，所以编码时经常使用 <code>async/await</code>，提高了可读性，使代码变得更优雅，上一篇文章 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.pandashen.com%2F2018%2F09%2F02%2F20180902141819%2F" target="_blank" rel="noopener">NodeJS 进阶 —— Koa 源码分析</a>，也对 “洋葱模型” 和实现它的 <code>compose</code> 进行分析，由于个人觉得 <code>compose</code> 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打算用四种方式来实现 <code>compose</code>。</p>
 <h2 id="洋葱模型案例"><a href="#洋葱模型案例" class="headerlink" title="洋葱模型案例"></a>洋葱模型案例</h2><p>如果你已经使用 <code>Koa</code> 对 “洋葱模型” 这个词一定不陌生，它就是 <code>Koa</code> 中间件的一种串行机制，并且是支持异步的，下面是一个表达 “洋葱模型” 的经典案例。</p>
 <pre><code>const Koa = require(&quot;koa&quot;);
 
@@ -599,6 +599,11 @@ fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
 <p>因此执行第一个中间件返回的 <code>next</code> 则会执行传入的上一个生成的 <code>next</code> 函数，就会执行第二个中间件，就会执行第二个中间件中的 <code>next</code>，就这样直到执行完最初定义的的 <code>next</code>，通过案例的验证，执行结果与洋葱模型完全相同。</p>
 <p>至于异步的问题，每次执行的 <code>next</code> 都是 <code>async</code> 函数，执行后返回的都是 Promise，而最外层的自执行 <code>async</code> 函数返回的也是 Promise，也就是说 <code>compose</code> 最后返回的是 Promise，因此完全支持异步。</p>
 <p>这个方式之所放在最后，是因为个人觉得不好理解，我是按照自己对这几种方式理解的难易程度由上至下排序的。</p>
+<h2 id="Log中间件"><a href="#Log中间件" class="headerlink" title="Log中间件"></a>Log中间件</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">function log(ctx) &#123;</span><br><span class="line">    console.log(ctx.method, ctx.header.host + ctx.url)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports = function() &#123;</span><br><span class="line">	return async function(ctx, next) &#123;</span><br><span class="line">		log(ctx);</span><br><span class="line">		await next()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>使用</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">const Koa = require(&apos;koa&apos;) // koa v2</span><br><span class="line">const loggerAsync = require(&apos;./log&apos;)</span><br><span class="line">const app = new Koa()</span><br><span class="line"></span><br><span class="line">app.use(loggerAsync())</span><br><span class="line"></span><br><span class="line">app.use(async(ctx) =&gt; &#123;</span><br><span class="line">	let url = ctx.url</span><br><span class="line">	// 从上下文的request对象中获取</span><br><span class="line">	let request = ctx.request</span><br><span class="line">	let req_query = request.query</span><br><span class="line">	let req_querystring = request.querystring</span><br><span class="line"></span><br><span class="line">	// 从上下文中直接获取</span><br><span class="line">	let ctx_query = ctx.query</span><br><span class="line">	let ctx_querystring = ctx.querystring</span><br><span class="line"></span><br><span class="line">	ctx.body = &#123;</span><br><span class="line">		url,</span><br><span class="line">		req_query,</span><br><span class="line">		req_querystring,</span><br><span class="line">		ctx_query,</span><br><span class="line">		ctx_querystring</span><br><span class="line">	&#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.listen(3000)</span><br><span class="line">console.log(&apos;the server is starting at port 3000&apos;)</span><br></pre></td></tr></table></figure>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>或许你看完这几种方式会觉得，还是 <code>Koa</code> 对于 <code>compose</code> 的实现方式最容易理解，你也可能和我一样在感慨 <code>Redux</code> 的两种实现方式和 <code>async</code> 函数实现方式是如此的巧妙，恰恰 JavaScript 在被别人诟病 “弱类型”、“不严谨” 的同时，就是如此的具有灵活性和创造性，我们无法判断这是优点还是缺点（仁者见仁，智者见智），但有一点是肯定的，学习 JavaScript 不要被强类型语言的 “墨守成规” 所束缚（个人观点，强类型语言开发者勿喷），就是要吸收这样巧妙的编程思想，写出 <code>compose</code> 这种优雅又高逼格的代码，路漫漫其修远兮，愿你在技术的路上 “一去不复返”。</p>
 
       
@@ -727,7 +732,7 @@ fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">114</span>
+                  <span class="site-state-item-count">115</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -795,7 +800,7 @@ fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#洋葱模型案例"><span class="nav-number">2.</span> <span class="nav-text">洋葱模型案例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#准备工作"><span class="nav-number">3.</span> <span class="nav-text">准备工作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Koa-中-compose-的实现方式"><span class="nav-number">4.</span> <span class="nav-text">Koa 中 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现"><span class="nav-number">4.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步"><span class="nav-number">4.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redux-旧版本-compose-的实现方式"><span class="nav-number">5.</span> <span class="nav-text">Redux 旧版本 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现-1"><span class="nav-number">5.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步-1"><span class="nav-number">5.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redux-新版本-compose-的实现方式"><span class="nav-number">6.</span> <span class="nav-text">Redux 新版本 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现-2"><span class="nav-number">6.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步-2"><span class="nav-number">6.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#DEMO"><span class="nav-number">6.3.</span> <span class="nav-text">DEMO</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#使用-async-函数实现"><span class="nav-number">7.</span> <span class="nav-text">使用 async 函数实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#koa2-一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）"><span class="nav-number">1.</span> <span class="nav-text">koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">2.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#洋葱模型案例"><span class="nav-number">3.</span> <span class="nav-text">洋葱模型案例</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#准备工作"><span class="nav-number">4.</span> <span class="nav-text">准备工作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Koa-中-compose-的实现方式"><span class="nav-number">5.</span> <span class="nav-text">Koa 中 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现"><span class="nav-number">5.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步"><span class="nav-number">5.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redux-旧版本-compose-的实现方式"><span class="nav-number">6.</span> <span class="nav-text">Redux 旧版本 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现-1"><span class="nav-number">6.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步-1"><span class="nav-number">6.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redux-新版本-compose-的实现方式"><span class="nav-number">7.</span> <span class="nav-text">Redux 新版本 compose 的实现方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、同步的实现-2"><span class="nav-number">7.1.</span> <span class="nav-text">1、同步的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、升级为支持异步-2"><span class="nav-number">7.2.</span> <span class="nav-text">2、升级为支持异步</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#DEMO"><span class="nav-number">7.3.</span> <span class="nav-text">DEMO</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#使用-async-函数实现"><span class="nav-number">8.</span> <span class="nav-text">使用 async 函数实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Log中间件"><span class="nav-number">9.</span> <span class="nav-text">Log中间件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">10.</span> <span class="nav-text">总结</span></a></li></ol></div>
             
 
           </div>
