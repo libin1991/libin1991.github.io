@@ -300,223 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/10/koa-bodyparser中间件模拟/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/10/10/koa-bodyparser中间件模拟/" itemprop="url">koa-bodyparser中间件模拟</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-10T23:05:34+08:00">
-                2018-10-10
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa 2.x</code> 版本是当下最流行的 NodeJS 框架，<code>Koa 2.0</code> 的源码特别精简，不像 <code>Express</code> 封装的功能那么多，所以大部分的功能都是由 <code>Koa</code> 开发团队（同 <code>Express</code> 是一家出品）和社区贡献者针对 <code>Koa</code> 对 NodeJS 的封装特性实现的中间件来提供的，用法非常简单，就是引入中间件，并调用 <code>Koa</code> 的 <code>use</code> 方法使用在对应的位置，这样就可以通过在内部操作 <code>ctx</code> 实现一些功能，我们接下来就讨论常用中间件的实现原理以及我们应该如何开发一个 <code>Koa</code> 中间件供自己和别人使用。</p>
-<h2 id="Koa-的洋葱模型介绍"><a href="#Koa-的洋葱模型介绍" class="headerlink" title="Koa 的洋葱模型介绍"></a>Koa 的洋葱模型介绍</h2><p>我们本次不对洋葱模型的实现原理进行过多的刨析，主要根据 API 的使用方式及洋葱模型分析中间件是如何工作的。</p>
-<pre><code>// 洋葱模型特点// 引入 Koa
-const Koa = require(&quot;koa&quot;);
-
-// 创建服务
-const app = new Koa();
-
-app.use(async (ctx, next) =&gt; {
-    console.log(1);
-    await next();
-    console.log(2);
-});
-
-app.use(async (ctx, next) =&gt; {
-    console.log(3);
-    await next();
-    console.log(4);
-});
-
-app.use(async (ctx, next) =&gt; {
-    console.log(5);
-    await next();
-    console.log(6);
-});
-
-// 监听服务
-app.listen(3000);
-
-// 1
-// 3
-// 5
-// 6
-// 4
-// 2
-</code></pre><p>我们知道 <code>Koa</code> 的 <code>use</code> 方法是支持异步的，所以为了保证正常的按照洋葱模型的执行顺序执行代码，需要在调用 <code>next</code> 的时候让代码等待，等待异步结束后再继续向下执行，所以我们在 <code>Koa</code> 中都是建议使用 <code>async/await</code> 的，引入的中间件都是在 <code>use</code> 方法中调用，由此我们可以分析出每一个 <code>Koa</code> 的中间件都是返回一个 <code>async</code> 函数的。</p>
-<h2 id="koa-bodyparser-中间件模拟"><a href="#koa-bodyparser-中间件模拟" class="headerlink" title="koa-bodyparser 中间件模拟"></a>koa-bodyparser 中间件模拟</h2><p>想要分析 <code>koa-bodyparser</code> 的原理首先需要知道用法和作用，<code>koa-bodyparser</code> 中间件是将我们的 <code>post</code> 请求和表单提交的查询字符串转换成对象，并挂在 <code>ctx.request.body</code> 上，方便我们在其他中间件或接口处取值，使用前需提前安装。</p>
-<blockquote>
-<p>npm install koa koa-bodyparser</p>
-</blockquote>
-<p><strong>koa-bodyparser 具体用法如下：</strong></p>
-<pre><code>// koa-bodyparser 的用法
-const Koa = require(&quot;koa&quot;);
-const bodyParser = require(&quot;koa-bodyparser&quot;);
-
-const app = new Koa();
-
-// 使用中间件
-app.use(bodyParser());
-
-app.use(async (ctx, next) =&gt; {
-    if (ctx.path === &quot;/&quot; &amp;&amp; ctx.method === &quot;POST&quot;) {
-        // 使用中间件后 ctx.request.body 属性自动加上了 post 请求的数据
-        console.log(ctx.request.body);
-    }
-});
-
-app.listen(3000);
-</code></pre><p>根据用法我们可以看出 <code>koa-bodyparser</code> 中间件引入的其实是一个函数，我们把它放在了 <code>use</code> 中执行，根据 <code>Koa</code> 的特点，我们推断出 <code>koa-bodyparser</code> 的函数执行后应该给我们返回了一个 <code>async</code> 函数，下面是我们模拟实现的代码。</p>
-<pre><code>// 文件：my-koa-bodyparser.js
-const querystring = require(&quot;querystring&quot;);
-
-module.exports = functionbodyParser() {
-    returnasync (ctx, next) =&gt; {
-        await new Promise((resolve, reject) =&gt; {
-            // 存储数据的数组
-            let dataArr = [];
-
-            // 接收数据
-            ctx.req.on(&quot;data&quot;, data =&gt; dataArr.push(data));
-
-            // 整合数据并使用 Promise 成功
-            ctx.req.on(&quot;end&quot;, () =&gt; {
-                // 获取请求数据的类型 json 或表单
-                let contentType = ctx.get(&quot;Content-Type&quot;);
-
-                // 获取数据 Buffer 格式
-                let data = Buffer.concat(dataArr).toString();
-
-                if (contentType === &quot;application/x-www-form-urlencoded&quot;) {
-                    // 如果是表单提交，则将查询字符串转换成对象赋值给 ctx.request.body
-                    ctx.request.body = querystring.parse(data);
-                } elseif (contentType === &quot;applaction/json&quot;) {
-                    // 如果是 json，则将字符串格式的对象转换成对象赋值给 ctx.request.body
-                    ctx.request.body = JSON.parse(data);
-                }
-
-                // 执行成功的回调
-                resolve();
-            });
-        });
-
-        // 继续向下执行
-        await next();
-    };
-};
-</code></pre><p>在上面代码中由几点是需要我们注意的，即 <code>next</code> 的调用以及为什么通过流接收数据、处理数据和将数据挂在 <code>ctx.request.body</code> 要在 Promise 中进行。</p>
-<p><strong>首先是 <code>next</code> 的调用，我们知道 <code>Koa</code> 的 <code>next</code> 执行，其实就是在执行下一个中间件的函数，即下一个 <code>use</code> 中的 <code>async</code> 函数，为了保证后面的异步代码执行完毕后再继续执行当前的代码，所以我们需要使用 <code>await</code> 进行等待，其次就是数据从接收到挂在 <code>ctx.request.body</code> 都在 Promise 中执行，是因为在接收数据的操作是异步的，整个处理数据的过程需要等待异步完成后，再把数据挂在 <code>ctx.request.body</code> 上，可以保证我们在下一个 <code>use</code> 的 <code>async</code> 函数中可以在 <code>ctx.request.body</code> 上拿到数据，所以我们使用 <code>await</code> 等待一个 Promise 成功后再执行 <code>next</code>。</strong></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/08/基于IntersectionObserver的图片懒加载实现/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2173,6 +1956,365 @@ console.log(check); // 18男
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/30/compose-串联中间件实现-洋葱模型/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/09/30/compose-串联中间件实现-洋葱模型/" itemprop="url">Koa2 compose-串联中间件实现(洋葱模型)</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-30T12:41:27+08:00">
+                2018-09-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="koa2-一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）"><a href="#koa2-一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）" class="headerlink" title="koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）"></a><a href="https://github.com/HCThink/h-blog/blob/master/source/koa2/readme.md" target="_blank" rel="noopener">koa2 一网打尽（基本使用，洋葱圈，中间件机制和模拟，源码分析，核心点，生态）</a></h2><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa</code> 是当下主流 NodeJS 框架，以轻量见长，而它中间件机制与相对传统的 <code>Express</code> 支持了异步，所以编码时经常使用 <code>async/await</code>，提高了可读性，使代码变得更优雅，上一篇文章 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.pandashen.com%2F2018%2F09%2F02%2F20180902141819%2F" target="_blank" rel="noopener">NodeJS 进阶 —— Koa 源码分析</a>，也对 “洋葱模型” 和实现它的 <code>compose</code> 进行分析，由于个人觉得 <code>compose</code> 的编程思想比较重要，应用广泛，所以本篇借着 “洋葱模型” 的话题，打算用四种方式来实现 <code>compose</code>。</p>
+<h2 id="洋葱模型案例"><a href="#洋葱模型案例" class="headerlink" title="洋葱模型案例"></a>洋葱模型案例</h2><p>如果你已经使用 <code>Koa</code> 对 “洋葱模型” 这个词一定不陌生，它就是 <code>Koa</code> 中间件的一种串行机制，并且是支持异步的，下面是一个表达 “洋葱模型” 的经典案例。</p>
+<pre><code>const Koa = require(&quot;koa&quot;);
+
+const app = new Koa();
+
+app.use(asycn (ctx, next) =&gt; {
+    console.log(1);
+    await next();
+    console.log(2);
+});
+
+app.use(asycn (ctx, next) =&gt; {
+    console.log(3);
+    await next();
+    console.log(4);
+});
+
+app.use(asycn (ctx, next) =&gt; {
+    console.log(5);
+    await next();
+    console.log(6);
+});
+
+app.listen(3000);
+
+// 1
+// 3
+// 5
+// 6
+// 4
+// 2
+</code></pre><p>上面的写法我们按照官方推荐，使用了 <code>async/await</code>，但如果是同步代码不使用也没有关系，这里简单的分析一下执行机制，第一个中间件函数中如果执行了 <code>next</code>，则下一个中间件会被执行，依次类推，就有了我们上面的结果，而在 <code>Koa</code> 源码中，这一功能是靠一个 <code>compose</code> 方法实现的，我们本文四种实现 <code>compose</code> 的方式中实现同步和异步，并附带对应的案例来验证。</p>
+<h2 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h2><p>在真正创建 <code>compose</code> 方法之前应该先做些准备工作，比如创建一个 <code>app</code> 对象来顶替 <code>Koa</code> 创建出的实例对象，并添加 <code>use</code> 方法和管理中间件的数组 <code>middlewares</code>。</p>
+<p>文件：app.js</p>
+<pre><code>// 模拟 Koa 创建的实例
+const app = {
+    middlewares: []
+};
+
+// 创建 use 方法
+app.use = function(fn) {
+    app.middlewares.push(fn);
+};
+
+// app.compose.....
+
+module.exports = app;
+</code></pre><p>上面的模块中导出了 <code>app</code> 对象，并创建了存储中间件函数的 <code>middlewares</code> 和添加中间件的 <code>use</code> 方法，因为无论用哪种方式实现 <code>compose</code> 这些都是需要的，只是 <code>compose</code> 逻辑的不同，所以后面的代码块中会只写 <code>compose</code> 方法。</p>
+<h2 id="Koa-中-compose-的实现方式"><a href="#Koa-中-compose-的实现方式" class="headerlink" title="Koa 中 compose 的实现方式"></a>Koa 中 compose 的实现方式</h2><p>首先介绍的是 <code>Koa</code> 源码中的实现方式，在 <code>Koa</code> 源码中其实是通过 <code>koa-compose</code> 中间件来实现的，我们在这里将这个模块的核心逻辑抽取出来，用我们自己的方式实现，由于重点在于分析 <code>compose</code> 的原理，所以 <code>ctx</code> 参数就被去掉了，因为我们不会使用它，重点是 <code>next</code> 参数。</p>
+<h3 id="1、同步的实现"><a href="#1、同步的实现" class="headerlink" title="1、同步的实现"></a>1、同步的实现</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    // 递归函数
+    function dispatch(index) {
+        // 如果所有中间件都执行完跳出
+        if (index === app.middlewares.length) return;
+
+        // 取出第 index 个中间件并执行
+        const route = app.middlewares[index];
+        return route(() =&gt; dispatch(index + 1));
+    }
+
+    // 取出第一个中间件函数执行
+    dispatch(0);
+};
+</code></pre><p>上面是同步的实现，通过递归函数 <code>dispatch</code> 的执行取出了数组中的第一个中间件函数并执行，在执行时传入了一个函数，并递归执行了 <code>dispatch</code>，传入的参数 <code>+1</code>，这样就执行了下一个中间件函数，依次类推，直到所有中间件都执行完毕，不满足中间件执行条件时，会跳出，这样就按照上面案例中 <code>1 3 5 6 4 2</code> 的情况执行，测试例子如下（同步上、异步下）。</p>
+<p>文件：sync-test.js</p>
+<pre><code>const app = require(&quot;./app&quot;);
+
+app.use(next =&gt; {
+    console.log(1);
+    next();
+    console.log(2);
+});
+
+app.use(next =&gt; {
+    console.log(3);
+    next();
+    console.log(4);
+});
+
+app.use(next =&gt; {
+    console.log(5);
+    next();
+    console.log(6);
+});
+
+app.compose();
+// 1
+// 3
+// 5
+// 6
+// 4
+// 2
+</code></pre><p>文件：async-test.js</p>
+<pre><code>const app = require(&quot;./app&quot;);
+
+// 异步函数
+functionfn() {
+    return new Promise((resolve, reject) =&gt; {
+        setTimeout(() =&gt; {
+            resolve();
+            console.log(&quot;hello&quot;);
+        }, 3000);
+    });
+}
+
+app.use(async next =&gt; {
+    console.log(1);
+    await next();
+    console.log(2);
+});
+
+app.use(async next =&gt; {
+    console.log(3);
+    await fn(); // 调用异步函数
+    await next();
+    console.log(4);
+});
+
+app.use(async next =&gt; {
+    console.log(5);
+    await next();
+    console.log(6);
+});
+
+app.compose();
+</code></pre><p>我们发现如果案例中按照 <code>Koa</code> 的推荐写法，即使用 <code>async</code> 函数，都会通过，但是在给 <code>use</code> 传参时可能会传入普通函数或 <code>async</code> 函数，我们要将所有中间件的返回值都包装成 Promise 来兼容两种情况，其实在 <code>Koa</code> 中 <code>compose</code> 最后返回的也是 Promise，是为了后续的逻辑的编写，但是现在并不支持，下面来解决这两个问题。</p>
+<p>注意：后面 <code>compose</code> 的其他实现方式中，都是使用 <code>sync-test.js</code> 和 <code>async-test.js</code> 验证，所以后面就不再重复了。</p>
+<h3 id="2、升级为支持异步"><a href="#2、升级为支持异步" class="headerlink" title="2、升级为支持异步"></a>2、升级为支持异步</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    // 递归函数
+    function dispatch(index) {
+        // 如果所有中间件都执行完跳出，并返回一个 Promise
+        if (index === app.middlewares.length) return Promise.resolve();
+
+        // 取出第 index 个中间件并执行
+        const route = app.middlewares[index];
+
+        // 执行后返回成功态的 Promise
+        return Promise.resolve(route(() =&gt; dispatch(index + 1)));
+    }
+
+    // 取出第一个中间件函数执行
+    dispatch(0);
+};
+</code></pre><p>我们知道 <code>async</code> 函数中 <code>await</code> 后面执行的异步代码要实现等待，带异步执行后继续向下执行，需要等待 Promise，所以我们将每一个中间件函数在调用时最后都返回了一个成功态的 Promise，使用 <code>async-test.js</code>进行测试，发现结果为 <code>1 3 hello(3s后) 5 6 4 2</code>。</p>
+<h2 id="Redux-旧版本-compose-的实现方式"><a href="#Redux-旧版本-compose-的实现方式" class="headerlink" title="Redux 旧版本 compose 的实现方式"></a>Redux 旧版本 compose 的实现方式</h2><h3 id="1、同步的实现-1"><a href="#1、同步的实现-1" class="headerlink" title="1、同步的实现"></a>1、同步的实现</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return app.middlewares.reduceRight((a, b) =&gt; () =&gt; b(a), () =&gt; {})();
+};
+</code></pre><p>上面的代码看起来不太好理解，我们不妨根据案例把这段代码拆解开，假设 <code>middlewares</code> 中存储的三个中间件函数分别为 <code>fn1</code>、<code>fn2</code> 和 <code>fn3</code>，由于使用的是 <code>reduceRight</code> 方法，所以是逆序归并，第一次 <code>a</code> 代表初始值（空函数），<code>b</code> 代表 <code>fn3</code>，而执行 <code>fn3</code> 返回了一个函数，这个函数再作为下一次归并的 <code>a</code>，而 <code>fn2</code> 作为 <code>b</code>，依次类推，过程如下。</p>
+<pre><code>// 第 1 次 reduceRight 的返回值，下一次将作为 a
+() =&gt; fn3(() =&gt; {});
+
+// 第 2 次 reduceRight 的返回值，下一次将作为 a
+() =&gt; fn2(() =&gt; fn3(() =&gt; {}));
+
+// 第 3 次 reduceRight 的返回值，下一次将作为 a
+() =&gt; fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
+</code></pre><p>由上面的拆解过程可以看出，如果我们调用了这个函数会先执行 <code>fn1</code>，如果调用 <code>next</code> 则会执行 <code>fn2</code>，如果同样调用 <code>next</code> 则会执行 <code>fn3</code>，<code>fn3</code> 已经是最后一个中间件函数了，再次调 <code>next</code> 会执行我们最初传入的空函数，这也是为什么要将 <code>reduceRight</code> 的初始值设置成一个空函数，就是防止最后一个中间件调用 <code>next</code> 而报错。</p>
+<p>经过测试上面的代码不会出现顺序错乱的情况，但是在 <code>compose</code> 执行后，我们希望进行一些后续的操作，所以希望返回的是 Promise，而我们又希望传入给 <code>use</code> 的中间件函数既可以是普通函数，又可以是 <code>async</code> 函数，这就要我们的 <code>compose</code> 完全支持异步。</p>
+<h3 id="2、升级为支持异步-1"><a href="#2、升级为支持异步-1" class="headerlink" title="2、升级为支持异步"></a>2、升级为支持异步</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return Promise.resolve(
+        app.middlewares.reduceRight(
+            (a, b) =&gt; () =&gt; Promise.resolve(b(a)),
+            () =&gt; Promise.resolve();
+        )()
+    );
+};
+</code></pre><p>参考同步的分析过程，由于最后一个中间件执行后执行的空函数内一定没有任何逻辑，但为遇到异步代码可以继续执行（比如执行 <code>next</code> 后又调用了 <code>then</code>），都处理成了 Promise，保证了 <code>reduceRight</code> 每一次归并的时候返回的函数内都返回了一个 Promise，这样就完全兼容了 <code>async</code> 和普通函数，当所有中间件执行完毕，也返回了一个 Promise，这样 <code>compose</code> 就可以调用 <code>then</code> 方法执行后续逻辑。</p>
+<h2 id="Redux-新版本-compose-的实现方式"><a href="#Redux-新版本-compose-的实现方式" class="headerlink" title="Redux 新版本 compose 的实现方式"></a>Redux 新版本 compose 的实现方式</h2><h3 id="1、同步的实现-2"><a href="#1、同步的实现-2" class="headerlink" title="1、同步的实现"></a>1、同步的实现</h3><p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return app.middlewares.reduce((a, b) =&gt; arg =&gt; a(() =&gt; b(arg)))(() =&gt; {});
+};
+</code></pre><p><code>Redux</code> 新版本中将 <code>compose</code> 的逻辑做了些改动，将原本的 <code>reduceRight</code> 换成 <code>reduce</code>，也就是说将逆序归并改为了正序，我们不一定和 <code>Redux</code> 源码完全相同，是根据相同的思路来实现串行中间件的需求。</p>
+<p>个人觉得改成正序归并后更难理解，所以还是将上面代码结合案例进行拆分，中间件依然是 <code>fn1</code>、<code>fn2</code> 和 <code>fn3</code>，由于 <code>reduce</code> 并没有传入初始值，所以此时 <code>a</code> 为 <code>fn1</code>，<code>b</code> 为 <code>fn2</code>。</p>
+<pre><code>// 第 1 次 reduce 的返回值，下一次将作为 a
+arg =&gt; fn1(() =&gt; fn2(arg));
+
+// 第 2 次 reduce 的返回值，下一次将作为 a
+arg =&gt; (arg =&gt; fn1(() =&gt; fn2(arg)))(() =&gt; fn3(arg));
+
+// 等价于...
+arg =&gt; fn1(() =&gt; fn2(() =&gt; fn3(arg)));
+
+// 执行最后返回的函数连接中间件，返回值等价于...
+fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
+</code></pre><p>所以在调用 <code>reduce</code> 最后返回的函数时，传入了一个空函数作为参数，其实这个参数最后传递给了 <code>fn3</code>，也就是第三个中间件，这样保证了在最后一个中间件调用 <code>next</code> 时不会报错。</p>
+<h3 id="2、升级为支持异步-2"><a href="#2、升级为支持异步-2" class="headerlink" title="2、升级为支持异步"></a>2、升级为支持异步</h3><p>下面有个更艰巨的任务，就是将上面的代码更改为支持异步，实现如下。</p>
+<p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    return Promise.resolve(
+        app.middlewares.reduce((a, b) =&gt; arg =&gt;
+            Promise.resolve(a(() =&gt; b(arg)))
+        )(() =&gt; Promise.resolve())
+    );
+};
+</code></pre><p>实现异步其实与逆序归并是一个套路，就是让每一个中间件函数的返回值都是 Promise，并让 <code>compose</code> 也返回 Promise。</p>
+<h3 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function originDispatch(...args) &#123;</span><br><span class="line">				console.log(...args)</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function middleware1(dispatch) &#123;</span><br><span class="line">				return (...args) =&gt; &#123;</span><br><span class="line">					console.log(&apos;middleware1 before dispatch&apos;)</span><br><span class="line">					dispatch(...args)</span><br><span class="line">					console.log(&apos;middleware1 after dispatch&apos;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function middleware2(dispatch) &#123;</span><br><span class="line">				return (...args) =&gt; &#123;</span><br><span class="line">					console.log(&apos;middleware2 before dispatch&apos;)</span><br><span class="line">					dispatch(...args)</span><br><span class="line">					console.log(&apos;middleware2 after dispatch&apos;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function middleware3(dispatch) &#123;</span><br><span class="line">				return (...args) =&gt; &#123;</span><br><span class="line">					console.log(&apos;middleware3 before dispatch&apos;)</span><br><span class="line">					dispatch(...args)</span><br><span class="line">					console.log(&apos;middleware3 after dispatch&apos;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			//			originDispatch = middleware2(middleware1(originDispatch))</span><br><span class="line">			//			originDispatch(&apos;redux&apos;, &apos;is&apos;, &apos;cool&apos;);</span><br><span class="line"></span><br><span class="line">			function compose(...funcs) &#123;</span><br><span class="line">				return funcs.reduce((a, b) =&gt; (args) =&gt; a(b(args)))</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">            //console.log(compose(middleware2, middleware1))</span><br><span class="line">               //(args) =&gt; middleware2(middleware1(args))  </span><br><span class="line">               //(originDispatch)=&gt;middleware2(middleware1(originDispatch))  </span><br><span class="line">               </span><br><span class="line">			compose(middleware2, middleware1)(originDispatch)(&apos;redux&apos;, &apos;is&apos;, &apos;cool&apos;);</span><br><span class="line">			</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h2 id="使用-async-函数实现"><a href="#使用-async-函数实现" class="headerlink" title="使用 async 函数实现"></a>使用 async 函数实现</h2><p>这个版本是我在之前在学习 <code>Koa</code> 源码时偶然在一位大佬的一篇分析 <code>Koa</code> 原理的文章中看到的（翻了半天实在没找到链接），在这里也拿出来和大家分享一下，由于是利用 <code>async</code> 函数实现的，所以默认就是支持异步的，因为 <code>async</code> 函数会返回一个 Promise。</p>
+<p>文件：app.js</p>
+<pre><code>app.compose = function() {
+    // 自执行 async 函数返回 Promise
+    return (async function () {
+        // 定义默认的 next，最后一个中间件内执行的 next
+        let next = async () =&gt; Promise.resolve();
+
+        // middleware 为每一个中间件函数，oldNext 为每个中间件函数中的 next
+        // 函数返回一个 async 作为新的 next，async 执行返回 Promise，解决异步问题
+        function createNext(middleware, oldNext) {
+            return async () =&gt; {
+                await middleware(oldNext);
+            }
+        }
+
+        // 反向遍历中间件数组，先把 next 传给最后一个中间件函数
+        // 将新的中间件函数存入 next 变量
+        // 调用下一个中间件函数，将新生成的 next 传入
+        for (let i = app.middlewares.length - 1; i &gt;= 0; i--) {
+            next = createNext(app.middlewares[i], next);
+        }
+
+        await next();
+    })();
+};
+</code></pre><p>上面代码中的 <code>next</code> 是一个只返回成功态 Promise 的函数，可以理解为其他实现方式中最后一个中间件调用的 <code>next</code>，而数组 <code>middlewares</code> 刚好是反向遍历的，取到的第一个值就是最后一个中间件，而调用 <code>createNext</code>作用是返回一个新的可以执行数组中最后一个中间件的 <code>async</code> 函数，并传入了初始的 <code>next</code>，这个返回的 <code>async</code> 函数作为新的 <code>next</code>，再取到倒数第二个中间件，调用 <code>createNext</code>，又返回了一个 <code>async</code> 函数，函数内依然是倒数第二个中间件的执行，传入的 <code>next</code> 就是上次新生成的 <code>next</code>，这样依次类推到第一个中间件。</p>
+<p>因此执行第一个中间件返回的 <code>next</code> 则会执行传入的上一个生成的 <code>next</code> 函数，就会执行第二个中间件，就会执行第二个中间件中的 <code>next</code>，就这样直到执行完最初定义的的 <code>next</code>，通过案例的验证，执行结果与洋葱模型完全相同。</p>
+<p>至于异步的问题，每次执行的 <code>next</code> 都是 <code>async</code> 函数，执行后返回的都是 Promise，而最外层的自执行 <code>async</code> 函数返回的也是 Promise，也就是说 <code>compose</code> 最后返回的是 Promise，因此完全支持异步。</p>
+<p>这个方式之所放在最后，是因为个人觉得不好理解，我是按照自己对这几种方式理解的难易程度由上至下排序的。</p>
+<h2 id="Koa第一版"><a href="#Koa第一版" class="headerlink" title="Koa第一版"></a>Koa第一版</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			// 模拟 Koa 创建的实例</span><br><span class="line">			const app = &#123;</span><br><span class="line">				middlewares: []</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">			// 创建 use 方法</span><br><span class="line">			app.use = function(fn) &#123;</span><br><span class="line">				app.middlewares.push(fn);</span><br><span class="line">			&#125;;</span><br><span class="line">			app.use(next =&gt; &#123;</span><br><span class="line">				console.log(1);</span><br><span class="line">				next();</span><br><span class="line">				console.log(2);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.use(next =&gt; &#123;</span><br><span class="line">				console.log(3);</span><br><span class="line">				next();</span><br><span class="line">				console.log(4);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.use(next =&gt; &#123;</span><br><span class="line">				console.log(5);</span><br><span class="line">				next();</span><br><span class="line">				console.log(6);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.compose = function() &#123;</span><br><span class="line">				// 递归函数</span><br><span class="line">				function dispatch(index) &#123;</span><br><span class="line">					// 如果所有中间件都执行完跳出</span><br><span class="line">					if(index === app.middlewares.length) return;</span><br><span class="line"></span><br><span class="line">					// 取出第 index 个中间件并执行</span><br><span class="line">					const route = app.middlewares[index];</span><br><span class="line">					return route(() =&gt; dispatch(index + 1));</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				// 取出第一个中间件函数执行</span><br><span class="line">				dispatch(0);</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">			app.compose();</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h2 id="Koa第二版"><a href="#Koa第二版" class="headerlink" title="Koa第二版"></a>Koa第二版</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			// 模拟 Koa 创建的实例</span><br><span class="line">			const app = &#123;</span><br><span class="line">				middlewares: []</span><br><span class="line">			&#125;;</span><br><span class="line">			// 异步函数</span><br><span class="line">			function fn() &#123;</span><br><span class="line">				return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">					setTimeout(() =&gt; &#123;</span><br><span class="line">						resolve();</span><br><span class="line">						console.log(&quot;hello&quot;);</span><br><span class="line">					&#125;, 3000);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line">			// 创建 use 方法</span><br><span class="line">			app.use = function(fn) &#123;</span><br><span class="line">				app.middlewares.push(fn);</span><br><span class="line">			&#125;;</span><br><span class="line">			app.use(async next =&gt; &#123;</span><br><span class="line">				console.log(1);</span><br><span class="line">				await next();</span><br><span class="line">				console.log(2);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.use(async next =&gt; &#123;</span><br><span class="line">				console.log(3);</span><br><span class="line">				await fn(); // 调用异步函数</span><br><span class="line">				await next();</span><br><span class="line">				console.log(4);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.use(async next =&gt; &#123;</span><br><span class="line">				console.log(5);</span><br><span class="line">				await next();</span><br><span class="line">				console.log(6);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.compose = function() &#123;</span><br><span class="line">				// 递归函数</span><br><span class="line">				function dispatch(index) &#123;</span><br><span class="line">					// 如果所有中间件都执行完跳出，并返回一个 Promise</span><br><span class="line">					if(index === app.middlewares.length) return Promise.resolve();</span><br><span class="line"></span><br><span class="line">					// 取出第 index 个中间件并执行</span><br><span class="line">					const route = app.middlewares[index];</span><br><span class="line"></span><br><span class="line">					// 执行后返回成功态的 Promise</span><br><span class="line">					return Promise.resolve(route(() =&gt; dispatch(index + 1)));</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				// 取出第一个中间件函数执行</span><br><span class="line">				dispatch(0);</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">			app.compose();</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h2 id="Koa第三版"><a href="#Koa第三版" class="headerlink" title="Koa第三版"></a>Koa第三版</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			// 模拟 Koa 创建的实例</span><br><span class="line">			const app = &#123;</span><br><span class="line">				middlewares: []</span><br><span class="line">			&#125;;</span><br><span class="line">			// 异步函数</span><br><span class="line">			function fn() &#123;</span><br><span class="line">				return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">					setTimeout(() =&gt; &#123;</span><br><span class="line">						resolve();</span><br><span class="line">						console.log(&quot;hello&quot;);</span><br><span class="line">					&#125;, 3000);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line">			// 创建 use 方法</span><br><span class="line">			app.use = function(fn) &#123;</span><br><span class="line">				app.middlewares.push(fn);</span><br><span class="line">			&#125;;</span><br><span class="line">			app.use(async next =&gt; &#123;</span><br><span class="line">				console.log(1);</span><br><span class="line">				await next();</span><br><span class="line">				console.log(2);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.use(async next =&gt; &#123;</span><br><span class="line">				console.log(3);</span><br><span class="line">				await fn(); // 调用异步函数</span><br><span class="line">				await next();</span><br><span class="line">				console.log(4);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.use(async next =&gt; &#123;</span><br><span class="line">				console.log(5);</span><br><span class="line">				await next();</span><br><span class="line">				console.log(6);</span><br><span class="line">			&#125;);</span><br><span class="line"></span><br><span class="line">			app.compose = function() &#123;</span><br><span class="line">				// 自执行 async 函数返回 Promise</span><br><span class="line">				return(async function() &#123;</span><br><span class="line">					// 定义默认的 next，最后一个中间件内执行的 next</span><br><span class="line">					let next = async() =&gt; Promise.resolve();</span><br><span class="line"></span><br><span class="line">					// middleware 为每一个中间件函数，oldNext 为每个中间件函数中的 next</span><br><span class="line">					// 函数返回一个 async 作为新的 next，async 执行返回 Promise，解决异步问题</span><br><span class="line">					function createNext(middleware, oldNext) &#123;</span><br><span class="line">						return async() =&gt; &#123;</span><br><span class="line">							await middleware(oldNext);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line"></span><br><span class="line">					// 反向遍历中间件数组，先把 next 传给最后一个中间件函数</span><br><span class="line">					// 将新的中间件函数存入 next 变量</span><br><span class="line">					// 调用下一个中间件函数，将新生成的 next 传入</span><br><span class="line">					for(let i = app.middlewares.length - 1; i &gt;= 0; i--) &#123;</span><br><span class="line">						next = createNext(app.middlewares[i], next);</span><br><span class="line">					&#125;</span><br><span class="line"></span><br><span class="line">					await next();</span><br><span class="line">				&#125;)();</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">			app.compose();</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h2 id="Log中间件"><a href="#Log中间件" class="headerlink" title="Log中间件"></a>Log中间件</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">function log(ctx) &#123;</span><br><span class="line">    console.log(ctx.method, ctx.header.host + ctx.url)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports = function() &#123;</span><br><span class="line">	return async function(ctx, next) &#123;</span><br><span class="line">		log(ctx);</span><br><span class="line">		await next()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>使用</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">const Koa = require(&apos;koa&apos;) // koa v2</span><br><span class="line">const loggerAsync = require(&apos;./log&apos;)</span><br><span class="line">const app = new Koa()</span><br><span class="line"></span><br><span class="line">app.use(loggerAsync())</span><br><span class="line"></span><br><span class="line">app.use(async(ctx) =&gt; &#123;</span><br><span class="line">	let url = ctx.url</span><br><span class="line">	// 从上下文的request对象中获取</span><br><span class="line">	let request = ctx.request</span><br><span class="line">	let req_query = request.query</span><br><span class="line">	let req_querystring = request.querystring</span><br><span class="line"></span><br><span class="line">	// 从上下文中直接获取</span><br><span class="line">	let ctx_query = ctx.query</span><br><span class="line">	let ctx_querystring = ctx.querystring</span><br><span class="line"></span><br><span class="line">	ctx.body = &#123;</span><br><span class="line">		url,</span><br><span class="line">		req_query,</span><br><span class="line">		req_querystring,</span><br><span class="line">		ctx_query,</span><br><span class="line">		ctx_querystring</span><br><span class="line">	&#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.listen(3000)</span><br><span class="line">console.log(&apos;the server is starting at port 3000&apos;)</span><br></pre></td></tr></table></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>或许你看完这几种方式会觉得，还是 <code>Koa</code> 对于 <code>compose</code> 的实现方式最容易理解，你也可能和我一样在感慨 <code>Redux</code> 的两种实现方式和 <code>async</code> 函数实现方式是如此的巧妙，恰恰 JavaScript 在被别人诟病 “弱类型”、“不严谨” 的同时，就是如此的具有灵活性和创造性，我们无法判断这是优点还是缺点（仁者见仁，智者见智），但有一点是肯定的，学习 JavaScript 不要被强类型语言的 “墨守成规” 所束缚（个人观点，强类型语言开发者勿喷），就是要吸收这样巧妙的编程思想，写出 <code>compose</code> 这种优雅又高逼格的代码，路漫漫其修远兮，愿你在技术的路上 “一去不复返”。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/24/vue超简洁双日历组件/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2754,7 +2896,7 @@ http.createServer(function (req, res) {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">115</span>
+                  <span class="site-state-item-count">116</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -2767,7 +2909,7 @@ http.createServer(function (req, res) {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">92</span>
+                  <span class="site-state-item-count">93</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
