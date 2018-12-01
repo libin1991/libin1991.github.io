@@ -300,6 +300,364 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/10/Vue你可能不知道的7个技巧/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/10/Vue你可能不知道的7个技巧/" itemprop="url">Vue你可能不知道的7个技巧</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-10T15:02:13+08:00">
+                2018-04-10
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、善用watch的immediate属性"><a href="#一、善用watch的immediate属性" class="headerlink" title="一、善用watch的immediate属性"></a>一、善用watch的immediate属性</h2><p>这一点我在项目中也是这么写的。例如有请求需要再也没初始化的时候就执行一次，然后监听他的变化，很多人这么写：</p>
+<pre><code>created(){
+    this.fetchPostList()
+},
+watch: {
+    searchInputValue(){
+        this.fetchPostList()
+    }
+}
+</code></pre><p>上面的这种写法我们可以完全如下写：</p>
+<pre><code> watch: {
+    searchInputValue:{
+        handler: &apos;fetchPostList&apos;,
+        immediate: true
+    }
+}
+</code></pre><h2 id="二、组件注册，值得借鉴"><a href="#二、组件注册，值得借鉴" class="headerlink" title="二、组件注册，值得借鉴"></a>二、组件注册，值得借鉴</h2><p>一般情况下，我们组件如下写：</p>
+<pre><code>import BaseButton from &apos;./baseButton&apos;
+import BaseIcon from &apos;./baseIcon&apos;
+import BaseInput from &apos;./baseInput&apos;export default {
+  components: {
+    BaseButton,
+    BaseIcon,
+    BaseInput
+  }
+}
+&lt;BaseInput  v-model=&quot;searchText&quot; @keydown.enter=&quot;search&quot; /&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;  &lt;BaseIcon name=&quot;search&quot;/&gt;&lt;/BaseButton&gt;
+</code></pre><p>步骤一般有三部，</p>
+<blockquote>
+<p>第一步，引入、</p>
+</blockquote>
+<blockquote>
+<p>第二步注册、</p>
+</blockquote>
+<blockquote>
+<p>第三步才是正式的使用，</p>
+</blockquote>
+<p>这也是最常见和通用的写法。但是这种写法经典归经典，好多组件，要引入多次，注册多次，感觉很烦。</p>
+<p>我们可以借助一下webpack，使用 require.context() 方法来创建自己的（模块）上下文，从而实现自动动态require组件。</p>
+<p>思路是：在src文件夹下面main.js中，借助webpack动态将需要的基础组件统统打包进来。</p>
+<p>代码如下：</p>
+<pre><code>import Vue from &apos;vue&apos;
+import upperFirst from &apos;lodash/upperFirst&apos;
+import camelCase from &apos;lodash/camelCase&apos;
+
+// Require in a base component context
+const requireComponent = require.context(&apos;./components&apos;, false, /base-[\w-]+\.vue$/)
+
+requireComponent.keys().forEach(fileName =&gt; {
+  // Get component config
+  const componentConfig = requireComponent(fileName)
+
+  // Get PascalCase name of component
+  const componentName = upperFirst(
+    camelCase(fileName.replace(/^\.\//, &apos;&apos;).replace(/\.\w+$/, &apos;&apos;))
+  )
+
+  // Register component globally
+  Vue.component(componentName, componentConfig.default || componentConfig)
+})
+</code></pre><p>这样我们引入组件只需要第三步就可以了：</p>
+<pre><code>&lt;BaseInput
+   v-model=&quot;searchText&quot;
+   @keydown.enter=&quot;search&quot;
+/&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;
+   &lt;BaseIcon name=&quot;search&quot;/&gt;
+&lt;/BaseButton&gt;
+</code></pre><h2 id="三、精简vuex的modules引入"><a href="#三、精简vuex的modules引入" class="headerlink" title="三、精简vuex的modules引入"></a>三、精简vuex的modules引入</h2><p>对于vuex，我们输出store如下写：</p>
+<pre><code>import auth from &apos;./modules/auth&apos;
+import posts from &apos;./modules/posts&apos;
+import comments from &apos;./modules/comments&apos;
+
+
+export default new Vuex.Store({
+  modules: {
+    auth,
+    posts,
+    comments
+  }
+})
+</code></pre><p>要引入好多modules，然后再注册到Vuex.Store中~~</p>
+<p>精简的做法和上面类似，也是运用 require.context()读取文件，代码如下：</p>
+<pre><code>import camelCase from &apos;lodash/camelCase&apos;
+const requireModule = require.context(&apos;.&apos;, false, /\.js$/)
+const modules = {}
+
+requireModule.keys().forEach(fileName =&gt; {
+// Don&apos;t register this file as a Vuex module
+if (fileName === &apos;./index.js&apos;) return
+
+const moduleName = camelCase(
+  fileName.replace(/(\.\/|\.js)/g, &apos;&apos;)
+)
+modules[moduleName] = {
+              namespaced: true,
+             ...requireModule(fileName),
+            }
+
+})
+
+export default modules
+</code></pre><p>这样我们只需如下代码就可以了：</p>
+<pre><code>import modules from &apos;./modules&apos;
+export default new Vuex.Store({
+   modules
+})
+</code></pre><h2 id="四、路由的延迟加载"><a href="#四、路由的延迟加载" class="headerlink" title="四、路由的延迟加载"></a>四、路由的延迟加载</h2><p>这一点，关于vue的引入，我之前在中也提及过，可以通过require方式或者import()方式动态加载组件。</p>
+<pre><code>{
+ path: &apos;/admin&apos;,
+ name: &apos;admin-dashboard&apos;,
+ component:require(&apos;@views/admin&apos;).default
+}
+</code></pre><p>或者</p>
+<pre><code>{
+  path: &apos;/admin&apos;,
+  name: &apos;admin-dashboard&apos;,
+  component:() =&gt; import(&apos;@views/admin&apos;)
+}
+</code></pre><p>加载路由。</p>
+<h2 id="五、router-key组件刷新"><a href="#五、router-key组件刷新" class="headerlink" title="五、router key组件刷新"></a>五、router key组件刷新</h2><p>下面这个场景真的是伤透了很多程序员的心…<br> 先默认大家用的是Vue-router来实现路由的控制。 假设我们在写一个博客网站，需求是从/post-haorooms/a，跳转到/post-haorooms/b。然后我们惊人的发现，页面跳转后数据竟然没更新？！原因是vue-router”智能地”发现这是同一个组件，然后它就决定要复用这个组件，所以你在created函数里写的方法压根就没执行。通常的解决方案是监听$route的变化来初始化数据，如下：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+}, 
+watch: {
+  &apos;$route&apos;: {
+    handler: &apos;resetData&apos;,
+    immediate: true
+  }
+},
+methods: {
+  resetData() {
+    this.loading = false
+    this.error = null
+    this.post = null
+    this.getPost(this.$route.params.id)
+  },
+  getPost(id){
+
+  }
+}
+</code></pre><p>bug是解决了，可每次这么写也太不优雅了吧？秉持着能偷懒则偷懒的原则，我们希望代码这样写：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+},
+created () {
+  this.getPost(this.$route.params.id)
+},
+methods () {
+  getPost(postId) {
+    // ...
+  }
+}
+</code></pre><p>解决方案：给router-view添加一个唯一的key，这样即使是公用组件，只要url变化了，就一定会重新创建这个组件。</p>
+<pre><code>&lt;router-view :key=&quot;$route.fullpath&quot;&gt;&lt;/router-view&gt;
+</code></pre><p>注：我个人的经验，这个一般应用在子路由里面，这样才可以不避免大量重绘，假设app.vue根目录添加这个属性，那么每次点击改变地址都会重绘，还是得不偿失的！</p>
+<h2 id="六、唯一组件根元素"><a href="#六、唯一组件根元素" class="headerlink" title="六、唯一组件根元素"></a>六、唯一组件根元素</h2><p>场景如下：</p>
+<pre><code>(Emitted value instead of an instance of Error)
+ Error compiling template:
+
+ &lt;div&gt;&lt;/div&gt;
+ &lt;div&gt;&lt;/div&gt;
+
+ - Component template should contain exactly one root element. 
+   If you are using v-if on multiple elements, use v-else-if 
+   to chain them instead.
+</code></pre><p>模板中div只能有一个，不能如上面那么平行2个div。</p>
+<p>例如如下代码：</p>
+<pre><code>&lt;template&gt;
+  &lt;li
+    v-for=&quot;route in routes&quot;
+    :key=&quot;route.name&quot;
+  &gt;
+    &lt;router-link :to=&quot;route&quot;&gt;
+      {{ route.title }}
+    &lt;/router-link&gt;
+  &lt;/li&gt;
+&lt;/template&gt;
+</code></pre><p>会报错！</p>
+<p>我们可以用render函数来渲染</p>
+<pre><code>functional: true,
+render(h, { props }) {
+ return props.routes.map(route =&gt;
+   &lt;li key={route.name}&gt;
+     &lt;router-link to={route}&gt;
+       {route.title}
+     &lt;/router-link&gt;
+   &lt;/li&gt;
+ )
+}
+</code></pre><h2 id="七、组件包装、事件属性穿透问题"><a href="#七、组件包装、事件属性穿透问题" class="headerlink" title="七、组件包装、事件属性穿透问题"></a>七、组件包装、事件属性穿透问题</h2><p>当我们写组件的时候，通常我们都需要从父组件传递一系列的props到子组件，同时父组件监听子组件emit过来的一系列事件。举例子：</p>
+<pre><code>//父组件
+&lt;BaseInput 
+    :value=&quot;value&quot;
+    label=&quot;密码&quot; 
+    placeholder=&quot;请填写密码&quot;
+    @input=&quot;handleInput&quot;
+    @focus=&quot;handleFocus&gt;
+&lt;/BaseInput&gt;
+
+//子组件
+&lt;template&gt;
+  &lt;label&gt;
+    {{ label }}
+    &lt;input
+      :value=&quot;value&quot;
+      :placeholder=&quot;placeholder&quot;
+      @focus=$emit(&apos;focus&apos;, $event)&quot;
+      @input=&quot;$emit(&apos;input&apos;, $event.target.value)&quot;
+    &gt;
+  &lt;/label&gt;
+&lt;/template&gt;
+</code></pre><p>这样写很不精简，很多属性和事件都是手动定义的，我们可以如下写：</p>
+<pre><code>&lt;input
+    :value=&quot;value&quot;
+    v-bind=&quot;$attrs&quot;
+    v-on=&quot;listeners&quot;
+&gt;
+
+computed: {
+  listeners() {
+    return {
+      ...this.$listeners,
+      input: event =&gt; 
+        this.$emit(&apos;input&apos;, event.target.value)
+    }
+  }
+}
+</code></pre><p>$attrs包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (class 和 style 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定，并且可以通过 v-bind=”$attrs” 传入内部组件。</p>
+<p>$listeners包含了父作用域中的 (不含 .native 修饰器的) v-on 事件监听器。它可以通过 v-on=”$listeners” 传入内部组件。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/Vue2-0模板渲染底层思想/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2826,237 +3184,6 @@ app.on(&apos;error&apos;, err =&gt; {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-01T13:17:32+08:00">
-                2018-01-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
-<pre><code>let s =newString(&apos;abc&apos;);
-typeof s ===&apos;object&apos;// true
-s instanceofString// true
-</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
-<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
-<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>1：整数</li>
-</ul>
-<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
-<p><code>null</code>：所有机器码均为0</p>
-<p><code>undefined</code>：用 −2^30 整数来表示</p>
-<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
-<p>然而用 <code>instanceof</code> 来判断的话👉</p>
-<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
-</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
-<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
-<p>还有一个不错的判断类型的方法，就是<strong><font color="#dd0000">Object.prototype.toString</font></strong>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
-<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
-Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
-Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
-Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
-Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
-Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
-Object.prototype.toString.call(null)// &quot;[object Null]&quot;
-Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
-Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
-</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
-<pre><code>let person =function(){
-}
-let nicole =new person()
-nicole instanceof person // true
-</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
-<pre><code>let person =function(){
-}
-let programmer =function(){
-}
-programmer.prototype =new person()
-let nicole =new programmer()
-nicole instanceof person // true
-nicole instanceof programmer // true
-</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
-<pre><code>function new_instance_of(leftVaule, rightVaule){
-    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
-    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
-    while(true){
-        if(leftVaule ===null){
-            returnfalse;    
-        }
-        if(leftVaule === rightProto){
-            returntrue;    
-        }
-        leftVaule = leftVaule.__proto__ 
-    }
-}
-</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
-<pre><code>functionFoo(){
-}
-Object instanceof Object// true
-Function instanceof Function// true
-Function instanceof Object// true
-Foo instanceof Foo// false
-Foo instanceof Object// true
-Foo instanceof Function// true
-</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
-<p>关于原型继承的原理，我简单用一张图来表示</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
-<p><code>Object instanceof Object</code></p>
-<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
-<pre><code>leftValue =Object.__proto__ =Function.prototype;
-rightValue =Object.prototype;
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue === rightValue
-// 返回 true
-</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
-<p><code>Foo instanceof Foo</code></p>
-<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
-<p>我们用代码简单的表示一下</p>
-<pre><code>leftValue =Foo, rightValue =Foo
-leftValue =Foo.__proto =Function.prototype
-rightValue =Foo.prototype
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue != rightValue
-leftValue =Object.prototype =null
-// 第三次判断
-leftValue ===null
-// 返回 false
-</code></pre><p><code>Foo instanceof Object</code></p>
-<pre><code>leftValue =Foo, rightValue =Object
-leftValue =Foo.__proto__ =Function.prototype
-rightValue =Object.prototype
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue === rightValue
-// 返回 true 
-</code></pre><p><code>Foo instanceof Function</code></p>
-<pre><code>leftValue =Foo, rightValue =Function
-leftValue =Foo.__proto__ =Function.prototype
-rightValue =Function.prototype
-// 第一次判断
-leftValue === rightValue
-// 返回 true 
-</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3111,7 +3238,7 @@ leftValue === rightValue
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">116</span>
+                  <span class="site-state-item-count">117</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3124,7 +3251,7 @@ leftValue === rightValue
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">93</span>
+                  <span class="site-state-item-count">95</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
