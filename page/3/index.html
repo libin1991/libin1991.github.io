@@ -300,304 +300,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/11/Server-Sent-Events-服务器推送事件-使用长链接进行通讯/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/11/Server-Sent-Events-服务器推送事件-使用长链接进行通讯/" itemprop="url">Server-Sent Events:服务器推送事件,使用长链接进行通讯</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-11T21:26:04+08:00">
-                2018-09-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>传统的网页都是浏览器向服务器“查询”数据，但是很多场合，最有效的方式是服务器向浏览器“发送”数据。比如，webpack的HRM，每当收到新的电子邮件，服务器就向浏览器发送一个“通知”，这要比浏览器按时向服务器查询（polling）更有效率。</p>
-<p>服务器发送事件（Server-Sent Events，简称SSE）就是为了解决这个问题，而提出的一种新API，部署在EventSource对象上。目前，除了IE，其他主流浏览器都支持。</p>
-<p>简单说，所谓SSE，就是浏览器向服务器发送一个HTTP请求，然后服务器不断单向地向浏览器推送“信息”（message）。这种信息在格式上很简单，就是“信息”加上前缀“data: ”，然后以“\n\n”结尾。</p>
-<pre><code>$ curl http://example.com/dates
-data: 1394572346452
-
-data: 1394572347457
-
-data: 1394572348463
-</code></pre><p>SSE与WebSocket有相似功能，都是用来建立浏览器与服务器之间的通信渠道。两者的区别在于：</p>
-<ul>
-<li><p>WebSocket是全双工通道，可以双向通信，功能更强；SSE是单向通道，只能服务器向浏览器端发送。</p>
-</li>
-<li><p>WebSocket是一个新的协议，需要服务器端支持；SSE则是部署在HTTP协议之上的，现有的服务器软件都支持。</p>
-</li>
-<li><p>SSE是一个轻量级协议，相对简单；WebSocket是一种较重的协议，相对复杂。</p>
-</li>
-<li><p>SSE默认支持断线重连，WebSocket则需要额外部署。</p>
-</li>
-<li><p>SSE支持自定义发送的数据类型。</p>
-</li>
-</ul>
-<p>从上面的比较可以看出，两者各有特点，适合不同的场合。</p>
-<h2 id="客户端代码"><a href="#客户端代码" class="headerlink" title="客户端代码"></a>客户端代码</h2><h3 id="概述-1"><a href="#概述-1" class="headerlink" title="概述"></a>概述</h3><p>首先，使用下面的代码，检测浏览器是否支持SSE。</p>
-<pre><code>if (!!window.EventSource) {
-  // ...
-}
-</code></pre><p>然后，部署SSE大概如下。</p>
-<pre><code>var source = new EventSource(&apos;/dates&apos;);
-
-source.onmessage = function(e){
-  console.log(e.data);
-};
-
-// 或者
-
-source.addEventListener(&apos;message&apos;, function(e){})
-</code></pre><h3 id="建立连接"><a href="#建立连接" class="headerlink" title="建立连接"></a>建立连接</h3><p>首先，浏览器向服务器发起连接，生成一个EventSource的实例对象。</p>
-<pre><code>var source = new EventSource(url);
-</code></pre><p>参数url就是服务器网址，必须与当前网页的网址在同一个网域（domain），而且协议和端口都必须相同。</p>
-<p>下面是一个建立连接的实例。</p>
-<pre><code>if (!!window.EventSource) {
-  var source = new EventSource(&apos;http://127.0.0.1/sses/&apos;);
-}
-</code></pre><p>新生成的EventSource实例对象，有一个readyState属性，表明连接所处的状态。</p>
-<pre><code>source.readyState
-</code></pre><p>它可以取以下值：</p>
-<blockquote>
-<p>0，相当于常量EventSource.CONNECTING，表示连接还未建立，或者连接断线。</p>
-</blockquote>
-<blockquote>
-<p>1，相当于常量EventSource.OPEN，表示连接已经建立，可以接受数据。</p>
-</blockquote>
-<blockquote>
-<p>2，相当于常量EventSource.CLOSED，表示连接已断，且不会重连。</p>
-</blockquote>
-<h3 id="open事件"><a href="#open事件" class="headerlink" title="open事件"></a>open事件</h3><p>连接一旦建立，就会触发open事件，可以定义相应的回调函数。</p>
-<pre><code>source.onopen = function(event) {
-  // handle open event
-};
-
-// 或者
-
-source.addEventListener(&quot;open&quot;, function(event) {
-  // handle open event
-}, false);
-</code></pre><h3 id="message事件"><a href="#message事件" class="headerlink" title="message事件"></a>message事件</h3><p>收到数据就会触发message事件。</p>
-<pre><code>source.onmessage = function(event) {
-  var data = event.data;
-  var origin = event.origin;
-  var lastEventId = event.lastEventId;
-  // handle message
-};
-
-// 或者
-
-source.addEventListener(&quot;message&quot;, function(event) {
-  var data = event.data;
-  var origin = event.origin;
-  var lastEventId = event.lastEventId;
-  // handle message
-}, false);
-</code></pre><p>参数对象event有如下属性：</p>
-<ul>
-<li><p>data：服务器端传回的数据（文本格式）。</p>
-</li>
-<li><p>origin： 服务器端URL的域名部分，即协议、域名和端口。</p>
-</li>
-<li><p>lastEventId：数据的编号，由服务器端发送。如果没有编号，这个属性为空。</p>
-</li>
-</ul>
-<h3 id="error事件"><a href="#error事件" class="headerlink" title="error事件"></a>error事件</h3><p>如果发生通信错误（比如连接中断），就会触发error事件。</p>
-<pre><code>source.onerror = function(event) {
-  // handle error event
-};
-
-// 或者
-
-source.addEventListener(&quot;error&quot;, function(event) {
-  // handle error event
-}, false);
-</code></pre><h3 id="自定义事件"><a href="#自定义事件" class="headerlink" title="自定义事件"></a>自定义事件</h3><p>服务器可以与浏览器约定自定义事件。这种情况下，发送回来的数据不会触发message事件。</p>
-<pre><code>source.addEventListener(&quot;foo&quot;, function(event) {
-  var data = event.data;
-  var origin = event.origin;
-  var lastEventId = event.lastEventId;
-  // handle message
-}, false);
-</code></pre><p>上面代码表示，浏览器对foo事件进行监听。</p>
-<h3 id="close方法"><a href="#close方法" class="headerlink" title="close方法"></a>close方法</h3><p>close方法用于关闭连接。</p>
-<pre><code>source.close();
-</code></pre><h2 id="数据格式"><a href="#数据格式" class="headerlink" title="数据格式"></a>数据格式</h2><h3 id="概述-2"><a href="#概述-2" class="headerlink" title="概述"></a>概述</h3><p>服务器端发送的数据的HTTP头信息如下：</p>
-<pre><code>Content-Type: text/event-stream
-Cache-Control: no-cache
-Connection: keep-alive
-</code></pre><p>后面的行都是如下格式：</p>
-<pre><code>field: value\n
-</code></pre><p>field可以取四个值：“data”, “event”, “id”, or “retry”，也就是说有四类头信息。每次HTTP通信可以包含这四类头信息中的一类或多类。\n代表换行符。</p>
-<p>以冒号开头的行，表示注释。通常，服务器每隔一段时间就会向浏览器发送一个注释，保持连接不中断。</p>
-<pre><code>: This is a comment
-</code></pre><p>下面是一些例子。</p>
-<pre><code>: this is a test stream\n\n
-
-data: some text\n\n
-
-data: another message\n
-data: with two lines \n\n
-</code></pre><h3 id="data：数据栏"><a href="#data：数据栏" class="headerlink" title="data：数据栏"></a>data：数据栏</h3><p>数据内容用data表示，可以占用一行或多行。如果数据只有一行，则像下面这样，以“\n\n”结尾。</p>
-<pre><code>data:  message\n\n
-</code></pre><p>如果数据有多行，则最后一行用“\n\n”结尾，前面行都用“\n”结尾。</p>
-<pre><code>data: begin message\n
-data: continue message\n\n
-</code></pre><p>总之，最后一行的data，结尾要用两个换行符号，表示数据结束。</p>
-<p>以发送JSON格式的数据为例。</p>
-<pre><code>data: {\n
-data: &quot;foo&quot;: &quot;bar&quot;,\n
-data: &quot;baz&quot;, 555\n
-data: }\n\n
-</code></pre><h3 id="id：数据标识符"><a href="#id：数据标识符" class="headerlink" title="id：数据标识符"></a>id：数据标识符</h3><p>数据标识符用id表示，相当于每一条数据的编号。</p>
-<pre><code>id: msg1\n
-data: message\n\n
-</code></pre><p>浏览器用lastEventId属性读取这个值。一旦连接断线，浏览器会发送一个HTTP头，里面包含一个特殊的“Last-Event-ID”头信息，将这个值发送回来，用来帮助服务器端重建连接。因此，这个头信息可以被视为一种同步机制。</p>
-<h3 id="event栏：自定义信息类型"><a href="#event栏：自定义信息类型" class="headerlink" title="event栏：自定义信息类型"></a>event栏：自定义信息类型</h3><p>event头信息表示自定义的数据类型，或者说数据的名字。</p>
-<pre><code>event: foo\n
-data: a foo event\n\n
-
-data: an unnamed event\n\n
-
-event: bar\n
-data: a bar event\n\n
-</code></pre><p>上面的代码创造了三条信息。第一条是foo，触发浏览器端的foo事件；第二条未取名，表示默认类型，触发浏览器端的message事件；第三条是bar，触发浏览器端的bar事件。</p>
-<h3 id="retry：最大间隔时间"><a href="#retry：最大间隔时间" class="headerlink" title="retry：最大间隔时间"></a>retry：最大间隔时间</h3><p>浏览器默认的是，如果服务器端三秒内没有发送任何信息，则开始重连。服务器端可以用retry头信息，指定通信的最大间隔时间。</p>
-<pre><code>retry: 10000\n
-</code></pre><h2 id="服务器代码"><a href="#服务器代码" class="headerlink" title="服务器代码"></a>服务器代码</h2><p>服务器端发送事件，要求服务器与浏览器保持连接。对于不同的服务器软件来说，所消耗的资源是不一样的。Apache服务器，每个连接就是一个线程，如果要维持大量连接，势必要消耗大量资源。Node.js则是所有连接都使用同一个线程，因此消耗的资源会小得多，但是这要求每个连接不能包含很耗时的操作，比如磁盘的IO读写。</p>
-<p>下面是Node.js的服务器发送事件的<a href="http://cjihrig.com/blog/server-sent-events-in-node-js/" target="_blank" rel="noopener">代码实例</a>。</p>
-<pre><code>var http = require(&quot;http&quot;);
-
-http.createServer(function (req, res) {
-
-    var fileName = &quot;.&quot; + req.url;
-
-    if (fileName === &quot;./stream&quot;) {
-        res.writeHead(200, {&quot;Content-Type&quot;:&quot;text/event-stream&quot;, 
-                            &quot;Cache-Control&quot;:&quot;no-cache&quot;, 
-                            &quot;Connection&quot;:&quot;keep-alive&quot;});
-        res.write(&quot;retry: 10000\n&quot;);
-        res.write(&quot;event: connecttime\n&quot;);
-        res.write(&quot;data: &quot; + (new Date()) + &quot;\n\n&quot;);
-        res.write(&quot;data: &quot; + (new Date()) + &quot;\n\n&quot;);
-
-        interval = setInterval(function() {
-            res.write(&quot;data: &quot; + (new Date()) + &quot;\n\n&quot;);
-        }, 1000);
-
-        req.connection.addListener(&quot;close&quot;, function () {
-            clearInterval(interval);
-        }, false);
-  }
-}).listen(80, &quot;127.0.0.1&quot;);
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/03/Vue手势库/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -3277,6 +2979,233 @@ rootMargin = `-500px 0px`
     }
   }
 &lt;/script&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/11/Raect-异步加载组件/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/11/Raect-异步加载组件/" itemprop="url">React 异步加载组件</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-11T23:09:27+08:00">
+                2018-08-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>首先需要知道的是dynamic import通过返回Promise的方式实现异步加载功能。</p>
+<pre><code>import(&apos;./component.js&apos;)  
+    .then((m) =&gt; {
+        // 处理异步加载到的模块m
+    })
+    .catch((err) =&gt; {
+        // 错误处理
+    });
+</code></pre><p>要注意的是import的参数不能使用变量，简单原则是至少要让Webpack知晓应该预先加载哪些内容。这里的参数除了使用常量之外，还可以使用模板字符串<code>componentDir/${name}.js</code>。</p>
+<p>其实到这里基本完成代码切割了，接下来做得就是结合react-router实现按模块异步加载。这是跟业务代码相关的，因此每个人的做法都是不一样的。所以以下代码仅供参考。</p>
+<p>异步加载</p>
+<p>我参考react-router的例子写了个简单的异步加载组件AsyncLoader.js，内容：</p>
+<pre><code>import React from &apos;react&apos;;
+
+export default class AsyncLoader extends React.Component {
+
+  static propTypes = {
+    path: React.PropTypes.string.isRequired,
+    loading: React.PropTypes.element,
+  };
+
+  static defaultProps = {
+    path: &apos;&apos;,
+    loading: &lt;p&gt;Loading...&lt;/p&gt;,
+    error: &lt;p&gt;Error&lt;/p&gt;
+  };
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      module: null
+    };
+  }
+
+  componentWillMount() {
+    this.load(this.props);
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.path !== this.props.path
+      || nextProps.error !== this.props.error
+      || nextProps.loading !== this.props.loading) {
+      this.load(nextProps);
+    }
+  }
+
+  load(props) {
+
+    this.setState({module: props.loading});
+
+    // TODO：异步代码的路径希望做成可以配置的方式
+    import(`./path/${props.path}`)
+      .then((m) =&gt; {
+        let Module = m.default ? m.default : m;
+        console.log(&quot;module: &quot;, Module);
+        this.setState({module: &lt;Module/&gt;});
+      }).catch(() =&gt; {
+        this.setState({module: props.error});
+      });
+  }
+
+  render() {
+    return this.state.module;
+  }
+}
+</code></pre><p>使用方法</p>
+<pre><code>&lt;Route  
+    exact path=&apos;/book&apos; 
+    render={()=&gt;&lt;AsyncLoader path={&apos;./components/Book.js&apos;}/&gt;} 
+/&gt;
+</code></pre><p>Webpack打包的时候会根据import的参数生成相应的js文件，默认使用id（webpack生成的，从0开始）命名这个文件。</p>
+<pre><code>const Search = asyncComponent(() =&gt; import(/* webpackChunkName: &quot;search&quot; */ &quot;./containers/Search/SearchContainer&quot;))
+const BookList = asyncComponent(() =&gt; import(/* webpackChunkName: &quot;bookList&quot; */ &quot;./containers/BookList/BookListContainer&quot;))
+
+
+import React from &apos;react&apos;
+export const asyncComponent = loadComponent =&gt; (
+    class AsyncComponent extends React.Component {
+        state = {
+            Component: null,
+        }
+
+        componentWillMount() {
+            if (this.hasLoadedComponent()) {
+                return;
+            }
+
+            loadComponent()
+                .then(module =&gt; module.default) ////兼容 module.default ? module.default : module
+                .then((Component) =&gt; {
+                    this.setState({ Component });
+                })
+                .catch((err) =&gt; {
+                    console.error(`Cannot load component in &lt;AsyncComponent /&gt;`);
+                    throw err;
+                });
+        }
+
+        hasLoadedComponent() {
+            return this.state.Component !== null;
+        }
+
+        render() {
+            const { Component } = this.state;
+            return (Component) ? &lt;Component {...this.props} /&gt; : null;
+        }
+    }
+); 
 </code></pre>
           
         
