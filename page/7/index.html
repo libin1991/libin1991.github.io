@@ -300,6 +300,1377 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/15/Vue-router浅析原理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/15/Vue-router浅析原理/" itemprop="url">vue-router浅析原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-15T13:06:49+08:00">
+                2017-11-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>近期被问到一个问题，在你们项目中使用的是Vue的SPA（单页面）还是Vue的多页面设计？</p>
+<p>这篇文章主要围绕Vue的SPA单页面设计展开。<br>关于如何展开Vue多页面设计<a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F5a8e3f00f265da4e747fc700" target="_blank" rel="noopener">请点击查看</a>。</p>
+<h2 id="vue-router是什么？"><a href="#vue-router是什么？" class="headerlink" title="vue-router是什么？"></a>vue-router是什么？</h2><p>首先我们需要知道vue-router是什么，它是干什么的？</p>
+<p>这里指的路由并不是指我们平时所说的硬件路由器，这里的路由就是SPA（单页应用）的路径管理器。<br>换句话说，vue-router就是WebApp的链接路径管理系统。</p>
+<p>vue-router是Vue.js官方的路由插件，它和vue.js是深度集成的，适合用于构建单页面应用。</p>
+<p>那与传统的页面跳转有什么区别呢？</p>
+<p>1.vue的单页面应用是基于路由和组件的，路由用于设定访问路径，并将路径和组件映射起来。</p>
+<p>2.传统的页面应用，是用一些超链接来实现页面切换和跳转的。</p>
+<p>在vue-router单页面应用中，则是路径之间的切换，也就是组件的切换。路由模块的本质 就是建立起url和页面之间的映射关系。</p>
+<p>至于为啥不能用a标签，这是因为用Vue做的都是单页应用，就相当于只有一个主的index.html页面，所以你写的标签是不起作用的，必须使用vue-router来进行管理。</p>
+<h2 id="vue-router实现原理"><a href="#vue-router实现原理" class="headerlink" title="vue-router实现原理"></a>vue-router实现原理</h2><p>SPA(single page application):单一页面应用程序，有且只有一个完整的页面；当它在加载页面的时候，不会加载整个页面的内容，而只更新某个指定的容器中内容。</p>
+<p>单页面应用(SPA)的核心之一是:</p>
+<p>1.更新视图而不重新请求页面;</p>
+<p>2.vue-router在实现单页面前端路由时，提供了三种方式：Hash模式、History模式、abstract模式，根据mode参数来决定采用哪一种方式。</p>
+<h4 id="路由模式"><a href="#路由模式" class="headerlink" title="路由模式"></a>路由模式</h4><p>vue-router 提供了三种运行模式：</p>
+<p>● hash: 使用 URL hash 值来作路由。默认模式。</p>
+<p>● history: 依赖 HTML5 History API 和服务器配置。查看 HTML5 History 模式。</p>
+<p>● abstract: 支持所有 JavaScript 运行环境，如 Node.js 服务器端。</p>
+<h3 id="Hash模式"><a href="#Hash模式" class="headerlink" title="Hash模式"></a>Hash模式</h3><p><strong>vue-router 默认模式是 hash 模式 —— 使用 URL 的 hash 来模拟一个完整的 URL，当 URL 改变时，页面不会去重新加载</strong>。</p>
+<p>hash（#）是URL 的锚点，代表的是网页中的一个位置，单单改变#后的部分（/#/..），浏览器只会加载相应位置的内容，不会重新加载网页，也就是说 #是用来指导浏览器动作的，对服务器端完全无用，HTTP请求中不包括#；同时每一次改变#后的部分，都会在浏览器的访问历史中增加一个记录，使用”后退”按钮，就可以回到上一个位置；<strong>所以说Hash模式通过锚点值的改变，根据不同的值，渲染指定DOM位置的不同数据</strong>。</p>
+<h3 id="History模式"><a href="#History模式" class="headerlink" title="History模式"></a>History模式</h3><p>HTML5 History API提供了一种功能，能让开发人员在不刷新整个页面的情况下修改站点的URL，就是利用 history.pushState API 来完成 URL 跳转而无须重新加载页面；</p>
+<p>由于hash模式会在url中自带#，如果不想要很丑的 hash，我们可以用路由的 history 模式，只需要在配置路由规则时，加入”mode: ‘history’”,这种模式充分利用 history.pushState API 来完成 URL 跳转而无须重新加载页面。</p>
+<pre><code>//main.js文件中
+const router = new VueRouter({
+  mode: &apos;history&apos;,
+  routes: [...]
+})
+</code></pre><p>当使用 history 模式时，URL 就像正常的 url，例如 <a href="https://link.juejin.im?target=http%3A%2F%2Fyoursite.com%2Fuser%2Fid%25EF%25BC%258C%25E6%25AF%2594%25E8%25BE%2583%25E5%25A5%25BD%25E7%259C%258B%25EF%25BC%2581" target="_blank" rel="noopener">yoursite.com/user/id，比较好…</a><br>不过这种模式要玩好，还需要后台配置支持。因为我们的应用是个单页客户端应用，如果后台没有正确的配置，当用户在浏览器直接访问</p>
+<p>所以呢，你要在服务端增加一个覆盖所有情况的候选资源：如果 URL 匹配不到任何静态资源，则应该返回同一个 index.html 页面，这个页面就是你 app 依赖的页面。</p>
+<pre><code>export const routes = [ 
+  {path: &quot;/&quot;, name: &quot;homeLink&quot;, component:Home}
+  {path: &quot;/register&quot;, name: &quot;registerLink&quot;, component: Register},
+  {path: &quot;/login&quot;, name: &quot;loginLink&quot;, component: Login},
+  {path: &quot;*&quot;, redirect: &quot;/&quot;}]
+</code></pre><p>此处就设置如果URL输入错误或者是URL 匹配不到任何静态资源，就自动跳到到Home页面。</p>
+<h3 id="abstract模式"><a href="#abstract模式" class="headerlink" title="abstract模式"></a>abstract模式</h3><p>abstract模式是使用一个不依赖于浏览器的浏览历史虚拟管理后端。</p>
+<p>根据平台差异可以看出，在 Weex 环境中只支持使用 abstract 模式。 不过，vue-router 自身会对环境做校验，如果发现没有浏览器的 API，vue-router 会自动强制进入 abstract 模式，所以 在使用 vue-router 时只要不写 mode 配置即可，默认会在浏览器环境中使用 hash 模式，在移动端原生环境中使用 abstract 模式。 （当然，你也可以明确指定在所有情况下都使用 abstract 模式）</p>
+<h2 id="vue-router使用方式"><a href="#vue-router使用方式" class="headerlink" title="vue-router使用方式"></a>vue-router使用方式</h2><p><strong>1:下载</strong> npm i vue-router -S</p>
+<p><strong>2:在main.js中引入 </strong> import VueRouter from ‘vue-router’;</p>
+<p><strong>3:安装插件</strong> Vue.use(VueRouter);</p>
+<p><strong>4:创建路由对象并配置路由规则</strong></p>
+<p>let router = new VueRouter({routes:[{path:’/home’,component:Home}]});</p>
+<p><strong>5:将其路由对象传递给Vue的实例</strong>，options中加入 router:router</p>
+<p><strong>6:在app.vue中留坑</strong></p>
+<pre><code>&lt;router-view&gt;&lt;/router-view&gt;
+</code></pre><p>具体实现请看如下代码：</p>
+<pre><code>//main.js文件中引入
+import Vue from &apos;vue&apos;;
+import VueRouter from &apos;vue-router&apos;;
+//主体
+import App from &apos;./components/app.vue&apos;;
+import index from &apos;./components/index.vue&apos;
+//安装插件
+Vue.use(VueRouter); //挂载属性
+//创建路由对象并配置路由规则
+let router = new VueRouter({
+    routes: [
+        //一个个对象
+        { path: &apos;/index&apos;, component: index }
+    ]
+});
+//new Vue 启动
+new Vue({
+    el: &apos;#app&apos;,
+    //让vue知道我们的路由规则
+    router: router, //可以简写router
+    render: c =&gt; c(App),
+})
+</code></pre><p>最后记得在在app.vue中“留坑”</p>
+<pre><code>//app.vue中
+&lt;template&gt;
+    &lt;div&gt;
+        &lt;!-- 留坑，非常重要 --&gt;
+        &lt;router-view&gt;&lt;/router-view&gt;
+    &lt;/div&gt;
+&lt;/template&gt;
+&lt;script&gt;
+    export default {
+        data(){
+            return {}
+        }
+    }
+&lt;/script&gt;
+</code></pre><h2 id="vue-router源码分析"><a href="#vue-router源码分析" class="headerlink" title="vue-router源码分析"></a>vue-router源码分析</h2><p>我们先来看看vue的实现路径。<br><img src="https://user-gold-cdn.xitu.io/2018/10/18/16684f162d3090eb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>在入口文件中需要实例化一个 VueRouter 的实例对象 ，然后将其传入 Vue 实例的 options 中。</p>
+<pre><code>export default class VueRouter {
+  static install: () =&gt; void;
+  static version: string;
+
+  app: any;
+  apps: Array&lt;any&gt;;
+  ready: boolean;
+  readyCbs: Array&lt;Function&gt;;
+  options: RouterOptions;
+  mode: string;
+  history: HashHistory | HTML5History | AbstractHistory;
+  matcher: Matcher;
+  fallback: boolean;
+  beforeHooks: Array&lt;?NavigationGuard&gt;;
+  resolveHooks: Array&lt;?NavigationGuard&gt;;
+  afterHooks: Array&lt;?AfterNavigationHook&gt;;
+
+  constructor (options: RouterOptions = {}) {
+    this.app = null
+    this.apps = []
+    this.options = options
+    this.beforeHooks = []
+    this.resolveHooks = []
+    this.afterHooks = []
+    // 创建 matcher 匹配函数
+    this.matcher = createMatcher(options.routes || [], this)
+    // 根据 mode 实例化具体的 History，默认为&apos;hash&apos;模式
+    let mode = options.mode || &apos;hash&apos;
+    // 通过 supportsPushState 判断浏览器是否支持&apos;history&apos;模式
+    // 如果设置的是&apos;history&apos;但是如果浏览器不支持的话，&apos;history&apos;模式会退回到&apos;hash&apos;模式
+    // fallback 是当浏览器不支持 history.pushState 控制路由是否应该回退到 hash 模式。默认值为 true。
+    this.fallback = mode === &apos;history&apos; &amp;&amp; !supportsPushState &amp;&amp; options.fallback !== falseif (this.fallback) {
+      mode = &apos;hash&apos;
+    }
+    // 不在浏览器内部的话，就会变成&apos;abstract&apos;模式
+    if (!inBrowser) {
+      mode = &apos;abstract&apos;
+    }
+    this.mode = mode
+     // 根据不同模式选择实例化对应的 History 类
+    switch (mode) {
+      case&apos;history&apos;:
+        this.history = new HTML5History(this, options.base)
+        breakcase&apos;hash&apos;:
+        this.history = new HashHistory(this, options.base, this.fallback)
+        breakcase&apos;abstract&apos;:
+        this.history = new AbstractHistory(this, options.base)
+        break
+      default:
+        if (process.env.NODE_ENV !== &apos;production&apos;) {
+          assert(false, `invalid mode: ${mode}`)
+        }
+    }
+  }
+
+  match (
+    raw: RawLocation,
+    current?: Route,
+    redirectedFrom?: Location
+  ): Route {
+    return this.matcher.match(raw, current, redirectedFrom)
+  }
+
+  get currentRoute (): ?Route {
+    return this.history &amp;&amp; this.history.current
+  }
+
+  init (app: any /* Vue component instance */) {
+    process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; assert(
+      install.installed,
+      `not installed. Make sure to call \`Vue.use(VueRouter)\` ` +
+      `before creating root instance.`
+    )
+
+    this.apps.push(app)
+
+    // main app already initialized.
+    if (this.app) {
+      return
+    }
+
+    this.app = app
+
+    const history = this.history
+    // 根据history的类别执行相应的初始化操作和监听
+    if (history instanceof HTML5History) {
+      history.transitionTo(history.getCurrentLocation())
+    } elseif (history instanceof HashHistory) {
+      const setupHashListener = () =&gt; {
+        history.setupListeners()
+      }
+      history.transitionTo(
+        history.getCurrentLocation(),
+        setupHashListener,
+        setupHashListener
+      )
+    }
+
+    history.listen(route =&gt; {
+      this.apps.forEach((app) =&gt; {
+        app._route = route
+      })
+    })
+  }
+  // 路由跳转之前
+  beforeEach (fn: Function): Function {
+    return registerHook(this.beforeHooks, fn)
+  }
+  // 路由导航被确认之间前
+  beforeResolve (fn: Function): Function {
+    return registerHook(this.resolveHooks, fn)
+  }
+  // 路由跳转之后
+  afterEach (fn: Function): Function {
+    return registerHook(this.afterHooks, fn)
+  }
+  // 第一次路由跳转完成时被调用的回调函数
+  onReady (cb: Function, errorCb?: Function) {
+    this.history.onReady(cb, errorCb)
+  }
+  // 路由报错
+  onError (errorCb: Function) {
+    this.history.onError(errorCb)
+  }
+  // 路由添加，这个方法会向history栈添加一个记录，点击后退会返回到上一个页面。
+  push (location: RawLocation, onComplete?: Function, onAbort?: Function) {
+    this.history.push(location, onComplete, onAbort)
+  }
+  // 这个方法不会向history里面添加新的记录，点击返回，会跳转到上上一个页面。上一个记录是不存在的。
+  replace (location: RawLocation, onComplete?: Function, onAbort?: Function) {
+    this.history.replace(location, onComplete, onAbort)
+  }
+  // 相对于当前页面向前或向后跳转多少个页面,类似 window.history.go(n)。n可为正数可为负数。正数返回上一个页面
+  go (n: number) {
+    this.history.go(n)
+  }
+  // 后退到上一个页面
+  back () {
+    this.go(-1)
+  }
+  // 前进到下一个页面
+  forward () {
+    this.go(1)
+  }
+
+  getMatchedComponents (to?: RawLocation | Route): Array&lt;any&gt; {
+    const route: any = to
+      ? to.matched
+        ? to
+        : this.resolve(to).route
+      : this.currentRoute
+    if (!route) {
+      return []
+    }
+    return [].concat.apply([], route.matched.map(m =&gt; {
+      return Object.keys(m.components).map(key =&gt; {
+        return m.components[key]
+      })
+    }))
+  }
+
+  resolve (
+    to: RawLocation,
+    current?: Route,
+    append?: boolean
+  ): {
+    location: Location,
+    route: Route,
+    href: string,
+    // for backwards compat
+    normalizedTo: Location,
+    resolved: Route
+  } {
+    const location = normalizeLocation(
+      to,
+      current || this.history.current,
+      append,
+      this
+    )
+    const route = this.match(location, current)
+    const fullPath = route.redirectedFrom || route.fullPath
+    const base = this.history.base
+    const href = createHref(base, fullPath, this.mode)
+    return {
+      location,
+      route,
+      href,
+      // for backwards compat
+      normalizedTo: location,
+      resolved: route
+    }
+  }
+
+  addRoutes (routes: Array&lt;RouteConfig&gt;) {
+    this.matcher.addRoutes(routes)
+    if (this.history.current !== START) {
+      this.history.transitionTo(this.history.getCurrentLocation())
+    }
+  }
+}
+</code></pre><h3 id="HashHistory"><a href="#HashHistory" class="headerlink" title="HashHistory"></a>HashHistory</h3><p>• hash虽然出现在url中，但不会被包括在http请求中，它是用来指导浏览器动作的，对服务器端没影响，因此，改变hash不会重新加载页面。</p>
+<p>• 可以为hash的改变添加监听事件：</p>
+<pre><code>window.addEventListener(&quot;hashchange&quot;,funcRef,false)
+</code></pre><p>• 每一次改变hash(window.location.hash)，都会在浏览器访问历史中增加一个记录。</p>
+<pre><code>export class HashHistory extends History {
+  constructor (router: Router, base: ?string, fallback: boolean) {
+    super(router, base)
+    // check history fallback deeplinking
+    // 如果是从history模式降级来的，需要做降级检查
+    if (fallback &amp;&amp; checkFallback(this.base)) {
+    // 如果降级且做了降级处理，则返回
+      return
+    }
+    ensureSlash()
+  }
+  .......
+
+
+function checkFallback (base) {
+  const location = getLocation(base)
+  // 得到除去base的真正的 location 值
+  if (!/^\/#/.test(location)) {
+  // 如果此时地址不是以 /# 开头的
+  // 需要做一次降级处理，降为 hash 模式下应有的 /# 开头
+    window.location.replace(
+      cleanPath(base + &apos;/#&apos; + location)
+    )
+    returntrue
+  }
+}
+
+function ensureSlash (): boolean {
+// 得到 hash 值
+  const path = getHash()
+  if (path.charAt(0) === &apos;/&apos;) {
+   // 如果是以 / 开头的，直接返回即可
+    returntrue
+  }
+  // 不是的话，需要手动保证一次 替换 hash 值
+  replaceHash(&apos;/&apos; + path)
+  returnfalse
+}
+
+exportfunction getHash (): string {
+  // We can&apos;t use window.location.hash here because it&apos;s not
+  // consistent across browsers - Firefox will pre-decode it!
+  // 因为兼容性的问题，这里没有直接使用 window.location.hash
+  // 因为 Firefox decode hash 值
+  const href = window.location.href
+  const index = href.indexOf(&apos;#&apos;)
+  return index === -1 ? &apos;&apos; : decodeURI(href.slice(index + 1))
+}
+// 得到hash之前的url地址
+function getUrl (path) {
+  const href = window.location.href
+  const i = href.indexOf(&apos;#&apos;)
+  const base = i &gt;= 0 ? href.slice(0, i) : href
+  return `${base}#${path}`
+}
+// 添加一个hashfunction pushHash (path) {
+  if (supportsPushState) {
+    pushState(getUrl(path))
+  } else {
+    window.location.hash = path
+  }
+}
+// 替代hashfunction replaceHash (path) {
+  if (supportsPushState) {
+    replaceState(getUrl(path))
+  } else {
+    window.location.replace(getUrl(path))
+  }
+}
+</code></pre><p>hash的改变会自动添加到浏览器的访问历史记录中。 那么视图的更新是怎么实现的呢，看下 transitionTo()方法：</p>
+<pre><code>transitionTo (location: RawLocation, onComplete?: Function, onAbort?: Function) {
+    const route = this.router.match(location, this.current) //找到匹配路由
+    this.confirmTransition(route, () =&gt; { //确认是否转化
+      this.updateRoute(route) //更新route
+      onComplete &amp;&amp; onComplete(route)
+      this.ensureURL()
+
+      // fire ready cbs once
+      if (!this.ready) {
+        this.ready = true
+        this.readyCbs.forEach(cb =&gt; { cb(route) })
+      }
+    }, err =&gt; {
+      if (onAbort) {
+        onAbort(err)
+      }
+      if (err &amp;&amp; !this.ready) {
+        this.ready = true
+        this.readyErrorCbs.forEach(cb =&gt; { cb(err) })
+      }
+    })
+  }
+
+//更新路由
+updateRoute (route: Route) {
+    const prev = this.current // 跳转前路由
+    this.current = route // 装备跳转路由
+    this.cb &amp;&amp; this.cb(route) // 回调函数，这一步很重要，这个回调函数在index文件中注册，会更新被劫持的数据 _router
+    this.router.afterHooks.forEach(hook =&gt; {
+      hook &amp;&amp; hook(route, prev)
+    })
+  }
+}
+</code></pre><h4 id="pushState"><a href="#pushState" class="headerlink" title="pushState"></a>pushState</h4><pre><code>exportfunction pushState (url?: string, replace?: boolean) {
+  saveScrollPosition()
+  // try...catch the pushState call to get around Safari
+  // DOM Exception 18 where it limits to 100 pushState calls
+  // 加了 try...catch 是因为 Safari 有调用 pushState 100 次限制
+  // 一旦达到就会抛出 DOM Exception 18 错误
+  const history = window.history
+  try {
+    if (replace) {
+    // replace 的话 key 还是当前的 key 没必要生成新的
+      history.replaceState({ key: _key }, &apos;&apos;, url)
+    } else {
+    // 重新生成 key
+      _key = genKey()
+       // 带入新的 key 值
+      history.pushState({ key: _key }, &apos;&apos;, url)
+    }
+  } catch (e) {
+  // 达到限制了 则重新指定新的地址
+    window.location[replace ? &apos;replace&apos; : &apos;assign&apos;](url)
+  }
+}
+</code></pre><h4 id="replaceState"><a href="#replaceState" class="headerlink" title="replaceState"></a>replaceState</h4><pre><code>// 直接调用 pushState 传入 replace 为 trueexportfunction replaceState (url?: string) {
+  pushState(url, true)
+}
+</code></pre><p>pushState和replaceState两种方法的共同特点：当调用他们修改浏览器历史栈后，虽然当前url改变了，但浏览器不会立即发送请求该url，这就为单页应用前端路由，更新视图但不重新请求页面提供了基础。</p>
+<h4 id="supportsPushState"><a href="#supportsPushState" class="headerlink" title="supportsPushState"></a>supportsPushState</h4><pre><code>export const supportsPushState = inBrowser &amp;&amp; (function () {
+  const ua = window.navigator.userAgent
+
+  if (
+    (ua.indexOf(&apos;Android 2.&apos;) !== -1 || ua.indexOf(&apos;Android 4.0&apos;) !== -1) &amp;&amp;
+    ua.indexOf(&apos;Mobile Safari&apos;) !== -1 &amp;&amp;
+    ua.indexOf(&apos;Chrome&apos;) === -1 &amp;&amp;
+    ua.indexOf(&apos;Windows Phone&apos;) === -1
+  ) {
+    returnfalse
+  }
+
+  return window.history &amp;&amp; &apos;pushState&apos;in window.history
+})()
+</code></pre><p>其实所谓响应式属性，即当_route值改变时，会自动调用Vue实例的render()方法，更新视图。<br>$router.push()–&gt;HashHistory.push()–&gt;History.transitionTo()–&gt;History.updateRoute()–&gt;{app._route=route}–&gt;vm.render()</p>
+<h4 id="监听地址栏"><a href="#监听地址栏" class="headerlink" title="监听地址栏"></a>监听地址栏</h4><p>在浏览器中，用户可以直接在浏览器地址栏中输入改变路由，因此还需要监听浏览器地址栏中路由的变化 ，并具有与通过代码调用相同的响应行为，在HashHistory中这一功能通过setupListeners监听hashchange实现：</p>
+<pre><code>setupListeners () {
+    window.addEventListener(&apos;hashchange&apos;, () =&gt; {
+        if (!ensureSlash()) {
+            return
+        }
+        this.transitionTo(getHash(), route =&gt; {
+            replaceHash(route.fullPath)
+        })
+    })
+}
+</code></pre><h3 id="HTML5History"><a href="#HTML5History" class="headerlink" title="HTML5History"></a>HTML5History</h3><p>History interface是浏览器历史记录栈提供的接口，通过back(),forward(),go()等方法，我们可以读取浏览器历史记录栈的信息，进行各种跳转操作。</p>
+<pre><code>export class HTML5History extends History {
+  constructor (router: Router, base: ?string) {
+    super(router, base)
+
+    const expectScroll = router.options.scrollBehavior //指回滚方式
+    const supportsScroll = supportsPushState &amp;&amp; expectScroll
+
+    if (supportsScroll) {
+      setupScroll()
+    }
+
+    const initLocation = getLocation(this.base)
+    //监控popstate事件
+    window.addEventListener(&apos;popstate&apos;, e =&gt; {
+      const current = this.current
+
+      // Avoiding first `popstate` event dispatched in some browsers but first
+      // history route not updated since async guard at the same time.
+      // 避免在某些浏览器中首次发出“popstate”事件
+      // 由于同一时间异步监听，history路由没有同时更新。
+      const location = getLocation(this.base)
+      if (this.current === START &amp;&amp; location === initLocation) {
+        return
+      }
+
+      this.transitionTo(location, route =&gt; {
+        if (supportsScroll) {
+          handleScroll(router, route, current, true)
+        }
+      })
+    })
+  }
+</code></pre><p>hash模式仅改变hash部分的内容，而hash部分是不会包含在http请求中的(hash带#)：</p>
+<p><a href="https://link.juejin.im?target=http%3A%2F%2Foursite.com%2F%23%2Fuser%2Fid" target="_blank" rel="noopener">oursite.com/#/user/id</a> //如请求，只会发送<a href="http://oursite.com/" target="_blank" rel="noopener">http://oursite.com/</a></p>
+<p>所以hash模式下遇到根据url请求页面不会有问题</p>
+<p>而history模式则将url修改的就和正常请求后端的url一样(history不带#)</p>
+<p><a href="https://link.juejin.im?target=http%3A%2F%2Foursite.com%2Fuser%2Fid" target="_blank" rel="noopener">oursite.com/user/id</a></p>
+<p>如果这种向后端发送请求的话，后端没有配置对应/user/id的get路由处理,会返回404错误。</p>
+<p>官方推荐的解决办法是在服务端增加一个覆盖所有情况的候选资源：如果 URL 匹配不到任何静态资源，则应该返回同一个 index.html 页面，这个页面就是你 app 依赖的页面。同时这么做以后，服务器就不再返回 404 错误页面，因为对于所有路径都会返回 index.html 文件。为了避免这种情况，在 Vue 应用里面覆盖所有的路由情况，然后在给出一个 404 页面。或者，如果是用 Node.js 作后台，可以使用服务端的路由来匹配 URL，当没有匹配到路由的时候返回 404，从而实现 fallback。</p>
+<h4 id="两种模式比较"><a href="#两种模式比较" class="headerlink" title="两种模式比较"></a>两种模式比较</h4><p>一般的需求场景中，hash模式与history模式是差不多的，根据MDN的介绍，调用history.pushState()相比于直接修改hash主要有以下优势：</p>
+<p>• pushState设置的新url可以是与当前url同源的任意url,而hash只可修改#后面的部分，故只可设置与当前同文档的url</p>
+<p>• pushState设置的新url可以与当前url一模一样，这样也会把记录添加到栈中，而hash设置的新值必须与原来不一样才会触发记录添加到栈中</p>
+<p>• pushState通过stateObject可以添加任意类型的数据记录中，而hash只可添加短字符串<br>pushState可额外设置title属性供后续使用</p>
+<h3 id="AbstractHistory"><a href="#AbstractHistory" class="headerlink" title="AbstractHistory"></a>AbstractHistory</h3><p>‘abstract’模式，不涉及和浏览器地址的相关记录，流程跟’HashHistory’是一样的，其原理是通过数组模拟浏览器历史记录栈的功能</p>
+<pre><code>//abstract.js实现，这里通过栈的数据结构来模拟路由路径
+export class AbstractHistory extends History {
+  index: number;
+  stack: Array&lt;Route&gt;;
+
+  constructor (router: Router, base: ?string) {
+    super(router, base)
+    this.stack = []
+    this.index = -1
+  }
+
+  // 对于 go 的模拟
+  go (n: number) {
+    // 新的历史记录位置
+    const targetIndex = this.index + n
+    // 小于或大于超出则返回
+    if (targetIndex &lt; 0 || targetIndex &gt;= this.stack.length) {
+      return
+    }
+    // 取得新的 route 对象
+    // 因为是和浏览器无关的 这里得到的一定是已经访问过的
+    const route = this.stack[targetIndex]
+    // 所以这里直接调用 confirmTransition 了
+    // 而不是调用 transitionTo 还要走一遍 match 逻辑
+    this.confirmTransition(route, () =&gt; {
+      this.index = targetIndex
+      this.updateRoute(route)
+    })
+  }
+
+
+ //确认是否转化路由
+  confirmTransition (route: Route, onComplete: Function, onAbort?: Function) {
+    const current = this.current
+    const abort = err =&gt; {
+      if (isError(err)) {
+        if (this.errorCbs.length) {
+          this.errorCbs.forEach(cb =&gt; { cb(err) })
+        } else {
+          warn(false, &apos;uncaught error during route navigation:&apos;)
+          console.error(err)
+        }
+      }
+      onAbort &amp;&amp; onAbort(err)
+    }
+    //判断如果前后是同一个路由，不进行操作
+    if (
+      isSameRoute(route, current) &amp;&amp;
+      route.matched.length === current.matched.length
+    ) {
+      this.ensureURL()
+      return abort()
+    }
+    //下面是各类钩子函数的处理
+    //*********************
+    })
+  }
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/14/Service-Worker-PWA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/14/Service-Worker-PWA/" itemprop="url">Service Worker,PWA</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-14T20:08:28+08:00">
+                2017-11-14
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="什么是Service-Worker"><a href="#什么是Service-Worker" class="headerlink" title="什么是Service Worker"></a>什么是<code>Service Worker</code></h2><p><code>Service Worker</code>本质上充当Web应用程序与浏览器之间的代理服务器，也可以在网络可用时作为浏览器和网络间的代理。它们旨在（除其他之外）使得能够创建有效的离线体验，拦截网络请求并基于网络是否可用以及更新的资源是否驻留在服务器上来采取适当的动作。他们还允许访问推送通知和后台同步<code>API</code>。</p>
+<ul>
+<li><code>Service Worker</code>的本质是一个<code>Web Worker</code>，它独立于<code>JavaScript</code>主线程，因此它不能直接访问<code>DOM</code>，也不能直接访问<code>window</code>对象，但是，<code>Service Worker</code>可以访问<code>navigator</code>对象，也可以通过消息传递的方式（<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Window/postMessage" target="_blank" rel="noopener">postMessage</a>）与<code>JavaScript</code>主线程进行通信。</li>
+<li><code>Service Worker</code>是一个网络代理，它可以控制<code>Web</code>页面的所有网络请求。</li>
+<li><code>Service Worker</code>具有自身的生命周期，使用好<code>Service Worker</code>的关键是灵活控制其生命周期。</li>
+</ul>
+<h2 id="Service-Worker的作用"><a href="#Service-Worker的作用" class="headerlink" title="Service Worker的作用"></a><code>Service Worker</code>的作用</h2><ul>
+<li>用于浏览器缓存</li>
+<li>实现离线<code>Web APP</code></li>
+<li>消息推送</li>
+</ul>
+<h2 id="Service-Worker兼容性"><a href="#Service-Worker兼容性" class="headerlink" title="Service Worker兼容性"></a><code>Service Worker</code>兼容性</h2><p><img src="/2017/11/14/Service-Worker-PWA/1.webp" alt=""></p>
+<p><code>Service Worker</code>是现代浏览器的一个高级特性，它依赖于<code>fetch API</code>、<code>Cache Storage</code>、<code>Promise</code>等，其中，<code>Cache</code>提供了<code>Request / Response</code>对象对的存储机制，<code>Cache Storage</code>存储多个<code>Cache</code>。</p>
+<h2 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h2><p>在了解<code>Service Worker</code>的原理之前，先来看一段<code>Service Worker</code>的示例：</p>
+<pre><code>self.importScripts(&apos;./serviceworker-cache-polyfill.js&apos;);
+
+var urlsToCache = [
+  &apos;/&apos;,
+  &apos;/index.js&apos;,
+  &apos;/style.css&apos;,
+  &apos;/favicon.ico&apos;,
+];
+
+varCACHE_NAME=&apos;counterxing&apos;;
+
+self.addEventListener(&apos;install&apos;, function(event) {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+    .then(function(cache) {
+      returncache.addAll(urlsToCache);
+    })
+  );
+});
+
+self.addEventListener(&apos;fetch&apos;, function(event) {
+  event.respondWith(
+    caches.match(event.request)
+    .then(function(response) {
+      if (response) {
+        return response;
+      }
+      returnfetch(event.request);
+    })
+  );
+});
+
+
+self.addEventListener(&apos;activate&apos;, function(event) {
+  var cacheWhitelist = [&apos;counterxing&apos;];
+
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      returnPromise.all(
+        cacheNames.map(function(cacheName) {
+          if (cacheWhitelist.indexOf(cacheName) ===-1) {
+            returncaches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+</code></pre><p>下面开始逐段逐段地分析，揭开<code>Service Worker</code>的神秘面纱：</p>
+<h2 id="polyfill"><a href="#polyfill" class="headerlink" title="polyfill"></a><code>polyfill</code></h2><p>首先看第一行：<code>self.importScripts(&#39;./serviceworker-cache-polyfill.js&#39;);</code>，这里引入了<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Cache" target="_blank" rel="noopener">Cache API</a>的一个<a href="https://github.com/dominiccooney/cache-polyfill" target="_blank" rel="noopener">polyfill</a>，这个<code>polyfill</code>支持使得在较低版本的浏览器下也可以使用<code>Cache Storage API</code>。想要实现<code>Service Worker</code>的功能，一般都需要搭配<code>Cache API</code>代理网络请求到缓存中。</p>
+<p>在<code>Service Worker</code>线程中，使用<code>importScripts</code>引入<code>polyfill</code>脚本，目的是对低版本浏览器的兼容。</p>
+<h2 id="Cache-Resources-List-And-Cache-Name"><a href="#Cache-Resources-List-And-Cache-Name" class="headerlink" title="Cache Resources List And Cache Name"></a><code>Cache Resources List</code> And <code>Cache Name</code></h2><p>之后，使用一个<code>urlsToCache</code>列表来声明需要缓存的静态资源，再使用一个变量<code>CACHE_NAME</code>来确定当前缓存的<code>Cache Storage Name</code>，这里可以理解成<code>Cache Storage</code>是一个<code>DB</code>，而<code>CACHE_NAME</code>则是<code>DB</code>名：</p>
+<pre><code>var urlsToCache = [
+  &apos;/&apos;,
+  &apos;/index.js&apos;,
+  &apos;/style.css&apos;,
+  &apos;/favicon.ico&apos;,
+];
+
+varCACHE_NAME=&apos;counterxing&apos;;
+</code></pre><h2 id="Lifecycle"><a href="#Lifecycle" class="headerlink" title="Lifecycle"></a><code>Lifecycle</code></h2><p><code>Service Worker</code>独立于浏览器<code>JavaScript</code>主线程，有它自己独立的生命周期。</p>
+<p>如果需要在网站上安装<code>Service Worker</code>，则需要在<code>JavaScript</code>主线程中使用以下代码引入<code>Service Worker</code>。</p>
+<pre><code>if (&apos;serviceWorker&apos;innavigator) {
+  navigator.serviceWorker.register(&apos;/sw.js&apos;).then(function(registration) {
+    console.log(&apos;成功安装&apos;, registration.scope);
+  }).catch(function(err) {
+    console.log(err);
+  });
+}
+</code></pre><p>此处，一定要注意<code>sw.js</code>文件的路径，在我的示例中，处于当前域根目录下，这意味着，<code>Service Worker</code>和网站是同源的，可以为当前网站的所有请求做代理，如果<code>Service Worker</code>被注册到<code>/imaging/sw.js</code>下，那只能代理<code>/imaging</code>下的网络请求。</p>
+<p>可以使用<code>Chrome</code>控制台，查看当前页面的<code>Service Worker</code>情况：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/2.webp" alt=""></p>
+<p>安装完成后，<code>Service Worker</code>会经历以下生命周期：</p>
+<ol>
+<li>下载（<code>download</code>）</li>
+<li>安装（<code>install</code>）</li>
+<li>激活（<code>activate</code>）</li>
+</ol>
+<ul>
+<li><p>用户首次访问<code>Service Worker</code>控制的网站或页面时，<code>Service Worker</code>会立刻被下载。之后至少每<code>24</code>小时它会被下载一次。它可能被更频繁地下载，不过每<code>24</code>小时一定会被下载一次，以避免不良脚本长时间生效。</p>
+</li>
+<li><p>在下载完成后，开始安装<code>Service Worker</code>，在安装阶段，通常需要缓存一些我们预先声明的静态资源，在我们的示例中，通过<code>urlsToCache</code>预先声明。</p>
+</li>
+<li><p>在安装完成后，会开始进行激活，浏览器会尝试下载<code>Service Worker</code>脚本文件，下载成功后，会与前一次已缓存的<code>Service Worker</code>脚本文件做对比，如果与前一次的<code>Service Worker</code>脚本文件不同，证明<code>Service Worker</code>已经更新，会触发<code>activate</code>事件。完成激活。</p>
+</li>
+</ul>
+<p>如图所示，为<code>Service Worker</code>大致的生命周期：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/3.webp" alt=""></p>
+<h3 id="install"><a href="#install" class="headerlink" title="install"></a><code>install</code></h3><p>在安装完成后，尝试缓存一些静态资源：</p>
+<pre><code>self.addEventListener(&apos;install&apos;, function(event) {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+    .then(function(cache) {
+      returncache.addAll(urlsToCache);
+    })
+  );
+});
+</code></pre><p>首先，<code>self.skipWaiting()</code>执行，告知浏览器直接跳过等待阶段，淘汰过期的<code>sw.js</code>的<code>Service Worker</code>脚本，直接开始尝试激活新的<code>Service Worker</code>。</p>
+<p>然后使用<code>caches.open</code>打开一个<code>Cache</code>，打开后，通过<code>cache.addAll</code>尝试缓存我们预先声明的静态文件。</p>
+<h3 id="监听fetch，代理网络请求"><a href="#监听fetch，代理网络请求" class="headerlink" title="监听fetch，代理网络请求"></a>监听<code>fetch</code>，代理网络请求</h3><p>页面的所有网络请求，都会通过<code>Service Worker</code>的<code>fetch</code>事件触发，<code>Service Worker</code>通过<code>caches.match</code>尝试从<code>Cache</code>中查找缓存，缓存如果命中，则直接返回缓存中的<code>response</code>，否则，创建一个真实的网络请求。</p>
+<pre><code>self.addEventListener(&apos;fetch&apos;, function(event) {
+  event.respondWith(
+    caches.match(event.request)
+    .then(function(response) {
+      if (response) {
+        return response;
+      }
+      returnfetch(event.request);
+    })
+  );
+});
+</code></pre><p>如果我们需要在请求过程中，再向<code>Cache Storage</code>中添加新的缓存，可以通过<code>cache.put</code>方法添加，看以下例子：</p>
+<pre><code>self.addEventListener(&apos;fetch&apos;, function(event) {
+  event.respondWith(
+    caches.match(event.request)
+    .then(function(response) {
+      // 缓存命中if (response) {
+        return response;
+      }
+
+      // 注意，这里必须使用clone方法克隆这个请求// 原因是response是一个Stream，为了让浏览器跟缓存都使用这个response// 必须克隆这个response，一份到浏览器，一份到缓存中缓存。// 只能被消费一次，想要再次消费，必须clone一次var fetchRequest =event.request.clone();
+
+      returnfetch(fetchRequest).then(
+        function(response) {
+          // 必须是有效请求，必须是同源响应，第三方的请求，因为不可控，最好不要缓存if (!response ||response.status!==200||response.type!==&apos;basic&apos;) {
+            return response;
+          }
+
+          // 消费过一次，又需要再克隆一次var responseToCache =response.clone();
+          caches.open(CACHE_NAME)
+            .then(function(cache) {
+              cache.put(event.request, responseToCache);
+            });
+          return response;
+        }
+      );
+    })
+  );
+});
+</code></pre><blockquote>
+<p>在项目中，一定要注意控制缓存，接口请求一般是不推荐缓存的。所以在我自己的项目中，并没有在这里做动态的缓存方案。</p>
+</blockquote>
+<h3 id="activate"><a href="#activate" class="headerlink" title="activate"></a><code>activate</code></h3><p><code>Service Worker</code>总有需要更新的一天，随着版本迭代，某一天，我们需要把新版本的功能发布上线，此时需要淘汰掉旧的缓存，旧的<code>Service Worker</code>和<code>Cache Storage</code>如何淘汰呢？</p>
+<pre><code>self.addEventListener(&apos;activate&apos;, function(event) {
+  var cacheWhitelist = [&apos;counterxing&apos;];
+
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      returnPromise.all(
+        cacheNames.map(function(cacheName) {
+          if (cacheWhitelist.indexOf(cacheName) ===-1) {
+            returncaches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+</code></pre><ol>
+<li>首先有一个白名单，白名单中的<code>Cache</code>是不被淘汰的。</li>
+<li>之后通过<code>caches.keys()</code>拿到所有的<code>Cache Storage</code>，把不在白名单中的<code>Cache</code>淘汰。</li>
+<li>淘汰使用<code>caches.delete()</code>方法。它接收<code>cacheName</code>作为参数，删除该<code>cacheName</code>所有缓存。</li>
+</ol>
+<h2 id="sw-precache-webpack-plugin"><a href="#sw-precache-webpack-plugin" class="headerlink" title="sw-precache-webpack-plugin"></a>sw-precache-webpack-plugin</h2><p><a href="https://github.com/goldhand/sw-precache-webpack-plugin" target="_blank" rel="noopener">sw-precache-webpack-plugin</a>是一个<code>webpack plugin</code>，可以通过配置的方式在<code>webpack</code>打包时生成我们想要的<code>sw.js</code>的<code>Service Worker</code>脚本。</p>
+<p>一个最简单的配置如下：</p>
+<pre><code>var path =require(&apos;path&apos;);
+var SWPrecacheWebpackPlugin =require(&apos;sw-precache-webpack-plugin&apos;);
+
+constPUBLIC_PATH=&apos;https://www.my-project-name.com/&apos;;  // webpack needs the trailing slash for output.publicPathmodule.exports= {
+
+  entry: {
+    main:path.resolve(__dirname, &apos;src/index&apos;),
+  },
+
+  output: {
+    path:path.resolve(__dirname, &apos;src/bundles/&apos;),
+    filename:&apos;[name]-[hash].js&apos;,
+    publicPath:PUBLIC_PATH,
+  },
+
+  plugins: [
+    newSWPrecacheWebpackPlugin(
+      {
+        cacheId:&apos;my-project-name&apos;,
+        dontCacheBustUrlsMatching:/\.\w{8}\./,
+        filename:&apos;service-worker.js&apos;,
+        minify:true,
+        navigateFallback:PUBLIC_PATH+&apos;index.html&apos;,
+        staticFileGlobsIgnorePatterns: [/\.map$/,/asset-manifest\.json$/],
+      }
+    ),
+  ],
+}
+</code></pre><p>在执行<code>webpack</code>打包后，会生成一个名为<code>service-worker.js</code>文件，用于缓存<code>webpack</code>打包后的静态文件。</p>
+<p>一个最简单的<a href="https://github.com/goldhand/sw-precache-webpack-plugin/tree/master/examples" target="_blank" rel="noopener">示例</a>。</p>
+<h2 id="Service-Worker-Cache-VS-Http-Cache"><a href="#Service-Worker-Cache-VS-Http-Cache" class="headerlink" title="Service Worker Cache VS Http Cache"></a><code>Service Worker Cache</code> VS <code>Http Cache</code></h2><p>对比起<code>Http Header</code>缓存，<code>Service Worker</code>配合<code>Cache Storage</code>也有自己的优势：</p>
+<ol>
+<li>缓存与更新并存：每次更新版本，借助<code>Service Worker</code>可以立马使用缓存返回，但与此同时可以发起请求，校验是否有新版本更新。</li>
+<li>无侵入式：<code>hash</code>值实在是太难看了。</li>
+<li>不易被冲掉：<code>Http</code>缓存容易被冲掉，也容易过期，而<code>Cache Storage</code>则不容易被冲掉。也没有过期时间的说法。</li>
+<li>离线：借助<code>Service Worker</code>可以实现离线访问应用。</li>
+</ol>
+<p>但是缺点是，由于<code>Service Worker</code>依赖于<code>fetch API</code>、依赖于<code>Promise</code>、<code>Cache Storage</code>等，兼容性不太好。</p>
+<h2 id="后话"><a href="#后话" class="headerlink" title="后话"></a>后话</h2><p>本文只是简单总结了<code>Service Worker</code>的基本使用和使用<code>Service Worker</code>做客户端缓存的简单方式，然而，<code>Service Worker</code>的作用远不止于此，例如：借助<code>Service Worker</code>做离线应用、用于做网络应用的推送（可参考<a href="https://developers.google.com/web/fundamentals/codelabs/push-notifications/" target="_blank" rel="noopener">push-notifications</a>）等。</p>
+<p>甚至可以借助<code>Service Worker</code>，对接口进行缓存，在我所在的项目中，其实并不会做的这么复杂。不过做接口缓存的好处是支持离线访问，对离线状态下也能正常访问我们的<code>Web</code>应用。</p>
+<p><code>Cache Storage</code>和<code>Service Worker</code>总是分不开的。<code>Service Worker</code>的最佳用法其实就是配合<code>Cache Storage</code>做离线缓存。借助于<code>Service Worker</code>，可以轻松实现对网络请求的控制，对于不同的网络请求，采取不同的策略。例如对于<code>Cache</code>的策略，其实也是存在多种情况。例如可以优先使用网络请求，在网络请求失败时再使用缓存、亦可以同时使用缓存和网络请求，一方面检查请求，一方面有检查缓存，然后看两个谁快，就用谁。</p>
+<hr>
+<h2 id="Progressive-Web-Apps（PWA）"><a href="#Progressive-Web-Apps（PWA）" class="headerlink" title="Progressive Web Apps（PWA）"></a>Progressive Web Apps（PWA）</h2><p><code>Progressive Web App</code>, 简称 PWA，是提升<code>Web App</code>的体验的一种新方法，能给用户原生应用的体验。</p>
+<p><code>PWA</code>能做到原生应用的体验不是靠特指某一项技术，而是经过应用一些新技术进行改进，在安全、性能和体验三个方面都有很大提升，<code>PWA</code>本质上是<code>Web App</code>，借助一些新技术也具备了<code>Native App</code>的一些特性，兼具<code>Web App</code>和<code>Native App</code>的优点。</p>
+<p><code>PWA</code>的主要特点包括下面三点：</p>
+<p>可靠 - 即使在不稳定的网络环境下，也能瞬间加载并展现</p>
+<p>体验 - 快速响应，并且有平滑的动画响应用户的操作</p>
+<p>粘性 - 像设备上的原生应用，具有沉浸式的用户体验，用户可以添加到桌面<br><code>PWA</code>本身强调渐进式，并不要求一次性达到安全、性能和体验上的所有要求，开发者可以通过<a href="https://developers.google.cn/web/progressive-web-apps/checklist" target="_blank" rel="noopener">PWA Checklist</a>查看现有的特征。</p>
+<p>通过上面的<code>PWA Checklist</code>，总结起来，<code>PWA</code>大致有以下的优势：</p>
+<ul>
+<li>体验：通过<code>Service Worker</code>配合<code>Cache Storage API</code>，保证了<code>PWA</code>首屏的加载效率，甚至配合本地存储可以支持离线应用；</li>
+<li>粘性：<code>PWA</code>是可以安装的，用户点击安装到桌面后，会在桌面创建一个 PWA 应用，并且不需要从应用商店下载，可以借助<code>Web App Manifest</code>提供给用户和<code>Native App</code>一样的沉浸式体验，可以通过给用户发送离线通知，让用户回流；</li>
+<li>渐进式：适用于大多数现代浏览器，随着浏览器版本的迭代，其功能是渐进增强的；</li>
+<li>无版本问题：如<code>Web</code>应用的优势，更新版本只需要更新应用程序对应的静态文件即可，<code>Service Worker</code>会帮助我们进行更新；</li>
+<li>跨平台：<code>Windows</code>、<code>Mac OSX</code>、<code>Android</code>、<code>IOS</code>，一套代码，多处使用；</li>
+<li>消息推送：即使用户已经关闭应用程序，仍然可以对用户进行消息推送；</li>
+</ul>
+<p>总的说来，只要<code>Web</code>应用支持的功能，对于<code>PWA</code>而言，基本都支持，此外，还提供了原生能力。</p>
+<h3 id="使用PWA-manifest添加桌面入口"><a href="#使用PWA-manifest添加桌面入口" class="headerlink" title="使用PWA manifest添加桌面入口"></a>使用<code>PWA manifest</code>添加桌面入口</h3><p>注意这里说的<code>manifest</code>不是指的<code>manifest</code>缓存，这个<code>manifest</code>是一个<code>JSON</code>文件，开发者可以利用它控制在用户想要看到应用的区域（例如移动设备主屏幕）中如何向用户显示网络应用或网站，指示用户可以启动哪些功能，以及定义其在启动时的外观。</p>
+<p><code>manifest</code>提供了将网站书签保存到设备主屏幕的功能。当网站以这种方式启动时：</p>
+<ul>
+<li>它具有唯一的图标和名称，以便用户将其与其他网站区分开来。</li>
+<li>它会在下载资源或从缓存恢复资源时向用户显示某些信息。</li>
+<li>它会向浏览器提供默认显示特性，以避免网站资源可用时的过渡过于生硬。</li>
+</ul>
+<p>下面是我的博客网站的<code>manifest.json</code>文件，作为桌面入口配置文件的示例：</p>
+<pre><code>{
+  &quot;name&quot;: &quot;Counterxing&quot;,
+  &quot;short_name&quot;: &quot;Counterxing&quot;,
+  &quot;description&quot;: &quot;Why did you encounter me?&quot;,
+  &quot;start_url&quot;: &quot;/index.html&quot;,
+  &quot;display&quot;: &quot;standalone&quot;,
+  &quot;orientation&quot;: &quot;any&quot;,
+  &quot;background_color&quot;: &quot;#ACE&quot;,
+  &quot;theme_color&quot;: &quot;#ACE&quot;,
+  &quot;icons&quot;: [{
+    &quot;src&quot;: &quot;/images/logo/logo072.png&quot;,
+    &quot;sizes&quot;: &quot;72x72&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo152.png&quot;,
+    &quot;sizes&quot;: &quot;152x152&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo192.png&quot;,
+    &quot;sizes&quot;: &quot;192x192&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo256.png&quot;,
+    &quot;sizes&quot;: &quot;256x256&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }, {
+    &quot;src&quot;: &quot;/images/logo/logo512.png&quot;,
+    &quot;sizes&quot;: &quot;512x512&quot;,
+    &quot;type&quot;: &quot;image/png&quot;
+  }]
+}
+</code></pre><p>上面的字段含义也不用多解释了，大致就是启动的<code>icon</code>样式，应用名称、简写名称与描述等，其中必须确保有<code>short_name</code>和<code>name</code>。此外，最好设定好<code>start_url</code>，表示启动的根页面路径，如果不添加，则是使用当前路径。</p>
+<p><code>display</code>为<code>standalone</code>，则会隐藏浏览器的<code>UI</code>界面，如果设置<code>display</code>为<code>browser</code>，则启动时保存浏览器的<code>UI</code>界面。</p>
+<p><code>orientation</code>表示启动时的方向，横屏、竖屏等，具体参数值可参考<a href="https://developer.mozilla.org/en-US/docs/Web/Manifest" target="_blank" rel="noopener">文档</a>。</p>
+<p><code>background_color</code>和<code>theme_color</code>表示应用程序的背景颜色和主题颜色。</p>
+<p>在创建好<code>manifest.json</code>后，将、使用<code>link</code>标签添加到应用程序的所有页面上，<code>&lt;link rel=&quot;manifest&quot; href=&quot;/manifest.json&quot;&gt;</code></p>
+<h3 id="安装到桌面"><a href="#安装到桌面" class="headerlink" title="安装到桌面"></a>安装到桌面</h3><h4 id="桌面端（以Mac-OSX为例）"><a href="#桌面端（以Mac-OSX为例）" class="headerlink" title="桌面端（以Mac OSX为例）"></a>桌面端（以<code>Mac OSX</code>为例）</h4><p>只有注册、激活了<code>Service Worker</code>的网站才能够安装到桌面，在<code>Chrome 70</code>版本之前，需要手动开启实验性功能，步骤如下：</p>
+<ol>
+<li>进入<code>chrome://flags</code></li>
+<li>找到<code>Desktop PWAs</code>，选择<code>Enabled</code></li>
+</ol>
+<p><img src="/2017/11/14/Service-Worker-PWA/4.webp" alt=""><br>此时，进入一个支持<code>PWA</code>的网站（例如<a href="https://events.google.com/io2016/" target="_blank" rel="noopener">Google I/O</a>），在<code>Chrome</code>浏览器右上角，点击安装。即可安装到桌面。这里以我的博客为例：</p>
+<blockquote>
+<p>可以到<a href="https://github.com/hemanth/awesome-pwa" target="_blank" rel="noopener">awesome-pwa</a>查找目前支持<code>PWA</code>的网站列表</p>
+</blockquote>
+<p><img src="/2017/11/14/Service-Worker-PWA/5.webp" alt=""><br>接着点击安装：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/6.webp" alt=""><br>这样，一个<code>PWA</code>应用就安装到你的机器上了，这里我的操作系统为<code>Mac OSX</code>，应用程序可以通过<code>Launchpad</code>打开，在<code>Windows</code>也是同理的，会被安装到桌面上，可通过开始菜单找到应用程序。</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/7.webp" alt=""><br>打开应用程序，发现其与原始应用几乎没有任何差距：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/8.webp" alt=""></p>
+<blockquote>
+<p>Windows与上述方法类似，这里就不做过多阐述</p>
+</blockquote>
+<h4 id="移动端（以IOS为例）"><a href="#移动端（以IOS为例）" class="headerlink" title="移动端（以IOS为例）"></a>移动端（以<code>IOS</code>为例）</h4><p>由于当初苹果推出<code>PWA</code>时，并没有一个统一的<code>manifest</code>的规范，最开始的设计是通过<code>meta</code>和<code>link</code>标签来设定应用的对应参数的，所以，在移动端上的<code>PWA</code>应用，为了兼容<code>Windows Phone</code>和<code>iPhone</code>，需要在所有页面的<code>HTML</code>的<code>head</code>中添加以下的标签：</p>
+<pre><code>&lt;metaname=&quot;msapplication-TileImage&quot;content=&quot;./images/logo/logo152.png&quot;&gt;
+&lt;metaname=&quot;msapplication-TileColor&quot;content=&quot;#2F3BA2&quot;&gt;
+&lt;metaname=&quot;apple-mobile-web-app-capable&quot;content=&quot;yes&quot;&gt;
+&lt;metaname=&quot;apple-mobile-web-app-status-bar-style&quot;content=&quot;black&quot;&gt;
+&lt;metaname=&quot;apple-mobile-web-app-title&quot;content=&quot;Counterxing&quot;&gt;
+&lt;linkrel=&quot;apple-touch-icon&quot;href=&quot;./images/logo/logo152.png&quot;&gt;
+</code></pre><p>添加好后，就可以体验我们的<code>PWA</code>了！</p>
+<p><code>IOS</code>在<code>11.3</code>版本之后也支持<code>PWA</code>了，知道这一消息的我，卸载了手机上很多软件，立刻体验上了<code>PWA</code>。</p>
+<p>这里以<a href="https://m.douban.com" target="_blank" rel="noopener">豆瓣移动端</a>为例使用<code>Safiri</code>浏览器打开一个网站，点击下方分享图标，选择添加到主屏幕。</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/9.webp" alt=""><br><img src="/2017/11/14/Service-Worker-PWA/10.webp" alt=""><br>然后在新弹出的一个浏览器页面，选择添加：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/11.webp" alt=""><br>就以上简短的步骤，移动端上的一个<code>PWA</code>桌面应用就添加好了，赶紧体验吧！</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>本文是笔者写的<code>Service Worker</code>学习与实践系列文章的第二篇，主要讲述的是配合<code>Service Worker</code>使用的<code>PWA</code>的优势，如何配置<code>manifest.json</code>文件来实现将<code>PWA</code>安装到桌面，并通过<code>Mac OSX</code>和<code>IOS</code>如何安装<code>PWA</code>到桌面的详细步骤，阐述了如何配置<code>PWA</code>，使其方便地安装到桌面上。</p>
+<p>下一篇文章中，主要讲述<code>Service Worker</code>在<code>PWA</code>实践中的重要能力：<code>Web Push</code>。</p>
+<hr>
+<h2 id="Notification"><a href="#Notification" class="headerlink" title="Notification"></a>Notification</h2><p>说到底，<code>PWA</code>的消息推送也是服务端推送的一种，常见的服务端推送方法，例如广泛使用的轮询、长轮询、<code>Web Socket</code>等，说到底，都是客户端与服务端之间的通信，在<code>Service Worker</code>中，客户端接收到通知，是基于<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/notification" target="_blank" rel="noopener">Notification</a>来进行推送的。</p>
+<p>那么，我们来看一下，如何直接使用<code>Notification</code>来发送一条推送呢？下面是一段示例代码：</p>
+<pre><code>// 在主线程中使用let notification =newNotification(&apos;您有新消息&apos;, {
+  body:&apos;Hello Service Worker&apos;,
+  icon:&apos;./images/logo/logo152.png&apos;,
+});
+
+notification.onclick=function() {
+  console.log(&apos;点击了&apos;);
+};
+</code></pre><p>在控制台敲下上述代码后，则会弹出以下通知：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/12.webp" alt=""><br>然而，<code>Notification</code>这个<code>API</code>，只推荐在<code>Service Worker</code>中使用，不推荐在主线程中使用，在<code>Service Worker</code>中的使用方法为：</p>
+<pre><code>// 添加notificationclick事件监听器，在点击notification时触发self.addEventListener(&apos;notificationclick&apos;, function(event) {
+  // 关闭当前的弹窗event.notification.close();
+  // 在新窗口打开页面event.waitUntil(
+    clients.openWindow(&apos;https://google.com&apos;)
+  );
+});
+
+// 触发一条通知self.registration.showNotification(&apos;您有新消息&apos;, {
+  body:&apos;Hello Service Worker&apos;,
+  icon:&apos;./images/logo/logo152.png&apos;,
+});
+</code></pre><p>读者可以在<a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/showNotification" target="_blank" rel="noopener">MDN Web Docs</a>关于<code>Notification</code>在<code>Service Worker</code>中的相关用法，在本文就不浪费大量篇幅来进行较为详细的阐述了。</p>
+<h2 id="申请推送的权限"><a href="#申请推送的权限" class="headerlink" title="申请推送的权限"></a>申请推送的权限</h2><p>如果浏览器直接给所有开发者开放向用户推送通知的权限，那么势必用户会受到大量垃圾信息的骚扰，因此这一权限是需要申请的，如果用户禁止了消息推送，开发者是没有权利向用户发起消息推送的。我们可以通过<a href="https://developer.mozilla.org/en-US/docs/Web/API/PushManager" target="_blank" rel="noopener">serviceWorkerRegistration.pushManager.getSubscription</a>方法查看用户是否已经允许推送通知的权限。修改<code>sw-register.js</code>中的代码：</p>
+<pre><code>if (&apos;serviceWorker&apos;innavigator) {
+  navigator.serviceWorker.register(&apos;/sw.js&apos;).then(function (swReg) {
+    swReg.pushManager.getSubscription()
+      .then(function(subscription) {
+        if (subscription) {
+          console.log(JSON.stringify(subscription));
+        } else {
+          console.log(&apos;没有订阅&apos;);
+          subscribeUser(swReg);
+        }
+      });
+  });
+}
+</code></pre><p>上面的代码调用了<code>swReg.pushManager</code>的<code>getSubscription</code>，可以知道用户是否已经允许进行消息推送，如果<code>swReg.pushManager.getSubscription</code>的<code>Promise</code>被<code>reject</code>了，则表示用户还没有订阅我们的消息，调用<code>subscribeUser</code>方法，向用户申请消息推送的权限：</p>
+<pre><code>functionsubscribeUser(swReg) {
+  constapplicationServerKey=urlB64ToUint8Array(applicationServerPublicKey);
+  swReg.pushManager.subscribe({
+    userVisibleOnly:true,
+    applicationServerKey: applicationServerKey
+  })
+  .then(function(subscription) {
+    console.log(JSON.stringify(subscription));
+  })
+  .catch(function(err) {
+    console.log(&apos;订阅失败: &apos;, err);
+  });
+}
+</code></pre><p>上面的代码通过<a href="https://developer.mozilla.org/en-US/docs/Web/API/PushManager" target="_blank" rel="noopener">serviceWorkerRegistration.pushManager.subscribe</a>向用户发起订阅的权限，这个方法返回一个<code>Promise</code>，如果<code>Promise</code>被<code>resolve</code>，则表示用户允许应用程序推送消息，反之，如果被<code>reject</code>，则表示用户拒绝了应用程序的消息推送。如下图所示：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/13.webp" alt=""><br><code>serviceWorkerRegistration.pushManager.subscribe</code>方法通常需要传递两个参数：</p>
+<ul>
+<li><code>userVisibleOnly</code>，这个参数通常被设置为<code>true</code>，用来表示后续信息是否展示给用户。</li>
+<li><p><code>applicationServerKey</code>，这个参数是一个<code>Uint8Array</code>，用于加密服务端的推送信息，防止中间人攻击，会话被攻击者篡改。这一参数是由服务端生成的公钥，通过<code>urlB64ToUint8Array</code>转换的，这一函数通常是固定的，如下所示：</p>
+<p>  functionurlB64ToUint8Array(base64String) {</p>
+<pre><code>constpadding=&apos;=&apos;.repeat((4-base64String.length%4) %4);
+constbase64= (base64String + padding)
+  .replace(/\-/g, &apos;+&apos;)
+  .replace(/_/g, &apos;/&apos;);
+
+constrawData=window.atob(base64);
+constoutputArray=newUint8Array(rawData.length);
+
+for (let i =0; i &lt;rawData.length; ++i) {
+  outputArray[i] =rawData.charCodeAt(i);
+}
+return outputArray;
+</code></pre><p>  }</p>
+</li>
+</ul>
+<p>关于服务端公钥如何获取，在文章后续会有相关阐述。</p>
+<h2 id="处理拒绝的权限"><a href="#处理拒绝的权限" class="headerlink" title="处理拒绝的权限"></a>处理拒绝的权限</h2><p>如果在调用<code>serviceWorkerRegistration.pushManager.subscribe</code>后，用户拒绝了推送权限，同样也可以在应用程序中，通过<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/notification/permission" target="_blank" rel="noopener">Notification.permission</a>获取到这一状态，<code>Notification.permission</code>有以下三个取值，：</p>
+<ul>
+<li><code>granted</code>：用户已经明确的授予了显示通知的权限。</li>
+<li><code>denied</code>：用户已经明确的拒绝了显示通知的权限。</li>
+<li><p><code>default</code>：用户还未被询问是否授权，在应用程序中，这种情况下权限将视为<code>denied</code>。</p>
+<p>  if (Notification.permission===’granted’) {</p>
+<pre><code>// 用户允许消息推送
+</code></pre><p>  } else {</p>
+<pre><code>// 还不允许消息推送，向用户申请消息推送的权限
+</code></pre><p>  }</p>
+</li>
+</ul>
+<h2 id="密钥生成"><a href="#密钥生成" class="headerlink" title="密钥生成"></a>密钥生成</h2><p>上述代码中的<code>applicationServerPublicKey</code>通常情况下是由服务端生成的公钥，在页面初始化的时候就会返回给客户端，服务端会保存每个用户对应的公钥与私钥，以便进行消息推送。</p>
+<p>在我的示例演示中，我们可以使用<code>Google</code>配套的实验网站<a href="https://web-push-codelab.glitch.me/" target="_blank" rel="noopener">web-push-codelab</a>生成公钥与私钥，以便发送消息通知：</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/14.webp" alt=""></p>
+<h2 id="发送推送"><a href="#发送推送" class="headerlink" title="发送推送"></a>发送推送</h2><p>在<code>Service Worker</code>中，通过监听<code>push</code>事件来处理消息推送：</p>
+<pre><code>self.addEventListener(&apos;push&apos;, function(event) {
+  consttitle=event.data.text();
+  constoptions= {
+    body:event.data.text(),
+    icon:&apos;./images/logo/logo512.png&apos;,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+</code></pre><p>在上面的代码中，在<code>push</code>事件回调中，通过<code>event.data.text()</code>拿到消息推送的文本，然后调用上面所说的<code>self.registration.showNotification</code>来展示消息推送。</p>
+<h2 id="服务端发送"><a href="#服务端发送" class="headerlink" title="服务端发送"></a>服务端发送</h2><p>那么，如何在服务端识别指定的用户，向其发送对应的消息推送呢？</p>
+<p>在调用<code>swReg.pushManager.subscribe</code>方法后，如果用户是允许消息推送的，那么该函数返回的<code>Promise</code>将会<code>resolve</code>，在<code>then</code>中获取到对应的<code>subscription</code>。</p>
+<p><code>subscription</code>一般是下面的格式：</p>
+<pre><code>{
+  &quot;endpoint&quot;: &quot;https://fcm.googleapis.com/fcm/send/cSEJGmI_x2s:APA91bHzRHllE6tNoEHqjHQSlLpcQHeiGr7X78EIa1QrUPFqDGDM_4RVKNxoLPV3_AaCCejR4uwUawBKYcQLmLpUrCUoZetQ9pVzQCJSomB5BvoFZBzkSnUb-ALm4D1lqwV9w_uP3M0E&quot;,
+  &quot;expirationTime&quot;: null,
+  &quot;keys&quot;: {
+    &quot;p256dh&quot;: &quot;BDOx1ZTtsFL2ncSN17Bu7-Wl_1Z7yIiI-lKhtoJ2dAZMToGz-XtQOe6cuMLMa3I8FoqPfcPy232uAqoISB4Z-UU&quot;,
+    &quot;auth&quot;: &quot;XGWy-wlmrAw3Be818GLZ8Q&quot;
+  }
+}
+</code></pre><p>使用<code>Google</code>配套的实验网站<a href="https://web-push-codelab.glitch.me/" target="_blank" rel="noopener">web-push-codelab</a>，发送消息推送。</p>
+<p><img src="/2017/11/14/Service-Worker-PWA/15.webp" alt=""></p>
+<h2 id="web-push"><a href="#web-push" class="headerlink" title="web-push"></a>web-push</h2><p>在服务端，使用<a href="https://github.com/web-push-libs" target="_blank" rel="noopener">web-push-libs</a>，实现公钥与私钥的生成，消息推送功能，<a href="https://github.com/web-push-libs/web-push" target="_blank" rel="noopener">Node.js版本</a>。</p>
+<pre><code>constwebpush=require(&apos;web-push&apos;);
+
+// VAPID keys should only be generated only once.constvapidKeys=webpush.generateVAPIDKeys();
+
+webpush.setGCMAPIKey(&apos;&lt;Your GCM API Key Here&gt;&apos;);
+webpush.setVapidDetails(
+  &apos;mailto:example@yourdomain.org&apos;,
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
+
+// pushSubscription是前端通过swReg.pushManager.subscribe获取到的subscriptionconstpushSubscription= {
+  endpoint:&apos;.....&apos;,
+  keys: {
+    auth:&apos;.....&apos;,
+    p256dh:&apos;.....&apos;
+  }
+};
+
+webpush.sendNotification(pushSubscription, &apos;Your Push Payload Text&apos;);
+</code></pre><p>上面的代码中，<code>GCM API Key</code>需要在<a href="https://console.firebase.google.com" target="_blank" rel="noopener">Firebase console</a>中申请，申请教程可参考这篇<a href="https://www.pushbots.help/install-pushbots-in-your-app-or-website/android/the-google-part-fcmgcm-api-key-and-sender-id" target="_blank" rel="noopener">博文</a>。</p>
+<p>在这个我写的示例<code>Demo</code>中，我把<code>subscription</code>写死了：</p>
+<pre><code>constwebpush=require(&apos;web-push&apos;);
+
+webpush.setVapidDetails(
+  &apos;mailto:503908971@qq.com&apos;,
+  &apos;BCx1qqSFCJBRGZzPaFa8AbvjxtuJj9zJie_pXom2HI-gisHUUnlAFzrkb-W1_IisYnTcUXHmc5Ie3F58M1uYhZU&apos;,
+  &apos;g5pubRphHZkMQhvgjdnVvq8_4bs7qmCrlX-zWAJE9u8&apos;
+);
+
+constsubscription= {
+  &quot;endpoint&quot;:&quot;https://fcm.googleapis.com/fcm/send/cSEJGmI_x2s:APA91bHzRHllE6tNoEHqjHQSlLpcQHeiGr7X78EIa1QrUPFqDGDM_4RVKNxoLPV3_AaCCejR4uwUawBKYcQLmLpUrCUoZetQ9pVzQCJSomB5BvoFZBzkSnUb-ALm4D1lqwV9w_uP3M0E&quot;,
+  &quot;expirationTime&quot;:null,
+  &quot;keys&quot;: {
+    &quot;p256dh&quot;:&quot;BDOx1ZTtsFL2ncSN17Bu7-Wl_1Z7yIiI-lKhtoJ2dAZMToGz-XtQOe6cuMLMa3I8FoqPfcPy232uAqoISB4Z-UU&quot;,
+    &quot;auth&quot;:&quot;XGWy-wlmrAw3Be818GLZ8Q&quot;
+  }
+};
+
+webpush.sendNotification(subscription, &apos;Counterxing&apos;);
+</code></pre><h2 id="交互响应"><a href="#交互响应" class="headerlink" title="交互响应"></a>交互响应</h2><p>默认情况下，推送的消息点击后是没有对应的交互的，配合<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Clients" target="_blank" rel="noopener">clients API</a>可以实现一些类似于原生应用的交互，这里参考了这篇<a href="https://blog.csdn.net/i10630226/article/details/78888698" target="_blank" rel="noopener">博文</a>的实现：</p>
+<blockquote>
+<p><code>Service Worker</code>中的<code>self.clients</code>对象提供了<code>Client</code>的访问，<code>Client</code>接口表示一个可执行的上下文，如<code>Worker</code>或<code>SharedWorker</code>。<code>Window</code>客户端由更具体的<code>WindowClient</code>表示。 你可以从<code>Clients.matchAll()</code>和<code>Clients.get()</code>等方法获取<code>Client/WindowClient</code>对象。</p>
+</blockquote>
+<h3 id="新窗口打开"><a href="#新窗口打开" class="headerlink" title="新窗口打开"></a>新窗口打开</h3><p>使用<code>clients.openWindow</code>在新窗口打开一个网页：</p>
+<pre><code>self.addEventListener(&apos;notificationclick&apos;, function(event) {
+  event.notification.close();
+  // 新窗口打开event.waitUntil(
+    clients.openWindow(&apos;https://google.com/&apos;)
+  );
+});
+</code></pre><h3 id="聚焦已经打开的页面"><a href="#聚焦已经打开的页面" class="headerlink" title="聚焦已经打开的页面"></a>聚焦已经打开的页面</h3><p>利用<code>cilents</code>提供的相关<code>API</code>获取，当前浏览器已经打开的页面<code>URLs</code>。不过这些<code>URLs</code>只能是和你<code>SW</code>同域的。然后，通过匹配<code>URL</code>，通过<code>matchingClient.focus()</code>进行聚焦。没有的话，则新打开页面即可。</p>
+<pre><code>self.addEventListener(&apos;notificationclick&apos;, function(event) {
+  event.notification.close();
+  consturlToOpen=self.location.origin+&apos;/index.html&apos;;
+
+  constpromiseChain=clients.matchAll({
+      type:&apos;window&apos;,
+      includeUncontrolled:true
+    })
+    .then((windowClients) =&gt; {
+      let matchingClient =null;
+
+      for (let i =0; i &lt;windowClients.length; i++) {
+        constwindowClient= windowClients[i];
+        if (windowClient.url=== urlToOpen) {
+          matchingClient = windowClient;
+          break;
+        }
+      }
+
+      if (matchingClient) {
+        returnmatchingClient.focus();
+      } else {
+        returnclients.openWindow(urlToOpen);
+      }
+    });
+
+  event.waitUntil(promiseChain);
+});
+</code></pre><h3 id="检测是否需要推送"><a href="#检测是否需要推送" class="headerlink" title="检测是否需要推送"></a>检测是否需要推送</h3><p>如果用户已经停留在当前的网页，那我们可能就不需要推送了，那么针对于这种情况，我们应该怎么检测用户是否正在网页上呢？</p>
+<blockquote>
+<p>通过<code>windowClient.focused</code>可以检测到当前的<code>Client</code>是否处于聚焦状态。</p>
+</blockquote>
+<pre><code>self.addEventListener(&apos;push&apos;, function(event) {
+  constpromiseChain=clients.matchAll({
+      type:&apos;window&apos;,
+      includeUncontrolled:true
+    })
+    .then((windowClients) =&gt; {
+      let mustShowNotification =true;
+
+      for (let i =0; i &lt;windowClients.length; i++) {
+        constwindowClient= windowClients[i];
+        if (windowClient.focused) {
+          mustShowNotification =false;
+          break;
+        }
+      }
+
+      return mustShowNotification;
+    })
+    .then((mustShowNotification) =&gt; {
+      if (mustShowNotification) {
+        consttitle=event.data.text();
+        constoptions= {
+          body:event.data.text(),
+          icon:&apos;./images/logo/logo512.png&apos;,
+        };
+        returnself.registration.showNotification(title, options);
+      } else {
+        console.log(&apos;用户已经聚焦于当前页面，不需要推送。&apos;);
+      }
+    });
+});
+</code></pre><h3 id="合并消息"><a href="#合并消息" class="headerlink" title="合并消息"></a>合并消息</h3><p>该场景的主要针对消息的合并。比如，当只有一条消息时，可以直接推送，那如果该用户又发送一个消息呢？ 这时候，比较好的用户体验是直接将推送合并为一个，然后替换即可。 那么，此时我们就需要获得当前已经展示的推送消息，这里主要通过<code>registration.getNotifications() API</code>来进行获取。该<code>API</code>返回的也是一个<code>Promise</code>对象。通过<code>Promise</code>在<code>resolve</code>后拿到的<code>notifications</code>，判断其<code>length</code>，进行消息合并。</p>
+<pre><code>self.addEventListener(&apos;push&apos;, function(event) {
+  // ...
+    .then((mustShowNotification) =&gt; {
+      if (mustShowNotification) {
+        returnregistration.getNotifications()
+          .then(notifications=&gt; {
+            let options = {
+              icon:&apos;./images/logo/logo512.png&apos;,
+              badge:&apos;./images/logo/logo512.png&apos;
+            };
+            let title =event.data.text();
+            if (notifications.length) {
+              options.body=`您有${notifications.length}条新消息`;
+            } else {
+              options.body=event.data.text();
+            }
+            returnself.registration.showNotification(title, options);
+
+          });
+      } else {
+        console.log(&apos;用户已经聚焦于当前页面，不需要推送。&apos;);
+      }
+    });
+  // ...
+});
+</code></pre><p><img src="/2017/11/14/Service-Worker-PWA/16.webp" alt=""></p>
+<h3 id="服务端推送的几种方式"><a href="#服务端推送的几种方式" class="headerlink" title="服务端推送的几种方式"></a>服务端推送的几种方式</h3><p>服务端推送是现今<code>Web</code>开发过程中最常见的需求。例如：</p>
+<ul>
+<li>即时聊天工具</li>
+<li>H5网络游戏</li>
+<li>消息通知</li>
+</ul>
+<p>一般的服务器推送包括：</p>
+<ul>
+<li>最简单的是客户端轮询的方式，在客户端创建一个定时器，每隔一定的时间去请求服务端，每次请求检查状态变化以判断服务端是否有新数据更新。</li>
+<li>基于 AJAX 的长轮询（<code>long-polling</code>）方式，服务器在一段时间后再返回信息；</li>
+<li><code>HTTP Streaming</code>，通过<code>iframe</code>和<code>&lt;script&gt;</code>标签完成数据的传输；</li>
+<li><code>TCP</code>长连接/<code>WebSocket</code>，可以实现服务器主动发送数据至网页端，它和<code>HTTP</code>一样，是一个基于<code>HTTP</code>的应用层协议，跑的是<code>TCP</code>，所以本质上还是个长连接，双向通信，意味着服务器端和客户端可以同时发送并响应请求，而不再像<code>HTTP</code>的请求和响应</li>
+<li><code>SSE: Server-Sent Events</code>，这是通过<code>http</code>协议变通实现的，通过服务端向客户端声明，接下来是要发送的是流信息，本质上就是完成一次耗时长的下载。</li>
+</ul>
+<h2 id="小结-1"><a href="#小结-1" class="headerlink" title="小结"></a>小结</h2><p>本文通过一个简单的例子，讲述了<code>Service Worker</code>中消息推送的原理。<code>Service Worker</code>中的消息推送是基于<code>Notification API</code>的，这一<code>API</code>的使用首先需要用户授权，通过在<code>Service Worker</code>注册时的<code>serviceWorkerRegistration.pushManager.subscribe</code>方法来向用户申请权限，如果用户拒绝了消息推送，应用程序也需要相关处理。</p>
+<p>消息推送是基于谷歌云服务的，因此，在国内，收到<code>GFW</code>的限制，这一功能的支持并不好，<code>Google</code>提供了一系列推送相关的库，例如<code>Node.js</code>中，使用<a href="https://github.com/web-push-libs/web-push" target="_blank" rel="noopener">web-push</a>来实现。一般原理是：在服务端生成公钥和私钥，并针对用户将其公钥和私钥存储到服务端，客户端只存储公钥。<code>Service Worker</code>的<code>swReg.pushManager.subscribe</code>可以获取到<code>subscription</code>，并发送给服务端，服务端利用<code>subscription</code>向指定的用户发起消息推送。</p>
+<p>消息推送功能可以配合<code>clients API</code>做特殊处理。</p>
+<p>如果用户安装了<code>PWA</code>应用，即使用户关闭了应用程序，<code>Service Worker</code>也在运行，即使用户未打开应用程序，也会收到消息通知。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/11/call和apply的第一个参数是null-undefined时函数内的的this指向window或global/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -464,6 +1835,145 @@ document.dispatchEvent(myEvent);
 // moveElement(arr, 0)
 // moveElement(arr, -9)
 </code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/05/深入理解window-onload/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/05/深入理解window-onload/" itemprop="url">深入理解window.onload</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-05T20:30:36+08:00">
+                2017-11-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><strong>现象：</strong>在一个 Hybrid 应用中，用户反馈弱网条件下页面的进度条总是不消失，最后发现是页面接口先于其他资源返回，而接口中包含大量图片导致了 <code>onload</code> 会推迟，从而客户端控制的进度条不会消失，页面调用客户端的方法不会执行。</p>
+<h4 id="先放结论"><a href="#先放结论" class="headerlink" title="先放结论"></a>先放结论</h4><p><strong>onload的触发时机：</strong> JS 加载并执行完毕且页面中所有外链资源加载完成之后大约 3 - 4ms（这个值跟机型和浏览器有关）</p>
+<p><strong>最佳实践：</strong> JS代码的执行要放到onload里。如果是服务端渲染带图片的列表，图片最好由JS异步加载，避免阻塞onload。</p>
+<h4 id="onload不是立即触发的"><a href="#onload不是立即触发的" class="headerlink" title="onload不是立即触发的"></a>onload不是立即触发的</h4><p>请问下面哪个alert先触发？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br><span class="line">setTimeout(function()&#123;</span><br><span class="line">    alert(&apos;timeout&apos;);</span><br><span class="line">&#125;, 2)</span><br></pre></td></tr></table></figure></p>
+<p>答案是 <code>timeout</code> 先触发。而在我的电脑上，把 <code>timeout</code> 的值调成100 或 100 以上，就是 <code>onload</code> 先触发了。</p>
+<h4 id="JS的执行对onload有影响"><a href="#JS的执行对onload有影响" class="headerlink" title="JS的执行对onload有影响"></a>JS的执行对onload有影响</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br><span class="line">var a</span><br><span class="line">for (var i = 0; i &lt; 100000000; i++) &#123;</span><br><span class="line">    a = a + i;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>你会发现 onload 会等很久才触发，因此JS的执行最好放在onload之后。</p>
+<h4 id="动态加载的资源可能对onload产生影响"><a href="#动态加载的资源可能对onload产生影响" class="headerlink" title="动态加载的资源可能对onload产生影响"></a>动态加载的资源可能对onload产生影响</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;body&gt;&lt;/body&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">  &#125;</span><br><span class="line">  document.body.innerHTML = &apos;&lt;img src=&quot;a.png&quot;&gt; .... &lt;img src=&quot;z.png&quot;&gt;&apos;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>我们把网速调的慢一点，我们会很清晰的发现这种 JS 动态加进去的图片也会阻塞 <code>onload</code>，只有 a-z 图片都加载完成，onload 才会触发。而我们改成下面：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">window.onload = function() &#123;</span><br><span class="line">    setTimeout(function() &#123;</span><br><span class="line">       document.body.innerHTML = &apos;&lt;img src=&quot;a.png&quot;&gt; .... &lt;img src=&quot;z.png&quot;&gt;&apos;;</span><br><span class="line">    &#125;, 10)</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这时就会发现，onload 马上就触发了，不必等待图片加载完成。</p>
+<p>再讲一个更实际的例子：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&lt;img src=&quot;aaa.png&quot;&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br><span class="line">$.ajax(&#123;</span><br><span class="line">    url: imgList,</span><br><span class="line">  	success: function(arr) &#123;</span><br><span class="line">        arr.forEach(function() &#123;</span><br><span class="line">            $(&apos;body&apos;).append(&apos;&lt;img src=&quot;&apos; + arr.imgUrl + &apos;&quot;&gt;&apos;)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
+<p>假设 aaa.png 加载时间为 100ms，ajax 接口返回时间为 50ms，那么假设 imgList 中有 100 张图片，那么 onload 的时间就会被推迟到这 100 张图片都加载完成之后。</p>
+<p>而如果 aaa.png 加载时间为 50ms，接口请求为 100ms 的时候，就不会有这个问题。但是我们没法保证接口请求一定慢于图片请求。</p>
+<p>因此<strong>带图片的列表请求需要放在 window.onload 之后执行</strong>。</p>
+<h4 id="onload和客户端方法的对应"><a href="#onload和客户端方法的对应" class="headerlink" title="onload和客户端方法的对应"></a>onload和客户端方法的对应</h4><p>iOS 中判断 webview 加载完成的 <strong>webViewDidFinishLoad</strong> 方法，Android 中判断 <code>webview</code> 加载完成的 <strong>onPageFinished</strong> 方法本质触发时机上都对应页面上的 <code>window.onload</code>，一般来说会稍晚于 <code>window.onload</code>（某些特殊情况会早于 <code>window.onload</code>，比如页面里有 <code>iframe</code> 等情况）。</p>
+<p>也就是说 <strong>对 onload 有影响的因素也同样会影响这些 Native 方法</strong>。而在 Hybrid 开发中，一些 Native 和 Web 之间的交互和调用往往要在<code>webViewDidFinishLoad / onPageFinished</code> 之后。因此如果 <code>onload</code> 的触发被推迟了，那么这些 <code>Native</code> 相关的调用也都会被推迟。</p>
+<p><strong>因此如果是Hybrid应用，尤其要注意让onload尽快触发。</strong></p>
+<h4 id="百度统计对onload的影响"><a href="#百度统计对onload的影响" class="headerlink" title="百度统计对onload的影响"></a>百度统计对onload的影响</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var _hmt = _hmt || [];</span><br><span class="line">    (function() &#123;</span><br><span class="line">      var hm = document.createElement(&quot;script&quot;);</span><br><span class="line">      hm.src = &quot;https://hm.baidu.com/hm.js?2fdsasa8f9f2f0e59e7db6c398edfbfcb1f&quot;;</span><br><span class="line">      var s = document.getElementsByTagName(&quot;script&quot;)[0];</span><br><span class="line">      s.parentNode.insertBefore(hm, s);</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+<p>上面是百度统计的代码，我们可以看到它动态加载了一个 <code>script</code>，而这个 <code>script</code> 会马上以一个小 gif 的形式发送一个上报请求，经过测试，如果页面上没有其它元素，这个 <strong>小 gif 加载完成后才会触发 onload</strong>，那么总加载时间就是 script 加载时间 + gif 加载时间。</p>
+<p>因此应该尽量把百度统计代码提前，避免百度统计拖慢 onload 时间。百度统计官方也是<strong>建议将统计代码放在 head 中</strong>。</p>
+
           
         
       
@@ -2275,963 +3785,11 @@ export default {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/11/19-个-JavaScript-有用的简写技术/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/11/19-个-JavaScript-有用的简写技术/" itemprop="url">19 个 JavaScript 有用的简写技术</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-11T23:11:44+08:00">
-                2017-10-11
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="1-三元操作符"><a href="#1-三元操作符" class="headerlink" title="1.三元操作符"></a>1.三元操作符</h2><p>当想写if…else语句时，使用三元操作符来代替。</p>
-<pre><code>const x = 20;
-let answer;
-if (x &gt; 10) {
-    answer = &apos;is greater&apos;;
-} else {
-    answer = &apos;is lesser&apos;;
-}
-</code></pre><p>简写：<br><code>const answer = x &gt; 10 ? &#39;is greater&#39; : &#39;is lesser&#39;;</code></p>
-<p>也可以嵌套if语句：<br><code>const big = x &gt; 10 ? &quot; greater 10&quot; : x</code></p>
-<h2 id="2-短路求值简写方式"><a href="#2-短路求值简写方式" class="headerlink" title="2.短路求值简写方式"></a>2.短路求值简写方式</h2><p>当给一个变量分配另一个值时，想确定源始值不是null，undefined或空值。可以写撰写一个多重条件的if语句。</p>
-<pre><code>if (variable1 !== null || variable1 !== undefined || variable1 !== &apos;&apos;) {
-     let variable2 = variable1;
-}
-</code></pre><p>或者可以使用短路求值方法：<br><code>const variable2 = variable1 || &#39;new&#39;;</code></p>
-<h2 id="3-声明变量简写方法"><a href="#3-声明变量简写方法" class="headerlink" title="3.声明变量简写方法"></a>3.声明变量简写方法</h2><pre><code>let x;
-let y;
-let z = 3;
-</code></pre><p>简写方法：<br><code>let x, y, z=3;</code></p>
-<h2 id="4-if存在条件简写方法"><a href="#4-if存在条件简写方法" class="headerlink" title="4.if存在条件简写方法"></a>4.if存在条件简写方法</h2><p><code>if (likeJavaScript === true)</code></p>
-<p>简写：<br><code>if (likeJavaScript)</code></p>
-<p>只有likeJavaScript是真值时，二者语句才相等</p>
-<p>如果判断值不是真值，则可以这样：</p>
-<pre><code>let a;
-if ( a !== true ) {
-// do something...
-}
-</code></pre><p>简写：</p>
-<pre><code>let a;
-if ( !a ) {
-// do something...
-}
-</code></pre><h2 id="5-JavaScript循环简写方法"><a href="#5-JavaScript循环简写方法" class="headerlink" title="5.JavaScript循环简写方法"></a>5.JavaScript循环简写方法</h2><p><code>for (let i = 0; i &lt; allImgs.length; i++)</code></p>
-<p>简写：<br><code>for (let index in allImgs)</code><br>也可以使用Array.forEach：</p>
-<pre><code>function logArrayElements(element, index, array) {
-  console.log(&quot;a[&quot; + index + &quot;] = &quot; + element);
-}
-[2, 5, 9].forEach(logArrayElements);
-// logs:
-// a[0] = 2
-// a[1] = 5
-// a[2] = 9
-</code></pre><h2 id="6-短路评价"><a href="#6-短路评价" class="headerlink" title="6.短路评价"></a>6.短路评价</h2><p>给一个变量分配的值是通过判断其值是否为null或undefined，则可以：</p>
-<pre><code>let dbHost;
-if (process.env.DB_HOST) {
-  dbHost = process.env.DB_HOST;
-} else {
-  dbHost = &apos;localhost&apos;;
-}
-</code></pre><p>简写：<br><code>const dbHost = process.env.DB_HOST || &#39;localhost&#39;;</code></p>
-<h2 id="7-十进制指数"><a href="#7-十进制指数" class="headerlink" title="7.十进制指数"></a>7.十进制指数</h2><p>当需要写数字带有很多零时（如10000000），可以采用指数（1e7）来代替这个数字：<br><code>for (let i = 0; i &lt; 10000; i++) {}</code><br>简写：</p>
-<pre><code>for (let i = 0; i &lt; 1e7; i++) {}
-
-// 下面都是返回true
-1e0 === 1;
-1e1 === 10;
-1e2 === 100;
-1e3 === 1000;
-1e4 === 10000;
-1e5 === 100000;
-</code></pre><h2 id="8-对象属性简写"><a href="#8-对象属性简写" class="headerlink" title="8.对象属性简写"></a>8.对象属性简写</h2><p>如果属性名与key名相同，则可以采用ES6的方法：<br><code>const obj = { x:x, y:y };</code></p>
-<p>简写：<br><code>const obj = { x, y };</code></p>
-<h2 id="9-箭头函数简写"><a href="#9-箭头函数简写" class="headerlink" title="9.箭头函数简写"></a>9.箭头函数简写</h2><p>传统函数编写方法很容易让人理解和编写，但是当嵌套在另一个函数中，则这些优势就荡然无存。</p>
-<pre><code>function sayHello(name) {
-  console.log(&apos;Hello&apos;, name);
-}
-
-setTimeout(function() {
-  console.log(&apos;Loaded&apos;)
-}, 2000);
-
-list.forEach(function(item) {
-  console.log(item);
-});
-</code></pre><p>简写：</p>
-<pre><code>sayHello = name =&gt; console.log(&apos;Hello&apos;, name);
-
-setTimeout(() =&gt; console.log(&apos;Loaded&apos;), 2000);
-
-list.forEach(item =&gt; console.log(item));
-</code></pre><h2 id="10-隐式返回值简写"><a href="#10-隐式返回值简写" class="headerlink" title="10.隐式返回值简写"></a>10.隐式返回值简写</h2><p>经常使用return语句来返回函数最终结果，一个单独语句的箭头函数能隐式返回其值（函数必须省略{}为了省略return关键字）</p>
-<p>为返回多行语句（例如对象字面表达式），则需要使用()包围函数体。</p>
-<pre><code>function calcCircumference(diameter) {
-  return Math.PI * diameter
-}
-
-var func = function func() {
-  return { foo: 1 };
-};
-</code></pre><p>简写：</p>
-<pre><code>calcCircumference = diameter =&gt; (
-  Math.PI * diameter;
-)
-
-var func = () =&gt; ({ foo: 1 });
-</code></pre><h2 id="11-默认参数值"><a href="#11-默认参数值" class="headerlink" title="11.默认参数值"></a>11.默认参数值</h2><p>为了给函数中参数传递默认值，通常使用if语句来编写，但是使用ES6定义默认值，则会很简洁：</p>
-<pre><code>function volume(l, w, h) {
-  if (w === undefined)
-    w = 3;
-  if (h === undefined)
-    h = 4;
-  return l * w * h;
-}
-</code></pre><p>简写：</p>
-<pre><code>volume = (l, w = 3, h = 4 ) =&gt; (l * w * h);
-
-volume(2) //output: 24
-</code></pre><h2 id="12-模板字符串"><a href="#12-模板字符串" class="headerlink" title="12.模板字符串"></a>12.模板字符串</h2><p>传统的JavaScript语言，输出模板通常是这样写的。</p>
-<pre><code>const welcome = &apos;You have logged in as &apos; + first + &apos; &apos; + last + &apos;.&apos;
-
-const db = &apos;http://&apos; + host + &apos;:&apos; + port + &apos;/&apos; + database;
-</code></pre><p>ES6可以使用反引号和${}简写：</p>
-<pre><code>const welcome = `You have logged in as ${first} ${last}`;
-
-const db = `http://${host}:${port}/${database}`;
-</code></pre><h2 id="13-解构赋值简写方法"><a href="#13-解构赋值简写方法" class="headerlink" title="13.解构赋值简写方法"></a>13.解构赋值简写方法</h2><p>在web框架中，经常需要从组件和API之间来回传递数组或对象字面形式的数据，然后需要解构它</p>
-<pre><code>const observable = require(&apos;mobx/observable&apos;);
-const action = require(&apos;mobx/action&apos;);
-const runInAction = require(&apos;mobx/runInAction&apos;);
-
-const store = this.props.store;
-const form = this.props.form;
-const loading = this.props.loading;
-const errors = this.props.errors;
-const entity = this.props.entity;
-</code></pre><p>简写：</p>
-<pre><code>import { observable, action, runInAction } from &apos;mobx&apos;;
-
-const { store, form, loading, errors, entity } = this.props;
-</code></pre><p>也可以分配变量名：</p>
-<pre><code>const { store, form, loading, errors, entity:contact } = this.props;
-//最后一个变量名为contact
-</code></pre><h2 id="14-多行字符串简写"><a href="#14-多行字符串简写" class="headerlink" title="14.多行字符串简写"></a>14.多行字符串简写</h2><p>需要输出多行字符串，需要使用+来拼接：</p>
-<pre><code>const lorem = &apos;Lorem ipsum dolor sit amet, consectetur\n\t&apos;
-    + &apos;adipisicing elit, sed do eiusmod tempor incididunt\n\t&apos;
-    + &apos;ut labore et dolore magna aliqua. Ut enim ad minim\n\t&apos;
-    + &apos;veniam, quis nostrud exercitation ullamco laboris\n\t&apos;
-    + &apos;nisi ut aliquip ex ea commodo consequat. Duis aute\n\t&apos;
-    + &apos;irure dolor in reprehenderit in voluptate velit esse.\n\t&apos;
-</code></pre><p>使用反引号，则可以达到简写作用：</p>
-<pre><code>const lorem = `Lorem ipsum dolor sit amet, consectetur
-    adipisicing elit, sed do eiusmod tempor incididunt
-    ut labore et dolore magna aliqua. Ut enim ad minim
-    veniam, quis nostrud exercitation ullamco laboris
-    nisi ut aliquip ex ea commodo consequat. Duis aute
-    irure dolor in reprehenderit in voluptate velit esse.`
-</code></pre><h2 id="15-扩展运算符简写"><a href="#15-扩展运算符简写" class="headerlink" title="15.扩展运算符简写"></a>15.扩展运算符简写</h2><p>扩展运算符有几种用例让JavaScript代码更加有效使用，可以用来代替某个数组函数。</p>
-<pre><code>// joining arrays
-const odd = [1, 3, 5];
-const nums = [2 ,4 , 6].concat(odd);
-
-// cloning arrays
-const arr = [1, 2, 3, 4];
-const arr2 = arr.slice()
-</code></pre><p>简写：</p>
-<pre><code>// joining arrays
-const odd = [1, 3, 5 ];
-const nums = [2 ,4 , 6, ...odd];
-console.log(nums); // [ 2, 4, 6, 1, 3, 5 ]
-
-// cloning arrays
-const arr = [1, 2, 3, 4];
-const arr2 = [...arr];
-</code></pre><p>不像concat()函数，可以使用扩展运算符来在一个数组中任意处插入另一个数组。</p>
-<pre><code>const odd = [1, 3, 5 ];
-const nums = [2, ...odd, 4 , 6];
-</code></pre><p>也可以使用扩展运算符解构：</p>
-<pre><code>const { a, b, ...z } = { a: 1, b: 2, c: 3, d: 4 };
-console.log(a) // 1
-console.log(b) // 2
-console.log(z) // { c: 3, d: 4 }
-</code></pre><h2 id="16-强制参数简写"><a href="#16-强制参数简写" class="headerlink" title="16.强制参数简写"></a>16.强制参数简写</h2><p>JavaScript中如果没有向函数参数传递值，则参数为undefined。为了增强参数赋值，可以使用if语句来抛出异常，或使用强制参数简写方法。</p>
-<pre><code>function foo(bar) {
-  if(bar === undefined) {
-    throw new Error(&apos;Missing parameter!&apos;);
-  }
-  return bar;
-}
-</code></pre><p>简写：</p>
-<pre><code>mandatory = () =&gt; {
-  throw new Error(&apos;Missing parameter!&apos;);
-}
-
-foo = (bar = mandatory()) =&gt; {
-  return bar;
-}
-</code></pre><h2 id="17-Array-find简写"><a href="#17-Array-find简写" class="headerlink" title="17.Array.find简写"></a>17.Array.find简写</h2><p>想从数组中查找某个值，则需要循环。在ES6中，find()函数能实现同样效果。</p>
-<pre><code>const pets = [
-  { type: &apos;Dog&apos;, name: &apos;Max&apos;},
-  { type: &apos;Cat&apos;, name: &apos;Karl&apos;},
-  { type: &apos;Dog&apos;, name: &apos;Tommy&apos;},
-]
-
-function findDog(name) {
-  for(let i = 0; i&lt;pets.length; ++i) {
-    if(pets[i].type === &apos;Dog&apos; &amp;&amp; pets[i].name === name) {
-      return pets[i];
-    }
-  }
-}
-</code></pre><p>简写：</p>
-<pre><code>pet = pets.find(pet =&gt; pet.type ===&apos;Dog&apos; &amp;&amp; pet.name === &apos;Tommy&apos;);
-console.log(pet); // { type: &apos;Dog&apos;, name: &apos;Tommy&apos; }
-</code></pre><h2 id="18-Object-key-简写"><a href="#18-Object-key-简写" class="headerlink" title="18.Object[key]简写"></a>18.Object[key]简写</h2><p>考虑一个验证函数</p>
-<pre><code>function validate(values) {
-  if(!values.first)
-    return false;
-  if(!values.last)
-    return false;
-  return true;
-}
-
-console.log(validate({first:&apos;Bruce&apos;,last:&apos;Wayne&apos;})); // true
-</code></pre><p>假设当需要不同域和规则来验证，能否编写一个通用函数在运行时确认？</p>
-<pre><code>// 对象验证规则
-const schema = {
-  first: {
-    required:true
-  },
-  last: {
-    required:true
-  }
-}
-
-// 通用验证函数
-const validate = (schema, values) =&gt; {
-  for(field in schema) {
-    if(schema[field].required) {
-      if(!values[field]) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-
-console.log(validate(schema, {first:&apos;Bruce&apos;})); // false
-console.log(validate(schema, {first:&apos;Bruce&apos;,last:&apos;Wayne&apos;})); // true
-</code></pre><p>现在可以有适用于各种情况的验证函数，不需要为了每个而编写自定义验证函数了</p>
-<h2 id="19-双重非位运算简写"><a href="#19-双重非位运算简写" class="headerlink" title="19.双重非位运算简写"></a>19.双重非位运算简写</h2><p>有一个有效用例用于双重非运算操作符。可以用来代替Math.floor()，其优势在于运行更快，可以阅读此文章了解更多位运算。<br><code>Math.floor(4.9) === 4 //true</code></p>
-<p>简写：<br><code>~~4.9 === 4 //true</code></p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/04/React高阶组件/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/04/React高阶组件/" itemprop="url">React高阶组件HOC</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-04T19:10:27+08:00">
-                2017-10-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h4 id="什么是高阶组件？"><a href="#什么是高阶组件？" class="headerlink" title="什么是高阶组件？"></a>什么是高阶组件？</h4><blockquote>
-<p>高阶部件是一种用于复用组件逻辑的高级技术，它并不是 React API的一部分，而是从React 演化而来的一种模式。 具体地说，高阶组件就是一个接收一个组件并返回另外一个新组件的函数！</p>
-</blockquote>
-<p>这是官方文档说的，我没有截全，因为后面的解释会造成误解，但简单讲高阶组件（函数）就好比一个加工厂，同样的，屏幕、cpu、扬声器、键盘按键、外壳、电池，小米手机工厂组装完就是小米手机，魅族手机组装完就是魅族手机，基本材料都是相同的，不同工厂（高阶组件）有不同的实现及产出，当然这个工厂（高阶组件）也可能是针对某个基本材料的处理。</p>
-<p>总之产出的结果拥有了输入组件不具备的功能，输入的组件可以是一个组件的实例，也可以是一个组件类，还可以是一个无状态组件的函数。</p>
-<h4 id="解决什么问题？"><a href="#解决什么问题？" class="headerlink" title="解决什么问题？"></a>解决什么问题？</h4><p>随着项目越来越复杂，开发过程中，多个组件需要某个功能，而且这个功能和页面并没有关系，所以也不能简单的抽取成一个新的组件，但是如果让同样的逻辑在各个组件里各自实现，无疑会导致重复的代码。比如页面有三种弹窗一个有title，一个没有，一个又有右上角关闭按钮，除此之外别无它样，你总不能整好几个弹窗组件吧，这里除了tilte,关闭按钮其他的就可以做为上面说的基本材料。</p>
-<hr>
-<h4 id="高阶组件总共分为两大类"><a href="#高阶组件总共分为两大类" class="headerlink" title="高阶组件总共分为两大类"></a>高阶组件总共分为两大类</h4><ul>
-<li><p>代理方式</p>
-<ol>
-<li>操纵prop</li>
-<li>访问ref（不推荐）</li>
-<li>抽取状态</li>
-<li>包装组件</li>
-</ol>
-</li>
-<li><p>继承方式</p>
-<ol>
-<li>操纵生命周期</li>
-<li>操纵prop</li>
-</ol>
-</li>
-</ul>
-<h4 id="代理方式之-操纵prop"><a href="#代理方式之-操纵prop" class="headerlink" title="代理方式之 操纵prop"></a>代理方式之 操纵prop</h4><h6 id="删除prop"><a href="#删除prop" class="headerlink" title="删除prop"></a>删除prop</h6><pre><code>import React from&apos;react&apos;functionHocRemoveProp(WrappedComponent) {
-  returnclassWrappingComPonentextendsReact.Component{
-    render() {
-      const { user, ...otherProps } = this.props;
-      return&lt;WrappedComponent {...otherProps} /&gt;
-    }
-  }
-}
-export default HocRemoveProp;
-</code></pre><h6 id="增加prop"><a href="#增加prop" class="headerlink" title="增加prop"></a>增加prop</h6><p>接下来我把简化了写法，把匿名函数去掉，同时换成箭头函数</p>
-<pre><code>import React from&apos;react&apos;const HocAddProp = (WrappedComponent，uid) =&gt;classextendsReact.Component{
-    render() {
-      const newProps = {
-        uid,
-      };
-      return&lt;WrappedComponent {...this.props}  {...newProps}  /&gt;
-    }
-  }
-
-export default HocAddProp;
-</code></pre><p>上面HocRemoveProp高阶组件中，所做的事情和输入组件WrappedComponent功能一样，只是忽略了名为user的prop。也就是说，如果WrappedComponent能处理名为user的prop,这个高阶组件返回的组件则完全无视这个prop。</p>
-<pre><code>const { user, ...otherProps } = this.props;
-</code></pre><p>这是一个利用es6语法技巧，经过上面的语句，otherProps里面就有this.props中所有的字段除了user.</p>
-<p>假如我们现在不希望某个组件接收user的prop,那么我们就不要直接使用这个组件，而是把这个组件作为参数传递给HocRemoveProp，然后我们把这个函数的返回结果当作组件来使用</p>
-<p>两个高阶组件的使用方法：</p>
-<pre><code>const  newComponent = HocRemoveProp(SampleComponent);
-const  newComponent = HocAddProp(SampleComponent,&apos;1111111&apos;);
-</code></pre><p>也可以利用decorator语法糖这样使用</p>
-<pre><code>import React, { Component } from&apos;React&apos;;
-
-@HocRemoveProp 
-classSampleComponentextendsComponent{
-render() {}
-}
-exportdefault SampleComponent;
-</code></pre><h4 id="代理方式之-抽取状态"><a href="#代理方式之-抽取状态" class="headerlink" title="代理方式之 抽取状态"></a>代理方式之 抽取状态</h4><p>将所有的状态的管理交给外面的容器组件，这个模式就是 抽取状态</p>
-<p>外面的容器就是这个高阶组件</p>
-<pre><code>const HocContainer = (WrappedComponent) =&gt;classextendsReact.Component{
-    constructor(props) {
-      super(props)
-      this.state = {
-        name: &apos;&apos;
-      }
-    }
-    onNameChange = (event) =&gt; {
-      this.setState({
-        name: event.target.value
-      })
-    }
-    render() {
-      const newProps = {
-        name: {
-          value: this.state.name,
-          onChange: this.onNameChange
-        }
-      }
-      return&lt;WrappedComponent {...this.props} {...newProps} /&gt;
-    }
-  }
-
-@HocContainer
-classSampleComponentextendsReact.Component{
-  render() {
-    return&lt;inputname=&quot;name&quot; {...this.props.name}/&gt;
-  }
-}
-</code></pre><p>这样当我们在使用这个已经被包裹的input组件（SampleComponent）时候</p>
-<p>它的值就被放在了HocContainer高阶组件中，当很多这样的input组件都用这个HocContainer高阶组件时，那么它们的值都将保存在这个HocContainer高阶组件中</p>
-<h4 id="代理方式之-包装组件"><a href="#代理方式之-包装组件" class="headerlink" title="代理方式之 包装组件"></a>代理方式之 包装组件</h4><pre><code>const HocStyleComponent = (WrappedComponent, style) =&gt;classextendsReact.Component{
-    render() {
-      return (
-        &lt;divstyle={style}&gt;&lt;WrappedComponent {...this.props} {...newProps} /&gt;&lt;/div&gt;
-      )
-    }
-  }
-</code></pre><p>这样使用</p>
-<pre><code>import HocStyleComponent from&apos;./HocStyleComponent&apos;;
-const colorSytle ={color:&apos;#ff5555&apos;}
-const  newComponent = HocStyleComponent(SampleComponent, colorSytle);
-</code></pre><p>-代理方式的生命周期的过程类似于堆栈调用:</p>
-<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;(HOCs will unmount) 一&gt;HOC will unmount一&gt;unmount</p>
-<h4 id="在说继承方式之前先看一个例子"><a href="#在说继承方式之前先看一个例子" class="headerlink" title="在说继承方式之前先看一个例子"></a>在说继承方式之前先看一个例子</h4><pre><code>const MyContainer = (WrappedComponent) =&gt;classextendsWrappedComponent{
-    render() {
-      returnsuper.render();
-    }
-  }
-</code></pre><p>这个例子很简单，相当于把WrappedComponent组件的render方法，通过super.render()方法吐到了MyContainer 中，可以顺序调用。</p>
-<ul>
-<li>继承方式的生命周期的过程类似于队列调用:</li>
-</ul>
-<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;will unmount一&gt;HOC will unmount一&gt; (HOCs will unmount)</p>
-<ul>
-<li>代理方式下WrappedComponent会经历一个完整的生命周期，产生的新组件和参数组件是两个不同的组件，一次渲染，两个组件都会经历各自的生命周期，</li>
-<li>在继承方式下，产生的新组件和参数组件合二为一，super.render只是生命周期中的函数，变成一个生命周期。</li>
-</ul>
-<p>来看下面的例子你就会明白了。</p>
-<h4 id="继承方式之-操纵生命周期-渲染劫持"><a href="#继承方式之-操纵生命周期-渲染劫持" class="headerlink" title="继承方式之 操纵生命周期(渲染劫持)"></a>继承方式之 操纵生命周期(渲染劫持)</h4><p>首先创建一个高阶，在创建一个使用高阶组件的组件，也就是是输入组件，最后我在改变这个输入组件props</p>
-<pre><code>import * as React from&apos;react&apos;;
-
-const HocComponent = (WrappedComponent) =&gt;classMyContainerextendsWrappedComponent{
-    render() {
-      if (this.props.time &amp;&amp; this.state.success) {
-        returnsuper.render()
-      }
-      return&lt;div&gt;倒计时完成了...&lt;/div&gt;
-    }
-  }
-</code></pre><p>这个高阶组件会直接读取输入组件中的props,state,然后控制了输入组件的render展示</p>
-<p>只有在props.time和state.success同时为真的时候才会展示</p>
-<pre><code>import * as React from&apos;react&apos;;
-import HocComponent from&apos;./HocComponent&apos;
-
-@HocComponent
-
-classDemoComponentextendsReact.Component{
-  constructor(props) {
-    super(props);
-   this.state = {
-    success: true,
-   };
- }
-  render() {
-    return&lt;div&gt;我是一个组件&lt;/div&gt;
-  }
-} 
-exportdefault DemoComponent;
-</code></pre><p>然后调用，递减time数值直到变为0</p>
-<h6 id="由此可以看出高阶组件也可以控制state"><a href="#由此可以看出高阶组件也可以控制state" class="headerlink" title="由此可以看出高阶组件也可以控制state"></a>由此可以看出高阶组件也可以控制state</h6><p>但是最好要限制这样做，可能会让WrappedComponent组件内部状态变得一团糟。建议可以通过重新命名state，以防止混淆。</p>
-<h4 id="继承方式之-操纵prop"><a href="#继承方式之-操纵prop" class="headerlink" title="继承方式之 操纵prop"></a>继承方式之 操纵prop</h4><pre><code>const HOCPropsComponent = (WrappedComponent) =&gt;classextendsWrappedComponent{
-    render() {
-      const elementsTree = super.render();
-      let newProps = {
-        color: (elementsTree &amp;&amp; elementsTree.type === &apos;div&apos;) ? &apos;#fff&apos; : &apos;#ff5555&apos;
-      };
-
-      const props = Object.assign({}, elementsTree.props, newProps)
-      const newElementsTree = React.cloneElement(elementsTree, props, elementsTree.props.children)
-      return newElementsTree
-    }
-  }
-</code></pre><p>这样就传入了新的props，。</p>
-<p>React.cloneElement( element, [props], […children])</p>
-<p>参数：TYPE（ReactElement），[PROPS（object）]，[CHILDREN（ReactElement）]</p>
-<p>克隆并返回一个新的 ReactElement ，新返回的元素会保留有旧元素的 props、ref、key，也会集成新的 props。</p>
-<h5 id="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"><a href="#还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，" class="headerlink" title="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"></a>还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，</h5><pre><code>classaddPropsextendsReact.Component{
-  render() {
-    const newProps = &apos;uid&apos;returnthis.props.children(newProps)
-  }
-} 
-</code></pre><p>使用方式</p>
-<pre><code>&lt;addProps&gt;
-{
-   (argument) =&gt; &lt;div&gt;{argument}&lt;/div&gt;
-}
-&lt;/addProps&gt;
-</code></pre><p>感觉很方便，但是每次渲染都会重新定义一个新的函数，如果不想的话就不要定义匿名函数，</p>
-<pre><code>showUid(argument) {
-    return&lt;div&gt;{argument}&lt;/div&gt;
-}
-</code></pre><h5 id="彩蛋recompose库"><a href="#彩蛋recompose库" class="headerlink" title="彩蛋recompose库"></a>彩蛋recompose库</h5><p>recompose是一个很流行的库，它提供了很多很有用的高阶组件（小工具），而且也可以优雅的组合它们。</p>
-<h6 id="Step-1-扁平props"><a href="#Step-1-扁平props" class="headerlink" title="Step 1 扁平props."></a>Step 1 扁平props.</h6><p>我们有这样一个组件</p>
-<pre><code>const Profile = ({ user }) =&gt; ( 
-&lt;div&gt;&lt;div&gt;Username: {user.username}&lt;/div&gt;&lt;div&gt;Age: {user.age}&lt;/div&gt;&lt;/div&gt;
- )
-</code></pre><p>如果想要改变组件接口来接收单个 prop 而不是整个用户对象，可以用 recompose 提供的高 阶组件 flattenProp 来实现。</p>
-<pre><code>const Profile = ({ username，age }) =&gt; ( 
-&lt;div&gt;&lt;div&gt;Username: {username}&lt;/div&gt;&lt;div&gt;Age: {age}&lt;/div&gt;&lt;/div&gt;
- )
-</code></pre><p>const ProfileWithFlattenUser = flattenProp(‘user’)(Profile)；</p>
-<p>现在我们希望同时使用多个高阶组件：一个用于扁平化处理用户 prop，另一个用于重命名用 户对象的单个 prop，不过串联使用函数的做法似乎不太好。 此时 recompose 库提供的 compose 函数就派上用场了。</p>
-<pre><code>const enhance = compose(
- flattenProp(&apos;user&apos;),
- renameProp(&apos;username&apos;, &apos;name&apos;)
- )
-</code></pre><p>然后按照以下方式将它应用于原有组件：</p>
-<pre><code>const EnhancedProfile = enhance(Profile)
-</code></pre><p>还可以将 compose 函数用 在我们自己的高阶组件上，甚至结合使用都可以：</p>
-<pre><code>const enhance = compose( 
- flattenProp(&apos;user&apos;), 
- renameProp(&apos;username&apos;, &apos;name&apos;), 
- withInnerWidth 
-)
-</code></pre><h6 id="Step-2-提取输入表单的State"><a href="#Step-2-提取输入表单的State" class="headerlink" title="Step 2 提取输入表单的State"></a>Step 2 提取输入表单的State</h6><p>我们将从Recompose库中使用withStateHandlers高阶组件。 它将允许我们将组件状态与组件本身隔离开来。 我们将使用它为电子邮件，密码和确认密码字段添加表单状态，以及上述字段的事件处理程序。</p>
-<pre><code>import { withStateHandlers, compose } from&quot;recompose&quot;;
-
-const initialState = {
-  email: { value: &quot;&quot; },
-  password: { value: &quot;&quot; },
-  confirmPassword: { value: &quot;&quot; }
-};
-
-const onChangeEmail = props =&gt; event =&gt; ({
-  email: {
-    value: event.target.value,
-    isDirty: true
-  }
-});
-
-const onChangePassword = props =&gt; event =&gt; ({
-  password: {
-    value: event.target.value,
-    isDirty: true
-  }
-});
-
-const onChangeConfirmPassword = props =&gt; event =&gt; ({
-  confirmPassword: {
-    value: event.target.value,
-    isDirty: true
-  }
-});
-
-const withTextFieldState = withStateHandlers(initialState, {
-  onChangeEmail,
-  onChangePassword,
-  onChangeConfirmPassword
-});
-
-exportdefault withTextFieldState;
-</code></pre><p>withStateHandlers它接受初始状态和包含状态处理程序的对象。调用时，每个状态处理程序将返回新的状态。</p>
-<p>好了，很辛苦也很感谢你能看到这里，关于recompose介绍到此为止，喜欢的朋友可以深入研究recompose其它的方法和源码。</p>
-<p>不准确的地方欢迎拍砖</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/03/Event-Loop-必知必会（六道题）/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/03/Event-Loop-必知必会（六道题）/" itemprop="url">Event Loop 必知必会（六道题）</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-03T11:48:09+08:00">
-                2017-10-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>一直想写一篇关于 Event Loop 的文章，前不久发现 CNode 上有位同学写了一篇原理分析的<a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/5a9108d78d6e16e56bb80882%235a98d9a2ce1c90bc44c445af" target="_blank" rel="noopener">文章</a>很详细，这里我就不献丑了。本文就拿出六道题来补充一下，放出一张我认为非常直观的图。<br><img src="https://pic4.zhimg.com/v2-3a59c624e6ff95a7e8c5a23c979f5abe_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-3a59c624e6ff95a7e8c5a23c979f5abe_hd.jpg" alt=""><br>绿色小块是 macrotask（宏任务），macrotask 中间的粉红箭头是 microtask（微任务）。</p>
-<h2 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h2><pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})
-</code></pre><p>运行结果：</p>
-<pre><code>setImmediate
-setTimeout
-</code></pre><p>或者：</p>
-<pre><code>setTimeout
-setImmediate
-</code></pre><p>为什么结果不确定呢？</p>
-<p>解释：setTimeout/setInterval 的第二个参数取值范围是：[1, 2^31 - 1]，如果超过这个范围则会初始化为 1，即 setTimeout(fn, 0) === setTimeout(fn, 1)。我们知道 setTimeout 的回调函数在 timer 阶段执行，setImmediate 的回调函数在 check 阶段执行，event loop 的开始会先检查 timer 阶段，但是在开始之前到 timer 阶段会消耗一定时间，所以就会出现两种情况：</p>
-<ol>
-<li>timer 前的准备时间超过 1ms，满足  loop-&gt;time &gt;= 1，则执行 timer 阶段（setTimeout）的回调函数</li>
-<li>timer 前的准备时间小于 1ms，则先执行 check 阶段（setImmediate）的回调函数，下一次 event loop 执行 timer 阶段（setTimeout）的回调函数</li>
-</ol>
-<p>再看个例子：</p>
-<pre><code>setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})conststart=Date.now()while(Date.now()-start&lt;10);
-</code></pre><p>运行结果一定是：</p>
-<pre><code>setTimeout
-setImmediate
-</code></pre><h2 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h2><pre><code>constfs=require(&apos;fs&apos;)fs.readFile(__filename,()=&gt;{setTimeout(()=&gt;{console.log(&apos;setTimeout&apos;)},0)setImmediate(()=&gt;{console.log(&apos;setImmediate&apos;)})})
-</code></pre><p>运行结果：</p>
-<pre><code>setImmediate
-setTimeout
-</code></pre><p>解释：fs.readFile 的回调函数执行完后：</p>
-<ol>
-<li>注册 setTimeout 的回调函数到 timer 阶段</li>
-<li>注册 setImmediate 的回调函数到 check 阶段</li>
-<li>event loop 从 pool 阶段出来继续往下一个阶段执行，恰好是 check 阶段，所以 setImmediate 的回调函数先执行</li>
-<li>本次 event loop 结束后，进入下一次 event loop，执行 setTimeout 的回调函数</li>
-</ol>
-<p>所以，在 I/O Callbacks 中注册的 setTimeout 和 setImmediate，永远都是 setImmediate 先执行。</p>
-<h2 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h2><pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)process.nextTick(functiontick(){process.nextTick(tick)})
-</code></pre><p>运行结果：setInterval 永远不会打印出来。</p>
-<p>解释：process.nextTick 会无限循环，将 event loop 阻塞在 microtask 阶段，导致 event loop 上其他 macrotask 阶段的回调函数没有机会执行。</p>
-<p>解决方法通常是用 setImmediate 替代 process.nextTick，如下：</p>
-<pre><code>setInterval(()=&gt;{console.log(&apos;setInterval&apos;)},100)setImmediate(functionimmediate(){setImmediate(immediate)})
-</code></pre><p>运行结果：每 100ms 打印一次 setInterval。</p>
-<p>解释：process.nextTick 内执行 process.nextTick 仍然将 tick 函数注册到当前 microtask 的尾部，所以导致 microtask 永远执行不完； setImmediate 内执行 setImmediate 会将 immediate 函数注册到下一次 event loop 的 check 阶段，而不是当前正在执行的 check 阶段，所以给了 event loop 上其他 macrotask 执行的机会。</p>
-<p>再看个例子：</p>
-<pre><code>setImmediate(()=&gt;{console.log(&apos;setImmediate1&apos;)setImmediate(()=&gt;{console.log(&apos;setImmediate2&apos;)})process.nextTick(()=&gt;{console.log(&apos;nextTick&apos;)})})setImmediate(()=&gt;{console.log(&apos;setImmediate3&apos;)})
-</code></pre><p>运行结果：</p>
-<pre><code>setImmediate1
-setImmediate3
-nextTick
-setImmediate2
-</code></pre><p>注意：并不是说 setImmediate 可以完全替代 process.nextTick，process.nextTick 在特定场景下还是无法被替代的，比如我们就想将一些操作放到最近的 microtask 里执行。</p>
-<h2 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h2><pre><code>constpromise=Promise.resolve().then(()=&gt;{returnpromise})promise.catch(console.error)
-</code></pre><p>运行结果：</p>
-<pre><code>TypeError: Chaining cycle detected for promise #&lt;Promise&gt;
-    at &lt;anonymous&gt;
-    at process._tickCallback (internal/process/next_tick.js:188:7)
-    at Function.Module.runMain (module.js:667:11)
-    at startup (bootstrap_node.js:187:16)
-    at bootstrap_node.js:607:3
-</code></pre><p>解释：promise.then 类似于 process.nextTick，都会将回调函数注册到 microtask 阶段。上面代码会导致死循环，类似前面提到的：</p>
-<pre><code>process.nextTick(functiontick(){process.nextTick(tick)})
-</code></pre><p>再看个例子：</p>
-<pre><code>constpromise=Promise.resolve()
-promise.then(()=&gt;{
-  console.log(&apos;promise&apos;)})
-  process.nextTick(()=&gt;{
-      console.log(&apos;nextTick&apos;)
-  })
-</code></pre><p>运行结果：</p>
-<pre><code>nextTick
-promise
-</code></pre><p>解释：promise.then 虽然和 process.nextTick 一样，都将回调函数注册到 microtask，但优先级不一样。process.nextTick 的 microtask queue 总是优先于 promise 的 microtask queue 执行。</p>
-<h2 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h2><pre><code>setTimeout(()=&gt;{
-    console.log(1)
-},0)
-newPromise((resolve,reject)=&gt;{
-   console.log(2)
-   for(leti=0;i&lt;10000;i++){
-     i===9999&amp;&amp;resolve()
-   }
-   console.log(3)
-}).then(()=&gt;{
-   console.log(4)
-})
-console.log(5)
-</code></pre><p>运行结果：</p>
-<p>解释：Promise 构造函数是同步执行的，所以先打印 2、3，然后打印 5，接下来 event loop 进入执行 microtask 阶段，执行 promise.then 的回调函数打印出 4，然后执行下一个 macrotask，恰好是 timer 阶段的 setTimeout 的回调函数，打印出 1。</p>
-<h2 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h2><pre><code>setImmediate(()=&gt;{
-    console.log(1)
-    setTimeout(()=&gt;{
-       console.log(2)
-    },100)
-    setImmediate(()=&gt;{
-       console.log(3)
-    })
-    process.nextTick(
-       ()=&gt;{console.log(4)})
-     })
-     process.nextTick(()=&gt;{
-       console.log(5)
-       setTimeout(()=&gt;{
-        console.log(6)},100)
-        setImmediate(()=&gt;{
-        console.log(7)})
-        process.nextTick(
-        ()=&gt;{console.log(8)})
-        })console.log(9)
-</code></pre><p>运行结果：</p>
-<p>process.nextTick、setTimeout 和 setImmediate 的组合，请读者自己推理吧。</p>
-<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ul>
-<li><a href="https://link.zhihu.com/?target=https%3A//medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c" target="_blank" rel="noopener">https://medium.com/the-node-js-collection/what-you-should-know-to-really-understand-the-node-js-event-loop-and-its-metrics-c4907b19da4c</a></li>
-<li><a href="https://link.zhihu.com/?target=https%3A//cnodejs.org/topic/57d68794cb6f605d360105bf" target="_blank" rel="noopener">https://cnodejs.org/topic/57d68794cb6f605d360105bf</a></li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3281,7 +3839,7 @@ console.log(5)
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">118</span>
+                  <span class="site-state-item-count">121</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3294,7 +3852,7 @@ console.log(5)
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">96</span>
+                  <span class="site-state-item-count">100</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

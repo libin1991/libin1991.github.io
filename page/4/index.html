@@ -300,6 +300,233 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/11/Raect-异步加载组件/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/11/Raect-异步加载组件/" itemprop="url">React 异步加载组件</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-11T23:09:27+08:00">
+                2018-08-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>首先需要知道的是dynamic import通过返回Promise的方式实现异步加载功能。</p>
+<pre><code>import(&apos;./component.js&apos;)  
+    .then((m) =&gt; {
+        // 处理异步加载到的模块m
+    })
+    .catch((err) =&gt; {
+        // 错误处理
+    });
+</code></pre><p>要注意的是import的参数不能使用变量，简单原则是至少要让Webpack知晓应该预先加载哪些内容。这里的参数除了使用常量之外，还可以使用模板字符串<code>componentDir/${name}.js</code>。</p>
+<p>其实到这里基本完成代码切割了，接下来做得就是结合react-router实现按模块异步加载。这是跟业务代码相关的，因此每个人的做法都是不一样的。所以以下代码仅供参考。</p>
+<p>异步加载</p>
+<p>我参考react-router的例子写了个简单的异步加载组件AsyncLoader.js，内容：</p>
+<pre><code>import React from &apos;react&apos;;
+
+export default class AsyncLoader extends React.Component {
+
+  static propTypes = {
+    path: React.PropTypes.string.isRequired,
+    loading: React.PropTypes.element,
+  };
+
+  static defaultProps = {
+    path: &apos;&apos;,
+    loading: &lt;p&gt;Loading...&lt;/p&gt;,
+    error: &lt;p&gt;Error&lt;/p&gt;
+  };
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      module: null
+    };
+  }
+
+  componentWillMount() {
+    this.load(this.props);
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.path !== this.props.path
+      || nextProps.error !== this.props.error
+      || nextProps.loading !== this.props.loading) {
+      this.load(nextProps);
+    }
+  }
+
+  load(props) {
+
+    this.setState({module: props.loading});
+
+    // TODO：异步代码的路径希望做成可以配置的方式
+    import(`./path/${props.path}`)
+      .then((m) =&gt; {
+        let Module = m.default ? m.default : m;
+        console.log(&quot;module: &quot;, Module);
+        this.setState({module: &lt;Module/&gt;});
+      }).catch(() =&gt; {
+        this.setState({module: props.error});
+      });
+  }
+
+  render() {
+    return this.state.module;
+  }
+}
+</code></pre><p>使用方法</p>
+<pre><code>&lt;Route  
+    exact path=&apos;/book&apos; 
+    render={()=&gt;&lt;AsyncLoader path={&apos;./components/Book.js&apos;}/&gt;} 
+/&gt;
+</code></pre><p>Webpack打包的时候会根据import的参数生成相应的js文件，默认使用id（webpack生成的，从0开始）命名这个文件。</p>
+<pre><code>const Search = asyncComponent(() =&gt; import(/* webpackChunkName: &quot;search&quot; */ &quot;./containers/Search/SearchContainer&quot;))
+const BookList = asyncComponent(() =&gt; import(/* webpackChunkName: &quot;bookList&quot; */ &quot;./containers/BookList/BookListContainer&quot;))
+
+
+import React from &apos;react&apos;
+export const asyncComponent = loadComponent =&gt; (
+    class AsyncComponent extends React.Component {
+        state = {
+            Component: null,
+        }
+
+        componentWillMount() {
+            if (this.hasLoadedComponent()) {
+                return;
+            }
+
+            loadComponent()
+                .then(module =&gt; module.default) ////兼容 module.default ? module.default : module
+                .then((Component) =&gt; {
+                    this.setState({ Component });
+                })
+                .catch((err) =&gt; {
+                    console.error(`Cannot load component in &lt;AsyncComponent /&gt;`);
+                    throw err;
+                });
+        }
+
+        hasLoadedComponent() {
+            return this.state.Component !== null;
+        }
+
+        render() {
+            const { Component } = this.state;
+            return (Component) ? &lt;Component {...this.props} /&gt; : null;
+        }
+    }
+); 
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/04/JS面试之数组对象解构/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2936,364 +3163,11 @@ foo();
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/20个CSS高级技巧汇总/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/02/20个CSS高级技巧汇总/" itemprop="url">20个 CSS高级技巧汇总</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T16:24:04+08:00">
-                2018-05-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>使用技巧会让人变的越来越懒，没错，我就是想让你变懒。下面是我收集的CSS高级技巧，希望你懒出境界。</p>
-<h2 id="1-黑白图像"><a href="#1-黑白图像" class="headerlink" title="1. 黑白图像"></a>1. 黑白图像</h2><p>这段代码会让你的彩色照片显示为黑白照片，是不是很酷？</p>
-<pre><code>img.desaturate {
- filter: grayscale(100%);
--webkit-filter: grayscale(100%);
--moz-filter: grayscale(100%);
--ms-filter: grayscale(100%);
--o-filter: grayscale(100%);
-}
-</code></pre><h2 id="2-使用-not-在菜单上应用-取消应用边框"><a href="#2-使用-not-在菜单上应用-取消应用边框" class="headerlink" title="2. 使用 :not() 在菜单上应用/取消应用边框"></a>2. 使用 <code>:not()</code> 在菜单上应用/取消应用边框</h2><p>先给每一个菜单项添加边框</p>
-<pre><code>/* add border */
-.nav li {
- border-right: 1px solid #666;
-}
-</code></pre><p>然后再除去最后一个元素</p>
-<pre><code>// remove border /
-
-.nav li:last-child {
- border-right: none;
-}
-</code></pre><p>可以直接使用 :not() 伪类来应用元素：</p>
-<pre><code>.nav li:not(:last-child) {
- border-right: 1px solid #666;
-}
-</code></pre><p>这样代码就干净，易读，易于理解了。</p>
-<p>当然，如果你的新元素有兄弟元素的话，也可以使用通用的兄弟选择符（~）：</p>
-<pre><code>.nav li:first-child ~ li {
- border-left: 1px solid #666;
-}
-</code></pre><h2 id="3-页面顶部阴影"><a href="#3-页面顶部阴影" class="headerlink" title="3. 页面顶部阴影"></a>3. 页面顶部阴影</h2><p>下面这个简单的 CSS3 代码片段可以给网页加上漂亮的顶部阴影效果：</p>
-<pre><code>body:before {
- content: &quot;&quot;;
- position: fixed;
- top: -10px;
- left: 0;
- width: 100%;
- height: 10px;
-
--webkit-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
--moz-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
- box-shadow: 0px 0px 10px rgba(0,0,0,.8);
-
- z-index: 100;
-}
-</code></pre><h2 id="4-给-body-添加行高"><a href="#4-给-body-添加行高" class="headerlink" title="4. 给 body 添加行高"></a>4. 给 body 添加行高</h2><p>你不需要分别添加 line-height 到每个p,h标记等。只要添加到 body 即可：</p>
-<pre><code>body {
- line-height: 1;
-}
-</code></pre><p>这样文本元素就可以很容易地从 body 继承。</p>
-<h2 id="5-所有一切都垂直居中"><a href="#5-所有一切都垂直居中" class="headerlink" title="5. 所有一切都垂直居中"></a>5. 所有一切都垂直居中</h2><p>要将所有元素垂直居中，太简单了：</p>
-<pre><code>html, body {
- height: 100%;
- margin: 0;
-}
-
-body {
--webkit-align-items: center; 
--ms-flex-align: center; 
- align-items: center;
- display: -webkit-flex;
- display: flex;
-}
-</code></pre><p>看，是不是很简单。</p>
-<p>注意：在IE11中要小心flexbox</p>
-<h2 id="6-逗号分隔的列表"><a href="#6-逗号分隔的列表" class="headerlink" title="6. 逗号分隔的列表"></a>6. 逗号分隔的列表</h2><p>让HTML列表项看上去像一个真正的，用逗号分隔的列表：</p>
-<pre><code>ul &gt; li:not(:last-child)::after {
- content: &quot;,&quot;;
-}
-</code></pre><p>对最后一个列表项使用 :not() 伪类。</p>
-<h2 id="7-使用负的-nth-child-选择项目"><a href="#7-使用负的-nth-child-选择项目" class="headerlink" title="7. 使用负的 nth-child 选择项目"></a>7. 使用负的 nth-child 选择项目</h2><p>在CSS中使用负的 nth-child 选择项目1到项目n。</p>
-<pre><code>li {
- display: none;
-}
-
-/* select items 1 through 3 and display them */
-li:nth-child(-n+3) {
- display: block;
-}
-</code></pre><h2 id="8-对图标使用-SVG"><a href="#8-对图标使用-SVG" class="headerlink" title="8. 对图标使用 SVG"></a>8. 对图标使用 SVG</h2><p>我们没有理由不对图标使用SVG：</p>
-<pre><code>.logo {
- background: url(&quot;logo.svg&quot;);
-}
-</code></pre><p>SVG对所有的分辨率类型都具有良好的扩展性，并支持所有浏览器都回归到IE9。这样可以避开.png、.jpg或.gif文件了。</p>
-<h2 id="9-优化显示文本"><a href="#9-优化显示文本" class="headerlink" title="9. 优化显示文本"></a>9. 优化显示文本</h2><p>有时，字体并不能在所有设备上都达到最佳的显示，所以可以让设备浏览器来帮助你：</p>
-<pre><code>html {
--moz-osx-font-smoothing: grayscale;
--webkit-font-smoothing: antialiased;
- text-rendering: optimizeLegibility;
-}
-</code></pre><p>注：请负责任地使用 optimizeLegibility。此外，IE /Edge没有 text-rendering 支持。</p>
-<h2 id="10-对纯-CSS-滑块使用-max-height"><a href="#10-对纯-CSS-滑块使用-max-height" class="headerlink" title="10. 对纯 CSS 滑块使用 max-height"></a>10. 对纯 CSS 滑块使用 max-height</h2><p>使用 max-height 和溢出隐藏来实现只有CSS的滑块：</p>
-<pre><code>.slider ul {
- max-height: 0;
- overlow: hidden;
-}
-
-.slider:hover ul {
- max-height: 1000px;
- transition: .3s ease;
-}
-</code></pre><h2 id="11-继承-box-sizing"><a href="#11-继承-box-sizing" class="headerlink" title="11. 继承 box-sizing"></a>11. 继承 box-sizing</h2><p>让 box-sizing 继承 html：</p>
-<pre><code>html {
- box-sizing: border-box;
-}
-
-*, *:before, *:after {
- box-sizing: inherit;
-}
-</code></pre><p>这样在插件或杠杆其他行为的其他组件中就能更容易地改变 box-sizing 了。</p>
-<h2 id="12-表格单元格等宽"><a href="#12-表格单元格等宽" class="headerlink" title="12. 表格单元格等宽"></a>12. 表格单元格等宽</h2><p>表格工作起来很麻烦，所以务必尽量使用 table-layout: fixed 来保持单元格的等宽：</p>
-<pre><code>.calendar {
- table-layout: fixed;
-}
-</code></pre><h2 id="13-用-Flexbox-摆脱外边距的各种-hack"><a href="#13-用-Flexbox-摆脱外边距的各种-hack" class="headerlink" title="13. 用 Flexbox 摆脱外边距的各种 hack"></a>13. 用 Flexbox 摆脱外边距的各种 hack</h2><p>当需要用到列分隔符时，通过flexbox的 space-between 属性，你就可以摆脱nth-，first-，和 last-child 的hack了：</p>
-<pre><code>.list {
- display: flex;
- justify-content: space-between;
-}
-
-.list .person {
- flex-basis: 23%;
-}
-</code></pre><p>现在，列表分隔符就会在均匀间隔的位置出现。</p>
-<h2 id="14-使用属性选择器用于空链接"><a href="#14-使用属性选择器用于空链接" class="headerlink" title="14. 使用属性选择器用于空链接"></a>14. 使用属性选择器用于空链接</h2><p>当a元素没有文本值，但 href 属性有链接的时候显示链接：</p>
-<pre><code>a[href^=&quot;http&quot;]:empty::before {
- content: attr(href);
-}
-</code></pre><p>相当方便。</p>
-<h2 id="15-检测鼠标双击"><a href="#15-检测鼠标双击" class="headerlink" title="15. 检测鼠标双击"></a>15. 检测鼠标双击</h2><p>HTML：</p>
-<pre><code>&lt;div class=&quot;test3&quot;&gt;
-&lt;span&gt;&lt;input type=&quot;text&quot; value=&quot; &quot; readonly=&quot;true&quot; /&gt;
-&lt;a href=&quot;http://renpingjun.com&quot;&gt;Double click me&lt;/a&gt;&lt;/span&gt;
-&lt;/div&gt;
-</code></pre><p>CSS：</p>
-<pre><code>.test3 span {
- position: relative;
-}
-.test3 span a {
- position: relative;
- z-index: 2;
-}
-.test3 span a:hover, .test3 span a:active {
- z-index: 4;
-}
-.test3 span input {
- background: transparent;
- border: 0;
- cursor: pointer;
- position: absolute;
- top: -1px;
- left: 0;
- width: 101%; /* Hacky */
- height: 301%; /* Hacky */
- z-index: 3;
-}
-.test3 span input:focus {
- background: transparent;
- border: 0;
- z-index: 1;
-}
-</code></pre><h2 id="16-CSS-写出三角形"><a href="#16-CSS-写出三角形" class="headerlink" title="16. CSS 写出三角形"></a>16. CSS 写出三角形</h2><pre><code>/* create an arrow that points up */
-div.arrow-up {
- width:0px;
- height:0px;
- border-left:5px solid transparent; /* left arrow slant */
- border-right:5px solid transparent; /* right arrow slant */
- border-bottom:5px solid #2f2f2f; /* bottom, add background color here */
- font-size:0px;
- line-height:0px;
-}
-
-/* create an arrow that points down */
-div.arrow-down {
- width:0px;
- height:0px;
- border-left:5px solid transparent;
- border-right:5px solid transparent;
- border-top:5px solid #2f2f2f;
- font-size:0px;
- line-height:0px;
-}
-
-/* create an arrow that points left */
-div.arrow-left {
- width:0px;
- height:0px;
- border-bottom:5px solid transparent; /* left arrow slant */
- border-top:5px solid transparent; /* right arrow slant */
- border-right:5px solid #2f2f2f; /* bottom, add background color here */
- font-size:0px;
- line-height:0px;
-}
-
-/* create an arrow that points right */
-div.arrow-right {
- width:0px;
- height:0px;
- border-bottom:5px solid transparent; /* left arrow slant */
- border-top:5px solid transparent; /* right arrow slant */
- border-left:5px solid #2f2f2f; /* bottom, add background color here */
- font-size:0px;
- line-height:0px;
-}
-</code></pre><h2 id="17-CSS3-calc-的使用"><a href="#17-CSS3-calc-的使用" class="headerlink" title="17. CSS3 calc() 的使用"></a>17. CSS3 calc() 的使用</h2><p>calc() 用法类似于函数，能够给元素设置动态的值：</p>
-<pre><code>/* basic calc */
-.simpleBlock {
- width: calc(100% - 100px);
-}
-
-/* calc in calc */
-.complexBlock {
- width: calc(100% - 50% / 3);
- padding: 5px calc(3% - 2px);
- margin-left: calc(10% + 10px);
-}
-</code></pre><h2 id="18-文本渐变"><a href="#18-文本渐变" class="headerlink" title="18. 文本渐变"></a>18. 文本渐变</h2><p>文本渐变效果很流行，使用 CSS3 能够很简单就实现：</p>
-<pre><code>h2[data-text] {
- position: relative;
-}
-h2[data-text]::after {
- content: attr(data-text);
- z-index: 10;
- color: #e3e3e3;
- position: absolute;
- top: 0;
- left: 0;
--webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0,0,0,0)), color-stop(50%, rgba(0,0,0,1)), to(rgba(0,0,0,0)));}
-</code></pre><h2 id="19-禁用鼠标事件"><a href="#19-禁用鼠标事件" class="headerlink" title="19. 禁用鼠标事件"></a>19. 禁用鼠标事件</h2><p>CSS3 新增的 pointer-events 让你能够禁用元素的鼠标事件，例如，一个连接如果设置了下面的样式就无法点击了。</p>
-<pre><code>.disabled { pointer-events: none; }
-</code></pre><h2 id="20-模糊文本"><a href="#20-模糊文本" class="headerlink" title="20. 模糊文本"></a>20. 模糊文本</h2><p>简单但很漂亮的文本模糊效果，简单又好看！</p>
-<pre><code>.blur {
-  color: transparent;
-  text-shadow: 0 0 5px rgba(0,0,0,0.5);
-}
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -3343,7 +3217,7 @@ h2[data-text]::after {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">118</span>
+                  <span class="site-state-item-count">121</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3356,7 +3230,7 @@ h2[data-text]::after {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">96</span>
+                  <span class="site-state-item-count">100</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
