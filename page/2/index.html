@@ -300,6 +300,514 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/27/剖析node的Common-JS/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/27/剖析node的Common-JS/" itemprop="url">剖析node的Common.JS</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-27T20:11:16+08:00">
+                2018-10-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="Javascript最开始是怎样实现模块化呢？"><a href="#Javascript最开始是怎样实现模块化呢？" class="headerlink" title="Javascript最开始是怎样实现模块化呢？"></a>Javascript最开始是怎样实现模块化呢？</h3><p>我们知道javascript最开始是面向过程的思维编程，随着代码越来越庞大、复杂，在这种实际遇到的问题中，大佬们逐渐把面向对象、模块化的思想用在javascript当中。</p>
+<h4 id="一开始，我们是把不同功能写在不同函数当中"><a href="#一开始，我们是把不同功能写在不同函数当中" class="headerlink" title="一开始，我们是把不同功能写在不同函数当中"></a>一开始，我们是把不同功能写在不同函数当中</h4><pre><code>// 比如getCssAttr函数来获取Css属性，当我们需要获取Css属性的时候可以直接调用该方法
+function getCssAttr(obj, attr) {
+    if (obj.currentStyle) {
+        return obj.currentStyle[attr];
+    } else {
+        return window.getComputedStyle(obj, null)[attr];
+    }
+}
+
+// 比如toJSON函数能够把url的query转为JSON对象
+function toJSON(str) {
+  var obj = {}, allArr = [], splitArr = [];
+  str = str.indexOf(&apos;?&apos;) &gt;= 0 ? str.substr(1) : str;
+  allArr = str.split(&apos;&amp;&apos;);
+  for (var i = 0; i &lt; allArr.length; i++) {
+    splitArr = allArr[i].split(&apos;=&apos;);
+    obj[splitArr[0]] = splitArr[1];
+  }
+  return obj;
+}
+</code></pre><p>这样getCssAttr函数和toJSON组成了模块，当需要使用的时候，直接调用即可，但是随着项目代码量越来越庞大和复杂，而且这种方式会对全局变量造成了污染。</p>
+<h4 id="为了解决上面的问题，会想到把这些方法、变量放到对象中"><a href="#为了解决上面的问题，会想到把这些方法、变量放到对象中" class="headerlink" title="为了解决上面的问题，会想到把这些方法、变量放到对象中"></a>为了解决上面的问题，会想到把这些方法、变量放到对象中</h4><pre><code>let utils = new Object({
+    getCssAttr:function(){...},
+    toJSON:function(){...}
+})
+</code></pre><p>当需要调用相应函数时，我们通过对象调用即可，<code>utils.getCssAttr()</code>、<code>utils.toJSON()</code>，但是这样会存在一个问题，就是可以直接通过外部修改内部方法属性。</p>
+<pre><code>utils.getCssAttr = null
+</code></pre><h4 id="那么我们有办法让内部方法属性不被修改吗？"><a href="#那么我们有办法让内部方法属性不被修改吗？" class="headerlink" title="那么我们有办法让内部方法属性不被修改吗？"></a>那么我们有办法让内部方法属性不被修改吗？</h4><p>答案是可以的，我们可以通过闭包的方式，使私有成员不暴露在外部。</p>
+<pre><code>let utils = (function(){
+    let getCssAttr = function(){...}
+    let toJSON = function(){...}
+    return {
+        getCssAttr,
+        toJSON
+    }
+})()
+</code></pre><p>这样的话，外部就无法改变内部的私有成员了。</p>
+<hr>
+<h2 id="CMD和AMD规范"><a href="#CMD和AMD规范" class="headerlink" title="CMD和AMD规范"></a>CMD和AMD规范</h2><p>试想一下，如果一个项目，所有轮子都自己造，在现在追求敏捷开发的环境下，我们有必要所有轮子都自己造吗？一些常用通用的功能，是否可以提取出来，供大家使用，提高开发效率？</p>
+<p>正所谓，无规矩不成方圆，每个程序猿的代码风格肯定是有差异的，你写你的，我写我的，这样就很难流通了，但是如果大家都遵循一个规范编写代码，形成一个个模块，就显得非常重要了。</p>
+<p>在这样的背景下，形成了两种规范，一种是以sea.js为代表的CMD规范，另外一种是以require.js为代表的AMD规范。</p>
+<ul>
+<li>CMD规范（Common Module Definition 通用模块定义）</li>
+<li>AMD规范（Asynchronous Module Definition 异步模块定义）</li>
+</ul>
+<p>在node.js中是遵循commonJS规范的，在对模块的导入是同步的，为什么这样说？因为在服务器中，模块都是存在本地的，即使要导入模块，也只是耗费了从硬盘读取模块的时间，而且可控。</p>
+<p>但是在浏览器中，模块是需要通过网络请求获取的，如果是同步获取的话，那么网络请求的时间没办法保证，会造成浏览器假死的，但是异步的话，是不会阻塞主线程，所以不管是CMD还是AMD，都是属于异步的，CMD和AMD都是属于异步加载模块，当所需要依赖的模块加载完毕后，才通过一个回调函数，写我们所需要的业务逻辑。</p>
+<h4 id="CMD和AMD的异同"><a href="#CMD和AMD的异同" class="headerlink" title="CMD和AMD的异同"></a>CMD和AMD的异同</h4><ul>
+<li>CMD是<code>延迟执行，依赖就近</code>，而AMD是<code>提前执行，依赖前置</code>（require2.0开始可以改成延迟执行），怎么理解呢？看看下面代码<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// CMD</span><br><span class="line">define(function(require,exports,module)&#123;</span><br><span class="line">    var a = require(&apos;./a&apos;)</span><br><span class="line">    a.run()</span><br><span class="line">    </span><br><span class="line">    var b = require(&apos;./b&apos;)</span><br><span class="line">    b.eat()</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">// AMD</span><br><span class="line">define([&apos;./a&apos;,&apos;./b&apos;],function(a,b)&#123;</span><br><span class="line">    a.run()</span><br><span class="line">    b.eat()</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h4 id="CMD-AMD执行对比"><a href="#CMD-AMD执行对比" class="headerlink" title="CMD,AMD执行对比"></a>CMD,AMD执行对比</h4><table>
+<thead>
+<tr>
+<th>—</th>
+<th style="text-align:center">CMD</th>
+<th style="text-align:right">AMD</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> 执行回调函数的时机</td>
+<td style="text-align:center">快</td>
+<td style="text-align:right">慢</td>
+</tr>
+<tr>
+<td> 执行回调函数内的业务</td>
+<td style="text-align:center">慢</td>
+<td style="text-align:right">快</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="node-js遵循的commonJs规范"><a href="#node-js遵循的commonJs规范" class="headerlink" title="node.js遵循的commonJs规范"></a>node.js遵循的commonJs规范</h2><h3 id="首先，我们来剖析一下commonJs的源码"><a href="#首先，我们来剖析一下commonJs的源码" class="headerlink" title="首先，我们来剖析一下commonJs的源码"></a>首先，我们来剖析一下commonJs的源码</h3><p>我们分别创建两个文件<code>useModule.js</code>、<code>module.js</code>，并且打上断点。<br><img src="/2018/10/27/剖析node的Common-JS/166abfe6e856dc15.png" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">// useModule.js</span><br><span class="line">let utils = require(&apos;./module&apos;)</span><br><span class="line">utils = require(&apos;./module&apos;)</span><br><span class="line">utils.sayhello()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">// module.js</span><br><span class="line">let utils = &#123;</span><br><span class="line">  sayhello:function()&#123;</span><br><span class="line">    console.log(&apos;hello swr&apos;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line">module.exports = utils</span><br></pre></td></tr></table></figure></p>
+<p>然后开始执行，我们首先会进入commonJs的源码了<br><img src="/2018/10/27/剖析node的Common-JS/166ac006849ff31e.webp" alt=""><br> 在最上面可以看出是一个闭包的形式<br> <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">(function(exports,require,module,__filename,__dirname))&#123;</span><br><span class="line">  //...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p> ，这里可以看出<code>__dirname</code>和<code>__filename</code>并非是<code>global</code>上的属性，而是每个模块对应的路径。</p>
+<p>而且我们在模块当中<code>this</code>并不是指向<code>global</code>的，而是指向<code>module.exports</code>，至于为什么会这样呢？下面会讲到。</p>
+<p>在红框中，我们可以看到<code>require</code>函数，<code>exports.requireDepth</code>可以暂时不用管，是一个引用深度的变量，接下来我们往下看，<code>return mod.require(path)</code>，这里的<code>mod</code>就是每一个文件、模块，而里面都有一个<code>require</code>方法，接下来我们看看<code>mod.require</code>函数内部是怎么写的。<br><img src="/2018/10/27/剖析node的Common-JS/1.webp" alt=""><br>进来后，我们会看到2个<code>assert</code>断言，用来判断<code>path</code>参数是否传递了，<code>path</code>是否字符串类型等等。</p>
+<p><code>return Module._load(path,this,false)</code>，<code>path</code>为我们传入的模块路径，this则是这个模块，false则不是主要模块，主要模块的意思是，如果a.js加载了b.js，那么a.js是主要模块，而b.js则是非主要模块。</p>
+<p>接下来我们看看<code>Module._load</code>这个静态方法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">Module._load = function(request, parent, isMain) &#123;</span><br><span class="line"></span><br><span class="line">  //  计算绝对路径</span><br><span class="line">  var filename = Module._resolveFilename(request, parent);</span><br><span class="line"></span><br><span class="line">  //  第一步：如果有缓存，取出缓存</span><br><span class="line">  var cachedModule = Module._cache[filename];</span><br><span class="line">  if (cachedModule) &#123;</span><br><span class="line">    return cachedModule.exports;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  // 第二步：是否为内置模块</span><br><span class="line">  if (NativeModule.exists(filename)) &#123;</span><br><span class="line">    return NativeModule.require(filename);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // 第三步：生成模块实例，存入缓存</span><br><span class="line">  var module = new Module(filename, parent);</span><br><span class="line">  Module._cache[filename] = module;</span><br><span class="line"></span><br><span class="line">  // 第四步：加载模块</span><br><span class="line">  try &#123;</span><br><span class="line">    module.load(filename);</span><br><span class="line">    hadException = false;</span><br><span class="line">  &#125; finally &#123;</span><br><span class="line">    if (hadException) &#123;</span><br><span class="line">      delete Module._cache[filename];</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // 第五步：输出模块的exports属性</span><br><span class="line">  return module.exports;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p><img src="/2018/10/27/剖析node的Common-JS/2.webp" alt=""><br><img src="/2018/10/27/剖析node的Common-JS/3.webp" alt=""><br><code>var filename = Module._resolveFilename(request, parent, isMain)</code>，这里的目的是解析出一个绝对路径，我们可以进去看看<code>Module._resolveFilename</code>函数是怎么写的<br><img src="/2018/10/27/剖析node的Common-JS/4.webp" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">Module._resolveFilename = function(request, parent) &#123;</span><br><span class="line"></span><br><span class="line"> // 第一步：如果是内置模块，不含路径返回</span><br><span class="line"> if (NativeModule.exists(request)) &#123;</span><br><span class="line">   return request;</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> // 第二步：确定所有可能的路径</span><br><span class="line"> var resolvedModule = Module._resolveLookupPaths(request, parent);</span><br><span class="line"> var id = resolvedModule[0];</span><br><span class="line"> var paths = resolvedModule[1];</span><br><span class="line"></span><br><span class="line"> // 第三步：确定哪一个路径为真</span><br><span class="line"> var filename = Module._findPath(request, paths);</span><br><span class="line"> if (!filename) &#123;</span><br><span class="line">   var err = new Error(&quot;Cannot find module &apos;&quot; + request + &quot;&apos;&quot;);</span><br><span class="line">   err.code = &apos;MODULE_NOT_FOUND&apos;;</span><br><span class="line">   throw err;</span><br><span class="line"> &#125;</span><br><span class="line"> return filename;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>上面代码中，在 Module.resolveFilrename 方法内部，又调用了两个方法  Module.reqolveLookPaths()和 Module._findPath(),前者用来列出可能的路径，后者用来确认哪一个路径为真。<br>有了可能的路径以后，下面就是 Module._findPath()的源码，用来确定到底哪一个是正确路径。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">Module._findPath = function(request, paths) &#123;</span><br><span class="line"></span><br><span class="line"> // 列出所有可能的后缀名：.js，.json, .node</span><br><span class="line"> var exts = Object.keys(Module._extensions);</span><br><span class="line"></span><br><span class="line"> // 如果是绝对路径，就不再搜索</span><br><span class="line"> if (request.charAt(0) === &apos;/&apos;) &#123;</span><br><span class="line">   paths = [&apos;&apos;];</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> // 是否有后缀的目录斜杠</span><br><span class="line"> var trailingSlash = (request.slice(-1) === &apos;/&apos;);</span><br><span class="line"></span><br><span class="line"> // 第一步：如果当前路径已在缓存中，就直接返回缓存</span><br><span class="line"> var cacheKey = JSON.stringify(&#123;request: request, paths: paths&#125;);</span><br><span class="line"> if (Module._pathCache[cacheKey]) &#123;</span><br><span class="line">   return Module._pathCache[cacheKey];</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> // 第二步：依次遍历所有路径</span><br><span class="line"> for (var i = 0, PL = paths.length; i &lt; PL; i++) &#123;</span><br><span class="line">   var basePath = path.resolve(paths[i], request);</span><br><span class="line">   var filename;</span><br><span class="line"></span><br><span class="line">   if (!trailingSlash) &#123;</span><br><span class="line">     // 第三步：是否存在该模块文件</span><br><span class="line">     filename = tryFile(basePath);</span><br><span class="line"></span><br><span class="line">     if (!filename &amp;&amp; !trailingSlash) &#123;</span><br><span class="line">       // 第四步：该模块文件加上后缀名，是否存在</span><br><span class="line">       filename = tryExtensions(basePath, exts);</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   // 第五步：目录中是否存在 package.json </span><br><span class="line">   if (!filename) &#123;</span><br><span class="line">     filename = tryPackage(basePath, exts);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (!filename) &#123;</span><br><span class="line">     // 第六步：是否存在目录名 + index + 后缀名 </span><br><span class="line">     filename = tryExtensions(path.resolve(basePath, &apos;index&apos;), exts);</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   // 第七步：将找到的文件路径存入返回缓存，然后返回</span><br><span class="line">   if (filename) &#123;</span><br><span class="line">     Module._pathCache[cacheKey] = filename;</span><br><span class="line">     return filename;</span><br><span class="line">   &#125;</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> // 第八步：没有找到文件，返回false </span><br><span class="line"> return false;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>有时在项目代码中，需要调用模块的绝对路径，那么除了 module.filename ，Node 还提供一个 require.resolve 方法，供外部调用，用于从模块名取到绝对路径。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">require.resolve = function(request) &#123;</span><br><span class="line">  return Module._resolveFilename(request, self);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">// 用法</span><br><span class="line">require.resolve(&apos;a.js&apos;)</span><br><span class="line">// 返回  /Users/danlan/workspace/node-stu/ree/a.js</span><br></pre></td></tr></table></figure></p>
+<p><code>Module._resolveFilename</code>函数也没什么好说的，就是判断各种情况，然后解析出一个绝对路径出来，我们跳出这个函数，回到<code>Module._load</code>中.<br>然后我们看到<code>var cachedModule = Module._cache[filename]</code>，这是我们加载模块的缓存机制，就是说我们加载过一次模块后，会缓存到Module._cache这个对象中，并且是以<code>filename</code>作为键名，因为路径是唯一的，所以以路径作为唯一标识，如果已经缓存过，则会直接返回这个缓存过的模块。</p>
+<p><code>NativeModule.nonInternalExists(filename)</code>判断是否原生模块，是的话则直接返回模块。</p>
+<p>经过上面两个判断，基本可以判定这个模块没被加载过，那么接下来看到<code>var module = new Module(filename, parent)</code>，创建了一个模块，我们看看<code>Module</code>这个构造函数有什么内容<br><img src="/2018/10/27/剖析node的Common-JS/5.webp" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">module.id 模块的识别符，通常是带有绝对路径的模块文件名。</span><br><span class="line">module.filename 模块的文件名，带有绝对路径。</span><br><span class="line">module.loaded 返回一个布尔值，表示模块是否已经完成加载。</span><br><span class="line">module.parent 返回一个对象，表示调用该模块的模块。</span><br><span class="line">module.children 返回一个数组，表示该模块要用到的其他模块。</span><br><span class="line">module.exports 表示模块对外输出的值。</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>下面是一个示例文件，最后一行输出module变量。</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">// example.js</span><br><span class="line">var jquery = require(&apos;jquery&apos;);</span><br><span class="line">exports.$ = jquery;</span><br><span class="line">console.log(module);</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>执行这个文件，命令行会输出如下信息。</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">&#123; id: &apos;.&apos;,</span><br><span class="line">  exports: &#123; &apos;$&apos;: [Function] &#125;,</span><br><span class="line">  parent: null,</span><br><span class="line">  filename: &apos;/path/to/example.js&apos;,</span><br><span class="line">  loaded: false,</span><br><span class="line">  children:</span><br><span class="line">   [ &#123; id: &apos;/path/to/node_modules/jquery/dist/jquery.js&apos;,</span><br><span class="line">       exports: [Function],</span><br><span class="line">       parent: [Circular],</span><br><span class="line">       filename: &apos;/path/to/node_modules/jquery/dist/jquery.js&apos;,</span><br><span class="line">       loaded: true,</span><br><span class="line">       children: [],</span><br><span class="line">       paths: [Object] &#125; ],</span><br><span class="line">  paths:</span><br><span class="line">   [ &apos;/home/user/deleted/node_modules&apos;,</span><br><span class="line">     &apos;/home/user/node_modules&apos;,</span><br><span class="line">     &apos;/home/node_modules&apos;,</span><br><span class="line">     &apos;/node_modules&apos; ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p> 这里的<code>id</code>，实际上就是<code>filename</code>唯一路径，另外一个很重要的是<code>this.exports</code>，也就是将来用于暴露模块的。<br>我们接着往下看，在创建一个实例后，接下来把这个实例存在缓存当中，<code>Module._cache[filename] = module</code><br>然后执行<code>tryModuleLoad(module, filename)</code>，这个函数非常重要，是用来加载模块的，我们看看是怎么写的<br><img src="/2018/10/27/剖析node的Common-JS/6.webp" alt=""><br> 这里有个<code>module.load</code>，我们再往里面看看是怎么写的<br><img src="/2018/10/27/剖析node的Common-JS/7.webp" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Module.prototype.load = function (filename) &#123;</span><br><span class="line">    var extension = path.extname(filename)  || &apos;js&apos;</span><br><span class="line">    if(!Module._extensions[extensions]) extension = &apos;.js&apos;</span><br><span class="line">    Module._extensions[extension](this, filename)</span><br><span class="line">    this.loaded = true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p> 兜兜转转，终于来到最核心的地方了<br><code>this.paths = Module._nodeModulePaths(path.dirname(filename))</code>，我们知道，我们安装npm包时，node会由里到外一层层找<code>node_modules</code>文件夹，而这一步，则是路径一层层丢进数组里，我们可以看看<code>this.paths</code>的数组</p>
+<h4 id="CommonJS-模块查找规范"><a href="#CommonJS-模块查找规范" class="headerlink" title="CommonJS 模块查找规范"></a>CommonJS 模块查找规范</h4><p><img src="/2018/10/27/剖析node的Common-JS/13.svg" alt=""><br><img src="/2018/10/27/剖析node的Common-JS/8.webp" alt=""></p>
+<blockquote>
+<p>新建一个b.js</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">var a = require(&apos;./a.js&apos;)</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>运行一下：</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">module.id:  /Users/danlan/workspace/node-stu/ree/a.js</span><br><span class="line">module.exports:  &#123;&#125;</span><br><span class="line">module.parent:  Module &#123;</span><br><span class="line">  id: &apos;.&apos;,</span><br><span class="line">  exports: &#123;&#125;,</span><br><span class="line">  parent: null,</span><br><span class="line">  filename: &apos;/Users/danlan/workspace/node-stu/ree/b.js&apos;,</span><br><span class="line">  loaded: false,</span><br><span class="line">  children:</span><br><span class="line">   [ Module &#123;</span><br><span class="line">       id: &apos;/Users/danlan/workspace/node-stu/ree/a.js&apos;,</span><br><span class="line">       exports: &#123;&#125;,</span><br><span class="line">       parent: [Circular],</span><br><span class="line">       filename: &apos;/Users/danlan/workspace/node-stu/ree/a.js&apos;,</span><br><span class="line">       loaded: false,</span><br><span class="line">       children: [],</span><br><span class="line">       paths: [Array] &#125; ],</span><br><span class="line">  paths:</span><br><span class="line">   [ &apos;/Users/danlan/workspace/node-stu/ree/node_modules&apos;,</span><br><span class="line">     &apos;/Users/danlan/workspace/node-stu/node_modules&apos;,</span><br><span class="line">     &apos;/Users/danlan/workspace/node_modules&apos;,</span><br><span class="line">     &apos;/Users/danlan/node_modules&apos;,</span><br><span class="line">     &apos;/Users/node_modules&apos;,</span><br><span class="line">     &apos;/node_modules&apos; ] &#125;</span><br><span class="line">module.filename:  /Users/danlan/workspace/node-stu/ree/a.js</span><br><span class="line">module.loaded:  false</span><br><span class="line">module.children:  []</span><br><span class="line">module.paths:  [ &apos;/Users/danlan/workspace/node-stu/ree/node_modules&apos;,</span><br><span class="line">  &apos;/Users/danlan/workspace/node-stu/node_modules&apos;,</span><br><span class="line">  &apos;/Users/danlan/workspace/node_modules&apos;,</span><br><span class="line">  &apos;/Users/danlan/node_modules&apos;,</span><br><span class="line">  &apos;/Users/node_modules&apos;,</span><br><span class="line">  &apos;/node_modules&apos; ]</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>举例来说，脚本/home/user/projects/foo.js执行了require(‘bar.js’)命令，Node会依次搜索以下文件。</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">/usr/local/lib/node/bar.js</span><br><span class="line">/home/user/projects/node_modules/bar.js</span><br><span class="line">/home/user/node_modules/bar.js</span><br><span class="line">/home/node_modules/bar.js</span><br><span class="line">/node_modules/bar.js</span><br></pre></td></tr></table></figure>
+<p>这样设计的目的是，使得不同的模块可以将所依赖的模块本地化。</p>
+<ul>
+<li>如果参数字符串不以“./“或”/“开头，而且是一个路径，比如require(‘example-module/path/to/file’)，则将先找到example-module的位置，然后再以它为参数，找到后续路径。</li>
+<li><font color="#ff0000">如果指定的模块文件没有发现，Node会尝试为文件名添加.js、.json、.node后，再去搜索。.js件会以文本格式的JavaScript脚本文件解析，.json文件会以JSON格式的文本文件解析，.node文件会以编译后的二进制文件解析。</font></li>
+<li>如果想得到require命令加载的确切文件名，使用require.resolve()方法。</li>
+</ul>
+<p>目录的加载规则</p>
+<blockquote>
+<p>在目录中放置一个package.json文件，并且将入口文件写入main字段。下面是一个例子。</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// package.json</span><br><span class="line">&#123; </span><br><span class="line">  &quot;name&quot; : &quot;some-library&quot;,</span><br><span class="line">  &quot;main&quot; : &quot;./lib/some-library.js&quot; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p> 继续往下看，<code>var extension = path.extname(filename) || &#39;.js&#39;</code>是获取后缀名，如果没有后缀名的话，暂时默认添加一个<code>.js</code>后缀名。<br>继续往下看，<code>if (!Module._extensions[extension]) extension = &#39;.js&#39;</code>是判断<code>Module._extensions</code>这个对象，是否有这个属性，如果没有的话，则让这个后缀名为<code>.js</code><br>继续往下看，<code>Module._extensions[extension](this, filename)</code>，根据后缀名，执行对应的函数，那么我们看一下<code>Module._extensions</code>对象有哪几个函数<br><img src="/2018/10/27/剖析node的Common-JS/9.webp" alt=""><br> 从这里我们可以看到，<code>Module._extensions</code>中有3个函数，分别是<code>.js</code>、<code>.json</code>、<code>.node</code>函数，意思是根据不同的后缀名，执行不同的函数，来解析不同的内容，我们可以留意到读取文件都是用<code>fs.readFileSync</code>同步读取，因为这些文件都是保存在服务器硬盘中，读取这些文件耗费时间非常短，所以采用了同步而不是异步<br>其中<code>.json</code>最为简单，读取出文件后，再通过<code>JSON.parse</code>把字符串转化为<code>JSON</code>对象，然后把结果赋值给<code>module.exports</code><br>接下来看看<code>.js</code>，也是一样先读取出文件内容，然后通过<code>module._compile</code>这个函数来解析<code>.js</code>的内容，我们看一下<code>module._compile</code>函数怎么写的<br> <img src="/2018/10/27/剖析node的Common-JS/10.webp" alt=""><br> <img src="/2018/10/27/剖析node的Common-JS/11.webp" alt=""><br> <code>var wrapper = Module.wrap(content)</code>这里对<code>.js</code>文件的内容进行了一层处理，我们可以看看<code>Module.wrap</code>怎么写的<br>  <img src="/2018/10/27/剖析node的Common-JS/12.webp" alt=""><br> 在这里可以看出，<code>NativeModule.wrapper</code>数组中有两个数组成员，是不是看起来似曾相识？没错，这就是闭包的形式，而<code>Module.wrap</code>中，是直接把js文件的内容，和这个闭包拼接成一段字符串，对，就是在这里，把一个个模块，套一层闭包！实际上拼接出来的是</p>
+<pre><code>// 字符串
+&quot;(function(exports,require,module,__filename,__dirname){
+    let utils = {
+      sayhello:function(){
+        console.log(&apos;hello swr&apos;)
+      }
+    }
+})&quot;
+</code></pre><p>我们跳出来，回到<code>Module.prototype._compile</code>看看，接下来看到<code>var compiledWrapper = vm.runInThisContext(wrapper,{...})</code>，<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//虚拟机，帮我们创建一个黑箱执行代码，防止变量污染</span><br><span class="line">const vm = require(&quot;vm&quot;);</span><br></pre></td></tr></table></figure></p>
+<p>在nodejs中是通过vm这个虚拟机，执行字符串，而且这样的好处是使内部完全是封闭的，不会被外在变量污染，而在前端的字符串模板则是通过<code>new Function()</code>来执行字符串，达到不被外在变量污染</p>
+<p>继续往下看，<code>result = compiledWrapper.call(this.exports, this.exports, require, this,filename, dirname)</code>，其中<code>compiledWrapper</code>就是我们通过vm虚拟机执行的字符串后返回的闭包，而且通过<code>call</code>来把这个模块中的<code>this</code>指向更改为当前模块，而不是全局的<code>global</code>，这里就是为什么我们在模块当中打印<code>this</code>时，指向的是当前的<code>module.exports</code>而不是<code>global</code>，然后后面依次把相应的参数传递过去</p>
+<p>最终一层层跳出后<code>Module._load</code>中，最后是<code>return module.exports</code>，也就是说我们通过<code>require</code>导入的模块，取的是<code>module.exports</code></p>
+<h4 id="通过剖析commonJs源码，我们收获了什么？"><a href="#通过剖析commonJs源码，我们收获了什么？" class="headerlink" title="通过剖析commonJs源码，我们收获了什么？"></a>通过剖析commonJs源码，我们收获了什么？</h4><ul>
+<li><p>懂得了模块加载的整个流程</p>
+<ul>
+<li>第一步：解析出一个绝对路径,如果是核心模块，比如fs，就直接返回模块</li>
+<li>第二步：如文件没添加后缀，则添加<code>.js</code>、<code>.json</code>、<code>.node</code>作为后缀，然后通过<code>fs.existsSync</code>来判断文件是否存在<ul>
+<li>.js 解析为JavaScript 文本文件</li>
+<li>.json解析JSON对象</li>
+<li>.node解析为二进制插件模块</li>
+</ul>
+</li>
+<li>第三步：到缓存中找该模块是否被加载过(如果是带有路径的如/,./等等，则拼接出一个绝对路径，然后先读取缓存require.cache再读取文件。如果没有加后缀，则自动加后缀然后一一识别。)</li>
+<li>第四步：new一个模块实例</li>
+<li>第五步：把模块存到缓存当中(首次加载后的模块会缓存在require.cache之中，所以多次加载require，得到的对象是同一个。)</li>
+<li>第六步：根据后缀名，加载这个模块<ul>
+<li>在执行模块代码的时候，会将模块包装成如下模式，以便于作用域在模块范围之内。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">   (function(exports, require, module, __filename, __dirname) &#123;</span><br><span class="line">   // 模块的代码实际上在这里</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>知道如何实现由里到外一层层查找<code>node_modules</code></p>
+</li>
+<li>知道针对<code>.js</code>和<code>.json</code>是怎么解析的<ul>
+<li><code>.js</code>是通过拼接字符串，形成一个闭包形式的字符串</li>
+<li><code>.json</code>则是通过<code>JSON.parse</code>转为<code>JSON</code>对象</li>
+</ul>
+</li>
+<li><p>知道如何执行字符串，并且不受外部变量污染</p>
+<ul>
+<li><p>nodejs中通过vm虚拟机来执行字符串</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">   let vm=require(&quot;vm&quot;)</span><br><span class="line">   let a=&apos;console.log(&quot;a&quot;)&apos;</span><br><span class="line">vm.runInThisContext(a)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>前端则是通过<code>new Function()</code>来执行字符串</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">var f = new Function(&apos;x&apos;, &apos;y&apos;, &apos;return x+y&apos;); </span><br><span class="line">      f( 3, 4 )</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>知道为什么模块中的<code>this</code>指向的是<code>this.exports</code>而不是<code>global</code></p>
+<ul>
+<li>通过<code>call</code>把指针指向了<code>this.exports</code></li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="接下来，我们手写一个简陋版的commonJs源码"><a href="#接下来，我们手写一个简陋版的commonJs源码" class="headerlink" title="接下来，我们手写一个简陋版的commonJs源码"></a>接下来，我们手写一个简陋版的commonJs源码</h3><p>commonJs其实在加载模块的时候，做了以下几个步骤</p>
+<ul>
+<li>第一步：解析出一个绝对路径</li>
+<li>第二步：如文件没添加后缀，则添加<code>.js</code>、<code>.json</code>、<code>.node</code>作为后缀，然后通过<code>fs.existsSync</code>来判断文件是否存在</li>
+<li>第三步：到缓存中找该模块是否被加载过</li>
+<li>第四步：new一个模块实例</li>
+<li>第五步：把模块存到缓存当中</li>
+<li>第六步：根据后缀名，加载这个模块</li>
+</ul>
+<p>那么我们根据这几个步骤，来手写一下源码~</p>
+<pre><code>// module.js
+let utils = {
+  sayhello: function () {
+    console.log(&apos;hello swr&apos;)
+  }
+}
+console.log(&apos;执行了&apos;)
+module.exports = utils
+</code></pre><p>首先写出解析一个绝对路径以及如文件没添加后缀，则添加<code>.js</code>、<code>.json</code>作为后缀，然后通过<code>fs.existsSync</code>来判断文件是否存在（ .. 每个步骤我都会标识1、2、3…</p>
+<pre><code>// useModule.js
+// 1.引入核心模块
+let fs = require(&apos;fs&apos;)
+let path = require(&apos;path&apos;)
+
+// 3.声明一个Module构造函数
+function Module(id) {
+  this.id = id 
+  this.exports = {} // 将来暴露模块的内容
+}
+
+// 8.支持的后缀名类型
+Module._extensions = {
+  &quot;.js&quot;:function(){},
+  &quot;.json&quot;:function(){}
+}
+
+// 5.解析出绝对路径，_resolveFilename是Module的静态方法
+Module._resolveFilename = function (relativePath) {
+  // 6.返回一个路径
+  let p = path.resolve(__dirname,relativePath)
+  // 7.该路径是否存在文件，如果存在则直接返回
+  //   这种情况主要考虑用户自行添加了后缀名
+  //   如&apos;./module.js&apos;let exists = fs.existsSync(p)
+  if(exists) return p
+  // 9.如果relativePath传入的如&apos;./module&apos;，没有添加后缀
+  //   那么我们给它添加后缀，并且判断添加后缀后是否存在该文件
+  let keys = Object.keys(Module._extensions)
+  let r = falsefor(let val of keys){ // 这里用for循环，是当找到文件后可以直接break跳出循环
+    let realPath = p + val // 拼接后缀
+    let exists = fs.existsSync(realPath)
+    if(exists){
+      r = realPath
+      break
+    }
+  }
+  if(!r){ // 如果找不到文件，则抛出错误
+    throw new Error(&apos;file not exists&apos;)
+  }
+  return r
+}
+
+// 2.为了不与require冲突，这个函数命名为req
+//   传入一个参数p 路径
+function req(p) {
+  // 10.因为Module._resolveFilename存在找不到文件
+  //    找不到文件时会抛出错误，所以我们这里捕获错误
+  try { 
+    // 4.通过Module._resolveFilename解析出一个绝对路径
+    let filename = Module._resolveFilename(p)
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+// 导入模块，并且导入两次，主要是校验是否加载过一次后
+// 在有缓存的情况下，会不会直接返回缓存的模块
+// 为此特意在module.js中添加了console.log(&quot;执行了&quot;)
+// 来看打印了几次
+let utils = req(&apos;./module&apos;)
+utils = req(&apos;./module&apos;)
+utils.sayhello()
+</code></pre><p>然后到缓存中找该模块是否被加载过，如果没有加载过则new一个模块实例，把模块存到缓存当中，最后根据后缀名，加载这个模块（ .. 每个步骤我都会标识1、2、3…</p>
+<pre><code>// useModule.js
+// 1.引入核心模块
+let fs = require(&apos;fs&apos;)
+let path = require(&apos;path&apos;)
+
+// 3.声明一个Module构造函数
+function Module(id) {
+  this.id = id 
+  this.exports = {} // 将来暴露模块的内容
+}
+
+// * 21.因为处理js文件时，需要包裹一个闭包，我们写一个数组
+Module.wrapper = [
+  &quot;(function(exports,require,module){&quot;,
+  &quot;\n})&quot;
+]
+
+// * 22.通过Module.wrap包裹成闭包的字符串形式
+Module.wrap = function(script){
+  return Module.wrapper[0] + script + Module.wrapper[1]
+}
+
+// 8.支持的后缀名类型
+Module._extensions = {
+  &quot;.js&quot;:function(module){ // * 20.其次看看js是如何处理的
+    let str = fs.readFileSync(module.id,&apos;utf8&apos;)
+    // * 23.通过Module.wrap函数把内容包裹成闭包
+    let fnStr = Module.wrap(str)
+    // * 24.引入vm虚拟机来执行字符串
+    let vm = require(&apos;vm&apos;)
+    let fn = vm.runInThisContext(fnStr)
+    // 让产生的fn执行，并且把this指向更改为当前的module.exports
+    fn.call(this.exports,this.exports,req,module)
+  },
+  &quot;.json&quot;:function(module){ // * 18.首先看看json是如何处理的
+    let str = fs.readFileSync(module.id,&apos;utf8&apos;)
+    // * 19.通过JSON.parse处理，并且赋值给module.exports
+    let json = JSON.parse(str)
+    module.exports = json
+  }
+}
+
+// * 15.加载
+Module.prototype._load = function(filename){
+  // * 16.获取后缀名
+  let extension = path.extname(filename)
+  // * 17.根据不同后缀名 执行不同的方法
+  Module._extensions[extension](this)
+}
+
+// 5.解析出绝对路径，_resolveFilename是Module的静态方法
+Module._resolveFilename = function (relativePath) {
+  // 6.返回一个路径
+  let p = path.resolve(__dirname,relativePath)
+  // 7.该路径是否存在文件，如果存在则直接返回
+  //   这种情况主要考虑用户自行添加了后缀名
+  //   如&apos;./module.js&apos;let exists = fs.existsSync(p)
+  if(exists) return p
+  // 9.如果relativePath传入的如&apos;./module&apos;，没有添加后缀
+  //   那么我们给它添加后缀，并且判断添加后缀后是否存在该文件
+  let keys = Object.keys(Module._extensions)
+  let r = falsefor(let val of keys){ // 这里用for循环，是当找到文件后可以直接break跳出循环
+    let realPath = p + val // 拼接后缀
+    let exists = fs.existsSync(realPath)
+    if(exists){
+      r = realPath
+      break
+    }
+  }
+  if(!r){ // 如果找不到文件，则抛出错误
+    throw new Error(&apos;file not exists&apos;)
+  }
+  return r
+}
+
+// * 11.缓存对象
+Module._cache = {}
+
+// 2.为了不与require冲突，这个函数命名为req
+//   传入一个参数p 路径
+function req(p) {
+  // 10.因为Module._resolveFilename存在找不到文件
+  //    找不到文件时会抛出错误，所以我们这里捕获错误
+  try { 
+    // 4.通过Module._resolveFilename解析出一个绝对路径
+    let filename = Module._resolveFilename(p)
+    // * 12.判断是否有缓存，如果有缓存的话，则直接返回缓存
+    if(Module._cache[filename]){
+      // * 因为实例的exports才是最终暴露出的内容
+      return Module._cache[filename].exports
+    }
+    // * 13.new一个Module实例
+    let module = new Module(filename)
+    // * 14.加载这个模块
+    module._load(filename)
+    // * 25.把module存到缓存
+    Module._cache[filename] = module
+    // * 26.返回module.exprots
+    return module.exports
+  } catch (e) {
+    console.log(e)
+  }
+}
+
+// 导入模块，并且导入两次，主要是校验是否加载过一次后
+// 在有缓存的情况下，会不会直接返回缓存的模块
+// 为此特意在module.js中添加了console.log(&quot;执行了&quot;)
+// 来看打印了几次
+let utils = req(&apos;./module&apos;)
+utils = req(&apos;./module&apos;)
+utils.sayhello()
+</code></pre><p>这样我们就完成了一个简陋版的commonJs，而且我们多次导入这个模块，只会打印出一次<code>执行了</code>，说明了只要缓存中有的，就直接返回，而不是重新加载这个模块<br>这里建议大家一个步骤一个步骤去理解，尝试敲一下代码，这样感悟会更加深</p>
+<h4 id="那么为什么exports-xxx-却失效了呢？"><a href="#那么为什么exports-xxx-却失效了呢？" class="headerlink" title="那么为什么exports = xxx 却失效了呢？"></a>那么为什么exports = xxx 却失效了呢？</h4><pre><code>// 从上面源码我们可以看出，实际上
+// exports = module.exports = {}
+// 但是当我们exports = {name:&quot;CommonJS&quot;}时，
+// require出来却获取不到这个对象，这是因为我们在上面源码中，
+// req函数（即require）内部return出的是module.exports，而不是exports，
+// 当我们exports = { name:&quot;CommonJS&quot; }时，实际上这个exports指向了一个新的对象，
+// 而不是module.exports
+// 那么我们的exports是不是多余的呢？肯定不是多余的，我们可以这样写
+exports.name = &quot;CommonJS&quot; 
+// 这样写没有改变exports的指向，而是在exports指向的module.exports对象上新增了属性
+
+// 那么什么时候用exports，什么时候用module.exports呢？
+// 如果导出的东西是一个，那么可以用module.exports，如果导出多个属性可以用exports，
+// 一般情况下是用module.exports
+
+// 还有一种方式，就是把属性挂载到global上供全局访问，不过不推荐。
+</code></pre><h3 id="CommonJS模块总结"><a href="#CommonJS模块总结" class="headerlink" title="CommonJS模块总结"></a>CommonJS模块总结</h3><p><img src="/2018/10/27/剖析node的Common-JS/14.png" alt=""><br>CommonJS模块只能运行再支持此规范的环境之中，nodejs是基于CommonJS规范开发的，因此可以很完美地运行CommonJS模块，然后nodejs不支持ES6的模块规范，所以nodejs的服务器开发大家一般使用CommonJS规范来写。<br>CommonJS模块导入用require，导出用module.exports。导出的对象需注意，如果是静态值，而且非常量，后期可能会有所改动的，请使用函数动态获取，否则无法获取修改值。导入的参数，是可以随意改动的，所以大家使用时要小心。</p>
+<h3 id="开发者需要了解的nodejs中require的机制"><a href="#开发者需要了解的nodejs中require的机制" class="headerlink" title="开发者需要了解的nodejs中require的机制"></a><a href="https://juejin.im/post/5bdea6b1518825170f50c485" target="_blank" rel="noopener">开发者需要了解的nodejs中require的机制</a></h3>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/25/解密webpack-tree-starking/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2862,128 +3370,6 @@ fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/24/vue超简洁双日历组件/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/24/vue超简洁双日历组件/" itemprop="url">vue超简洁双日历组件</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-24T19:55:51+08:00">
-                2018-09-24
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="看了那么多的日历组件，没有一个满意的"><a href="#看了那么多的日历组件，没有一个满意的" class="headerlink" title=" 看了那么多的日历组件，没有一个满意的"></a><center> 看了那么多的日历组件，没有一个满意的</center></h3><p><img src="https://raw.githubusercontent.com/libin1991/my-calendar/master/1.jpg" alt="vue超简洁双日历组件"></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">	&lt;div&gt;</span><br><span class="line">		&lt;!--&lt;div class=&quot;hide&quot;&gt;</span><br><span class="line">			&lt;mcalendar :child=&quot;date0&quot;&gt;&lt;/mcalendar&gt;</span><br><span class="line">			&lt;mcalendar :child=&quot;date1&quot;&gt;&lt;/mcalendar&gt;</span><br><span class="line">		&lt;/div&gt;--&gt;</span><br><span class="line">		&lt;div&gt;</span><br><span class="line">			&lt;mdatapick :child=&apos;mdatapickdata&apos; @cllback=&quot;callback&quot;&gt;&lt;/mdatapick&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">	import &apos;@/assets/css/reset.less&apos;</span><br><span class="line">	import mcalendar from &apos;./mdata&apos;</span><br><span class="line">	import mdatapick from &apos;./mdatapick&apos;</span><br><span class="line">	export default &#123;</span><br><span class="line">		data() &#123;</span><br><span class="line">			return &#123;</span><br><span class="line">				//				date0: &#123;</span><br><span class="line">				//					now: &quot;2018-09-05&quot;,</span><br><span class="line">				//					end: &quot;2018-09-28&quot;,</span><br><span class="line">				//					callback: function(d) &#123;</span><br><span class="line">				//						console.log(d);</span><br><span class="line">				//					&#125;</span><br><span class="line">				//				&#125;,</span><br><span class="line">				//				date1: &#123;</span><br><span class="line">				//					now: &quot;2018-11-25&quot;,</span><br><span class="line">				//					start: &quot;2018-11-05&quot;,</span><br><span class="line">				//					callback: function(d) &#123;</span><br><span class="line">				//						console.log(d);</span><br><span class="line">				//					&#125;</span><br><span class="line">				//				&#125;,</span><br><span class="line">				mdatapickdata: &#123;</span><br><span class="line">					start: &quot;2018-09-29&quot;,</span><br><span class="line">					end: &quot;2018-10-18&quot;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		methods: &#123;</span><br><span class="line">			callback(startDate, endDate) &#123;</span><br><span class="line">				this.mdatapickdata.start=startDate;</span><br><span class="line">				this.mdatapickdata.end=endDate;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		components: &#123;</span><br><span class="line">			mcalendar,</span><br><span class="line">			mdatapick</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&lt;/script&gt;</span><br><span class="line">&lt;style&gt;</span><br><span class="line">&lt;/style&gt;</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">	&lt;div class=&quot;m_calender&quot;&gt;</span><br><span class="line">		&lt;input type=&quot;text&quot; class=&quot;date_input&quot; readonly=&quot;readonly&quot; v-model=&quot;dataMsg&quot; @click=&quot;toggleShow&quot;&gt;</span><br><span class="line"></span><br><span class="line">		&lt;div class=&quot;datamain&quot; v-if=&quot;open&quot;&gt;</span><br><span class="line">			&lt;div class=&quot;datacon&quot;&gt;</span><br><span class="line">				&lt;div class=&quot;con&quot;&gt;</span><br><span class="line">					&lt;div class=&quot;date_main&quot;&gt;</span><br><span class="line">						&lt;div class=&quot;title&quot;&gt;</span><br><span class="line">							&lt;div class=&quot;time&quot;&gt;开始日期&lt;/div&gt;</span><br><span class="line">							&lt;div class=&quot;timenum&quot;&gt;&#123;&#123;start&#125;&#125;&lt;/div&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">						&lt;div class=&quot;date_top&quot;&gt;</span><br><span class="line">							&lt;em class=&quot;prev_month hoverhands&quot; @click=&quot;prev(&apos;start&apos;)&quot;&gt;&lt;/em&gt;</span><br><span class="line">							&lt;p&gt;</span><br><span class="line">								&lt;span class=&quot;top_month&quot;&gt;&#123;&#123;getMonthText(startMonth)&#125;&#125;&lt;/span&gt;</span><br><span class="line">								&lt;span class=&quot;top_year&quot;&gt;&#123;&#123;startYear&#125;&#125;&lt;/span&gt;</span><br><span class="line">							&lt;/p&gt;</span><br><span class="line">							&lt;em v-if=&quot;startNext&quot; class=&quot;next_month hoverhands&quot; @click=&quot;next(&apos;start&apos;)&quot;&gt;&lt;/em&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">						&lt;div class=&quot;date_week&quot;&gt;</span><br><span class="line">							&lt;em&gt;周日&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周一&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周二&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周三&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周四&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周五&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周六&lt;/em&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">						&lt;div class=&quot;date_day&quot;&gt;</span><br><span class="line">							&lt;em v-for=&quot;s in startlist&quot; :class=&quot;s.className&quot; @click=&quot;clickDate(s,&apos;start&apos;)&quot;&gt;&#123;&#123; s.num &#125;&#125;&lt;/em&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">					&lt;/div&gt;</span><br><span class="line">				&lt;/div&gt;</span><br><span class="line">				&lt;div class=&quot;con&quot;&gt;</span><br><span class="line">					&lt;div class=&quot;date_main&quot;&gt;</span><br><span class="line">						&lt;div class=&quot;title&quot;&gt;</span><br><span class="line">							&lt;div class=&quot;time&quot;&gt;结束日期&lt;/div&gt;</span><br><span class="line">							&lt;div class=&quot;timenum&quot;&gt;&#123;&#123;end&#125;&#125;&lt;/div&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">						&lt;div class=&quot;date_top&quot;&gt;</span><br><span class="line">							&lt;em v-if=&quot;endPrev&quot; class=&quot;prev_month hoverhands&quot; @click=&quot;prev(&apos;end&apos;)&quot;&gt;&lt;/em&gt;</span><br><span class="line">							&lt;p&gt;</span><br><span class="line">								&lt;span class=&quot;top_month&quot;&gt;&#123;&#123;getMonthText(endMonth)&#125;&#125;&lt;/span&gt;</span><br><span class="line">								&lt;span class=&quot;top_year&quot;&gt;&#123;&#123;endYear&#125;&#125;&lt;/span&gt;</span><br><span class="line">							&lt;/p&gt;</span><br><span class="line">							&lt;em class=&quot;next_month hoverhands&quot; @click=&quot;next(&apos;end&apos;)&quot;&gt;&lt;/em&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">						&lt;div class=&quot;date_week&quot;&gt;</span><br><span class="line">							&lt;em&gt;周日&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周一&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周二&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周三&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周四&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周五&lt;/em&gt;</span><br><span class="line">							&lt;em&gt;周六&lt;/em&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">						&lt;div class=&quot;date_day&quot;&gt;</span><br><span class="line">							&lt;em v-for=&quot;s in endlist&quot; :class=&quot;s.className&quot; @click=&quot;clickDate(s,&apos;end&apos;)&quot;&gt;&#123;&#123; s.num &#125;&#125;&lt;/em&gt;</span><br><span class="line">						&lt;/div&gt;</span><br><span class="line">					&lt;/div&gt;</span><br><span class="line">				&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;databtn&quot;&gt;</span><br><span class="line">				&lt;div class=&quot;btn hoverhands&quot; @click=&quot;toggleShow&quot;&gt;取消&lt;/div&gt;</span><br><span class="line">				&lt;div class=&quot;btn active hoverhands&quot; @click=&quot;Determine&quot;&gt;确定&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">	&lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">	export default &#123;</span><br><span class="line">		props: [&quot;child&quot;],</span><br><span class="line">		data: function() &#123;</span><br><span class="line">			return &#123;</span><br><span class="line">				open: false,</span><br><span class="line">				start: this.child.start,</span><br><span class="line">				startYear: &apos;&apos;,</span><br><span class="line">				startMonth: &apos;&apos;,</span><br><span class="line">				startFirstWeek: &apos;&apos;,</span><br><span class="line">				startDaySum: &apos;&apos;,</span><br><span class="line">				startlist: [],</span><br><span class="line">				startNext:true,</span><br><span class="line">				end: this.child.end,</span><br><span class="line">				endYear: &apos;&apos;,</span><br><span class="line">				endMonth: &apos;&apos;,</span><br><span class="line">				endFirstWeek: &apos;&apos;,</span><br><span class="line">				endDaySum: &apos;&apos;,</span><br><span class="line">				endlist: [],</span><br><span class="line">				endPrev:true</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		computed: &#123;</span><br><span class="line">			activeStartData() &#123;</span><br><span class="line">				return new Date(this.start).getTime();</span><br><span class="line">			&#125;,</span><br><span class="line">			activeEndData() &#123;</span><br><span class="line">				return new Date(this.end).getTime();</span><br><span class="line">			&#125;,</span><br><span class="line">			dataMsg() &#123;</span><br><span class="line">				if(this.child) &#123;</span><br><span class="line">					return `$&#123;this.child.start&#125; ~ $&#123;this.child.end&#125;`</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;,</span><br><span class="line">			check(tag) &#123;</span><br><span class="line">				var startTime = new Date(`$&#123;this.startYear&#125;-$&#123;this.checkVal(this.startMonth)&#125;-01`).getTime();</span><br><span class="line">				var endTime = new Date(`$&#123;this.endYear&#125;-$&#123;this.checkVal(this.endMonth)&#125;-01`).getTime();</span><br><span class="line">				if(endTime &lt;= startTime) &#123;</span><br><span class="line">					return false;</span><br><span class="line">				&#125;</span><br><span class="line">				return true;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		mounted() &#123;</span><br><span class="line">			var startDate = new Date(this.start);</span><br><span class="line">			this.startYear = startDate.getFullYear();</span><br><span class="line">			this.startMonth = startDate.getMonth() + 1;</span><br><span class="line">			var endDate = new Date(this.end);</span><br><span class="line">			this.endYear = endDate.getFullYear();</span><br><span class="line">			this.endMonth = endDate.getMonth() + 1;</span><br><span class="line">			this.init();</span><br><span class="line">		&#125;,</span><br><span class="line">		methods: &#123;</span><br><span class="line">			toggleShow() &#123;</span><br><span class="line">				this.open = !this.open;</span><br><span class="line">			&#125;,</span><br><span class="line">			init() &#123;</span><br><span class="line">				this.startFirstWeek = new Date(`$&#123;this.startYear&#125;-$&#123;this.checkVal(this.startMonth)&#125;-01`).getDay();</span><br><span class="line">				this.startDaySum = this.getMonthDaySum(`$&#123;this.startYear&#125;-$&#123;this.checkVal(this.startMonth)&#125;-01`);</span><br><span class="line">				this.startlist = this.initDate(this.startFirstWeek, this.startDaySum, this.startYear, this.startMonth, this.activeStartData);</span><br><span class="line">				this.endFirstWeek = new Date(`$&#123;this.endYear&#125;-$&#123;this.checkVal(this.endMonth)&#125;-01`).getDay();</span><br><span class="line">				this.endDaySum = this.getMonthDaySum(`$&#123;this.endYear&#125;-$&#123;this.checkVal(this.endMonth)&#125;-1`);</span><br><span class="line">				this.endlist = this.initDate(this.endFirstWeek, this.endDaySum, this.endYear, this.endMonth, this.activeEndData)</span><br><span class="line">			&#125;,</span><br><span class="line">			prev(tag) &#123;</span><br><span class="line">				if(tag == &apos;end&apos;) &#123;</span><br><span class="line">					if(!this.check) &#123;</span><br><span class="line">						return false;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">				this[tag + &apos;Month&apos;]--;</span><br><span class="line">				if(!this[tag + &apos;Month&apos;]) &#123;</span><br><span class="line">					this[tag + &apos;Month&apos;] = 12;</span><br><span class="line">					this[tag + &apos;Year&apos;]--;</span><br><span class="line">				&#125;</span><br><span class="line">				this.$nextTick(() =&gt; &#123;</span><br><span class="line">					this.init();</span><br><span class="line">				&#125;)</span><br><span class="line">			&#125;,</span><br><span class="line">			next(tag) &#123;</span><br><span class="line">				if(tag == &apos;start&apos;) &#123;</span><br><span class="line">					if(!this.check) &#123;</span><br><span class="line">						return false;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">				this[tag + &apos;Month&apos;]++;</span><br><span class="line">				if(this[tag + &apos;Month&apos;] &gt; 12) &#123;</span><br><span class="line">					this[tag + &apos;Month&apos;] = 1;</span><br><span class="line">					this[tag + &apos;Year&apos;]++;</span><br><span class="line">				&#125;</span><br><span class="line">				this.$nextTick(() =&gt; &#123;</span><br><span class="line">					this.init();</span><br><span class="line">				&#125;)</span><br><span class="line">			&#125;,</span><br><span class="line">			getMonthDaySum(val) &#123; //获取当前月有多少天</span><br><span class="line">				var curDate = new Date(val);</span><br><span class="line">				var curMonth = curDate.getMonth();</span><br><span class="line">				curDate.setMonth(curMonth + 1);</span><br><span class="line">				curDate.setDate(0);</span><br><span class="line">				return curDate.getDate();</span><br><span class="line">			&#125;,</span><br><span class="line">			initDate(FirstWeek, DaySum, Year, Month, activeData) &#123;</span><br><span class="line">				var list = [];</span><br><span class="line">				for(var i = 1; i &lt;= FirstWeek; i++) &#123;</span><br><span class="line">					var Dates = new Date(`$&#123;Year&#125;-$&#123;this.checkVal(Month)&#125;-01`);</span><br><span class="line">					Dates.setDate(i - FirstWeek);</span><br><span class="line">					list.push(&#123;</span><br><span class="line">						&quot;className&quot;: &quot;disabled&quot;,</span><br><span class="line">						&quot;num&quot;: Dates.getDate(),</span><br><span class="line">						&quot;date&quot;: `$&#123;Year&#125;-$&#123;this.checkVal(Month-1)&#125;-$&#123;Dates.getDate()&#125;`</span><br><span class="line">					&#125;)</span><br><span class="line">				&#125;</span><br><span class="line">				for(var i = 1; i &lt;= DaySum; i++) &#123;</span><br><span class="line">					var isActive = new Date(`$&#123;Year&#125;-$&#123;this.checkVal(Month)&#125;-$&#123;this.checkVal(i)&#125;`).getTime() == activeData;</span><br><span class="line">					list.push(&#123;</span><br><span class="line">						&quot;className&quot;: isActive ? &apos;on&apos; : &apos;&apos;,</span><br><span class="line">						&quot;num&quot;: i,</span><br><span class="line">						&quot;date&quot;: `$&#123;Year&#125;-$&#123;this.checkVal(Month)&#125;-$&#123;this.checkVal(i)&#125;`</span><br><span class="line">					&#125;)</span><br><span class="line">				&#125;</span><br><span class="line">				var nextData = new Date(`$&#123;Year&#125;-$&#123;this.checkVal(Month)&#125;-$&#123;DaySum&#125;`).getDay();</span><br><span class="line">				for(var i = 1; i &lt;= 6 - nextData; i++) &#123;</span><br><span class="line">					list.push(&#123;</span><br><span class="line">						&quot;className&quot;: &quot;disabled&quot;,</span><br><span class="line">						&quot;num&quot;: i,</span><br><span class="line">						&quot;date&quot;: `$&#123;Year&#125;-$&#123;this.checkVal(Month+1)&#125;-$&#123;this.checkVal(i)&#125;`</span><br><span class="line">					&#125;)</span><br><span class="line">				&#125;</span><br><span class="line">				return list;</span><br><span class="line">			&#125;,</span><br><span class="line">			checkVal(num) &#123;</span><br><span class="line">				num = +num;</span><br><span class="line">				return +num &lt; 10 ? &quot;0&quot; + num : &apos;&apos; + num;</span><br><span class="line">			&#125;,</span><br><span class="line">			clickDate(val, tag) &#123;</span><br><span class="line">				if(val.className !== &apos;disabled&apos;) &#123;</span><br><span class="line">					this[tag] = val.date;</span><br><span class="line">					this.$nextTick(() =&gt; &#123;</span><br><span class="line">						this.init();</span><br><span class="line">					&#125;)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;,</span><br><span class="line">			Determine() &#123;</span><br><span class="line">				this.toggleShow();</span><br><span class="line">				this.$emit(&quot;cllback&quot;, this.start, this.end)</span><br><span class="line">			&#125;,</span><br><span class="line">			getMonthText(m) &#123;</span><br><span class="line">				return [&apos;&apos;, &apos;一月&apos;, &apos;二月&apos;, &apos;三月&apos;, &apos;四月&apos;, &apos;五月&apos;, &apos;六月&apos;, &apos;七月&apos;, &apos;八月&apos;, &apos;九月&apos;, &apos;十月&apos;, &apos;十一月&apos;, &apos;十二月&apos;][m]</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&lt;/script&gt;</span><br><span class="line">&lt;style lang=&quot;less&quot; scoped&gt;</span><br><span class="line">	.m_calender &#123;</span><br><span class="line">		position: relative;</span><br><span class="line">		display: block;</span><br><span class="line">		margin: 0 auto;</span><br><span class="line">		.date_input &#123;</span><br><span class="line">			margin: 0 auto;</span><br><span class="line">			width: 200px;</span><br><span class="line">			border: 1px solid red;</span><br><span class="line">			text-align: center;</span><br><span class="line">			height: 20px;</span><br><span class="line">			line-height: 20px;</span><br><span class="line">			cursor: pointer;</span><br><span class="line">			display: block;</span><br><span class="line">			color: #484848;</span><br><span class="line">			font-size: 12px;</span><br><span class="line">		&#125;</span><br><span class="line">		.datamain &#123;</span><br><span class="line">			border: 1px solid #E6E6E6;</span><br><span class="line">			position: absolute;</span><br><span class="line">			left: 50%;</span><br><span class="line">			top: 30px;</span><br><span class="line">			transform: translateX(-50%);</span><br><span class="line">			&amp;::before &#123;</span><br><span class="line">				content: &apos;&apos;;</span><br><span class="line">				position: absolute;</span><br><span class="line">				left: 50%;</span><br><span class="line">				transform: translateX(-50%);</span><br><span class="line">				top: -18px;</span><br><span class="line">				width: 0;</span><br><span class="line">				height: 0;</span><br><span class="line">				border-top: 9px solid rgba(0, 0, 0, 0);</span><br><span class="line">				border-right: 9px solid rgba(0, 0, 0, 0);</span><br><span class="line">				border-bottom: 9px solid #E6E6E6;</span><br><span class="line">				border-left: 9px solid rgba(0, 0, 0, 0);</span><br><span class="line">			&#125;</span><br><span class="line">			&amp;::after &#123;</span><br><span class="line">				content: &apos;&apos;;</span><br><span class="line">				position: absolute;</span><br><span class="line">				left: 50%;</span><br><span class="line">				transform: translateX(-50%);</span><br><span class="line">				top: -15px;</span><br><span class="line">				width: 0;</span><br><span class="line">				height: 0;</span><br><span class="line">				border-top: 8px solid rgba(0, 0, 0, 0);</span><br><span class="line">				border-right: 8px solid rgba(0, 0, 0, 0);</span><br><span class="line">				border-bottom: 8px solid white;</span><br><span class="line">				border-left: 8px solid rgba(0, 0, 0, 0);</span><br><span class="line">			&#125;</span><br><span class="line">			.datacon &#123;</span><br><span class="line">				display: flex;</span><br><span class="line">				.con &#123;</span><br><span class="line">					margin: 5px 10px;</span><br><span class="line">					.date_main &#123;</span><br><span class="line">						width: 232px;</span><br><span class="line">						background: #FFFFFF;</span><br><span class="line">						z-index: 20;</span><br><span class="line">						.title &#123;</span><br><span class="line">							padding: 8px 4px;</span><br><span class="line">							display: flex;</span><br><span class="line">							justify-content: space-between;</span><br><span class="line">							align-items: center;</span><br><span class="line">							font-size: 14px;</span><br><span class="line">							.time &#123;</span><br><span class="line">								color: #939393;</span><br><span class="line">							&#125;</span><br><span class="line">							.timenum &#123;</span><br><span class="line">								color: #333333;</span><br><span class="line">							&#125;</span><br><span class="line">						&#125;</span><br><span class="line">						.date_top &#123;</span><br><span class="line">							height: 28px;</span><br><span class="line">							line-height: 28px;</span><br><span class="line">							padding: 0 6px;</span><br><span class="line">							display: flex;</span><br><span class="line">							justify-content: space-around;</span><br><span class="line">							align-items: center;</span><br><span class="line">							em &#123;</span><br><span class="line">								width: 14px;</span><br><span class="line">								font-style: normal;</span><br><span class="line">								margin: 9px 4px;</span><br><span class="line">								&amp;.prev_month &#123;</span><br><span class="line">									width: 0px;</span><br><span class="line">									height: 0px;</span><br><span class="line">									border-top: 7px solid rgba(0, 0, 0, 0);</span><br><span class="line">									border-bottom: 7px solid rgba(0, 0, 0, 0);</span><br><span class="line">									border-right: 7px solid #A1A1A1;</span><br><span class="line">									border-left: 7px solid rgba(0, 0, 0, 0);</span><br><span class="line">								&#125;</span><br><span class="line">								&amp;.next_month &#123;</span><br><span class="line">									width: 0px;</span><br><span class="line">									height: 0px;</span><br><span class="line">									border-top: 7px solid rgba(0, 0, 0, 0);</span><br><span class="line">									border-bottom: 7px solid rgba(0, 0, 0, 0);</span><br><span class="line">									border-left: 7px solid #A1A1A1;</span><br><span class="line">									border-right: 7px solid rgba(0, 0, 0, 0);</span><br><span class="line">								&#125;</span><br><span class="line">							&#125;</span><br><span class="line">							p &#123;</span><br><span class="line">								width: 100px;</span><br><span class="line">								flex: 1;</span><br><span class="line">								font-size: 12px;</span><br><span class="line">								font-weight: 700;</span><br><span class="line">								text-align: center;</span><br><span class="line">								span &#123;</span><br><span class="line">									width: 40px;</span><br><span class="line">									display: inline-block;</span><br><span class="line">									text-align: center;</span><br><span class="line">								&#125;</span><br><span class="line">							&#125;</span><br><span class="line">						&#125;</span><br><span class="line">						.date_week &#123;</span><br><span class="line">							height: 24px;</span><br><span class="line">							em &#123;</span><br><span class="line">								box-sizing: border-box;</span><br><span class="line">								font-style: normal;</span><br><span class="line">								width: 33px;</span><br><span class="line">								height: 24px;</span><br><span class="line">								line-height: 24px;</span><br><span class="line">								display: block;</span><br><span class="line">								float: left;</span><br><span class="line">								color: #484848;</span><br><span class="line">								font-size: 12px;</span><br><span class="line">								text-align: center;</span><br><span class="line">							&#125;</span><br><span class="line">						&#125;</span><br><span class="line">						.date_day &#123;</span><br><span class="line">							overflow: hidden;</span><br><span class="line">							border: 1px solid #E6E6E6;</span><br><span class="line">							em &#123;</span><br><span class="line">								font-style: normal;</span><br><span class="line">								width: 32px;</span><br><span class="line">								height: 20px;</span><br><span class="line">								line-height: 20px;</span><br><span class="line">								display: block;</span><br><span class="line">								float: left;</span><br><span class="line">								color: #484848;</span><br><span class="line">								font-size: 12px;</span><br><span class="line">								text-align: center;</span><br><span class="line">								border-right: 1px solid #E6E6E6;</span><br><span class="line">								cursor: pointer;</span><br><span class="line">								&amp;:nth-child(7n) &#123;</span><br><span class="line">									border-right: 0px solid #E6E6E6;</span><br><span class="line">								&#125;</span><br><span class="line">								&amp;.on &#123;</span><br><span class="line">									color: #FFFFFF;</span><br><span class="line">									background-color: #E76E00;</span><br><span class="line">								&#125;</span><br><span class="line">								&amp;.disabled &#123;</span><br><span class="line">									color: #CCCCCC;</span><br><span class="line">									background-color: #FFFFFF;</span><br><span class="line">									cursor: default;</span><br><span class="line">								&#125;</span><br><span class="line">							&#125;</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			.databtn &#123;</span><br><span class="line">				text-align: right;</span><br><span class="line">				display: flex;</span><br><span class="line">				justify-content: flex-end;</span><br><span class="line">				align-items: center;</span><br><span class="line">				padding: 5px 0px 11px;</span><br><span class="line">				.btn &#123;</span><br><span class="line">					display: flex;</span><br><span class="line">					justify-content: center;</span><br><span class="line">					align-items: center;</span><br><span class="line">					box-sizing: border-box;</span><br><span class="line">					width: 56px;</span><br><span class="line">					height: 24px;</span><br><span class="line">					border: 1px solid red;</span><br><span class="line">					font-size: 12px;</span><br><span class="line">					border: 1px solid #E6E6E6;</span><br><span class="line">					border-radius: 2px;</span><br><span class="line">					&amp;.active &#123;</span><br><span class="line">						color: wheat;</span><br><span class="line">						margin: 0px 8px;</span><br><span class="line">						background: #EE6E25;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&lt;/style&gt;</span><br></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3038,7 +3424,7 @@ fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">122</span>
+                  <span class="site-state-item-count">123</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3051,7 +3437,7 @@ fn1(() =&gt; fn2(() =&gt; fn3(() =&gt; {})));
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">102</span>
+                  <span class="site-state-item-count">103</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

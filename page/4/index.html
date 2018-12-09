@@ -300,6 +300,570 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/13/交叉观察器-intersectionObserver-Vue实战/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/13/交叉观察器-intersectionObserver-Vue实战/" itemprop="url">交叉观察器(intersectionObserver) Vue实战</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-13T23:04:27+08:00">
+                2018-08-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="参考文章：IntersectionObserver-API-使用教程"><a href="#参考文章：IntersectionObserver-API-使用教程" class="headerlink" title="参考文章：IntersectionObserver API 使用教程"></a>参考文章：<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/11/intersectionobserver_api.html" target="_blank" rel="noopener">IntersectionObserver API 使用教程</a></h2><h2 id="Intersection-Observer"><a href="#Intersection-Observer" class="headerlink" title="Intersection Observer"></a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver" target="_blank" rel="noopener">Intersection Observer</a></h2><h2 id="【译】使用-Intersection-Observer-实现图片延迟加载"><a href="#【译】使用-Intersection-Observer-实现图片延迟加载" class="headerlink" title="【译】使用 Intersection Observer 实现图片延迟加载"></a><a href="https://link.zhihu.com/?target=https%3A//c7sky.com/lazy-loading-images-using-intersection-observer.html" target="_blank" rel="noopener">【译】使用 Intersection Observer 实现图片延迟加载</a></h2><p>intersectionObserver解决什么问题？</p>
+<p>intersectionObserver解决目标元素与视口产生一个交叉区，所以这个 API 叫做”交叉观察器”，</p>
+<p>比如在web网页开发中，常常需要了解某个元素是否进入了”视口”（viewport），即用户能不能看到它。</p>
+<p>传统的实现方法是，监听到scroll事件后，调用目标元素（绿色方块）的<a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en/docs/Web/API/Element/getBoundingClientRect" target="_blank" rel="noopener">getBoundingClientRect()</a>方法，得到它对应于视口左上角的坐标，再判断是否在视口之内。这种方法的缺点是，由于scroll事件密集发生，计算量很大，容易造成<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2015/09/web-page-performance-in-depth.html" target="_blank" rel="noopener">性能问题</a>。</p>
+<p>目前有一个新的 <a href="https://link.zhihu.com/?target=https%3A//wicg.github.io/IntersectionObserver/" target="_blank" rel="noopener">IntersectionObserver API</a>，可以自动”观察”元素是否可见，Chrome 51+ 已经支持。由于可见（visible）的本质是，目标元素与视口产生一个交叉区，所以这个 API 叫做”交叉观察器”。</p>
+<blockquote>
+<p>IntersectionObserver API 是异步的，不随着目标元素的滚动同步触发。规格写明，<code>IntersectionObserver</code>的实现，应该采用<code>requestIdleCallback()</code>，即只有线程空闲下来，才会执行观察器。这意味着，这个观察器的优先级非常低，只在其他任务执行完，浏览器有了空闲才会执行。</p>
+</blockquote>
+<p>IntersectionObserverEntry 对象</p>
+<p><code>IntersectionObserverEntry</code>对象提供目标元素的信息，一共有六个属性。</p>
+<pre><code>{
+  time: 3893.92,
+  rootBounds: ClientRect {
+    bottom: 920,
+    height: 1024,
+    left: 0,
+    right: 1024,
+    top: 0,
+    width: 920 },
+  boundingClientRect: ClientRect {  // ...
+ },
+  intersectionRect: ClientRect {  // ...
+ },
+  intersectionRatio: 0.54,
+  target: element
+} 
+</code></pre><p>每个属性的含义如下。</p>
+<ul>
+<li><code>time</code>：可见性发生变化的时间，是一个高精度时间戳，单位为毫秒</li>
+<li><code>target</code>：被观察的目标元素，是一个 DOM 节点对象</li>
+<li><code>rootBounds</code>：根元素的矩形区域的信息，<code>getBoundingClientRect()</code>方法的返回值，如果没有根元素（即直接相对于视口滚动），则返回<code>null</code></li>
+<li><code>boundingClientRect</code>：目标元素的矩形区域的信息</li>
+<li><code>intersectionRect</code>：目标元素与视口（或根元素）的交叉区域的信息</li>
+<li><code>intersectionRatio</code>：目标元素的可见比例，即<code>intersectionRect</code>占<code>boundingClientRect</code>的比例，完全可见时为<code>1</code>，完全不可见时小于等于<code>0</code></li>
+</ul>
+<p>现在我们已经创建了一个 Intersection Observer 并且正在观察页面上的图片，我们现在来了解 intersection 事件，它将在元素进入视区时触发。</p>
+<h2 id="浏览器支持"><a href="#浏览器支持" class="headerlink" title="浏览器支持"></a>浏览器支持</h2><p>此时此刻，你也许想知道关于这项特性的浏览器支持情况。Intersection Observer 现在已被 <a href="https://link.zhihu.com/?target=http%3A//caniuse.com/%23feat%3Dintersectionobserver" target="_blank" rel="noopener">Edge、Firefox、Chrome 和 Opera</a> 支持，这是一个好消息。</p>
+<p>然而，为了确保我们的代码不会在不支持它的浏览器中造成破坏，我们可以使用特性检测来确定我们应该如何来加载图片。让我们看看下面的代码。</p>
+<pre><code>// If we don&apos;t have support for intersection observer, load the images immediately
+if (!(&apos;IntersectionObserver&apos; in window)) {
+  Array.from(images).forEach(image =&gt; preloadImage(image));
+} else {
+  // It is supported, load the images
+  observer = new IntersectionObserver(onIntersection, config);
+  images.forEach(image =&gt; {
+
+   observer.observe(image);
+  });
+}
+view raw
+</code></pre><p>Vue:</p>
+<pre><code>&lt;template&gt;
+    &lt;img :src=&quot;lazysrc&quot; /&gt;
+&lt;/template&gt;
+&lt;script&gt;
+    import Bus from &apos;../bus&apos;;
+    import nonepng from &apos;../../assets/img/none.png&apos;;
+
+    export default {
+        name: &apos;lazyimg&apos;,
+        data: function() {
+            return {
+                isShow: false,
+                lazysrc: nonepng
+            }
+        },
+        mounted() {
+            if(!this.needlazy) {
+                this.lazysrc = this.src;
+            } else {
+                if(!(&apos;IntersectionObserver&apos; in window)) {
+                    //TODO
+                } else {
+                    var io = new IntersectionObserver(
+                        entries =&gt; {
+                            entries.forEach(i =&gt; {
+                                if(i.intersectionRatio &gt;= 0.25) { //可见元素占视窗的25%触发
+                                    i.target.setAttribute(&quot;src&quot;, this.src)
+                                }
+                            });
+                        }, {
+                            threshold: [0, 0.25, 0.5, 0.75, 1],
+                        }
+                    );
+                    io.observe(this.$el);
+                }
+            }
+        },
+        props: {
+            needlazy: {
+                type: Boolean,
+                default: false,
+            },
+            src: {
+                type: String,
+                default: &apos;&apos;,
+            },
+        }
+    };
+&lt;/script&gt;
+</code></pre><blockquote>
+<p>通常都是通过判断intersectionRatio来做某些事，比如当intersectionRatio大于多少的时候做什么事，加载图片等！</p>
+</blockquote>
+<p><img src="https://pic4.zhimg.com/v2-8e8d0a7aa6b83f2150c8916a0ec90b43_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-8e8d0a7aa6b83f2150c8916a0ec90b43_hd.jpg" alt=""><br>   灰色的水平方框代表视口，深红色的区域代表四个被观察的目标元素。它们各自的<code>intersectionRatio</code>图中都已经注明。</p>
+<p>DEMO：  <a href="https://zhuanlan.zhihu.com/p/25455672" target="_blank" rel="noopener">延迟加载(Lazyload)三种实现方式</a></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;utf-8&quot;&gt;
+        &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width&quot;&gt;
+        &lt;title&gt; &lt;/title&gt;
+        &lt;style type=&quot;text/css&quot;&gt;
+            * {
+                padding: 0px;
+                margin: 0px;
+                outline: none;
+            }
+
+            body {}
+
+            #main {
+                margin: 0 auto;
+                width: 600px;
+                height: 300px;
+                overflow: scroll;
+            }
+
+            #con {
+                width: 1200px;
+                height: 300px;
+            }
+
+            .cc {
+                width: 300px;
+                height: 300px;
+                float: left;
+                background-size: cover;
+            }
+
+            #a {
+                background-color: red;
+            }
+
+            #b {
+                background-color: black;
+            }
+
+            #c {
+                background-color: blue;
+            }
+
+            #d {
+                background-color: green;
+            }
+        &lt;/style&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+        &lt;div id=&quot;main&quot;&gt;
+            &lt;div id=&quot;con&quot;&gt;
+                &lt;div id=&quot;a&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;b&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;c&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;d&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/body&gt;
+    &lt;script type=&quot;text/javascript&quot;&gt;
+        var io = new IntersectionObserver(
+            entries =&gt; {
+                console.log(&apos;********************************&apos;);
+                console.log(entries);
+                console.log(&apos;********************************&apos;);
+                entries.forEach(i =&gt; {
+                    console.log(&apos;================================&apos;);
+                    console.log(&apos;Time: &apos; + i.time);
+                    console.log(&apos;Target: &apos; + i.target.nodeName);
+                    console.log(&apos;IntersectionRatio: &apos; + i.intersectionRatio);
+                    console.log(&apos;rootBounds: &apos; + i.rootBounds);
+                    console.log(i.boundingClientRect);
+                    console.log(i.intersectionRect);
+                    console.log(&apos;================================&apos;);
+
+                    if(i.intersectionRatio &gt;= 0.25) { //可见元素占视窗的25%触发
+                        console.log(&apos;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&apos;);
+                        i.target.style.backgroundImage = &quot;url(&quot; + &apos;http://pic35.photophoto.cn/20150528/0020032932102307_b.jpg&apos; + &quot;)&quot;
+                    }
+
+                });
+            }, {
+                /* Using default options. Details below */
+                threshold: [0, 0.25, 0.5, 0.75, 1],   //会执行5次
+            }
+        );
+        // Start observing an element
+        io.observe(document.querySelector(&apos;#d&apos;));
+        io.observe(document.querySelector(&apos;#c&apos;));
+    &lt;/script&gt;
+
+&lt;/html&gt;
+</code></pre><p><img src="https://pic1.zhimg.com/v2-83bcd2ce4df13a07da99e0c051e9fcaa_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-83bcd2ce4df13a07da99e0c051e9fcaa_hd.jpg" alt=""></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Lazyload 3&lt;/title&gt;
+    &lt;style&gt;
+        img {
+        display: block;
+        margin-bottom: 50px;
+        width: 800px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/1.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/2.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/3.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/4.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/5.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/6.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/7.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/8.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/9.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/10.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/11.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/12.png&quot;&gt;
+    &lt;script&gt;
+    function query(selector) {
+        return Array.from(document.querySelectorAll(selector));
+    }
+    var io = new IntersectionObserver(function(items) {
+        items.forEach(function(item) {
+        var target = item.target;
+        if(target.getAttribute(&apos;src&apos;) == &apos;images/loading.gif&apos;) {
+            target.src = target.getAttribute(&apos;data-src&apos;);
+        }
+        })
+    });
+    query(&apos;img&apos;).forEach(function(item) {
+        io.observe(item);
+    });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre><ol>
+<li>IntersectionObserver 传入一个回调函数，当其观察到元素集合出现时候，则会执行该函数。</li>
+<li>io.observe 即要观察的元素，要一个个添加才可以。</li>
+<li>io 管理的是一个数组，当元素出现或消失的时候，数组添加或删除该元素，并且执行该回调函数。</li>
+</ol>
+<h2 id="一、API"><a href="#一、API" class="headerlink" title="一、API"></a>一、API</h2><p>它的用法非常简单。</p>
+<pre><code>var io = new IntersectionObserver(callback, option); 
+</code></pre><p>上面代码中，<code>IntersectionObserver</code>是浏览器原生提供的构造函数，接受两个参数：<code>callback</code>是可见性变化时的回调函数，<code>option</code>是配置对象（该参数可选）。</p>
+<p>构造函数的返回值是一个观察器实例。实例的<code>observe</code>方法可以指定观察哪个 DOM 节点。</p>
+<pre><code>// 开始观察
+io.observe(document.getElementById(&apos;example&apos;)); 
+// 停止观察
+io.unobserve(element); 
+// 关闭观察器
+io.disconnect(); 
+</code></pre><p>上面代码中，<code>observe</code>的参数是一个 DOM 节点对象。如果要观察多个节点，就要多次调用这个方法。</p>
+<pre><code>io.observe(elementA);
+io.observe(elementB); 
+</code></pre><h2 id="二、callback-参数"><a href="#二、callback-参数" class="headerlink" title="二、callback 参数"></a>二、callback 参数</h2><p>目标元素的可见性变化时，就会调用观察器的回调函数<code>callback</code>。</p>
+<p><code>callback</code>一般会触发两次。一次是目标元素刚刚进入视口（开始可见），另一次是完全离开视口（开始不可见）。</p>
+<pre><code>var io = new IntersectionObserver(
+  entries =&gt; {
+    console.log(entries); } 
+); 
+</code></pre><p>上面代码中，回调函数采用的是<a href="https://link.zhihu.com/?target=http%3A//es6.ruanyifeng.com/%23docs/function%23%25E7%25AE%25AD%25E5%25A4%25B4%25E5%2587%25BD%25E6%2595%25B0" target="_blank" rel="noopener">箭头函数</a>的写法。<code>callback</code>函数的参数（<code>entries</code>）是一个数组，每个成员都是一个<code>[IntersectionObserverEntry](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/IntersectionObserverEntry)</code>对象。举例来说，如果同时有两个被观察的对象的可见性发生变化，<code>entries</code>数组就会有两个成员。</p>
+<h2 id="三、Option-对象"><a href="#三、Option-对象" class="headerlink" title="三、Option 对象"></a>三、Option 对象</h2><p>IntersectionObserver构造函数的第二个参数是一个配置对象。它可以设置以下属性。</p>
+<p><code>[IntersectionObserver.root](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/root)</code> 只读所监听对象的具体祖先元素(<code>[element](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/Element)</code>)。如果未传入任何值或值为null，则默认使用viewport。</p>
+<p><code>[IntersectionObserver.rootMargin](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/rootMargin)</code> 只读计算交叉时添加到根(root)边界盒<a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Glossary/bounding_box" target="_blank" rel="noopener">bounding box</a>的矩形偏移量， 可以有效的缩小或扩大根的判定范围从而满足计算需要。此属性返回的值可能与调用构造函数时指定的值不同，因此可能需要更改该值，以匹配内部要求。所有的偏移量均可用像素(pixel)(px)或百分比(percentage)(%)来表达, 默认值为”0px 0px 0px 0px”。</p>
+<p><code>[IntersectionObserver.thresholds](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/thresholds)</code> 只读一个包含阈值的list, 升序排列, list中的每个阈值都是监听对象的交叉区域与边界区域的比率。当监听对象的任何阈值被越过时，都会生成一个通知(Notification)。如果构造器未传入值, 则默认值为0.</p>
+<p>threshold 属性</p>
+<p><code>threshold</code>属性决定了什么时候触发回调函数。它是一个数组，每个成员都是一个门槛值，默认为<code>[0]</code>，即交叉比例（<code>intersectionRatio</code>）达到<code>0</code>时触发回调函数。</p>
+<pre><code>new IntersectionObserver(
+  entries =&gt; {/* ... */}, {
+    threshold: [0, 0.25, 0.5, 0.75, 1] } ); 
+</code></pre><p>用户可以自定义这个数组。比如，<code>[0, 0.25, 0.5, 0.75, 1]</code>就表示当目标元素 0%、25%、50%、75%、100% 可见时，会触发回调函数。</p>
+<p>root 属性，rootMargin 属性</p>
+<p>很多时候，目标元素不仅会随着窗口滚动，还会在容器里面滚动（比如在<code>iframe</code>窗口里滚动）。容器内滚动也会影响目标元素的可见性，参见本文开始时的那张示意图。</p>
+<p>IntersectionObserver API 支持容器内滚动。<code>root</code>属性指定目标元素所在的容器节点（即根元素）。注意，容器元素必须是目标元素的祖先节点。</p>
+<pre><code>var opts = { 
+  root: document.querySelector(&apos;.container&apos;),
+  rootMargin: &quot;500px 0px&quot; 
+}; 
+
+var observer = new IntersectionObserver(
+  callback,
+  opts
+); 
+</code></pre><p>上面代码中，除了<code>root</code>属性，还有<code>[rootMargin](https://link.zhihu.com/?target=https%3A//wicg.github.io/IntersectionObserver/%23dom-intersectionobserverinit-rootmargin)</code>属性。后者定义根元素的<code>margin</code>，用来扩展或缩小<code>rootBounds</code>这个矩形的大小，从而影响<code>intersectionRect</code>交叉区域的大小。它使用CSS的定义方法，比如<code>10px 20px 30px 40px</code>，表示 top、right、bottom 和 left 四个方向的值。</p>
+<pre><code>//离视窗还有top=500px 或者 bottom=500 触发加载
+rootMargin = `500px 0px`  
+//离视窗还有top=-500px 或者 bottom=-500 触发加载 （惰性加载）
+rootMargin = `-500px 0px` 
+</code></pre><p>这样设置以后，不管是窗口滚动或者容器内滚动，只要目标元素可见性变化，都会触发观察器。</p>
+<h2 id="四、方法"><a href="#四、方法" class="headerlink" title="四、方法"></a>四、方法</h2><p><code>[IntersectionObserver.disconnect](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/disconnect)</code>使IntersectionObserver对象停止监听工作。</p>
+<p><code>[IntersectionObserver.observe](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/observe)使IntersectionObserver开始监听一个目标元素。</code></p>
+<p><code>[IntersectionObserver.takeRecords](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/takeRecords)</code>为所有监听目标返回一个<code>[IntersectionObserverEntry](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserverEntry)</code>对象数组并且停止监听这些目标。</p>
+<p><code>[IntersectionObserver.unobserve](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/unobserve)使IntersectionObserver停止监听特定目标元素。</code></p>
+<h2 id="五、Vue（xunleif2e-vue-lazy-component）"><a href="#五、Vue（xunleif2e-vue-lazy-component）" class="headerlink" title="五、Vue（xunleif2e/vue-lazy-component）"></a>五、Vue（<a href="https://link.zhihu.com/?target=https%3A//github.com/xunleif2e/vue-lazy-component" target="_blank" rel="noopener">xunleif2e/vue-lazy-component</a>）</h2><p>核心 VueLazyComponent.vue</p>
+<pre><code>&lt;template&gt;
+  &lt;transition-group :tag=&quot;tagName&quot; name=&quot;lazy-component&quot; style=&quot;position: relative;&quot;
+    @before-enter=&quot;(el) =&gt; $emit(&apos;before-enter&apos;, el)&quot;
+    @before-leave=&quot;(el) =&gt; $emit(&apos;before-leave&apos;, el)&quot;
+    @after-enter=&quot;(el) =&gt; $emit(&apos;after-enter&apos;, el)&quot;
+    @after-leave=&quot;(el) =&gt; $emit(&apos;after-leave&apos;, el)&quot;
+  &gt;
+    &lt;div v-if=&quot;isInit&quot; key=&quot;component&quot;&gt;
+      &lt;slot :loading=&quot;loading&quot;&gt;&lt;/slot&gt;
+    &lt;/div&gt;
+    &lt;div v-else-if=&quot;$slots.skeleton&quot; key=&quot;skeleton&quot;&gt;
+      &lt;slot name=&quot;skeleton&quot;&gt;&lt;/slot&gt;
+    &lt;/div&gt;
+    &lt;div v-else key=&quot;loading&quot;&gt;
+    &lt;/div&gt;
+  &lt;/transition-group&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  export default {
+    name: &apos;VueLazyComponent&apos;,
+
+    props: {
+      timeout: {
+        type: Number
+      },
+      tagName: {
+        type: String,
+        default: &apos;div&apos;
+      },
+      viewport: {
+        type: typeof window !== &apos;undefined&apos; ? window.HTMLElement : Object,
+        default: () =&gt; null
+      },
+      threshold: {
+        type: String,
+        default: &apos;0px&apos;
+      },
+      direction: {
+        type: String,
+        default: &apos;vertical&apos;
+      },
+      maxWaitingTime: {
+        type: Number,
+        default: 50
+      }
+    },
+
+    data () {
+      return {
+        isInit: false,
+        timer: null,
+        io: null,
+        loading: false
+      }
+    },
+
+    created () {
+      // 如果指定timeout则无论可见与否都是在timeout之后初始化
+      if (this.timeout) {
+        this.timer = setTimeout(() =&gt; {
+          this.init()
+        }, this.timeout)
+      }
+    },
+
+    mounted () {
+      if (!this.timeout) {
+        // 根据滚动方向来构造视口外边距，用于提前加载
+        let rootMargin
+        switch (this.direction) {
+          case &apos;vertical&apos;:
+            rootMargin = `${this.threshold} 0px`
+            break
+          case &apos;horizontal&apos;:
+            rootMargin = `0px ${this.threshold}`
+            break
+        }
+
+        // 观察视口与组件容器的交叉情况
+        this.io = new window.IntersectionObserver(this.intersectionHandler, {
+          rootMargin,
+          root: this.viewport,
+          threshold: [ 0, Number.MIN_VALUE, 0.01]
+        })
+        this.io.observe(this.$el)
+      }
+    },
+
+    beforeDestroy () {
+      // 在组件销毁前取消观察
+      if (this.io) {
+        this.io.unobserve(this.$el)
+      }
+    },
+
+    methods: {
+      // 交叉情况变化处理函数
+      intersectionHandler (entries) {
+        if (
+          // 正在交叉
+          entries[0].isIntersecting ||
+          // 交叉率大于0
+          entries[0].intersectionRatio
+        ) {
+          this.init()
+          this.io.unobserve(this.$el)
+        }
+      },
+
+      // 处理组件和骨架组件的切换
+      init () {
+        // 此时说明骨架组件即将被切换
+        this.$emit(&apos;beforeInit&apos;)
+        this.$emit(&apos;before-init&apos;)
+
+        // 此时可以准备加载懒加载组件的资源
+        this.loading = true
+
+        // 由于函数会在主线程中执行，加载懒加载组件非常耗时，容易卡顿
+        // 所以在requestAnimationFrame回调中延后执行
+        this.requestAnimationFrame(() =&gt; {
+          this.isInit = true
+          this.$emit(&apos;init&apos;)
+        })
+      },
+
+      requestAnimationFrame (callback) {
+        // 防止等待太久没有执行回调
+        // 设置最大等待时间
+        setTimeout(() =&gt; {
+          if (this.isInit) return
+          callback()
+        }, this.maxWaitingTime)
+
+        // 兼容不支持requestAnimationFrame 的浏览器
+        return (window.requestAnimationFrame || ((callback) =&gt; setTimeout(callback, 1000 / 60)))(callback)
+      }
+    }
+  }
+&lt;/script&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/11/Raect-异步加载组件/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2667,502 +3231,6 @@ console.log(8);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/30/深入理解ES6  Async Functions/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/30/深入理解ES6  Async Functions/" itemprop="url">深入理解ES6 Async Functions (异步函数)</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-30T18:35:10+08:00">
-                2018-05-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h2 id="async-异步-函数变体"><a href="#async-异步-函数变体" class="headerlink" title="async(异步) 函数变体"></a>async(异步) 函数变体</h2><p>以下是已经存在的异步函数变体。请注意无处不在的 <code>async</code> 关键字。</p>
-<ul>
-<li>异步函数声明： <code>async function foo() {}</code></li>
-<li>异步函数表达式： <code>const foo = async function () {};</code></li>
-<li>异步函数定义：<code>let obj = { async foo() {} }</code></li>
-<li>异步箭头函数： <code>const foo = async () =&gt; {};</code></li>
-</ul>
-<h2 id="async-异步-函数总是返回-Promises"><a href="#async-异步-函数总是返回-Promises" class="headerlink" title="async(异步) 函数总是返回 Promises"></a>async(异步) 函数总是返回 Promises</h2><p>async(异步) 函数的 Promise 完成状态：</p>
-<pre><code>async function asyncFunc() {
-return 123;
-}
-
-asyncFunc()
-.then(x =&gt; console.log(x));
-// 123
-</code></pre><p>async(异步) 函数的 Promise 拒绝状态：</p>
-<pre><code>async function asyncFunc() {
-throw new Error(&apos;Problem!&apos;);
-}
-
-asyncFunc()
-.catch(err =&gt; console.log(err));
-// Error: Problem!
-</code></pre><h2 id="通过-await-处理-async-异步-计算的结果和错误"><a href="#通过-await-处理-async-异步-计算的结果和错误" class="headerlink" title="通过 await 处理 async(异步) 计算的结果和错误"></a>通过 <code>await</code> 处理 async(异步) 计算的结果和错误</h2><p><code>await</code>（只允许在 async(异步) 函数内部使用）等待其操作对象 Promise 返回：</p>
-<ul>
-<li>如果 Promise 是完成状态，<code>await</code> 的结果是完成态的值。</li>
-<li>如果 Promise 是拒绝状态，<code>await</code> 会抛出拒绝值。</li>
-</ul>
-<p>处理单个 async(异步) 返回值：</p>
-<pre><code>async function asyncFunc() {
-const result = await otherAsyncFunc();
-   console.log(result);
-}
-
-// 等价于:
-function asyncFunc() {
-return otherAsyncFunc()
-.then(result =&gt; {
-       console.log(result);
-});
-}
-</code></pre><p>按顺序处理多个 async(异步) 返回值：</p>
-<pre><code>async function asyncFunc() {
-const result1 = await otherAsyncFunc1();
-   console.log(result1);
-const result2 = await otherAsyncFunc2();
-   console.log(result2);
-}
-
-// 等价于:
-function asyncFunc() {
-return otherAsyncFunc1()
-.then(result1 =&gt; {
-       console.log(result1);
-return otherAsyncFunc2();
-})
-.then(result2 =&gt; {
-       console.log(result2);
-});
-}
-</code></pre><p>并行处理多个 async(异步) 返回值：</p>
-<pre><code>async function asyncFunc() {
-const [result1, result2] = await Promise.all([
-       otherAsyncFunc1(),
-       otherAsyncFunc2(),
-]);
-   console.log(result1, result2);
-}
-
-// 等价于:
-function asyncFunc() {
-return Promise.all([
-       otherAsyncFunc1(),
-       otherAsyncFunc2(),
-])
-.then([result1, result2] =&gt; {
-       console.log(result1, result2);
-});
-}
-</code></pre><p>错误处理：</p>
-<pre><code>async function asyncFunc() {
-try {
-await otherAsyncFunc();
-} catch (err) {
-       console.error(err);
-}
-}
-
-// 等价于:
-function asyncFunc() {
-return otherAsyncFunc()
-.catch(err =&gt; {
-       console.error(err);
-});
-}
-</code></pre><h2 id="理解-async-异步-函数"><a href="#理解-async-异步-函数" class="headerlink" title="理解 async(异步) 函数"></a>理解 async(异步) 函数</h2><p>在我解释 async(异步) 函数之前，我需要解释一下如何组合使用 Promises 和 Generator ，通过看起来同步的代码来执行 async(异步) 操作。</p>
-<p>对于能够 async(异步) 计算其一次性结果的函数，作为 ES6 一部分的 Promises 已经变得流行起来。一个例子是 <a href="https://link.zhihu.com/?target=https%3A//fetch.spec.whatwg.org/%23concept-request" target="_blank" rel="noopener">客户端 fetch API</a> ，它是 XMLHttpRequest 获取数据的替代方法。使用示例如下：</p>
-<pre><code>function fetchJson(url) {
-return fetch(url)
-.then(request =&gt; request.text())
-.then(text =&gt; {
-return JSON.parse(text);
-})
-.catch(error =&gt; {
-       console.log(`ERROR: ${error.stack}`);
-});
-}
-fetchJson(&apos;http://example.com/some_file.json&apos;)
-.then(obj =&gt; console.log(obj));
-</code></pre><h2 id="通过-generator-来编写异步代码"><a href="#通过-generator-来编写异步代码" class="headerlink" title="通过 generator 来编写异步代码"></a>通过 generator 来编写异步代码</h2><p>co 是一个使用 Promise 和 generator 来实现看似同步编码的库，但与上一示例中使用的样式相同：</p>
-<pre><code>const fetchJson = co.wrap(function* (url) {
-try {
-let request = yield fetch(url);
-let text = yield request.text();
-return JSON.parse(text);
-}
-catch (error) {
-       console.log(`ERROR: ${error.stack}`);
-}
-});
-</code></pre><p>每次回调函数（ generator 函数）产生一个 Promise 对象给 co ，回调会被暂停，只有当 Promise 执行完成后，co 才会继续执行回调 。 如果 Promise 处于完成状态，<code>yield</code> 返回完成状态的值，如果处于拒绝状态，<code>yield</code> 抛出拒绝状态的错误。此外，co 保证结果是通过回调执行完成才返回的（类似于 <code>then()</code> 所做的工作）。</p>
-<h2 id="通过-async-异步-函数来编写异步代码"><a href="#通过-async-异步-函数来编写异步代码" class="headerlink" title="通过 async(异步) 函数来编写异步代码"></a>通过 async(异步) 函数来编写异步代码</h2><p>async(异步) 函数用的特定语法基本上和 co 类似：</p>
-<pre><code>async function fetchJson(url) {
-try {
-let request = await fetch(url);
-let text = await request.text();
-return JSON.parse(text);
-}
-catch (error) {
-       console.log(`ERROR: ${error.stack}`);
-}
-}
-</code></pre><p>在内部，异步函数写法更类似于 generators 。</p>
-<h2 id="以同步开始，异步处理的-async-异步-函数"><a href="#以同步开始，异步处理的-async-异步-函数" class="headerlink" title="以同步开始，异步处理的 async(异步) 函数"></a>以同步开始，异步处理的 async(异步) 函数</h2><p>以下是 async(异步)函数是如何工作的：</p>
-<ol>
-<li>async(异步) 函数总是返回一个 Promise 对象 <code>p</code> 。Promise 对象在 async(异步) 函数开始执行时被创建。</li>
-<li>函数体执行过程中，可以通过 <code>return</code> 或 <code>throw</code> 终止执行。或者通过 <code>await</code> 暂停执行，在这种情况下，通常会在以后继续执行。</li>
-<li>返回 Promise 对象 <code>p</code>。</li>
-</ol>
-<p>当执行 async(异步) 函数的函数体时，<code>return x</code> 中的 <code>x</code> 是 Promise 对象 <code>p</code> 的完成状态的结果，而 <code>throw err</code> 是 <code>p</code> 的拒绝状态的结果。执行结果是异步返回的。换句话说：<code>then()</code> 和 <code>catch()</code> 的回调总是在当前代码完成后执行。</p>
-<p>以下是代码示例：</p>
-<pre><code>async function asyncFunc() {
-   console.log(&apos;asyncFunc()&apos;); // (A)
-return &apos;abc&apos;;
-}
-asyncFunc().
-then(x =&gt; console.log(`Resolved: ${x}`)); // (B)
-console.log(&apos;main&apos;); // (C)
-
-// Output:
-// asyncFunc()
-// main
-// Resolved: abc
-</code></pre><p>您可以认为是以下的执行顺序：</p>
-<ol>
-<li>行A：async(异步) 函数以同步开始。async(异步) 函数的 Promise 通过 <code>return</code> 来返回完成状态的结果。</li>
-<li>行C：执行继续。</li>
-<li>行B：Promise 完成状态通知是异步发生的。</li>
-</ol>
-<h2 id="返回不被包裹的-Promise-对象"><a href="#返回不被包裹的-Promise-对象" class="headerlink" title="返回不被包裹的 Promise 对象"></a>返回不被包裹的 Promise 对象</h2><p>Promise 的 resolve 是一项标准操作。 <code>return</code> 就是使用它来 resolve async(异步) 函数的 Promise <code>p</code> 的。这意味着：</p>
-<ol>
-<li>返回一个非 Promise 值，该值将被处理成 <code>p</code> 的完成状态值。</li>
-<li>返回一个 Promise 对象，那么 <code>p</code> 此时相当于是该 Promise 的状态。</li>
-</ol>
-<p>因此，您可以返回一个 Promise ，并且这个 Promise 不会包裹在别的 Promise 中：</p>
-<pre><code>async function asyncFunc() {
-return Promise.resolve(123);
-}
-asyncFunc()
-.then(x =&gt; console.log(x)) // 123
-</code></pre><p>有趣的是，返回一个拒绝状态（reject）的 Promise 对象会导致 async(异步) 函数被拒绝（reject）（通常，您可以使用 <code>throw</code> ）：</p>
-<pre><code>async function asyncFunc() {
-return Promise.reject(new Error(&apos;Problem!&apos;));
-}
-asyncFunc()
-.catch(err =&gt; console.error(err)); // Error: Problem!
-</code></pre><p>这与 Promise 解决方案的工作方式是一致的。 使你能够在不使用 <code>await</code> 的情况下，使用其他 async(异步) 计算来执行完成和拒绝处理：</p>
-<pre><code>async function asyncFunc() {
-return anotherAsyncFunc();
-}
-</code></pre><p>上面的代码示例和下面的类似，但是比下面的更高效。（以下代码示例没有包裹 <code>anotherAsyncFunc()</code> 的 Promise ，而是包裹 <code>anotherAsyncFunc()</code> 本身 ）：</p>
-<pre><code>async function asyncFunc() {
-return await anotherAsyncFunc();
-}
-</code></pre><h2 id="使用-await-小贴士"><a href="#使用-await-小贴士" class="headerlink" title="使用 await 小贴士"></a>使用 <code>await</code> 小贴士</h2><h2 id="不要忘记使用-await"><a href="#不要忘记使用-await" class="headerlink" title="不要忘记使用 await"></a>不要忘记使用 <code>await</code></h2><p>在 async(异步) 函数中容易犯的一个错误就是在调用 async(异步) 函数时忘记使用 <code>await</code> ：</p>
-<pre><code>async function asyncFunc() {
-const value = otherAsyncFunc(); // missing `await`!
-···
-}
-</code></pre><p>在这个例子中，方法执行返回的 Promise 对象赋值给了 <code>value</code> ，它通常不是你在 async(异步) 函数中想要的结果。</p>
-<p>await 甚至可以在 async(异步) 函数不返回任何值的情况下起作用。它的 Promise 只是用来告诉调用者完成状态。例如：</p>
-<pre><code>async function foo() {
-await step1(); // (A)
-···
-}
-</code></pre><p>行A中的 <code>await</code> 确保在执行 <code>foo()</code> 剩余部分之前， <code>step1()</code> 已经执行完成。</p>
-<h2 id="不需要使用-await-的情况"><a href="#不需要使用-await-的情况" class="headerlink" title="不需要使用 await 的情况"></a>不需要使用 await 的情况</h2><p>有时，你只想触发异步计算，并且不需要关注它什么时候完成。以下是代码示例：</p>
-<pre><code>async function asyncFunc() {
-const writer = openFile(&apos;someFile.txt&apos;);
-   writer.write(&apos;hello&apos;); // don’t wait
-   writer.write(&apos;world&apos;); // don’t wait
-await writer.close(); // wait for file to close
-}
-</code></pre><p>在这里，我们不关心单个的写入操作是否完成，只需要他们以正确的顺序执行 (API必须保证，但这是由 async(异步) 函数的执行模型所鼓励的，正如我们所见)。</p>
-<p><code>asyncFunc()</code> 函数最后一行的 <code>await</code> 确保该函数仅在文件写入关闭后才会执行。</p>
-<p>由于返回的 Promises 没有被其他 async(异步) 函数包裹，所以你可以用 <code>return</code> 替换 <code>await writer.close()</code> ：</p>
-<pre><code>async function asyncFunc() {
-const writer = openFile(&apos;someFile.txt&apos;);
-   writer.write(&apos;hello&apos;);
-   writer.write(&apos;world&apos;);
-return writer.close();
-}
-</code></pre><p>这两个版本各有利弊，<code>await</code> 版本可能稍微更容易理解。</p>
-<h2 id="await-是顺序执行的，Promise-all-是并行的"><a href="#await-是顺序执行的，Promise-all-是并行的" class="headerlink" title="await 是顺序执行的，Promise.all() 是并行的"></a>await 是顺序执行的，Promise.all() 是并行的</h2><p>下面的代码调用了两个 async(异步) 函数， <code>asyncFunc1()</code> 和 <code>asyncFunc1()</code> 。</p>
-<pre><code>async function foo() {
-const result1 = await asyncFunc1();
-const result2 = await asyncFunc2();
-}
-</code></pre><p>这两个函数调用顺序执行。但是并行执行它们往往会加快速度。您可以使用 Promise.all() ：</p>
-<pre><code>async function foo() {
-const [result1, result2] = await Promise.all([
-       asyncFunc1(),
-       asyncFunc2(),
-]);
-}
-</code></pre><p>我们现在正在等待一个包含两个元素的数组的 Promise ，而不是等待两个 Promise。</p>
-<h2 id="异步函数和回调"><a href="#异步函数和回调" class="headerlink" title="异步函数和回调"></a>异步函数和回调</h2><p>async(异步) 函数的一个限制是 <code>await</code>(等待) 只影响直接相关的 async(异步) 函数。因此，async(异步) 函数无法在回调（但是，回调可以是 async(异步) 函数本身，稍后我们将会看到）中使用 <code>await</code>(等待)。这使得基于回调的实用函数和方法难以使用。例子中我们将使用数组方法 <code>map()</code> 和 <code>forEach()</code>。</p>
-<h2 id="Array-prototype-map"><a href="#Array-prototype-map" class="headerlink" title="Array.prototype.map()"></a>Array.prototype.map()</h2><p>我们从数组方法 <code>map()</code> 开始讲解。在下面的代码示例中，我们想要加载由 URLs 数组指向的文件，并将它们返回到数组中。</p>
-<pre><code>async function downloadContent(urls) {
-return urls.map(url =&gt; {
-// 错误的语法!
-const content = await httpGet(url);
-return content;
-});
-}
-</code></pre><p>这不起作用，因为在正常箭头函数中 <code>await</code> 语法上是非法的(愚人码头注： <code>await</code>(等待) 只影响直接相关的 async(异步) 函数)。那么如何使用异步的箭头函数呢？</p>
-<pre><code>async function downloadContent(urls) {
-return urls.map(async (url) =&gt; { // 注意这一行中的 async ;
-const content = await httpGet(url);
-return content;
-});
-}
-</code></pre><p>这段代码有两个问题：</p>
-<ul>
-<li>现在返回的结果是一个 Promises 对象的数组，而不是一个字符串的数组。</li>
-<li>一旦 <code>map()</code> 执行完成，回调执行的工作并不能同时完成，因为 <code>await</code> 只暂停了包裹它的箭头函数 和 <code>httpGet()</code> 异步执行达到完成状态。这意味着你不能使用 <code>await</code>，来等待 <code>downloadContent()</code> 执行结束。</li>
-</ul>
-<p>我们可以通过 <code>Promise.all()</code> 来解决这两个问题，<code>Promise.all()</code> 可以将一系列的 Promise 转换为一个 Promise 数组（所有值都是经过 Promise 完成并返回）：</p>
-<pre><code>async function downloadContent(urls) {
-const promiseArray = urls.map(async (url) =&gt; {
-const content = await httpGet(url);
-return content;
-});
-return await Promise.all(promiseArray);
-}
-</code></pre><p><code>map()</code> 的回调并不对 <code>httpGet()</code> 的结果起作用，只是起到不断执行的作用。因此，这里我们不需要一个异步的箭头函数，只需要一个普通的箭头函数就能达到相同的结果。</p>
-<pre><code>async function downloadContent(urls) {
-const promiseArray = urls.map(
-       url =&gt; httpGet(url));
-return await Promise.all(promiseArray);
-}
-</code></pre><p>我们仍然可以做一个小的改进：这个异步函数稍微有点低效 – 首先通过 <code>await</code> 来解开 <code>Promise.all()</code> 的结果，然后通过 <code>return</code> 再次包裹它。 假设 <code>return</code> 不包裹 Promises，我们可以直接返回 <code>Promise.all()</code> 的结果：</p>
-<pre><code>async function downloadContent(urls) {
-const promiseArray = urls.map(
-       url =&gt; httpGet(url));
-return Promise.all(promiseArray);
-}
-</code></pre><h2 id="Array-prototype-forEach"><a href="#Array-prototype-forEach" class="headerlink" title="Array.prototype.forEach()"></a>Array.prototype.forEach()</h2><p>我们使用数组的 forEach() 方法在控制台中打印几个通过 URLs 加载的文件的内容：</p>
-<pre><code>async function logContent(urls) {
-   urls.forEach(url =&gt; {
-// Wrong syntax
-const content = await httpGet(url);
-       console.log(content);
-});
-}
-</code></pre><p>同样的，这里的代码会产生一个语法错误，因为你不能在通常的箭头函数内部使用 <code>await</code> 。</p>
-<p>我们换作异步箭头函数：</p>
-<pre><code>async function logContent(urls) {
-   urls.forEach(async url =&gt; {
-const content = await httpGet(url);
-       console.log(content);
-});
-// Not finished here
-}
-</code></pre><p>这段代码起作用了，但是会出现一个警告：<code>httpGet()</code> 返回的 Promise 对象是异步完成的，这也意味着当 <code>forEach()</code> 返回的时候回调可能还没有结束，因此你无法等到 <code>logContent()</code> 只能结束。</p>
-<p>如果你并不想要这个结果，你可以将 <code>forEach()</code> 转换为 <code>for-of</code> 循环。</p>
-<pre><code>async function logContent(urls) {
-for (const url of urls) {
-const content = await httpGet(url);
-       console.log(content);
-}
-}
-</code></pre><p>现在一切都在 <code>for-of</code> 循环完成后完成。但是，处理步骤依次发生：<code>httpGet()</code> 只是在第一次调用完成后再次调用。如果您希望处理步骤并行执行，你必须使用 <code>Promise.all()</code>：</p>
-<pre><code>async function logContent(urls) {
-await Promise.all(urls.map(
-async url =&gt; {
-const content = await httpGet(url);
-           console.log(content);
-}));
-}
-</code></pre><p><code>map()</code> 用于创建一个 Promises 数组。 我们对他们的完成结果并不感兴趣，我们只要 <code>await</code>(等待) 所有方法执行完成。这意味着我们希望的是在 async(异步) 函数完成之后所有的执行都已经完成。我们也可以返回 <code>Promise.all()</code> ，但是该函数的结果是一个数组，其元素都是未完成状态的。</p>
-<h2 id="使用异步函数小贴士"><a href="#使用异步函数小贴士" class="headerlink" title="使用异步函数小贴士"></a>使用异步函数小贴士</h2><h2 id="了解你的-Promises"><a href="#了解你的-Promises" class="headerlink" title="了解你的 Promises"></a>了解你的 Promises</h2><p>async(异步) 函数的基础就是 <a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">Promises</a> 对象，这就是为什么理解 Promises 对于理解 async(异步) 函数至关重要。特别是当遇到不是基于 Promises 的老代码来实现 async(异步) 函数时，你通常别无选择，只能用 Promise 来重构。</p>
-<p>举个例子，这里有个 “promisified” 版本的 <code>XMLHttpRequest</code> ：</p>
-<pre><code>function httpGet(url, responseType=&quot;&quot;) {
-return new Promise(
-function (resolve, reject) {
-const request = new XMLHttpRequest();
-           request.onload = function () {
-if (this.status === 200) {
-// Success
-                   resolve(this.response);
-} else {
-// Something went wrong (404 etc.)
-                   reject(new Error(this.statusText));
-}
-};
-           request.onerror = function () {
-               reject(new Error(
-&apos;XMLHttpRequest Error: &apos;+this.statusText));
-};
-           request.open(&apos;GET&apos;, url);
-           xhr.responseType = responseType;
-           request.send();
-});
-}
-</code></pre><p>XMLHttpRequest 的 API 是基于回调的。通过一个 async(异步) 函数来实现它，意味着你必须在回调中返回 Promise 的完成(fulfill) 或拒绝(reject) 状态。这是不可能的，因为你只能通过 <code>return</code> 或者 <code>throw</code> 来完成这样的操作。你不能从回调函数内部 <code>return</code> 一个函数的结果。<code>throw</code>也有类似的约束。</p>
-<p>因此，异步函数的通用编码风格是：</p>
-<ul>
-<li>直接使用 Promise 对象来构建异步原语。</li>
-<li>用异步函数来使用这些原语。</li>
-</ul>
-<p>扩展阅读：“Exploring ES6” 中的 “<a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">异步编程中的 Promises 对象</a>” 章节</p>
-<h2 id="立即调用异步函数表达式"><a href="#立即调用异步函数表达式" class="headerlink" title="立即调用异步函数表达式"></a>立即调用异步函数表达式</h2><p>有时，如果你可以在模块或脚本的顶层使用 await ，那将是一种很好的选择。当然，它只能在异步函数中使用。您可以创建一个异步函数 <code>main()</code> 并立即调用它：</p>
-<pre><code>async function main() {
-   console.log(await asyncFunction());
-}
-main();
-</code></pre><p>或者您可以使用立即调用异步函数表达式：</p>
-<pre><code>(async function () {
-   console.log(await asyncFunction());
-})();
-</code></pre><p>另一个选择是立即调用异步箭头函数：</p>
-<pre><code>(async () =&gt; {
-   console.log(await asyncFunction());
-})();
-</code></pre><h2 id="用异步函数进行单元测试"><a href="#用异步函数进行单元测试" class="headerlink" title="用异步函数进行单元测试"></a>用异步函数进行单元测试</h2><p>以下代码使用 <a href="https://link.zhihu.com/?target=https%3A//mochajs.org/" target="_blank" rel="noopener">测试框架 mocha</a> 对异步函数 asyncFun1() 和 asyncFun2() 来进行单元测试：</p>
-<pre><code>import assert from &apos;assert&apos;;
-
-// Bug: the following test always succeeds
-test(&apos;Testing async code&apos;, function () {
-   asyncFunc1() // (A)
-.then(result1 =&gt; {
-assert.strictEqual(result1, &apos;a&apos;); // (B)
-return asyncFunc2();
-})
-.then(result2 =&gt; {
-assert.strictEqual(result2, &apos;b&apos;); // (C)
-});
-});
-</code></pre><p>然而，这个测试总是成功的，因为 mocha 不会等待 B 行和 C 行断言执行完成。</p>
-<p>你可以通过返回链式调用的 Promise 来解决这个问题，因为 mocha 会识别一个测试是否返回一个 Promise ，然后等待该 Promise 完成 再进行下一步（除非超时）。</p>
-<pre><code>return asyncFunc1() // (A)
-</code></pre><p>异步函数总是返回 Promises ，这使得它们能方便的、完美的来进行这种单元测试：</p>
-<pre><code>import assert from &apos;assert&apos;;
-test(&apos;Testing async code&apos;, async function () {
-const result1 = await asyncFunc1();
-assert.strictEqual(result1, &apos;a&apos;);
-const result2 = await asyncFunc2();
-assert.strictEqual(result2, &apos;b&apos;);
-});
-</code></pre><p>在 mocha 中使用异步单元测试异步函数有两个优点：代码更简洁，能够准确处理返回的 Promise 对象。</p>
-<h2 id="不要担心没有处理的拒绝拒态"><a href="#不要担心没有处理的拒绝拒态" class="headerlink" title="不要担心没有处理的拒绝拒态"></a>不要担心没有处理的拒绝拒态</h2><p>当前的 JavaScript 引擎可以在拒绝态未处理的情况下提出警告。以下代码在过去会经常执行失败，但是当前的 JavaScript 引擎可以进行警告：</p>
-<pre><code>JavaScript 代码:
-async function foo() {
-throw new Error(&apos;Problem!&apos;);
-}
-foo();
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3217,7 +3285,7 @@ foo();
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">122</span>
+                  <span class="site-state-item-count">123</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3230,7 +3298,7 @@ foo();
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">102</span>
+                  <span class="site-state-item-count">103</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
