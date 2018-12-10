@@ -94,13 +94,14 @@
 <meta property="og:site_name" content="LuckDay">
 <meta property="og:description" content="再进行移动web开发的时候都要加一句：1&amp;lt;meta name=&amp;quot;viewport&amp;quot; content=&amp;quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&amp;quot; /&amp;gt;  我们经常使用的里的viewport究竟是什么意思，这里的device">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2018/01/02/关于Viewport与device-width的一点理解/1.webp">
 <meta property="og:image" content="http://yoursite.com/2018/01/02/关于Viewport与device-width的一点理解/201157547867064.jpg">
 <meta property="og:image" content="http://yoursite.com/2018/01/02/关于Viewport与device-width的一点理解/201158077397288.jpg">
-<meta property="og:updated_time" content="2018-11-24T01:29:34.107Z">
+<meta property="og:updated_time" content="2018-12-10T13:47:49.228Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="关于Viewport与device-width的一点理解">
 <meta name="twitter:description" content="再进行移动web开发的时候都要加一句：1&amp;lt;meta name=&amp;quot;viewport&amp;quot; content=&amp;quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&amp;quot; /&amp;gt;  我们经常使用的里的viewport究竟是什么意思，这里的device">
-<meta name="twitter:image" content="http://yoursite.com/2018/01/02/关于Viewport与device-width的一点理解/201157547867064.jpg">
+<meta name="twitter:image" content="http://yoursite.com/2018/01/02/关于Viewport与device-width的一点理解/1.webp">
 
 
 
@@ -376,7 +377,39 @@
 <li>我们经常使用的<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">里的viewport究竟是什么意思，这里的device-width跟我们用JS获取到的屏宽的区别与联系分别是什么，为什么去掉<meta>标签后页面会变得很小很小？</li>
 <li>为什么很多分辨率很大的屏幕宽度其实并不大，屏幕分辨率与用JS获取到的屏宽的区别与联系分别又是什么？</li>
 </ol>
-<hr>
+<h3 id="视口-viewport"><a href="#视口-viewport" class="headerlink" title="视口 viewport"></a>视口 viewport</h3><h4 id="viewport-基础"><a href="#viewport-基础" class="headerlink" title="viewport 基础"></a>viewport 基础</h4><p>viewport 解释为中文就是‘视口’的意思，也就是浏览器中用于显示网页的区域。在 PC 端，其大小也就是浏览器可视区域的大小，所以我们也不会太关注此概念；而在移动端，绝大多数情况下 viewport 都大于浏览器可视区，保证 PC 页面在移动浏览器上面的可视性。为提升可视性体验，针对移动端有了对 viewport 的深入研究。</p>
+<h4 id="viewport-详解"><a href="#viewport-详解" class="headerlink" title="viewport 详解"></a>viewport 详解</h4><p>在移动端有三种类型的 viewport: layoutviewport、visualviewport、idealviewport。具体解释如下：</p>
+<ul>
+<li>layoutviewport:  大于实际屏幕， 元素的宽度继承于 layoutviewport，用于保证网站的外观特性与桌面浏览器一样。layoutviewport 到底多宽，每个浏览器不同。iPhone 的 safari 为 980px，通过 document.document.clientWidth 获取。</li>
+<li>visualviewport: 当前显示在屏幕上的页面，即浏览器可视区域的宽度。</li>
+<li>idealviewport: 为浏览器定义的可完美适配移动端的理想 viewport，固定不变，可以认为是设备视口宽度。比如 iphone 7 为 375px, iphone 7p 为 414px。</li>
+</ul>
+<h4 id="viewport-设置"><a href="#viewport-设置" class="headerlink" title="viewport 设置"></a>viewport 设置</h4><p>我们通过对几种 viewport 设置可以对网页的展示进行有效的控制，在移动端我们经常会在 head 标签中看到这段代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&apos;viewport&apos; content=&apos;width=device-width,initial-scale=1,user-scale=no&apos; /&gt;</span><br></pre></td></tr></table></figure></p>
+<p><img src="/2018/01/02/关于Viewport与device-width的一点理解/1.webp" alt=""></p>
+<h4 id="1px的物理像素的解决方案"><a href="#1px的物理像素的解决方案" class="headerlink" title="1px的物理像素的解决方案"></a>1px的物理像素的解决方案</h4><p>从第一部分的讨论可知 viewport 的 initial-scale 具有缩放页面的效果。对于 dpr=2 的屏幕，1px压缩一半便可与1px的设备像素比匹配，这就可以通过将缩放比 initial-scale 设置为 0.5=1/2 而实现。以此类推 dpr=3的屏幕可以将 initial-scale设置为 0.33=1/3 来实现。</p>
+<pre><code>(function (baseFontSize) {
+    const _baseFontSize = baseFontSize || 75;
+    const ua = navigator.userAgent;
+    const matches = ua.match(/Android[\S\s]+AppleWebkit\/(\d{3})/i);
+    const isIos = navigator.appVersion.match(/(iphone|ipad|ipod)/gi);
+    const dpr = window.devicePixelRatio || 1;
+    if (!isIos &amp;&amp; !(matches &amp;&amp; matches[1] &gt; 534)) {
+        // 如果非iOS, 非Android4.3以上, dpr设为1;
+        dpr = 1;
+    }
+    const scale = 1 / dpr;
+    const metaEl = document.querySelector(&apos;meta[name=&quot;viewport&quot;]&apos;);
+    if (!metaEl) {
+        metaEl = document.createElement(&apos;meta&apos;);
+        metaEl.setAttribute(&apos;name&apos;, &apos;viewport&apos;);
+        window.document.head.appendChild(metaEl);
+    }
+    metaEl.setAttribute(&apos;content&apos;, &apos;width=device-width,user-scalable=no,initial-scale=&apos; + scale + &apos;,maximum-scale=&apos; + scale + &apos;,minimum-scale=&apos; + scale);
+
+    document.documentElement.style.fontSize = document.documentElement.clientWidth / (750 / _baseFontSize) + &apos;px&apos;;
+})();
+
+</code></pre><hr>
 <p>要说这个，先来了解下一些移动端基础知识：</p>
 <h3 id="1、物理像素-设备像素，分辨率"><a href="#1、物理像素-设备像素，分辨率" class="headerlink" title="1、物理像素(设备像素，分辨率)"></a>1、物理像素(设备像素，分辨率)</h3><p>设备像素，在同一个设备上，它的物理像素是固定的，这是厂商在出厂时就设置好了的，即一个设备的分辨率是固定的。</p>
 <h3 id="2、逻辑像素-CSS像素"><a href="#2、逻辑像素-CSS像素" class="headerlink" title="2、逻辑像素(CSS像素)"></a>2、逻辑像素(CSS像素)</h3><p>CSS像素，viewport中的一个小方格，CSS样式代码中使用的是逻辑像素。如果在一个设备中，物理像素与逻辑像素相等，将不会产生任何问题。但是，在iphone 4中，物理像素是640px<em>960px，而逻辑像素数为320</em>480px。因此，需要使用大约4个物理像素来显示一个CSS像素。</p>
@@ -592,7 +625,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#再进行移动web开发的时候都要加一句："><span class="nav-number">1.</span> <span class="nav-text">再进行移动web开发的时候都要加一句：</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1、物理像素-设备像素，分辨率"><span class="nav-number">1.1.</span> <span class="nav-text">1、物理像素(设备像素，分辨率)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、逻辑像素-CSS像素"><span class="nav-number">1.2.</span> <span class="nav-text">2、逻辑像素(CSS像素)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3、像素比"><span class="nav-number">1.3.</span> <span class="nav-text">3、像素比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4、CSS中的1px并不等于设备的1px"><span class="nav-number">1.4.</span> <span class="nav-text">4、CSS中的1px并不等于设备的1px</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5、实现真正的1物理像素"><span class="nav-number">1.5.</span> <span class="nav-text">5、实现真正的1物理像素</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CSS-pixel与device-pixels-css-px与device-px"><span class="nav-number">2.</span> <span class="nav-text">CSS pixel与device pixels (css px与device px)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Viewport-与-device-width"><span class="nav-number">3.</span> <span class="nav-text">Viewport 与 device-width</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#有关DPI"><span class="nav-number">4.</span> <span class="nav-text">有关DPI</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DevicePixelRadio"><span class="nav-number">5.</span> <span class="nav-text">DevicePixelRadio</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#这里为什么提到devicePixelRatio这个概念呢？"><span class="nav-number">5.1.</span> <span class="nav-text">这里为什么提到devicePixelRatio这个概念呢？</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#再进行移动web开发的时候都要加一句："><span class="nav-number">1.</span> <span class="nav-text">再进行移动web开发的时候都要加一句：</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#视口-viewport"><span class="nav-number">1.1.</span> <span class="nav-text">视口 viewport</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#viewport-基础"><span class="nav-number">1.1.1.</span> <span class="nav-text">viewport 基础</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#viewport-详解"><span class="nav-number">1.1.2.</span> <span class="nav-text">viewport 详解</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#viewport-设置"><span class="nav-number">1.1.3.</span> <span class="nav-text">viewport 设置</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1px的物理像素的解决方案"><span class="nav-number">1.1.4.</span> <span class="nav-text">1px的物理像素的解决方案</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1、物理像素-设备像素，分辨率"><span class="nav-number">1.2.</span> <span class="nav-text">1、物理像素(设备像素，分辨率)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2、逻辑像素-CSS像素"><span class="nav-number">1.3.</span> <span class="nav-text">2、逻辑像素(CSS像素)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3、像素比"><span class="nav-number">1.4.</span> <span class="nav-text">3、像素比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4、CSS中的1px并不等于设备的1px"><span class="nav-number">1.5.</span> <span class="nav-text">4、CSS中的1px并不等于设备的1px</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5、实现真正的1物理像素"><span class="nav-number">1.6.</span> <span class="nav-text">5、实现真正的1物理像素</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CSS-pixel与device-pixels-css-px与device-px"><span class="nav-number">2.</span> <span class="nav-text">CSS pixel与device pixels (css px与device px)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Viewport-与-device-width"><span class="nav-number">3.</span> <span class="nav-text">Viewport 与 device-width</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#有关DPI"><span class="nav-number">4.</span> <span class="nav-text">有关DPI</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DevicePixelRadio"><span class="nav-number">5.</span> <span class="nav-text">DevicePixelRadio</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#这里为什么提到devicePixelRatio这个概念呢？"><span class="nav-number">5.1.</span> <span class="nav-text">这里为什么提到devicePixelRatio这个概念呢？</span></a></li></ol></li></ol></div>
             
 
           </div>
