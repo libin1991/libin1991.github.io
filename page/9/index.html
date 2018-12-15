@@ -298,6 +298,163 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/21/React-setState/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/09/21/React-setState/" itemprop="url">React setState</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-21T20:16:49+08:00">
+                2017-09-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="/2017/09/21/React-setState/1.webp" alt=""></p>
+<blockquote>
+<p>面试官：“react中<code>setState</code>是同步的还是异步？”</p>
+</blockquote>
+<blockquote>
+<p>我：“异步的，<code>setState</code>不能立马拿到结果。”</p>
+</blockquote>
+<blockquote>
+<p>面试官：“那什么场景下是异步的，可不可能是同步，什么场景下又是同步的？”</p>
+</blockquote>
+<blockquote>
+<p>我：“……”</p>
+</blockquote>
+<h3 id="setState真的是异步的吗？"><a href="#setState真的是异步的吗？" class="headerlink" title="setState真的是异步的吗？"></a><code>setState</code>真的是异步的吗？</h3><p>这两天自己简单的看了下 <code>setState</code> 的部分实现代码，在这边给到大家一个自己个人的见解，可能文字或图片较多，没耐心的同学可以直接跳过看总结(<strong>源码版本是16.4.1</strong>)。</p>
+<p><strong>看之前，为了方便理解和简化流程，我们默认react内部代码执行到<code>performWork</code><br>、<code>performWorkOnRoot</code>、<code>performSyncWork</code>、<code>performAsyncWork</code>这四个方法的时候，就是react去update更新并且作用到UI上。</strong></p>
+<h3 id="一、合成事件中的setState"><a href="#一、合成事件中的setState" class="headerlink" title="一、合成事件中的setState"></a>一、合成事件中的<code>setState</code></h3><p>首先得了解一下什么是合成事件，react为了解决跨平台，兼容性问题，自己封装了一套事件机制，代理了原生的事件，像在<code>jsx</code>中常见的<code>onClick</code>、<code>onChange</code>这些都是合成事件。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  increment = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新前的val --&gt; 0</span><br><span class="line">  &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.increment&#125;&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>合成事件中的<code>setState</code>写法比较常见，点击事件里去改变 <code>this.state.val</code> 的状态值，在 <code>increment</code> 事件中打个断点可以看到调用栈，这里我贴一张自己画的流程图：<br><img src="/2017/09/21/React-setState/2.webp" alt=""><br>从 <code>dispatchInteractiveEvent</code> 到 <code>callCallBack</code> 为止，都是对合成事件的处理和执行，从 <code>setState</code> 到 <code>requestWork</code> 是调用 <code>this.setState</code> 的逻辑，这边主要看下  <code>requestWork</code> 这个函数（从 <code>dispatchEvent</code> 到 <code>requestWork</code> 的调用栈是属于 <code>interactiveUpdates$1</code> 的 <code>try</code> 代码块，下文会提到）。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">function requestWork(root, expirationTime) &#123;</span><br><span class="line">  addRootToSchedule(root, expirationTime);</span><br><span class="line"></span><br><span class="line">  if (isRendering) &#123;</span><br><span class="line">    // Prevent reentrancy. Remaining work will be scheduled at the end of</span><br><span class="line">    // the currently rendering batch.</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (isBatchingUpdates) &#123;</span><br><span class="line">    // Flush work at the end of the batch.</span><br><span class="line">    if (isUnbatchingUpdates) &#123;</span><br><span class="line">      // ...unless we&apos;re inside unbatchedUpdates, in which case we should</span><br><span class="line">      // flush it now.</span><br><span class="line">      nextFlushedRoot = root;</span><br><span class="line">      nextFlushedExpirationTime = Sync;</span><br><span class="line">      performWorkOnRoot(root, Sync, false);</span><br><span class="line">    &#125;</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // TODO: Get rid of Sync and use current time?</span><br><span class="line">  if (expirationTime === Sync) &#123;</span><br><span class="line">    performSyncWork();</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    scheduleCallbackWithExpiration(expirationTime);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在 <code>requestWork</code> 中有三个if分支，三个分支中有两个方法 <code>performWorkOnRoot</code> 和 <code>performSyncWork</code> ，就是我们默认的update函数，但是在合成事件中，走的是第二个if分支，第二个分支中有两个标识 <code>isBatchingUpdates</code> 和 <code>isUnbatchingUpdates</code> 两个初始值都为  <code>false</code> ，但是在 <code>interactiveUpdates$1</code> 中会把 <code>isBatchingUpdates</code> 设为 <code>true</code> ，下面就是 <code>interactiveUpdates$1</code> 的代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">function interactiveUpdates$1(fn, a, b) &#123;</span><br><span class="line">  if (isBatchingInteractiveUpdates) &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125;</span><br><span class="line">  // If there are any pending interactive updates, synchronously flush them.</span><br><span class="line">  // This needs to happen before we read any handlers, because the effect of</span><br><span class="line">  // the previous event may influence which handlers are called during</span><br><span class="line">  // this event.</span><br><span class="line">  if (!isBatchingUpdates &amp;&amp; !isRendering &amp;&amp; lowestPendingInteractiveExpirationTime !== NoWork) &#123;</span><br><span class="line">    // Synchronously flush pending interactive updates.</span><br><span class="line">    performWork(lowestPendingInteractiveExpirationTime, false, null);</span><br><span class="line">    lowestPendingInteractiveExpirationTime = NoWork;</span><br><span class="line">  &#125;</span><br><span class="line">  var previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates;</span><br><span class="line">  var previousIsBatchingUpdates = isBatchingUpdates;</span><br><span class="line">  isBatchingInteractiveUpdates = true;</span><br><span class="line">  isBatchingUpdates = true;  // 把requestWork中的isBatchingUpdates标识改为true</span><br><span class="line">  try &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125; finally &#123;</span><br><span class="line">    isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates;</span><br><span class="line">    isBatchingUpdates = previousIsBatchingUpdates;</span><br><span class="line">    if (!isBatchingUpdates &amp;&amp; !isRendering) &#123;</span><br><span class="line">      performSyncWork();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这个方法中把 <code>isBatchingUpdates</code> 设为了 <code>true</code> ,导致在 <code>requestWork</code> 方法中， <code>isBatchingUpdates</code> 为 <code>true</code> ，但是 <code>isUnbatchingUpdates</code> 是 <code>false</code> ，而被直接return了。</p>
+<p>那return完的逻辑回到哪里呢，最终正是回到了 <code>interactiveUpdates</code> 这个方法，仔细看一眼，这个方法里面有个<a href="https://link.juejin.im?target=http%3A%2F%2Fjavascript.ruanyifeng.com%2Fgrammar%2Ferror.html%23toc12" target="_blank" rel="noopener">try finally</a>语法，前端同学这个其实是用的比较少的，简单的说就是会先执行 <code>try</code> 代码块中的语句，然后再执行 <code>finally</code> 中的代码，而 <code>fn(a, b)</code> 是在try代码块中，刚才说到在 <code>requestWork</code> 中被return掉的也就是这个fn（上文提到的 <code>从dispatchEvent</code> 到 <code>requestWork</code> 的一整个调用栈）。</p>
+<p>所以当你在 <code>increment</code> 中调用 <code>setState</code> 之后去console.log的时候，是属于 <code>try</code> 代码块中的执行，但是由于是合成事件，try代码块执行完state并没有更新，所以你输入的结果是更新前的 <code>state</code> 值，这就导致了所谓的”异步”，但是当你的try代码块执行完的时候（也就是你的increment合成事件），这个时候会去执行 <code>finally</code> 里的代码，在 <code>finally</code> 中执行了 <code>performSyncWork</code> 方法，这个时候才会去更新你的 <code>state</code> 并且渲染到UI上。</p>
+<h3 id="二、生命周期函数中的setState"><a href="#二、生命周期函数中的setState" class="headerlink" title="二、生命周期函数中的setState"></a>二、生命周期函数中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">   console.log(this.state.val) // 输出的还是更新前的值 --&gt; 0</span><br><span class="line"> &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>钩子函数中setState的调用栈：<br><img src="/2017/09/21/React-setState/3.webp" alt=""><br>其实还是和合成事件一样，当 <code>componentDidmount</code> 执行的时候，react内部并没有更新，执行完<code>componentDidmount</code>  后才去 <code>commitUpdateQueue</code> 更新。这就导致你在 <code>componentDidmount</code> 中 <code>setState</code> 完去console.log拿的结果还是更新前的值。</p>
+<h3 id="三、原生事件中的setState"><a href="#三、原生事件中的setState" class="headerlink" title="三、原生事件中的setState"></a>三、原生事件中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  changeValue = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新后的值 --&gt; 1</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    document.body.addEventListener(&apos;click&apos;, this.changeValue, false)</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>原生事件是指非react合成事件，原生自带的事件监听 <code>addEventListener</code> ，或者也可以用原生js、jq直接 <code>document.querySelector().onclick</code> 这种绑定事件的形式都属于原生事件。<br><img src="/2017/09/21/React-setState/4.webp" alt=""><br>原生事件的调用栈就比较简单了，因为没有走合成事件的那一大堆，直接触发click事件，到 <code>requestWork</code> ,在<code>requestWork</code>里由于 <code>expirationTime === Sync</code> 的原因，直接走了 <code>performSyncWork</code> 去更新，并不像合成事件或钩子函数中被return，所以当你在原生事件中setState后，能同步拿到更新后的state值。</p>
+<h3 id="四、setTimeout中的setState"><a href="#四、setTimeout中的setState" class="headerlink" title="四、setTimeout中的setState"></a>四、setTimeout中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val) // 输出更新后的值 --&gt; 1</span><br><span class="line">    &#125;, 0)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 <code>setTimeout</code> 中去 <code>setState</code> 并不算是一个单独的场景，它是随着你外层去决定的，因为你可以在合成事件中 <code>setTimeout</code> ，可以在钩子函数中 <code>setTimeout</code> ，也可以在原生事件<code>setTimeout</code>，但是不管是哪个场景下，基于<a href="https://link.juejin.im?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D6XRNXXgP_0" target="_blank" rel="noopener">event loop</a>的模型下， <code>setTimeout</code> 中里去 <code>setState</code> 总能拿到最新的state值。</p>
+<p>举个栗子，比如之前的合成事件，由于你是 <code>setTimeout(_ =&gt; { this.setState()}, 0)</code> 是在 <code>try</code> 代码块中,当你 <code>try</code> 代码块执行到 <code>setTimeout</code> 的时候，把它丢到列队里，并没有去执行，而是先执行的 <code>finally</code> 代码块，等 <code>finally</code> 执行完了， <code>isBatchingUpdates</code> 又变为了 <code>false</code> ，导致最后去执行队列里的 <code>setState</code> 时候， <code>requestWork</code> 走的是和原生事件一样的 <code>expirationTime === Sync</code> if分支，所以表现就会和原生事件一样，可以同步拿到最新的state值。</p>
+<h3 id="五、setState中的批量更新"><a href="#五、setState中的批量更新" class="headerlink" title="五、setState中的批量更新"></a>五、<code>setState</code>中的批量更新</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  batchUpdates = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.batchUpdates&#125;&gt;</span><br><span class="line">        &#123;`Counter is $&#123;this.state.val&#125;`&#125; // 1</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的结果最终是1，在 <code>setState</code> 的时候react内部会创建一个 <code>updateQueue</code> ，通过 <code>firstUpdate</code> 、 <code>lastUpdate</code> 、 <code>lastUpdate.next</code> 去维护一个更新的队列，在最终的 <code>performWork</code> 中，相同的key会被覆盖，只会对最后一次的 <code>setState</code> 进行更新，下面是部分实现代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">function createUpdateQueue(baseState) &#123;</span><br><span class="line">  var queue = &#123;</span><br><span class="line">    expirationTime: NoWork,</span><br><span class="line">    baseState: baseState,</span><br><span class="line">    firstUpdate: null,</span><br><span class="line">    lastUpdate: null,</span><br><span class="line">    firstCapturedUpdate: null,</span><br><span class="line">    lastCapturedUpdate: null,</span><br><span class="line">    firstEffect: null,</span><br><span class="line">    lastEffect: null,</span><br><span class="line">    firstCapturedEffect: null,</span><br><span class="line">    lastCapturedEffect: null</span><br><span class="line">  &#125;;</span><br><span class="line">  return queue;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">function appendUpdateToQueue(queue, update, expirationTime) &#123;</span><br><span class="line">  // Append the update to the end of the list.</span><br><span class="line">  if (queue.lastUpdate === null) &#123;</span><br><span class="line">    // Queue is empty</span><br><span class="line">    queue.firstUpdate = queue.lastUpdate = update;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    queue.lastUpdate.next = update;</span><br><span class="line">    queue.lastUpdate = update;</span><br><span class="line">  &#125;</span><br><span class="line">  if (queue.expirationTime === NoWork || queue.expirationTime &gt; expirationTime) &#123;</span><br><span class="line">    // The incoming update has the earliest expiration of any update in the</span><br><span class="line">    // queue. Update the queue&apos;s expiration time.</span><br><span class="line">    queue.expirationTime = expirationTime;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="看个demo"><a href="#看个demo" class="headerlink" title="看个demo"></a>看个demo</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">class App extends React.Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val);</span><br><span class="line"></span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val)</span><br><span class="line">    &#125;, 0)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return &lt;div&gt;&#123;this.state.val&#125;&lt;/div&gt;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结合上面分析的，钩子函数中的 <code>setState</code> 无法立马拿到更新后的值，所以前两次都是输出0，当执行到 <code>setTimeout</code> 里的时候，前面两个state的值已经被更新，由于 <code>setState</code> 批量更新的策略， <code>this.state.val</code> 只对最后一次的生效，为1，而在 <code>setTimmout</code> 中 <code>setState</code> 是可以同步拿到更新结果，所以 <code>setTimeout</code> 中的两次输出2，3，最终结果就为 <code>0, 0, 2, 3</code> 。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结 :"></a>总结 :</h3><ol>
+<li><strong><code>setState</code> 只在合成事件和钩子函数中是“异步”的，在原生事件和 <code>setTimeout</code> 中都是同步的。</strong></li>
+<li><strong><code>setState</code>的“异步”并不是说内部由异步代码实现，其实本身执行的过程和代码都是同步的，只是合成事件和钩子函数的调用顺序在更新之前，导致在合成事件和钩子函数中没法立马拿到更新后的值，形式了所谓的“异步”，当然可以通过第二个参数 setState(partialState, callback) 中的callback拿到更新后的结果。</strong></li>
+<li><strong><code>setState</code> 的批量更新优化也是建立在“异步”（合成事件、钩子函数）之上的，在原生事件和setTimeout 中不会批量更新，在“异步”中如果对同一个值进行多次 <code>setState</code> ， <code>setState</code> 的批量更新策略会对其进行覆盖，取最后一次的执行，如果是同时 <code>setState</code> 多个不同的值，在更新时会对其进行合并批量更新。</strong></li>
+</ol>
+<p>以上就是我看了部分代码后的粗浅理解，对源码细节的那块分析的较少，主要是想让大家理解<code>setState</code>在不同的场景，不同的写法下到底发生了什么样的一个过程和结果，希望对大家有帮助，由于是个人的理解和见解，如果哪里有说的不对的地方，欢迎大家一起指出并讨论。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/11/Git-必知必会/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3772,443 +3929,6 @@ es();
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/03/你不知道的-Promise-对象黑科技/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/05/03/你不知道的-Promise-对象黑科技/" itemprop="url">你不知道的 Promise 对象黑科技</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-03T11:10:58+08:00">
-                2017-05-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="Promise-必知必会（十道题）"><a href="#Promise-必知必会（十道题）" class="headerlink" title="Promise 必知必会（十道题）"></a><a href="https://libin1991.github.io/2018/09/25/Promise-%E5%BF%85%E7%9F%A5%E5%BF%85%E4%BC%9A/" target="_blank" rel="noopener">Promise 必知必会（十道题）</a></h2><h2 id="一、resolve-后的执行情况"><a href="#一、resolve-后的执行情况" class="headerlink" title="一、resolve 后的执行情况"></a>一、resolve 后的执行情况</h2><p>无论是 resolve, reject，都会将函数剩余的代码执行完</p>
-<pre><code>const promise = new Promise((resolve, reject) =&gt; {
-    console.log(&apos;mark 1&apos;);
-    resolve(&apos;hello world&apos;);     // reject(&apos;hello world&apos;);
-    console.log(&apos;mark 2&apos;);
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(err =&gt; {
-    console.log(err);
-});
-</code></pre><p>相当于：</p>
-<pre><code>const promise = new Promise((resolve, reject) =&gt; {
-    console.log(&apos;mark 1&apos;);
-    console.log(&apos;mark 2&apos;);
-    resolve(&apos;hello world&apos;);     // reject(&apos;hello world&apos;);
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(err =&gt; {
-    console.log(err);
-});
-</code></pre><p>如果你不想在 resolve 或 reject 后执行剩下的代码段，可以在 resolve 后将其返回<br><img src="https://pic4.zhimg.com/v2-f5b865c8a9df8ce752d057fe177c855e_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-f5b865c8a9df8ce752d057fe177c855e_hd.jpg" alt=""></p>
-<pre><code>const promise = new Promise((resolve, reject) =&gt; {
-    console.log(&apos;mark 1&apos;);
-    return resolve(&apos;hello world&apos;);     // reject(&apos;hello world&apos;);
-    console.log(&apos;mark 2&apos;);             // never be here
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(err =&gt; {
-    console.log(err);
-});
-</code></pre><h2 id="二、串行执行和并行执行："><a href="#二、串行执行和并行执行：" class="headerlink" title="二、串行执行和并行执行："></a>二、串行执行和并行执行：</h2><ol>
-<li>串行执行：有一堆 Promise 对象，它们的执行顺序是固定的，前一个 promise 执行完后，后一个 promise 才开始执行，比如数据库查询，它们往往有前后的因果关系。</li>
-<li>并行执行：有一堆 Promise 对象，它们的执行顺序是不固定的，没有前后因果关系，可以并发地去执行。</li>
-</ol>
-<p>并行执行很好解决，在 Promise中有 all 这个函数支持, Promise.all 方法用于将多个 Promise 实例，包装成一个新的 Promise 实例。当多个 Promise 实例执行完后才去执行最后新的 Promise 实例。</p>
-<pre><code>const datum = [];
-for(let i = 0; i &lt; 10; i++) {
-    datum.push(i);
-}
-
-Promise.all(datum.map(i =&gt; {
-    return new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        console.log(i * 200 + &quot; ms 后执行结束&quot;);
-        resolve(&quot;第 &quot; + (i + 1) + &quot; 个 Promise 执行结束&quot;);
-    }, i * 200);
-    })
-})).then((data) =&gt; {
-    console.log(data);
-});
-</code></pre><p>如果不使用 Promise.all 这个方法的话，你也可以使用像 ES7 的 async/await</p>
-<pre><code>const asyncFun = async () =&gt; {
-    const datum = []
-    for(let i = 0; i &lt; 10; i++) {
-        datum.push(new Promise((resolve, reject) =&gt; {
-            setTimeout(() =&gt; {
-                console.log(i * 200 + &apos;ms 后执行结束&apos;)
-                resolve(&apos;第 &apos; + (i + 1) + &apos; 个 Promise 执行结束&apos;)
-            }, i * 200)
-        }))
-    }
-    const result = []
-    for(let promise of datum) {
-        result.push(await promise)
-    }
-    console.log(result)
-}
-asyncFun()
-</code></pre><p>串行执行：这里提供两种方式</p>
-<pre><code>const datum = [];
-for(let i = 0; i &lt; 10; i++) {
-    datum.push(i);
-}
-
-let serial = Promise.resolve();
-
-for(let i of datum) {
-    serial = serial.then(data =&gt; {
-        console.log(data);
-    return new Promise((resolve, reject) =&gt; {
-        setTimeout(() =&gt; {
-        console.log(i * 200 + &quot; ms 后执行结束&quot;);
-        resolve(&quot;第 &quot; + (i + 1) + &quot; 个 Promise 执行结束&quot;);
-        }, i * 200);
-    })    
-    });
-}
-</code></pre><p>另外可以使用 reduce 来串行：</p>
-<pre><code>const datum = [];
-for(let i = 0; i &lt; 10; i++) {
-    datum.push(i);
-}
-
-datum.reduce((prev, cur) =&gt; {
-    return prev.then(data =&gt; {
-    console.log(data);
-    return new Promise((resolve, reject) =&gt; {
-        setTimeout(() =&gt; {
-        console.log(cur * 200 + &quot; ms 后执行结束&quot;);
-        resolve(&quot;第 &quot; + (cur + 1) + &quot; 个 Promise 执行结束&quot;);
-        }, cur * 200);
-    })    
-    })
-}, Promise.resolve(true));
-</code></pre><h2 id="三、值穿透问题："><a href="#三、值穿透问题：" class="headerlink" title="三、值穿透问题："></a>三、值穿透问题：</h2><pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve(&apos;Hello World!&apos;);
-    }, 1000)
-});
-
-promise.then(&apos;呵呵哒&apos;).then((data) =&gt; {
-    console.log(data);           // Hello World
-})
-</code></pre><p>这是一种值穿透的情况，一般有下面两种情况：<br>promise 已经是 FULFILLED/REJECTED 时，通过 return this 实现的值穿透：<br><img src="https://pic3.zhimg.com/v2-99374235673349f56d708c28511c27d2_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-99374235673349f56d708c28511c27d2_hd.jpg" alt=""></p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve(&apos;Hello World!&apos;);
-    }, 1000)
-});
-
-promise.then(() =&gt; {
-    promise.then().then(null).then(&apos;呵呵哒&apos;).then((res) =&gt; {
-        console.log(res)
-    })
-    promise.catch().catch(null).then(&apos;呵呵哒&apos;).then((res) =&gt; {
-        console.log(res) 
-    })
-})
-</code></pre><p>promise 是 PENDING 时，通过生成新的 promise 加入到父 promise 的 queue，父 promise 有值时调用 callFulfilled-&gt;doResolve 或 callRejected-&gt;doReject（因为 then/catch 传入的参数不是函数）设置子 promise 的状态和值为父 promise 的状态和值。如：<br><img src="https://pic2.zhimg.com/v2-7d3d3728e3b1f90d905d4f4782c1f97a_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7d3d3728e3b1f90d905d4f4782c1f97a_hd.jpg" alt=""></p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        resolve(&apos;Hello World!&apos;);
-    }, 1000)
-});
-
-let a = promise.then(&apos;呵呵哒&apos;);
-a.then(res =&gt; {
-    console.log(res);
-});
-
-let b = promise.catch(&apos;呵呵哒&apos;);
-b.then(res =&gt; {
-    console.log(res);
-})
-</code></pre><p>总而言之，当你给 then() 传递一个非函数（比如一个 promise ）值的时候，它实际上会解释为 then(null) ，这会导致之前的 promise 的结果丢失。例如:<br><img src="https://pic1.zhimg.com/v2-14fe675c00c5bc8154d161e3afed0f41_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-14fe675c00c5bc8154d161e3afed0f41_hd.jpg" alt=""></p>
-<pre><code>Promise.resolve(&apos;First Value&apos;).then(Promise.resolve(&apos;Second Value&apos;)).then(null).then((value) =&gt; {
-    console.log(value)    // First Value
-})
-</code></pre><h2 id="四、不要在异步回调函数中使用-throw-Error"><a href="#四、不要在异步回调函数中使用-throw-Error" class="headerlink" title="四、不要在异步回调函数中使用 throw Error"></a>四、不要在异步回调函数中使用 throw Error</h2><p>不仅 reject，抛出的异常也会被作为拒绝状态被 Promise 捕获</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    reject(&apos;This is an error&apos;);
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(error =&gt; {
-    console.log(&apos;handle error: &apos;, error);  //handle error:  Error: This is an error
-})
-</code></pre><p>但是，永远不要在回调队列中抛出异常，因为回调队列脱离了运行上下文环境，异常无法被当前作用域捕获。</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        throw Error(&apos;This is an error&apos;);
-    });
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(error =&gt; {
-    console.log(&apos;handle error: &apos;, error);  // Error: This is an error
-});
-</code></pre><p>简单说来，回调队列指的是 JS 事件循环中的 macrotask 队列，比如 setTimeout setInterval 会插入到 macrotask 中。如果要在回调函数中捕获异常，请使用 reject，永远不要使用 Error。<br>上述的代码应改成：</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    setTimeout(() =&gt; {
-        reject(&apos;This is an error&apos;);
-    });
-});
-
-promise.then(result =&gt; {
-    console.log(result);
-}).catch(error =&gt; {
-    console.log(&apos;handle error: &apos;, error);  // Error: This is an error
-});
-</code></pre><h2 id="五、then-的第二个参数跟-catch-的区别-【面试常问】"><a href="#五、then-的第二个参数跟-catch-的区别-【面试常问】" class="headerlink" title="五、then 的第二个参数跟 catch 的区别 【面试常问】"></a>五、then 的第二个参数跟 catch 的区别 【面试常问】</h2><p>我们都知道 then 的第二参数跟 catch 用法很像，都是用来进行错误处理的，比如下面这段代码：</p>
-<pre><code>let promise1 = new Promise((resolve, reject) =&gt; {
-    reject(&apos;this is an error&apos;);
-});
-
-promise1.then(data =&gt; {
-    console.log(data);
-}, err =&gt; {
-    console.log(&apos;handle err:&apos;, err);    // handle err: this is an error
-});
-
-let promise2 = new Promise((resolve, reject) =&gt; {
-    reject(&apos;this is an error&apos;);
-});
-promise2.then(data =&gt; {
-    console.log(data);
-}).catch(err =&gt; {
-    console.log(&apos;handle err:&apos;, err);    // handle err: this is an error
-});
-</code></pre><p>当时这两者还是区别的，区别于 then 的第二参数无法处理第一参数函数中的错误。</p>
-<pre><code>let promise1 = Promise.resolve();
-promise1.then(() =&gt; {
-    throw Error(&apos;this is a error&apos;);   //UnhandledPromiseRejectionWarning: Unhandled promise rejection
-}, err =&gt; {
-    console.log(err);
-})
-
-let promise2 = Promise.resolve();
-
-promise2.then(() =&gt; {
-    throw Error(&apos;this is a error&apos;);  
-}).catch(err =&gt; {
-    console.log(&apos;handle err:&apos;, err);    //handle err: Error: this is a error
-})
-</code></pre><blockquote>
-<p>当你使用then( resolveHandler, rejectHandler)格式，如果 resolveHandler 自己抛出一个错误 rejectHandler 并不能捕获。第一个 Promise 对象无法处理同级 then 中的函数抛出的异常，所以在一般情况下，最后直接使用 catch 来进行异常捕获比较保险。</p>
-</blockquote>
-<h2 id="六、处理最后-catch-函数中的异常"><a href="#六、处理最后-catch-函数中的异常" class="headerlink" title="六、处理最后 catch 函数中的异常"></a>六、处理最后 catch 函数中的异常</h2><p>一般我们用 catch 来捕捉前面抛出的异常，但是如果试想一下如果最后一个 catch 函数也抛出了异常，应该怎么处理呢?</p>
-<pre><code>let promise = new Promise((resolve, reject) =&gt; {
-    reject(&apos;Hello World&apos;)
-});
-
-promise.catch((err) =&gt; {
-    throw(&apos;Unexpected Error&apos;);   // Uncaught (in promise) Unexpected Error
-})
-</code></pre><p>面对这样的错误，不管以 then 方法或 catch 方法结尾，要是最后一个方法抛出错误，都有可能无法捕捉到（因为 Promise 内部的错误不会冒泡到全局）这里提供两种思路：</p>
-<ul>
-<li><p>拓展 Promise.prototype 的方法，添加一个 done 函数，将错误抛向全局。</p>
-<p>  window.onerror = (err) =&gt; {</p>
-<pre><code>console.log(err);
-</code></pre><p>  }<br>  Promise.prototype.done = function (onFulfilled, onRejected) {</p>
-<pre><code>this.then(onFulfilled, onRejected)
-  .catch(function (reason) {
-    // 抛出一个全局错误
-    setTimeout(() =&gt; { throw reason }, 0);
-  });
-</code></pre><p>  };<br>  let promise = new Promise((resolve, reject) =&gt; {</p>
-<pre><code>reject(&apos;Hello World&apos;)
-</code></pre><p>  });</p>
-<p>  promise.catch((err) =&gt; {</p>
-<pre><code>throw(&apos;Unexpected Error&apos;);     // Uncaught Unexpected Error
-</code></pre><p>  }).done()</p>
-</li>
-</ul>
-<ul>
-<li>在全局添加 unhandledrejection 事件捕获 Promise 异常。</li>
-</ul>
-<p><img src="https://pic3.zhimg.com/v2-b512c7648df6d0d6fefb64d01009c175_b.jpg" alt=""></p>
-<pre><code>window.addEventListener(&quot;unhandledrejection&quot;, (e) =&gt;{
-    console.log(e.reason)
-})    
-
-let promise = new Promise((resolve, reject) =&gt; {
-    reject(&apos;Hello World&apos;)
-});
-
-promise.catch((err) =&gt; {
-    throw(&apos;Unexpected Error&apos;);     // Unexpected Error
-})
-</code></pre><h2 id="七、未捕获的错误可以被恢复"><a href="#七、未捕获的错误可以被恢复" class="headerlink" title="七、未捕获的错误可以被恢复"></a>七、未捕获的错误可以被恢复</h2><pre><code>let promise = new Promise((resolve, reject) =&gt; [
-    reject(&apos;Hello world&apos;)
-]).then(() =&gt; {
-    console.log(&apos;resolve&apos;)
-})
-
-setTimeout(() =&gt; {
-    promise.catch((e) =&gt; {
-        console.log(e)
-    }).then(() =&gt; {
-        console.log(&apos;catch resolve&apos;)
-    })
-}, 1000)
-</code></pre><h2 id="八、resolved-状态的-Promise-不会立即执行"><a href="#八、resolved-状态的-Promise-不会立即执行" class="headerlink" title="八、resolved 状态的 Promise 不会立即执行"></a>八、resolved 状态的 Promise 不会立即执行</h2><pre><code>let i = 0;
-Promise.resolve(&apos;resolved promise&apos;).then(() =&gt; {
-    i += 2
-})
-console.log(i)  // 0
-</code></pre><p>即使是 resolve 的 Promise 调用 then 方法也是异步执行。</p>
-<h2 id="九、结合-async-await-编写同步代码"><a href="#九、结合-async-await-编写同步代码" class="headerlink" title="九、结合 async/await 编写同步代码"></a>九、结合 async/await 编写同步代码</h2><ol>
-<li>async/await 函数可以帮助我们彻底摆脱回调地狱的烦恼，用一种同步的方式来编写异步函数。</li>
-<li>await 后面可以接数值，如果是异步请求的话可以接 Thunk 函数和 Promise 对象。</li>
-</ol>
-<p><img src="https://pic4.zhimg.com/v2-3ca5e16c6ba1743725cc92a7a8e5a7e2_b.jpg" alt=""></p>
-<pre><code>const timeout = (ms) =&gt; {
-    return new Promise((resolve) =&gt; {
-        setTimeout(() =&gt; {
-            resolve(ms + &apos; passed&apos;)
-        }, ms)
-    })
-}
-
-const asyncFunc =  async () =&gt; {
-    const value1 = await timeout(2000)
-    console.log(value1)
-    const value2 = await timeout(2000)
-    console.log(value2)
-}
-
-asyncFunc()
-console.log(&apos;now&apos;)
-</code></pre><h2 id="十、调用-then-方法返回新的-Promise-对象"><a href="#十、调用-then-方法返回新的-Promise-对象" class="headerlink" title="十、调用 then 方法返回新的 Promise 对象"></a>十、调用 then 方法返回新的 Promise 对象</h2><pre><code>let promise1 = new Promise((resolve) =&gt; {
-    resolve(&apos;Hello world&apos;)
-})
-
-let promise2 = promise1.then()
-
-console.log(promise1 === promise2)    // false
-console.log(promise1 instanceof Promise)  // true
-console.log(promise2 instanceof Promise)  // true
-</code></pre><p>每次调用 then 方法后都会返回一个新的 Promise 对象，并不是返回原本的 Promise 对象。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4261,7 +3981,7 @@ console.log(promise2 instanceof Promise)  // true
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">127</span>
+                  <span class="site-state-item-count">128</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

@@ -298,6 +298,341 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/02/03/我也来实现一把MVVM/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/02/03/我也来实现一把MVVM/" itemprop="url">我也来实现一把MVVM</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-02-03T00:20:32+08:00">
+                2018-02-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>大家都知道，vue是个MVVM框架，能够实现view和model的双向绑定，不像backbone那样，model改变需要手动去通知view更新，而vue实现的原理就是通过Object.defineProperty实现数据挟持，定义setter，然后数据改变的时候通知视图更新。</p>
+<p>下面是网上vue的实现原理图：</p>
+<p> <img src="https://user-gold-cdn.xitu.io/2018/4/10/162ad3d5be3e5105?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="image"></p>
+<h3 id="实现效果"><a href="#实现效果" class="headerlink" title="实现效果"></a>实现效果</h3><p><img src="https://user-gold-cdn.xitu.io/2018/8/15/1653b294cd1b80e3?imageslim" alt=""></p>
+<h4 id="1、MVVM"><a href="#1、MVVM" class="headerlink" title="1、MVVM"></a>1、MVVM</h4><p>入口文件，在这里对vue当中的$el、methods、$data进行初始化，调用observer遍历$data的数据并进行挟持，调用compile遍历$el下的所有节点，解析指令和取值操作。遍历$data的数据，通过Object.defineProperty的getter和setter实现对$data的代理。</p>
+<h4 id="2、Observer"><a href="#2、Observer" class="headerlink" title="2、Observer"></a>2、Observer</h4><p>遍历data，通过Object.defineProperty设置getter和setter，在setter知道数据发生了改变，然后通知Wacher去更新view。</p>
+<h4 id="3、Compile"><a href="#3、Compile" class="headerlink" title="3、Compile"></a>3、Compile</h4><p>遍历$el下的所有节点，解析指令和取值操作等，为每个节点绑定更新函数（为什么在compile这里绑定呢？因为这里刚好是遍历的节点☺），绑定事件和method的关系，同时也添加订阅者，当接受到视图更新的订阅消息后，调用更新函数，实现视图更新。同时在添加订阅者的时候，初始化渲染视图。</p>
+<h4 id="4、Watcher"><a href="#4、Watcher" class="headerlink" title="4、Watcher"></a>4、Watcher</h4><p>Watcher作为订阅者，充当Observer和Compile的中间桥梁，包含update方法，update方法调用Compile中绑定的事件更新函数，实现对视图的初始化和更新操作。</p>
+<h3 id="MVVM的实现"><a href="#MVVM的实现" class="headerlink" title="MVVM的实现"></a>MVVM的实现</h3><p>MVVM完成初始化操作，并且调用observer和compile。对$data进行代理，如此便可以通过this.attribute来代理this.$data.attribute。因为一个属性可能对应多个指令，所以需要一个_binding属性来存放属性对应的所有订阅者，这样属性一改变，就可以取出所有的订阅者去更新视图。</p>
+<pre><code>function MVVM(options) {
+  // 初始化
+  this.$data = options.data;
+  this.$methods = options.methods;
+  this.$el = options.el;
+  // 保存data的每个属性对应的所有watcher
+  this._binding  = {};
+  // 调用observer和compile
+  this._observer(options.data);
+  this._compile();
+  // this.xxx 代理this.$data.xxx
+  this.proxyAttribute();
+}
+</code></pre><h3 id="Observer的实现"><a href="#Observer的实现" class="headerlink" title="Observer的实现"></a>Observer的实现</h3><p>Observer遍历$data，通过Object.defineProperty的setter的挟持数据改变，监听到数据改变后取出所有该属性对应的订阅者，然后通知更新函数更新视图。</p>
+<p>注意：这里有循环，且闭包（getter和setter）里面需要依赖循环项（value和key），所以用立即执行函数解决循环项获取不对的问题。</p>
+<pre><code>MVVM.prototype._observer = function(data) {
+  var self = this;
+  for(var key in this.$data) {
+    if (this.$data.hasOwnProperty(key)) {
+      // 初始化属性对应的订阅者容器（数组）
+      this._binding[key] = {
+        _directives: [],
+        _texts: []
+      };
+
+      if(typeof this.$data[key] === &quot;object&quot;) {
+        return this._observer(this.$data[key]);
+      }
+      var val = data[key];
+      // 立即执行函数获取正确的循环项
+      (function(value, key) {
+        Object.defineProperty(self.$data, key, {
+          enumerable: true,
+          configurable: true,
+          get: function() {
+            return value;
+          },
+          set(newval) {
+            if(newval === value) {
+              return;
+            }
+            value = newval;
+            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-属性
+            if(self._binding[key]._directives) {
+              self._binding[key]._directives.forEach(function(watcher) {
+                watcher.update();
+              }, self);
+            }
+            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-文本
+            if(self._binding[key]._texts) {
+              self._binding[key]._texts.forEach(function(watcher) {
+                watcher.update();
+              }, self);
+            }
+          }
+        });
+      })(val, key);
+    }
+  }
+}
+</code></pre><h3 id="Compile的实现"><a href="#Compile的实现" class="headerlink" title="Compile的实现"></a>Compile的实现</h3><p>Compile遍历所有的节点，解析指令，为每个节点绑定更新函数，且添加订阅者，当订阅者通知view更新的时候，调用更新函数，实现对视图的更新。</p>
+<p>这里同样需要使用立即执行函数来解决闭包依赖的循环项问题。</p>
+<p>还有一点需要解决的是，如果节点的innerText依赖多个属性的话，如何做到只替换改变属性对应的文本问题。</p>
+<p>比如：已经被编译解析成“欢迎： 鸣人”，如果message改变为“你好”，怎么让使得“欢迎：鸣人”改为“你好：鸣人”。</p>
+<pre><code>MVVM.prototype._compile = function() {
+  var dom = document.querySelector(this.$el);
+  var children = dom.children;
+  var self = this;
+  var i = 0, j = 0;
+  // 更新函数，但observer中model的数据改变的时候，通过Watcher的update调用更新函数，从而更新dom
+  var updater = null;
+  for(; i &lt; children.length; i++) {
+    var node = children[i];
+    (function(node) {
+      // 解析{{}}里面的内容
+      // 保存指令原始内容，不然数据更新时无法完成替换
+      var text = node.innerText;
+      var matches = text.match(/{{([^{}]+)}}/g);
+      if(matches &amp;&amp; matches.length &gt; 0) {
+        // 保存和node绑定的所有属性
+        node.bindingAttributes = [];
+        for(j = 0; j &lt; matches.length; j++) {
+          // data某个属性
+          var attr = matches[j].match(/{{([^{}]+)}}/)[1];
+          // 将和该node绑定的data属性保存起来
+          node.bindingAttributes.push(attr);
+          (function(attr) {
+            updater = function() {
+              // 改变的属性值对应的文本进行替换
+              var innerText = text.replace(new RegExp(&quot;{{" + attr + "}}&quot;, &quot;g&quot;), self.$data[attr]);
+              // 如果该node绑定多个属性 eg:&lt;div&gt;{{title}}{{description}}&lt;/div&gt;
+              for(var k = 0; k &lt; node.bindingAttributes.length; k++) {
+                if(node.bindingAttributes[k] !== attr) {
+                  // 恢复原来没改变的属性对应的文本
+                  innerText = innerText.replace(&quot;{{" + node.bindingAttributes[k] + "}}&quot;, self.$data[node.bindingAttributes[k]]);
+                }
+              }
+              node.innerText = innerText;
+            }
+            self._binding[attr]._texts.push(new Watcher(self, attr, updater));
+          })(attr);
+        }
+      }
+
+      // 解析vue指令
+      var attributes = node.getAttributeNames();
+      for(j = 0; j &lt; attributes.length; j++) {
+        // vue指令
+        var attribute = attributes[j];
+        // DOM attribute
+        var domAttr = null;
+        // 绑定的data属性
+        var vmDataAttr = node.getAttribute(attribute);
+
+        if(/v-bind:([^=]+)/.test(attribute)) {
+          // 解析v-bind
+          domAttr = RegExp.$1;
+          // 更新函数
+          updater = function(val) {
+            node[domAttr] = val;
+          }
+          // data属性绑定多个watcher
+          self._binding[vmDataAttr]._directives.push(
+            new Watcher(self, vmDataAttr, updater)
+          )
+        } elseif(attribute === &quot;v-model&quot; &amp;&amp; (node.tagName = &apos;INPUT&apos; || node.tagName == &apos;TEXTAREA&apos;)) {
+          // 解析v-model
+          // 更新函数
+          updater = function(val) {
+            node.value = val;
+          }
+          // data属性绑定多个watcher
+          self._binding[vmDataAttr]._directives.push(
+            new Watcher(self, vmDataAttr, updater)
+          )
+          // 监听input/textarea的数据变化，同步到model去，实现双向绑定
+          node.addEventListener(&quot;input&quot;, function(evt) {
+            var $el = evt.currentTarget;
+            self.$data[vmDataAttr] = $el.value;
+          });
+        } elseif(/v-on:([^=]+)/.test(attribute)) {
+          // 解析v-on
+          var event = RegExp.$1;
+          var method = vmDataAttr;
+          node.addEventListener(event, function(evt) {
+            self.$methods[method] &amp;&amp; self.$methods[method].call(self, evt);
+          });
+        }
+      }
+    })(node);
+  }
+
+}
+</code></pre><h3 id="Watcher的实现"><a href="#Watcher的实现" class="headerlink" title="Watcher的实现"></a>Watcher的实现</h3><p>Watcher充当订阅者的角色，架起了Observer和Compile的桥梁，Observer监听到数据变化后，通知Wathcer更新视图(调用Wathcer的update方法)，Watcher再告诉Compile去调用更新函数，实现dom的更新。同时页面的初始化渲染也交给了Watcher（当然也可以放到Compile进行）。</p>
+<pre><code>function Watcher(vm, attr, cb) {
+  this.vm = vm; // viewmodel
+  this.attr = attr; // data的属性，一个watcher订阅一个data属性
+  this.cb = cb; // 更新函数，在compile那边定义
+  // 初始化渲染视图
+  this.update();
+}
+
+Watcher.prototype.update = function() {
+  // 通知comile中的更新函数更新dom 
+  this.cb(this.vm.$data[this.attr]);
+}
+</code></pre><h3 id="全部代码"><a href="#全部代码" class="headerlink" title="全部代码"></a>全部代码</h3><p>git地址：<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FVikiLee%2FMVVM.git" target="_blank" rel="noopener">github.com/VikiLee/MVV…</a></p>
+<p>鸣谢：<a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F5acc17cb51882555745a03f8" target="_blank" rel="noopener">juejin.im/post/5acc17…</a></p>
+<h3 id="使用例子"><a href="#使用例子" class="headerlink" title="使用例子"></a>使用例子</h3><pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;
+  &lt;title&gt;Document&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id=&quot;view&quot;&gt;
+    &lt;div v-bind:id=&quot;id&quot;&gt;
+      {{message}}:{{name}}
+    &lt;/div&gt;
+    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;
+    &lt;button v-on:click=&quot;handleClick&quot;&gt;获取输入值&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;script src=&quot;js/MVVM.js&quot;type=&quot;text/javascript&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+  var vue = new MVVM({
+    el: &quot;#view&quot;,
+    data: {
+      message: &quot;欢迎光临&quot;,
+      name: &quot;鸣人&quot;,
+      id: &quot;id&quot;
+    },
+    methods: {
+      handleClick: function() {
+        alert(this.message + &quot;:&quot; + this.name + &quot;, 点击确定路飞会出来&quot;);
+        this.name = &apos;路飞&apos;;
+      }
+    }
+  })
+
+  setTimeout(function() {
+    vue.message = &quot;你好&quot;;
+  }, 1000);
+&lt;/script&gt;
+&lt;/html&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/23/Web-安全攻防总结/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3200,372 +3535,6 @@ while ( iterator.hasNext() ) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/20/Promise的模拟实现/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/12/20/Promise的模拟实现/" itemprop="url">promise的模拟实现</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-12-20T13:11:36+08:00">
-                2017-12-20
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1.概述"></a>1.概述</h1><h2 id="1-1-什么是promise"><a href="#1-1-什么是promise" class="headerlink" title="1.1 什么是promise"></a>1.1 什么是promise</h2><p><code>Promise</code> 对象是 <code>JavaScript</code> 的异步操作解决方案，为异步操作提供统一接口。它起到代理作用（proxy），充当异步操作与回调函数之间的中介，使得异步操作具备同步操作的接口。</p>
-<h2 id="1-2-promise解决的问题"><a href="#1-2-promise解决的问题" class="headerlink" title="1.2 promise解决的问题"></a>1.2 promise解决的问题</h2><h3 id="1-2-1-回调地狱"><a href="#1-2-1-回调地狱" class="headerlink" title="1.2.1 回调地狱"></a>1.2.1 回调地狱</h3><p><code>Promise</code> 可以让异步操作写起来，就像在写同步操作的流程，而不必一层层地嵌套回调函数。</p>
-<h3 id="1-2-2-并行结果"><a href="#1-2-2-并行结果" class="headerlink" title="1.2.2 并行结果"></a>1.2.2 并行结果</h3><p>如果几个异步操作之间并没有前后顺序之分,但需要等多个异步操作都完成后才能执行后续的任务，无法实现并行节约时间。</p>
-<h2 id="1-3-promise简介"><a href="#1-3-promise简介" class="headerlink" title="1.3 promise简介"></a>1.3 promise简介</h2><p>在 <code>ES6 Promises</code> 标准中定义的API还不是很多，目前大致有下面三种类型。</p>
-<h3 id="1-3-1-consturctor"><a href="#1-3-1-consturctor" class="headerlink" title="1.3.1 consturctor"></a>1.3.1 <strong>consturctor</strong></h3><p>首先，<code>Promise</code> 是一个对象，也是一个构造函数。</p>
-<pre><code>functionf1(resolve, reject) {
-  // 异步代码...
-}
-
-var promise = newPromise(f1);
-</code></pre><h3 id="1-3-2-Instance-Method"><a href="#1-3-2-Instance-Method" class="headerlink" title="1.3.2 Instance Method"></a>1.3.2 Instance Method</h3><p><code>Promise</code>对象通过自身的状态，来控制异步操作。Promise实例具有三种状态。</p>
-<ul>
-<li>异步操作未完成（pending）</li>
-<li>异步操作成功（fulfilled）</li>
-<li>异步操作失败（rejected）</li>
-</ul>
-<p>这三种的状态的变化途径只有两种。</p>
-<ul>
-<li>从“未完成”到“成功”</li>
-<li>从“未完成”到“失败”</li>
-</ul>
-<p>所以<code>Promise</code>的最终结果只有两个,</p>
-<ul>
-<li>异步操作成功，Promise实例传回一个值（value）,状态变为<code>fulfilled</code>。</li>
-<li><p>异步操作失败，Promise 实例抛出一个错误（error）,状态变为<code>rejected</code>。</p>
-<p>  promise.then(onFulfilled, onRejected)<br>  // resolve(成功)时,onFulfilled 会被调用// reject(失败)时,onRejected 会被调用</p>
-</li>
-</ul>
-<p><img src="https://user-gold-cdn.xitu.io/2018/3/5/161f55d1eecd52cb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
-<h3 id="1-3-3-Static-Method"><a href="#1-3-3-Static-Method" class="headerlink" title="1.3.3 Static Method"></a>1.3.3 Static Method</h3><p>像 <code>Promise</code>这样的全局对象还拥有一些静态方法。包括 <code>Promise.all()</code>还有<code>Promise.resolve()</code> 等在内，主要都是一些对<code>Promise</code>进行操作的辅助方法。</p>
-<h1 id="2-Promise的实现"><a href="#2-Promise的实现" class="headerlink" title="2.Promise的实现"></a>2.<code>Promise</code>的实现</h1><h2 id="2-1-resolve和reject"><a href="#2-1-resolve和reject" class="headerlink" title="2.1 resolve和reject"></a>2.1 resolve和reject</h2><p><code>resolve</code>和<code>reject</code>都是函数</p>
-<pre><code>//构造函数中functionPromise(executor) {
-    let self = this;
-
-    /*初始化status*/
-    self.status = &apos;pending&apos;;
-    /*初始化value*/
-    self.value = undefined;
-    /*订阅事件的数组*/
-    self.onResolvedCallBacks = [];
-    self.onRejectedCallBacks = [];
-
-    /*此函数将Promise实例的状态由pending 转化为 fulfilled*/functionresolve(value) {
-        if (value instanceofPromise) {
-            return value.then(resolve, reject);
-        }
-        setTimeout(function () {
-            if (self.status === &apos;pending&apos;) {
-                self.status = &apos;fulfilled&apos;;
-                self.value = value;
-                /*发布已经订阅过的事件*/
-                self.onResolvedCallBacks.forEach(item =&gt; item(self.value))
-            }
-        }, 0)
-    }
-    /*此函数将Promise实例的状态由pending 转化为 rejected*/functionreject(reason) {
-        setTimeout(function () {
-            if (self.status === &apos;pending&apos;) {
-                self.status = &apos;rejected&apos;;
-                self.value = reason;
-                /*发布已经订阅过的事件*/
-                self.onRejectedCallBacks.forEach(item =&gt; item(self.value))
-            }
-        }, 0)
-    }
-
-    // new Promise 的时候，执行器（executor）的代码会立即执行try {
-        executor(resolve, reject);
-    } catch (e) {
-        reject(e);
-    }
-
-}
-</code></pre><h2 id="2-2-then方法"><a href="#2-2-then方法" class="headerlink" title="2.2 then方法"></a>2.2 then方法</h2><p><code>promise</code>成功后，<code>onFullfilled</code>会被调用。并且把<code>promise</code>的值当做它的第一个参数。<code>promise</code>在成功之前，不会调用它，并且只能被调用一次。<code>reject</code>也一样。</p>
-<pre><code>// 先封装一个方法
-function resolvePromise(promise2,x,resolve,reject){
-//
-  if(promise2 === x){
-    return reject(new TypeError(&apos;循环引用&apos;));
-  }
-  // 为了防止resolve和reject同时调用
-  let called = false;//promise2是否已经resolve 或reject了
-  if(x instanceof Promise){
-    if(x.status == PENDING){
-      x.then(function(y){
-        resolvePromise(promise2,y,resolve,reject);
-      },reject);
-    }else{
-      x.then(resolve,reject);
-    }
-    //x是一个thenable对象或函数，只要有then方法的对象，
-  }elseif(x!= null &amp;&amp;((typeof x==&apos;object&apos;)||(typeof x == &apos;function&apos;))){
-    //当我们的promise和别的promise进行交互，编写这段代码的时候尽量的考虑兼容性，
-    //允许别人瞎写，x可以是对象，也可以是函数
-    try{
-      letthen = x.then;
-      if(typeof then == &apos;function&apos;){
-        //有些promise会同时执行成功和失败的回调
-        then.call(x,function(y){
-          //如果promise2已经成功或失败了，则不会再处理了
-          if(called)return;
-          called = true;
-          resolvePromise(promise2,y,resolve,reject)
-        },function(err){
-          if(called)return;
-          called = true;
-          reject(err);
-        });
-      }else{
-        //到此的话x不是一个thenable对象，那直接把它当成值resolve promise2就可以了
-        // 当返回一个对象 {name:&apos;a&apos;,then:{age:8}},对象里的then不是thenable对象
-        resolve(x);
-      }
-    }catch(e){
-      if(called)return;
-      called = true;
-      reject(e);
-    }
-
-  }else{
-    //如果X是一个普通 的值，则用x的值去resolve promise2
-    resolve(x);
-  }
-}
-
-Promise.prototype.then = function(onFulfilled,onRejected){
-  //如果成功和失败的回调没有传，则表示这个then没有任何逻辑，只会把值往后抛,叫做值的穿透
-  // 例如：promise.then().then().then(function(data){},function(err){})
-
-  onFulfilled = typeof onFulfilled == &apos;function&apos;?onFulfilled:function(value){return  value};
-  onRejected = typeof onRejected == &apos;function&apos;?onRejected:reason=&gt;{throw reason};
-  //如果当前promise状态已经是成功态了，onFulfilled直接取值
-  let self = this;
-  let promise2;
-  if(self.status == FULFILLED){
-    return promise2 = new Promise(function(resolve,reject){
-      setTimeout(function(){
-        try{
-          let x =onFulfilled(self.value);
-          //如果获取到了返回值x,会走解析promise的过程
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          //如果执行成功的回调过程中出错了，用错误原因把promise2 reject
-          reject(e);
-        }
-      })
-
-    });
-  }
-  if(self.status == REJECTED){
-    return promise2 = new Promise(function(resolve,reject){
-      setTimeout(function(){
-        try{
-          let x =onRejected(self.value);
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          reject(e);
-        }
-      })
-    });
-  }
-  if(self.status == PENDING){
-    return promise2 = new Promise(function(resolve,reject){
-      self.onResolvedCallbacks.push(function(){
-        try{
-          let x =onFulfilled(self.value);
-          //如果获取到了返回值x,会走解析promise的过程
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          reject(e);
-        }
-
-      });
-      self.onRejectedCallbacks.push(function(){
-        try{
-          let x =onRejected(self.value);
-          resolvePromise(promise2,x,resolve,reject);
-        }catch(e){
-          reject(e);
-        }
-      });
-    });
-  }
-
-}
-</code></pre><h2 id="2-2-catch方法"><a href="#2-2-catch方法" class="headerlink" title="2.2 catch方法"></a>2.2 catch方法</h2><pre><code>Promise.prototype.catch=function (callback) {
-  returnthis.then(null,callback);
-}
----------使用-------
-let promise = newPromise(function (resolve, reject) {
-  reject(&apos;错误&apos;);
-})
-promise.then(function(data){console.log(data)}).catch(e=&gt;{console.log(e)});
-</code></pre><h2 id="2-3-all-方法"><a href="#2-3-all-方法" class="headerlink" title="2.3 all 方法"></a>2.3 all 方法</h2><pre><code>Promise.all = function (promises) {
-  returnnewPromise(function (resolve,reject) {
-    let arr =[];//arr是最终返回值的结果的集合。let j =0;
-    functionprocessData(i,data){// 每调用一次此函数，j就会+1；
-      arr[i] = data;// 每次成功的结果都放入数组中if(++j===promises.length){
-        resolve(arr); //只有promises中的最后一个成功，才能调用resolve方法。
-      }
-    }
-    for(let i=0;i&lt;promises.length;i++){
-      promises[i].then(function (data) {
-          processData(i,data);
-      },reject)// 如果有一个失败，整体就会失败
-    }
-  })
-}
-</code></pre><p>使用方法：</p>
-<pre><code>functionread(file) {
-  returnnew Promise1(function (resolve, reject) {
-    require(&apos;fs&apos;).readFile(file,&apos;utf8&apos;,function (err, data) {
-      resolve(data);
-    })
-  })
-}
-
-Promise1.all([read(&apos;./1.txt&apos;),read(&apos;./2.txt&apos;)]).then(function (data) {
-  console.log(data)
-})
-// [&apos;file1&apos;,&apos;file2&apos;]
-</code></pre><h2 id="2-4-race-方法"><a href="#2-4-race-方法" class="headerlink" title="2.4 race 方法"></a>2.4 race 方法</h2><p>只要有一个promise成功，就会执行成功的回调，参数是由promise组成的数组</p>
-<pre><code>Promise.race=function (promises) {
-  return new Promise(function (resolve, reject) {
-    for(let i=0;i&lt;promises.length;i++){
-      promises[i].then(resolve,reject);
-    }
-  })
-}
-</code></pre><h2 id="2-5-resolve方法"><a href="#2-5-resolve方法" class="headerlink" title="2.5 resolve方法"></a>2.5 resolve方法</h2><pre><code>Promise.resolve = function (value) {
-  return new Promise(function (resolve, reject) {
-    resolve(value)
-  })
-}
-</code></pre><h2 id="2-6-reject-方法"><a href="#2-6-reject-方法" class="headerlink" title="2.6 reject 方法"></a>2.6 reject 方法</h2><pre><code>Promise.reject = function (reason) {
-  return new Promise(function (resolve, reject) {
-    reject(reason);
-  })
-}
-</code></pre><h1 id="3-Promise对象的缺点："><a href="#3-Promise对象的缺点：" class="headerlink" title="3.Promise对象的缺点："></a>3.<code>Promise</code>对象的缺点：</h1><ul>
-<li><p>1、无法取消<code>Promise</code>，一旦新建它就会立即执行，无法中途取消。</p>
-</li>
-<li><p>2、如果不设置回调函数，<code>Promise</code>内部抛出的错误，不会反应到外部。</p>
-</li>
-<li><p>3、当处于<code>Pending</code>状态时，无法得知目前进展到哪一个阶段（刚刚开始还是即将完成）。</p>
-</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3618,7 +3587,7 @@ Promise1.all([read(&apos;./1.txt&apos;),read(&apos;./2.txt&apos;)]).then(functio
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">127</span>
+                  <span class="site-state-item-count">128</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
