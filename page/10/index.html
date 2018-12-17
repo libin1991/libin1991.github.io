@@ -298,6 +298,654 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/18/探索webpack-机制/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/05/18/探索webpack-机制/" itemprop="url">探索webpack 机制</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-18T22:20:52+08:00">
+                2017-05-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>本文从简单的例子入手，从打包文件去分析以下三个问题：webpack打包文件是怎样的？如何做到兼容各大模块化方案的？webpack3带来的新特性又是什么？</p>
+<h2 id="一个简单的例子"><a href="#一个简单的例子" class="headerlink" title="一个简单的例子"></a>一个简单的例子</h2><p>webpack配置</p>
+<pre><code>// webpack.config.js
+module.exports = {
+  entry: &apos;./src/index.js&apos;,
+  output: {
+    filename: &apos;bundle.js&apos;,
+    path: path.resolve(__dirname, &apos;dist&apos;)
+  },
+};
+</code></pre><p>简单的js文件</p>
+<pre><code>// src/index.js
+ console.log(&apos;hello world&apos;);
+</code></pre><p>webpack打包后的代码</p>
+<pre><code>// dist/bundle.js
+ /******/ (function(modules) { // webpackBootstrap
+/******/     // The module cache
+/******/     var installedModules = {};
+/******/
+/******/     // The require function
+/******/     function __webpack_require__(moduleId) {
+/******/
+/******/         // Check if module is in cache
+/******/         if(installedModules[moduleId]) {
+/******/             return installedModules[moduleId].exports;
+/******/         }
+/******/         // Create a new module (and put it into the cache)
+/******/         var module = installedModules[moduleId] = {
+/******/             i: moduleId,
+/******/             l: false,
+/******/             exports: {}
+/******/         };
+/******/
+/******/         // Execute the module function
+/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/         // Flag the module as loaded
+/******/         module.l = true;
+/******/
+/******/         // Return the exports of the module
+/******/         return module.exports;
+/******/     }
+/******/
+/******/
+/******/     // expose the modules object (__webpack_modules__)
+/******/     __webpack_require__.m = modules;
+/******/
+/******/     // expose the module cache
+/******/     __webpack_require__.c = installedModules;
+/******/
+/******/     // define getter function for harmony exports
+/******/     __webpack_require__.d = function(exports, name, getter) {
+/******/         if(!__webpack_require__.o(exports, name)) {
+/******/             Object.defineProperty(exports, name, {
+/******/                 configurable: false,
+/******/                 enumerable: true,
+/******/                 get: getter
+/******/             });
+/******/         }
+/******/     };
+/******/
+/******/     // getDefaultExport function for compatibility with non-harmony modules
+/******/     __webpack_require__.n = function(module) {
+/******/         var getter = module &amp;&amp; module.__esModule ?
+/******/             function getDefault() { return module[&apos;default&apos;]; } :
+/******/             function getModuleExports() { return module; };
+/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
+/******/         return getter;
+/******/     };
+/******/
+/******/     // Object.prototype.hasOwnProperty.call
+/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/     // __webpack_public_path__
+/******/     __webpack_require__.p = &quot;&quot;;
+/******/
+/******/     // Load entry module and return exports
+/******/     return __webpack_require__(__webpack_require__.s = 0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports) {
+
+console.log(&apos;hello world&apos;);
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>一看你就会想，我就一行代码，你给我打包那么多？？？（黑人问号）</p>
+<p>我们来分析一下这部分代码，先精简一下，其实整体就是一个自执行函数，然后传入一个模块数组</p>
+<pre><code>(function(modules) { 
+     //...
+ })([function(module, exports) {
+     //..
+ }])
+</code></pre><p>好了，传入模块数组做了什么(其实注释都很明显了，我只是大概翻译一下）</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+/******/     // The module cache  缓存已经load过的模块
+/******/     var installedModules = {};
+/******/
+/******/     // The require function  引用的函数
+/******/     function __webpack_require__(moduleId) {
+/******/
+/******/         // Check if module is in cache 假如在缓存里就直接返回
+/******/         if(installedModules[moduleId]) {
+/******/             return installedModules[moduleId].exports;
+/******/         }
+/******/         // Create a new module (and put it into the cache) 构造一个模块并放入缓存
+/******/         var module = installedModules[moduleId] = {
+/******/             i: moduleId, //模块id
+/******/             l: false, // 是否已经加载完毕
+/******/             exports: {} // 对外暴露的内容
+/******/         };
+/******/
+/******/         // Execute the module function 传入模块参数，并执行模块
+/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/         // Flag the module as loaded 标记模块已经加载完毕
+/******/         module.l = true;
+/******/
+/******/         // Return the exports of the module 返回模块暴露的内容
+/******/         return module.exports;
+/******/     }
+/******/
+/******/
+/******/     // expose the modules object (__webpack_modules__) 暴露模块数组
+/******/     __webpack_require__.m = modules;
+/******/
+/******/     // expose the module cache 暴露缓存数组
+/******/     __webpack_require__.c = installedModules;
+/******/
+/******/     // define getter function for harmony exports 为ES6 exports定义getter
+/******/     __webpack_require__.d = function(exports, name, getter) {
+/******/         if(!__webpack_require__.o(exports, name)) { // 假如exports本身不含有name这个属性
+/******/             Object.defineProperty(exports, name, {
+/******/                 configurable: false,
+/******/                 enumerable: true,
+/******/                 get: getter
+/******/             });
+/******/         }
+/******/     };
+/******/
+/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
+/******/     __webpack_require__.n = function(module) {
+/******/         var getter = module &amp;&amp; module.__esModule ?
+/******/             function getDefault() { return module[&apos;default&apos;]; } :
+/******/             function getModuleExports() { return module; };
+/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
+/******/         return getter;
+/******/     };
+/******/
+/******/     // Object.prototype.hasOwnProperty.call
+/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/     // __webpack_public_path__ webpack配置下的公共路径
+/******/     __webpack_require__.p = &quot;&quot;;
+/******/
+/******/     // Load entry module and return exports 最后执行entry模块并且返回它的暴露内容
+/******/     return __webpack_require__(__webpack_require__.s = 0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports) {
+
+console.log(&apos;hello world&apos;);
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>整体流程是怎样的呢</p>
+<ul>
+<li>传入module数组</li>
+<li><p>调用<strong>webpack_require</strong>(<strong>webpack_require</strong>.s = 0)</p>
+</li>
+<li><p>构造module对象，放入缓存</p>
+</li>
+<li>调用module,传入相应参数modules[moduleId].call(module.exports, module, module.exports, <strong>webpack_require</strong>); （这里exports会被函数内部的东西修改）</li>
+<li>标记module对象已经加载完毕</li>
+<li><p>返回模块暴露的内容（注意到上面函数传入了module.exports,可以对引用进行修改）</p>
+</li>
+<li><p>模块函数中传入module, module.exports, webpack_require</p>
+</li>
+<li>执行过程中通过对上面三者的引用修改，完成变量暴露和引用</li>
+</ul>
+<h2 id="webpack模块机制是怎样的"><a href="#webpack模块机制是怎样的" class="headerlink" title="webpack模块机制是怎样的"></a>webpack模块机制是怎样的</h2><p>我们可以去官网看下webpack模块</p>
+<blockquote>
+<p><a href="https://link.zhihu.com/?target=https%3A//doc.webpack-china.org/concepts/modules%23-webpack-" target="_blank" rel="noopener">https://doc.webpack-china.org/concepts/modules#-webpack-</a><br>webpack 模块能够以各种方式表达它们的依赖关系，几个例子如下：</p>
+</blockquote>
+<ul>
+<li>ES2015 import 语句</li>
+<li>CommonJS require() 语句</li>
+<li>AMD define 和 require 语句</li>
+<li>css/sass/less 文件中的 @import 语句。</li>
+<li>样式(url(…))或 HTML 文件(<img src="/2017/05/18/探索webpack-机制/...">)中的图片链接(image url)</li>
+</ul>
+<p>强大的webpack模块可以兼容各种模块化方案，并且无侵入性(non-opinionated)</p>
+<p>我们可以再编写例子一探究竟</p>
+<h2 id="CommonJS"><a href="#CommonJS" class="headerlink" title="CommonJS"></a>CommonJS</h2><p>修改src/index.js</p>
+<pre><code>var cj = require(&apos;./cj.js&apos;);
+
+console.log(&apos;hello world&apos;);
+cj();
+</code></pre><p>新增src/cj.js，保持前面例子其他不变</p>
+<pre><code>// src/cj.js
+function a() {
+    console.log(&quot;CommonJS&quot;);
+}
+module.exports = a;
+</code></pre><p>再次运行webpack</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+  //... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports, __webpack_require__) {
+
+let cj = __webpack_require__(1);
+
+console.log(&apos;hello world&apos;);
+cj();
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports) {
+
+function a() {
+    console.log(&quot;CommonJS&quot;);
+}
+module.exports = a;
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>我们可以看到模块数组多了个引入的文件，然后index.js模块函数多了个参数<strong>webpack_require</strong>，去引用文件（<strong>webpack_require</strong>在上一节有介绍），整体上就是依赖的模块修改了module.exports，然后主模块执行依赖模块，获取exports即可</p>
+<h2 id="ES2015-import"><a href="#ES2015-import" class="headerlink" title="ES2015 import"></a>ES2015 import</h2><p>新增src/es.js</p>
+<pre><code>// src/es.js
+export default function b() {
+    console.log(&apos;ES Modules&apos;);
+}
+</code></pre><p>修改src/index.js</p>
+<pre><code>// src/index.js
+import es from &apos;./es.js&apos;;
+
+console.log(&apos;hello world&apos;);
+es();
+</code></pre><p>webpack.config.js不变，执行webpack</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
+
+
+console.log(&apos;hello world&apos;);
+Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* default */])();
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = b;
+function b() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>我们可以看到它们都变成了严格模式，webpack自动采用的</p>
+<p>表现其实跟CommonJS相似，也是传入export然后修改，在主模块再require进来，</p>
+<p>我们可以看到这个</p>
+<pre><code>Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+</code></pre><p>这个干嘛用的？其实就是标记当前的exports是es模块，还记得之前的<strong>webpack_require</strong>.n吗，我们再拿出来看看</p>
+<pre><code>/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
+/******/     __webpack_require__.n = function(module) {
+/******/         var getter = module &amp;&amp; module.__esModule ?
+/******/             function getDefault() { return module[&apos;default&apos;]; } :
+/******/             function getModuleExports() { return module; };
+/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
+/******/         return getter;
+/******/     };
+</code></pre><p>为了避免跟非ES Modules冲突？冲突在哪里呢？<br>其实这部分如果你看到babel转换ES Modules源码就知道了，为了兼容模块，会把ES Modules直接挂在exports.default上，然后加上__esModule属性，引入的时候判断一次是否是转换模块，是则引入module[‘default’]，不是则引入module</p>
+<p>我们再多引入几个ES Modules看看效果</p>
+<pre><code>// src/es.js
+export function es() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+export function esTwo() {
+    console.log(&apos;ES Modules Two&apos;);
+}
+
+export function esThree() {
+    console.log(&apos;ES Modules Three&apos;);
+}
+
+export function esFour() {
+    console.log(&apos;ES Modules Four&apos;);
+}
+</code></pre><p>我们多引入esTwo和esFour，但是不使用esFour</p>
+<pre><code>// src/index.js
+import { es, esTwo, esFour} from &apos;./es.js&apos;;
+
+console.log(&apos;hello world&apos;);
+es();
+esTwo();
+</code></pre><p>得出</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ...
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
+
+
+console.log(&apos;hello world&apos;);
+Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* es */])();
+Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;b&quot; /* esTwo */])();
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = es;
+/* harmony export (immutable) */ __webpack_exports__[&quot;b&quot;] = esTwo;
+/* unused harmony export esThree */
+/* unused harmony export esFour */
+function es() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+function esTwo() {
+    console.log(&apos;ES Modules Two&apos;);
+}
+
+function esThree() {
+    console.log(&apos;ES Modules Three&apos;);
+}
+
+function esFour() {
+    console.log(&apos;ES Modules Four&apos;);
+}
+
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>嗯嗯其实跟前面是一样的，举出这个例子重点在哪里呢，有没有注意到注释中</p>
+<pre><code>/* unused harmony export esThree */
+/* unused harmony export esFour */
+</code></pre><p>esThree是我们没有引入的模块，esFour是我们引用但是没有使用的模块，webpack均对它们做了unused的标记，其实这个如果你使用了webpack插件uglify，通过标记，就会把esThree和esFour这两个未使用的代码消除（其实它就是tree-shaking)</p>
+<h2 id="AMD"><a href="#AMD" class="headerlink" title="AMD"></a>AMD</h2><p>我们再来看看webpack怎么支持AMD</p>
+<p>新增src/amd.js</p>
+<pre><code>// src/amd.js
+define([
+],function(){
+    return {
+        amd:function(){
+            console.log(&apos;AMD&apos;);
+        }
+    };
+});
+</code></pre><p>修改index.js</p>
+<pre><code>// src/index.js
+define([
+    &apos;./amd.js&apos;
+],function(amdModule){
+    amdModule.amd();
+});
+</code></pre><p>得到</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
+    __webpack_require__(1)
+], __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule){
+    amdModule.amd();
+}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
+], __WEBPACK_AMD_DEFINE_RESULT__ = function(){
+    return {
+        amd:function(){
+            console.log(&apos;AMD&apos;);
+        }
+    };
+}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>先看amd.js整理一下代码</p>
+<pre><code>function(module, exports, __webpack_require__) {
+    var __WEBPACK_AMD_DEFINE_ARRAY__,
+        __WEBPACK_AMD_DEFINE_RESULT__;
+
+    !(
+        __WEBPACK_AMD_DEFINE_ARRAY__ = [],
+
+        __WEBPACK_AMD_DEFINE_RESULT__ = function() {
+            return {
+                amd: function() {
+                    console.log(&apos;AMD&apos;);
+                }
+            };
+        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+
+        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp;
+        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
+
+    );
+})
+</code></pre><p>简单来讲收集define Array然后置入返回函数，根据参数获取依赖</p>
+<blockquote>
+<p>apply对数组拆解成一个一个参数</p>
+</blockquote>
+<p>再看index.js模块部分</p>
+<pre><code>function(module, exports, __webpack_require__) {
+
+    var __WEBPACK_AMD_DEFINE_ARRAY__,
+        __WEBPACK_AMD_DEFINE_RESULT__;
+    !(
+        __WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)],
+        __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule) {
+                amdModule.amd();
+        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
+
+        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; 
+        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
+    );
+}
+</code></pre><p>其实就是引入了amd.js暴露的{amd:[Function: amd]}</p>
+<h2 id="css-image"><a href="#css-image" class="headerlink" title="css/image?"></a>css/image?</h2><p>css和image也可以成为webpack的模块，这是令人震惊的，这就不能通过普通的hack commonjs或者函数调用简单去调用了，这就是anything to JS，它就需要借助webpack loader去实现了</p>
+<blockquote>
+<p>像css就是转换成一段js代码，通过处理，调用时就是可以用js将这段css插入到style中，image也类似，这部分就不详细阐述了，有兴趣的读者可以深入去研究</p>
+</blockquote>
+<h2 id="webpack3新特性"><a href="#webpack3新特性" class="headerlink" title="webpack3新特性"></a>webpack3新特性</h2><p>我们可以再顺便看下webpack3新特性的表现<br>具体可以看这里<a href="https://link.zhihu.com/?target=https%3A//medium.com/webpack/webpack-3-official-release-15fd2dd8f07b" target="_blank" rel="noopener">https://medium.com/webpack/webpack-3-official-release-15fd2dd8f07b</a></p>
+<h2 id="Scope-Hoisting"><a href="#Scope-Hoisting" class="headerlink" title="Scope Hoisting"></a>Scope Hoisting</h2><p>我们可以发现模块数组是一个一个独立的函数然后闭包引用webpack主函数的相应内容，每个模块都是独立的，然后带来的结果是在浏览器中执行速度变慢，然后webpack3学习了Closure Compiler和RollupJS这两个工具，连接所有闭包到一个闭包里，放入一个函数，让执行速度更快,并且整体代码体积也会有所缩小</p>
+<p>我们可以实际看一下效果（要注意的是这个特性只支持ES Modules,是不支持CommonJs和AMD的）<br>使用上面的例子，配置webpack.config.js，增加new webpack.optimize.ModuleConcatenationPlugin()</p>
+<pre><code>const path = require(&apos;path&apos;);
+const webpack = require(&apos;webpack&apos;);
+
+module.exports = {
+  entry: &apos;./src/index.js&apos;,
+  output: {
+    filename: &apos;bundle.js&apos;,
+    path: path.resolve(__dirname, &apos;dist&apos;)
+  },
+  module: {
+  },
+  plugins: [
+    new webpack.optimize.ModuleConcatenationPlugin(),
+  ]
+};
+</code></pre><p>打包</p>
+<pre><code>/******/ (function(modules) { // webpackBootstrap
+// ... 省略代码
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+&quot;use strict&quot;;
+Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
+
+// CONCATENATED MODULE: ./src/es.js
+function es() {
+    console.log(&apos;ES Modules&apos;);
+}
+
+function esTwo() {
+    console.log(&apos;ES Modules Two&apos;);
+}
+
+function esThree() {
+    console.log(&apos;ES Modules Three&apos;);
+}
+
+function esFour() {
+    console.log(&apos;ES Modules Four&apos;);
+}
+
+
+// CONCATENATED MODULE: ./src/index.js
+// src/index.js
+
+
+console.log(&apos;hello world&apos;);
+es();
+
+
+/***/ })
+/******/ ]);
+</code></pre><p>我们可以惊喜的发现没有什么require了，它们拼接成了一个函数，good!?</p>
+<h2 id="Magic-Comments"><a href="#Magic-Comments" class="headerlink" title="Magic Comments"></a>Magic Comments</h2><p>code splitting是webpack一个重点特性之一，涉及到要动态引入的时候，webpack可以使用 require.ensure去实现，后来webpack2支持使用了符合 ECMAScript 提案 的 import() 语法，但是它有个不足之处，无法指定chunk的名称chunkName,为了解决这个问题，出现了Magic Comments，支持用注释的方式去指定，如下</p>
+<pre><code>import(/* webpackChunkName: &quot;my-chunk-name&quot; */ &apos;module&apos;);
+</code></pre><h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>webpack是一个强大的模块打包工具，在处理依赖、模块上都很优秀，本文从bundle.js文件分析出发去探索了不同模块方案的加载机制，初步去理解webpack，并且对webpack3特性进行阐述，当然，webpack还有很多地方需要去探索深究，敬请期待以后的文章吧～</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/03/你不知道的-Promise-对象黑科技/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3592,152 +4240,6 @@ console.log(add(1, 2)); // 3
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/11/12/Node-js技巧/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2016/11/12/Node-js技巧/" itemprop="url">Node.js技巧</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-11-12T20:37:36+08:00">
-                2016-11-12
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h1 id="将node-js的终端输出重定向到浏览器控制台中"><a href="#将node-js的终端输出重定向到浏览器控制台中" class="headerlink" title="将node.js的终端输出重定向到浏览器控制台中"></a><a href="https://blog.suisuijiang.com/in-nodejs-realize-code-hot-reload-function/" target="_blank" rel="noopener">将node.js的终端输出重定向到浏览器控制台中</a></h1><p>使用过webpack做前端的朋友大概知道, webpack有个dev-server功能, 支持在代码发生改动时自动的重启代码, 简称hot-reload. 这一特性极大地促进了开发效率, 所以下面我们通过编写代码来实现这个特性.</p>
-<h2 id="创建开发目录"><a href="#创建开发目录" class="headerlink" title="创建开发目录"></a>创建开发目录</h2><p>首先创建一个<code>src</code>目录, 后面我们将监视<code>src</code>目录中的代码改动, 在<code>src</code>目录创建<code>app.js</code>做程序入口:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//*app.js</span><br><span class="line">console.log(&apos;app.js&apos;);</span><br></pre></td></tr></table></figure></p>
-<h2 id="使用chokidar监视目录"><a href="#使用chokidar监视目录" class="headerlink" title="使用chokidar监视目录"></a>使用chokidar监视目录</h2><p><a href="https://www.npmjs.com/package/chokidar" target="_blank" rel="noopener">chokidar</a>是一个小巧的文件监视库, 它可以获取到目录中文件的改动/新增/删除等事件. 在项目根目录创建<code>development.js</code>, <code>development.js</code>代码如下所示:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">// *development.js*    </span><br><span class="line">&apos;use strict&apos;</span><br><span class="line"></span><br><span class="line">const path = require(&apos;path&apos;);</span><br><span class="line"></span><br><span class="line">const chokidar = require(&apos;chokidar&apos;);</span><br><span class="line"></span><br><span class="line">const watcher = chokidar.watch(path.join(__dirname, &apos;/src&apos;));</span><br><span class="line"></span><br><span class="line">watcher.on(&apos;ready&apos;, () =&gt; &#123;</span><br><span class="line"></span><br><span class="line">    watcher.on(&apos;change&apos;, (path) =&gt; &#123;</span><br><span class="line"></span><br><span class="line">console.log(&apos;&lt;---- watched file change, do something ----&gt;&apos;);</span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    watcher.on(&apos;add&apos;, (path) =&gt; &#123;</span><br><span class="line"></span><br><span class="line">console.log(&apos;&lt;---- watched new file add, do something ----&gt;&apos;);</span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    watcher.on(&apos;unlink&apos;, (path) =&gt; &#123;</span><br><span class="line"></span><br><span class="line">console.log(&apos;&lt;---- watched file remove, do something ----&gt;&apos;);</span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>执行<code>npm install --save chokidar</code>安装’chokidar’组件, 并执行<code>node development.js</code>运行程序, 尝试修改<code>app.js</code>的内容, 尝试在<code>src</code>目录中新建文件并删除新建的文件, 会看到如下所示输出:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">//*console log*</span><br><span class="line"></span><br><span class="line">    ⇒  node development.js</span><br><span class="line">    </span><br><span class="line">    &lt;---- watched file change, do something ----&gt;</span><br><span class="line">    </span><br><span class="line">    &lt;---- watched new file add, do something ----&gt;</span><br><span class="line">    </span><br><span class="line">    &lt;---- watched file remove, do something ----&gt;</span><br></pre></td></tr></table></figure></p>
-<h2 id="引入程序并在发生改动时重启"><a href="#引入程序并在发生改动时重启" class="headerlink" title="引入程序并在发生改动时重启"></a>引入程序并在发生改动时重启</h2><p>由于主进程被用来监视文件了, 所以我们要把主程序运行在子进程中, 当代码发生改动时, 我们可以结束这个子进程并创建新的子进程. 创建进程需要使用<a href="https://nodejs.org/api/child_process.html" target="_blank" rel="noopener">child_process</a>模块, 代码如下所示:</p>
-<p><em>创建子进程, 启动主程序</em><br>···<br>    let appIns = cp.fork(path.join(__dirname, ‘../src/app.js’));<br>···<br><em>发生改动时杀死子进程并重启</em><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">appIns.kill(&apos;SIGINT&apos;);</span><br><span class="line"></span><br><span class="line">appIns = cp.fork(require(&apos;path&apos;).join(__dirname, &apos;../src/app.js&apos;));</span><br></pre></td></tr></table></figure></p>
-<p><em>监听SIGINT信息, 终止进程</em><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">process.on(&apos;SIGINT&apos;, () =&gt; &#123;</span><br><span class="line"></span><br><span class="line">    process.exit(0);</span><br><span class="line"></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>完整代码如下所示:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">// *development.js*</span><br><span class="line"></span><br><span class="line">    &apos;use strict&apos;</span><br><span class="line">    </span><br><span class="line">    const path = require(&apos;path&apos;);</span><br><span class="line">    </span><br><span class="line">    const cp = require(&apos;child_process&apos;);</span><br><span class="line">    </span><br><span class="line">    const chokidar = require(&apos;chokidar&apos;);</span><br><span class="line">    </span><br><span class="line">    const watcher = chokidar.watch(path.join(__dirname, &apos;/src&apos;));</span><br><span class="line">    </span><br><span class="line">    let appIns = cp.fork(path.join(__dirname, &apos;/src/app.js&apos;));</span><br><span class="line">    </span><br><span class="line">    watcher.on(&apos;ready&apos;, () =&gt; &#123;</span><br><span class="line">    </span><br><span class="line">        watcher.on(&apos;change&apos;, (path) =&gt; &#123;</span><br><span class="line">    </span><br><span class="line">    console.log(&apos;&lt;---- watched file change, do something ----&gt;&apos;);</span><br><span class="line">    </span><br><span class="line">            appIns = reload(appIns);</span><br><span class="line">    </span><br><span class="line">        &#125;);</span><br><span class="line">    </span><br><span class="line">        watcher.on(&apos;add&apos;, (path) =&gt; &#123;</span><br><span class="line">    </span><br><span class="line">    console.log(&apos;&lt;---- watched new file add, do something ----&gt;&apos;);</span><br><span class="line">    </span><br><span class="line">            appIns = reload(appIns);</span><br><span class="line">    </span><br><span class="line">        &#125;);</span><br><span class="line">    </span><br><span class="line">        watcher.on(&apos;unlink&apos;, (path) =&gt; &#123;</span><br><span class="line">    </span><br><span class="line">    console.log(&apos;&lt;---- watched file remove, do something ----&gt;&apos;);</span><br><span class="line">    </span><br><span class="line">            appIns = reload(appIns);</span><br><span class="line">    </span><br><span class="line">        &#125;);</span><br><span class="line">    </span><br><span class="line">    &#125;);</span><br><span class="line">    </span><br><span class="line">    process.on(&apos;SIGINT&apos;, () =&gt; &#123;</span><br><span class="line">    </span><br><span class="line">        process.exit(0);</span><br><span class="line">    </span><br><span class="line">    &#125;);</span><br><span class="line">    </span><br><span class="line">    functionreload(appIns) &#123;</span><br><span class="line">    </span><br><span class="line">        appIns.kill(&apos;SIGINT&apos;);</span><br><span class="line">    </span><br><span class="line">    return cp.fork(require(&apos;path&apos;).join(__dirname, &apos;/src/app.js&apos;));</span><br><span class="line">    </span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
-<p>执行<code>node development.js</code>运行, 尝试修改<code>app.js</code>, 改为<code>console.log(&#39;app.js changed&#39;);</code>, 将看到如下输出:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">*console log*</span><br><span class="line"></span><br><span class="line">    </span><br><span class="line">    ⇒  node development.js</span><br><span class="line">    </span><br><span class="line">    app.js</span><br><span class="line">    </span><br><span class="line">    &lt;---- watched file change, do something ----&gt;</span><br><span class="line">    </span><br><span class="line">    app.js changed</span><br></pre></td></tr></table></figure></p>
-<p>尝试在<code>src</code>目录中创建<code>a.js</code>, 并修改<code>app.js</code>使其输出<code>a.js</code>内容, 这里不在粘贴输出, 请自行尝试.</p>
-<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>可以看到该实现方法十分简单, 并且适用于任何node.js开发场景, 譬如常用的express, koa后端接口开发.</p>
-<p>感谢您的阅读, 欢迎留言指导讨论.</p>
-<h1 id="将node-js的终端输出重定向到浏览器控制台中-1"><a href="#将node-js的终端输出重定向到浏览器控制台中-1" class="headerlink" title="将node.js的终端输出重定向到浏览器控制台中"></a><a href="https://blog.suisuijiang.com/node-js-console-log-redirect-to-browser/" target="_blank" rel="noopener">将node.js的终端输出重定向到浏览器控制台中</a></h1><p>在编写node.js代码时, 我们经常会临时的打印变量来查看内容, 对于一些基本的数据类型, 比如: <code>Number</code>, <code>String</code>, <code>Boolean</code>, 并没有什么问题, 但是当打印<code>Object</code>类型时, 如果该<code>Object</code>变量具有大量的属性, 我们会得到一个超长的输出内容, 有的时候甚至会超出终端缓冲区大小, 非常不利于观察结果. </p>
-<p>使用过chrome浏览器开发者工具的朋友应该发现了, chrome的console会折叠<code>Object</code>值, 并且可以随意打开查看, 十分方便.</p>
-<p> <img src="/2016/11/12/Node-js技巧/1.png" alt=""></p>
-<h2 id="将输出重定向"><a href="#将输出重定向" class="headerlink" title="将输出重定向"></a>将输出重定向</h2><p>在这里, 我们使用开源组件<a href="https://www.npmjs.com/package/node-monkey" target="_blank" rel="noopener">node-monkey</a>, <code>node-monkey</code>是一款在浏览器对node.js程序进行debug和性能分析的工具.</p>
-<p>执行<code>npm install --save node_monkey</code>安装组件.</p>
-<p>在你的程序入口添加如下代码:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">require(&apos;node-monkey&apos;).start()</span><br></pre></td></tr></table></figure></p>
-<p>运行你的程序, 可以看到终端中的输出如下:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">*console log*</span><br><span class="line"></span><br><span class="line">    ⇒  node app.js</span><br><span class="line">    </span><br><span class="line">       info  - socket.io started</span><br><span class="line">    </span><br><span class="line">    ------------------</span><br><span class="line">    </span><br><span class="line">    NodeMonkey started</span><br><span class="line">    </span><br><span class="line">    To inspect output, open a browser to: http://127.0.0.1:50500</span><br><span class="line">    </span><br><span class="line">    ------------------</span><br></pre></td></tr></table></figure></p>
-<p>打开浏览器访问<code>http://127.0.0.1:50500</code>, 打开浏览器的控制台, 可以看到你的程序的输出内容.</p>
-<p> <img src="/2016/11/12/Node-js技巧/2.png" alt=""></p>
-<p><code>node-monkey</code>默认关联了<code>console.log</code>, <code>console.warn</code>, <code>console.error</code>输出函数, <code>127.0.0.1:50500</code>是<code>node-monkey</code>的默认地址, 可以通过在<code>start()</code>中传入参数来修改.</p>
-<h2 id="自动打开浏览器"><a href="#自动打开浏览器" class="headerlink" title="自动打开浏览器"></a>自动打开浏览器</h2><p>有个小工具可以让我们自动打开默认浏览器并跳转到指定地址, 免去手动输入的过程.</p>
-<p>安装<code>opener</code>, 执行<code>npm install --save opener</code></p>
-<p>在上述所添加的代码下方加上如下代码:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">require(&quot;opener&quot;)(&apos;http://127.0.0.1:50500&apos;);</span><br></pre></td></tr></table></figure></p>
-<p>重新运行你的程序, 启动<code>node-money</code>后就自动打开到指定页面了.</p>
-<p><code>node-monkey</code>还有其它可用的功能, 您可以查询文档研究它的妙用.</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3790,7 +4292,7 @@ console.log(add(1, 2)); // 3
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">128</span>
+                  <span class="site-state-item-count">129</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3803,7 +4305,7 @@ console.log(add(1, 2)); // 3
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">104</span>
+                  <span class="site-state-item-count">105</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
