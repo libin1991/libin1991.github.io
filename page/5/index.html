@@ -298,6 +298,286 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/02/Vue安全权限控制axios拦截/" itemprop="url">Vue安全权限控制axios拦截</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-02T22:57:53+08:00">
+                2018-07-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>何为权限控制</p>
+<pre><code>//请求失败后的统一拦截，以及ajax的基本设置
+import axios from &apos;axios&apos;;
+import qs from &apos;qs&apos;;
+
+function cleanRequest(req) {
+  for (const i in req) {
+    /* eslint guard-for-in: 0 */
+    if (req[i] !== 0 &amp;&amp; !req[i]) {
+      delete req[i];
+    }
+  }
+}
+
+axios.defaults.withCredentials = true;
+axios.defaults.xsrfCookieName = null;
+axios.defaults.headers.common[&apos;X-Requested-With&apos;] = &apos;XMLHttpRequest&apos;;
+axios.defaults.headers.post[&apos;Content-Type&apos;] = &apos;application/x-www-form-urlencoded&apos;;
+//系统弹层
+import Toast from &apos;mint-ui/lib/toast&apos;;
+import &apos;mint-ui/lib/toast/style.css&apos;;
+
+module.exports.install = function (Vue) {
+  axios.defaults.baseURL=&quot;/&quot;;
+  Vue.prototype.$http = axios;
+  Vue.http = axios;
+
+  axios.interceptors.request.use(
+    function (request) {
+      const params = request.params;
+      if (params) {
+        cleanRequest(params);
+      }
+      if (request.data) {
+        cleanRequest(request.data);
+        request.data=qs.stringify(Object.assign(request.data,Bus.movieConfig))
+      }else{
+        request.data=qs.stringify(Bus.movieConfig)
+      }
+      return request;
+    },
+    function (error) {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add a response interceptor
+  axios.interceptors.response.use(
+    function (response) {
+      return response;
+    },
+    function (error) {
+      Toast(&apos;系统繁忙，请稍后重试!&apos;);
+      // Do something with response error
+      return Promise.reject(error);
+    }
+  );
+};
+</code></pre><p>权限控制大致分为两个维度:</p>
+<ul>
+<li>垂直维度: 控制用户可以访问哪些url的权限</li>
+<li>水平维度: 控制用户访问特定url，获取哪些数据的权限（e.g. 普通用户、管理员、超级管理员访问同一url，获取的数据是不同的）</li>
+</ul>
+<p>Web权限控制方案List</p>
+<ul>
+<li>前后端不分离：以Java为例，后端通过jsp、freemark、thmeleaf等模板来渲染相应权限的数据，渲染完呈现在浏览器端</li>
+<li>前后端分离：<br>▫SPA单页面应用，路由由前端控制，前端通过js控制hash路由的权限<br>▫SSR服务端渲染，Node中间层做代理路由，判断权限渲染特定的路由至浏览器端</li>
+</ul>
+<p>SPA前端权限控制方案</p>
+<p>SPA: 单页Web应用（single page web application）将所有web活动局限于一个html页面中，利用js通过hash或者浏览器history api来实现无刷新路由跳转，前后端通过ajax数据通信，避免了浏览器的刷新重新加载，为用户提供流程的操作体验。这意味着前端接管了路由层，需要通过调用前端自身的MVC模块，来渲染不同的页面。</p>
+<blockquote>
+<p>Base on：</p>
+</blockquote>
+<ul>
+<li>Vue 前端MVVM框架</li>
+<li>Vuex 状态管理机</li>
+<li>Vue-router 路由</li>
+<li>Axios HTTP请求库</li>
+</ul>
+<p>1.登陆事件Login</p>
+<pre><code>// 1.触发登陆事件
+dispatch(&apos;login&apos;)
+
+// actions
+commit(types.LOGIN_SUCCESS, res.data.data)
+...
+</code></pre><p>2.获取Token，经Base64编码后存至sessionStorage</p>
+<pre><code>// mutations
+const mutations = {
+    [types.LOGIN_SUCCESS] (state, data) {
+        state.authlock = false
+    // 2.登陆成功回调拿到token,经Base64 编码后存入本地sessionStorage
+        let token = Base64.encode(data + &apos;:HIKDATAE&apos;)
+        sessionStorage.setItem(&apos;userToken&apos;, token)
+    // 路由跳转至目标页面
+        router.push({name: &apos;xxx&apos;})
+    },
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+        router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>3.所有HTTP Header Authorization 加上编码后的token(前后端可约定规则)</p>
+<pre><code>// Axios 请求钩子（request）
+axios.interceptors.request.use(req =&gt; {
+    let token = sessionStorage.getItem(&apos;user&apos;)     
+    if (token) {         
+        // 3.token 存在,则在之后所有请求的http请求头 Authorization 带上base64编码后的token,后台拿到token后进行验证权限         
+        req.headers.Authorization = `Basic ${token}`     
+    }
+    req.data = qs.stringify(req.data)     
+    return req 
+}, error =&gt; {
+    return Promise.reject(error) 
+})
+</code></pre><p>浏览器http header<br><img src="https://pic4.zhimg.com/v2-48ee52913451d66397f33a47f6af3374_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-48ee52913451d66397f33a47f6af3374_hd.jpg" alt=""></p>
+<p>4.请求拦截：后台拿到token后对每个请求进行校验，若校验失败返回401，前端response钩子里统一catch error 跳转至登陆页面。</p>
+<pre><code>// Axios 请求钩子（response）
+axios.interceptors.response.use(res =&gt; {
+    return res
+}, error =&gt; {
+    if (error.response) {
+        switch (error.response.status) {
+        // 4.所有接口response校验钩子,若token检验失败,后台返回 401 error code, 清除token信息并跳转到登录页面
+            case 401:
+                store.commit(types.LOGOUT)
+                router.replace({
+                    path: &apos;/login&apos;
+        })
+    }
+    }
+    return Promise.reject(error)
+})
+</code></pre><p>5.路由跳转拦截：任意路由跳转时，在路由beforeEach钩子里校验本地是否存在token，若没有，则跳转至登陆页面</p>
+<pre><code>// 路由钩子(每个路由跳转前调起beforeEach钩子)
+router.beforeEach((to, from, next) =&gt; {
+  if (to.path === &apos;/login&apos;) {
+    sessionStorage.removeItem(&apos;userToken&apos;)
+  }
+  let user = sessionStorage.getItem(&apos;userToken&apos;)
+  if (!user &amp;&amp; to.path !== &apos;/login&apos;) {
+    // 若本地token不存在,则任意路由跳转的时候,重定向至login 登陆页面
+    next({ path: &apos;/login&apos; })
+  } else {
+    next()
+  }
+})
+</code></pre><p>6.登出Logout：清楚本地sessionStorage的token信息</p>
+<pre><code>// mutations
+const mutations = {
+    ...
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+    router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>流程示意图如下:<br><img src="https://pic2.zhimg.com/v2-064f7b05f15399ac9ff6aa03ee1cb710_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-064f7b05f15399ac9ff6aa03ee1cb710_hd.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/06/21/移动端设置了overflow-hidden和border-radius，子元素超出部分不隐藏问题？/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3785,125 +4065,6 @@ console.log(stu instanceof Person); // true
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/27/Koa2使用koa-body实现文件上传/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/03/27/Koa2使用koa-body实现文件上传/" itemprop="url">Koa2使用koa-body实现文件上传(Node可读流可写流)</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-27T20:22:47+08:00">
-                2018-03-27
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="koa-body文件上传自定义文件夹及文件名称"><a href="#koa-body文件上传自定义文件夹及文件名称" class="headerlink" title="koa-body文件上传自定义文件夹及文件名称"></a><a href="http://www.ptbird.cn/koa-body-diy-upload-dir-and-filename.html" target="_blank" rel="noopener">koa-body文件上传自定义文件夹及文件名称</a></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br></pre></td><td class="code"><pre><span class="line">const Koa = require(&apos;koa&apos;),</span><br><span class="line">	//bodyParser = require(&apos;koa-bodyparser&apos;),</span><br><span class="line">	router = require(&apos;koa-router&apos;)(),</span><br><span class="line">	stc = require(&apos;koa-static&apos;),</span><br><span class="line">	render = require(&apos;koa-art-template&apos;),</span><br><span class="line">	fs = require(&apos;fs&apos;),</span><br><span class="line">	path = require(&apos;path&apos;);</span><br><span class="line">const koaBody = require(&apos;koa-body&apos;);</span><br><span class="line"></span><br><span class="line">//引入子模块</span><br><span class="line"></span><br><span class="line">var admin = require(&apos;./routes/admin.js&apos;);</span><br><span class="line">var api = require(&apos;./routes/api.js&apos;);</span><br><span class="line">var index = require(&apos;./routes/index.js&apos;);</span><br><span class="line"></span><br><span class="line">var app = new Koa();</span><br><span class="line">//配置koa-art-template 模板引擎</span><br><span class="line">render(app, &#123;</span><br><span class="line">	root: path.join(__dirname, &apos;views&apos;),</span><br><span class="line">	extname: &apos;.html&apos;,</span><br><span class="line">	debug: process.env.NODE_ENV !== &apos;production&apos;,</span><br><span class="line">	minimize: true,</span><br><span class="line">	htmlMinifierOptions: &#123;</span><br><span class="line">		collapseWhitespace: true,</span><br><span class="line">		minifyCSS: true,</span><br><span class="line">		minifyJS: true,</span><br><span class="line">		// automatically merged at runtime: rules.map(rule =&gt; rule.test)</span><br><span class="line">		ignoreCustomFragments: []</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">//app.use(bodyParser());</span><br><span class="line">app.use(stc(</span><br><span class="line">	path.join(__dirname, &apos;./statics&apos;)</span><br><span class="line">))</span><br><span class="line">app.use(stc(</span><br><span class="line">	path.join(__dirname, &apos;./public&apos;)</span><br><span class="line">))</span><br><span class="line">//koaBody</span><br><span class="line">app.use(koaBody(&#123;</span><br><span class="line">	multipart: true, // 支持文件上传</span><br><span class="line">	encoding: &apos;gzip&apos;,</span><br><span class="line">	formidable: &#123;</span><br><span class="line">		uploadDir: path.join(__dirname, &apos;public/upload/&apos;), // 设置文件上传目录</span><br><span class="line">		keepExtensions: true, // 保持文件的后缀</span><br><span class="line">		maxFieldsSize: 2 * 1024 * 1024, // 文件上传大小</span><br><span class="line">		onFileBegin: (name, file) =&gt; &#123; // 文件上传前的设置</span><br><span class="line">			// console.log(`name: $&#123;name&#125;`);</span><br><span class="line">			// console.log(file);</span><br><span class="line">		&#125;,</span><br><span class="line">	&#125;</span><br><span class="line">&#125;));</span><br><span class="line">//配置路由</span><br><span class="line">router.use(index);</span><br><span class="line">/*</span><br><span class="line">  /admin   配置子路由  层级路由</span><br><span class="line"></span><br><span class="line"> /admin/user</span><br><span class="line"> */</span><br><span class="line">router.use(&apos;/admin&apos;, admin);</span><br><span class="line">/*</span><br><span class="line"> /api/newslist   新闻列表的api</span><br><span class="line"> */</span><br><span class="line">router.use(&apos;/api&apos;, api); /*在模块里面暴露路由并且启动路由*/</span><br><span class="line"></span><br><span class="line">router.post(&apos;/getData&apos;, async(ctx, next) =&gt; &#123;</span><br><span class="line"></span><br><span class="line">	let request = ctx.request;</span><br><span class="line">	let req_query = request.query;</span><br><span class="line">	let req_querystring = request.querystring;</span><br><span class="line">	console.log(request, req_query, req_querystring);</span><br><span class="line">	console.log(ctx.request.body)</span><br><span class="line">	console.log(ctx.request.files);</span><br><span class="line"> </span><br><span class="line">	ctx.cookies.set(</span><br><span class="line">		&apos;MyName&apos;, &apos;Koa2&apos;, &#123;</span><br><span class="line">			domain: &apos;127.0.0.1&apos;, // 写cookie所在的域名</span><br><span class="line">			path: &apos;/&apos;, // 写cookie所在的路径</span><br><span class="line">			maxAge: 1000 * 60 * 60 * 24, // cookie有效时长</span><br><span class="line">			expires: new Date(&apos;2018-12-31&apos;), // cookie失效时间</span><br><span class="line">			httpOnly: false, // 是否只用于http请求中获取</span><br><span class="line">			overwrite: false // 是否允许重写</span><br><span class="line">		&#125;</span><br><span class="line">	);</span><br><span class="line">	//ctx.status = 200</span><br><span class="line">	return ctx.body = &#123;</span><br><span class="line">		code: 200,</span><br><span class="line">		data: &#123;</span><br><span class="line">			arr: [1, 2, 3, 4]</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.post(&apos;/uploadPic&apos;, async(ctx, next) =&gt; &#123;</span><br><span class="line"></span><br><span class="line">	const file = ctx.request.files.file; // 上传的文件在ctx.request.files.file</span><br><span class="line">	// 创建可读流</span><br><span class="line">	const reader = fs.createReadStream(file.path);</span><br><span class="line">	// 修改文件的名称</span><br><span class="line">	var myDate = new Date();</span><br><span class="line">	var newFilename = file.name.split(&apos;.&apos;)[0] + &apos;_&apos; + myDate.getTime() + &apos;.&apos; + file.name.split(&apos;.&apos;)[1];</span><br><span class="line">	var targetPath = path.join(__dirname, &apos;./public/upload/&apos;) + `/$&#123;newFilename&#125;`;</span><br><span class="line">	//创建可写流</span><br><span class="line">	const upStream = fs.createWriteStream(targetPath);</span><br><span class="line">	// 可读流通过管道写入可写流</span><br><span class="line">	reader.pipe(upStream);</span><br><span class="line">	//ctx.redirect(&apos;/&apos;)</span><br><span class="line">	//返回保存的路径</span><br><span class="line">	return ctx.body = &#123;</span><br><span class="line">		code: 200,</span><br><span class="line">		data: &#123;</span><br><span class="line">			url: &apos;http://&apos; + ctx.headers.host + &apos;/upload/&apos; + newFilename</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">//启动路由</span><br><span class="line">app.use(router.routes()).use(router.allowedMethods());</span><br><span class="line"></span><br><span class="line">app.listen(12300);</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3956,7 +4117,7 @@ console.log(stu instanceof Person); // true
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">131</span>
+                  <span class="site-state-item-count">132</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

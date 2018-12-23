@@ -298,6 +298,182 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/07/25/移动端H5页面返回并且刷新页面/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/07/25/移动端H5页面返回并且刷新页面/" itemprop="url">移动端H5页面返回并且刷新页面</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-07-25T20:08:31+08:00">
+                2016-07-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>项目中的需求：点击浏览器中的返回按钮，要让页面重新加载资源。因为这部分的资源每次去加载的内容都不一样，如果返回的时候，还是看到原先的内容，那做这个内容块的意义就很小了；而如果用户看完了这部分内容，再返回来的时候，这个地方换成了新的内容，这样就能体现这部分的价值了。</p>
+<p>而对于浏览器来说，大部分浏览器的返回是直接使用缓存的，不会执行任何的javascript代码。原因：部分浏览器在后退时不会触发onload事件，這是HTML5世代浏览器新增的特性之一——Back-Forward Cache(简称bfcache)</p>
+<p><strong>什么是bfcache？</strong></p>
+<p>bfcache，即back-forward cache，可称为“往返缓存”，可以在用户使用浏览器的“后退”和“前进”按钮时加快页面的转换速度。这个缓存不仅保存页面数据，还保存了DOM和JS的状态，实际上是将整个页面都保存在内存里。如果页面位于bfcache中，那么再次打开该页面就不会触发onload事件</p>
+<h3 id="pageshow事件"><a href="#pageshow事件" class="headerlink" title="pageshow事件"></a>pageshow事件</h3><p>这个事件在用户浏览网页时触发，pageshow 事件类似于 onload 事件，onload 事件在页面第一次加载时触发， pageshow 事件在每次加载页面时触发，即 onload 事件在页面从浏览器缓存中读取时不触发。</p>
+<h3 id="pagehide事件"><a href="#pagehide事件" class="headerlink" title="pagehide事件"></a>pagehide事件</h3><p>该事件会在用户离开网页时触发。离开网页有多种方式。如点击一个链接，刷新页面，提交表单，关闭浏览器等。pagehide 事件有时可以替代 unload事件，但 unload 事件触发后无法缓存页面。</p>
+<h3 id="persisted属性"><a href="#persisted属性" class="headerlink" title="persisted属性"></a>persisted属性</h3><p>pageshow事件和pagehide事件的event对象还包含一个名为persisted的布尔值属性。</p>
+<ul>
+<li>对于pageshow事件，如果页面是从bfcache中加载的，则这个属性的值为true；否则，这个属性的值为false。</li>
+<li>对于pagehide事件，如果页面在卸载之后被保存在bfcache中，则这个属性的值为true；否则，这个属性的值为false。</li>
+</ul>
+<p>不同的浏览器在对当前窗口‘打开’历史记录中的前一个页面的表现上并不统一，这和浏览器的实现以及页面本身的设置有关系。</p>
+<p><strong>解决方案：</strong></p>
+<p><strong>javascript监听pageshow事件阻止页面进入bfcache</strong></p>
+<pre><code> window.addEventListener(&apos;pageshow&apos;, function (e) {
+     if (e.persisted) {
+         window.location.reload()
+     }
+})
+</code></pre><p>在uc和微信中测试通过，但是在某些安卓手机自带的浏览器中无效。</p>
+<p><strong>javascript监听pagehide事件阻止页面进入bfcache</strong></p>
+<pre><code>window.addEventListener(&apos;pagehide&apos;, function (e) {
+    var dom = document.body;
+    dom.children.remove();
+    setTimeout(function () {
+        dom.appendChild(&quot;&lt;script type=&apos;text/javascript&apos;&gt;window.location.reload();&lt;\/script&gt;&quot;);
+    });
+});
+</code></pre><p><strong>设置meta标签，清除页面缓存</strong></p>
+<pre><code>&lt;meta http-equiv=&quot;Cache-Control&quot; content=&quot;no-cache, no-store, must-revalidate&quot; /&gt;
+&lt;meta http-equiv=&quot;Pragma&quot; content=&quot;no-cache&quot; /&gt;
+&lt;meta http-equiv=&quot;Expires&quot; content=&quot;0&quot; /&gt;
+</code></pre><p>Cache-Control指定请求和响应遵循的缓存机制。在请求消息或响应消息中设置Cache-Control并不会修改另一个消息处理过程中的缓存处理过程。请求时的缓存指令包括no-cache、no-store、max-age、max-stale、min-fresh、only-if-cached，响应消息中的指令包括public、private、no-cache、no-store、no-transform、must-revalidate、proxy-revalidate、max-age。各个消息中的指令含义如下<br>Public指示响应可被任何缓存区缓存<br>Private指示对于单个用户的整个或部分响应消息，不能被共享缓存处理。这允许服务器仅仅描述当用户的部分响应消息，此响应消息对于其他用户的请求无效<br>no-cache指示请求或响应消息不能缓存<br>no-store用于防止重要的信息被无意的发布。在请求消息中发送将使得请求和响应消息都不使用缓存。<br>max-age指示客户机可以接收生存期不大于指定时间（以秒为单位）的响应<br>min-fresh指示客户机可以接收响应时间小于当前时间加上指定时间的响应<br>max-stale指示客户机可以接收超出超时期间的响应消息。如果指定max-stale消息的值，那么客户机可以接收超出超时期指定值之内的响应消息。<br>注：有些情况下设置清除缓存也没有起到作用，我自己做的这个h5页面就没有起到效果。具体情况还是要具体分析。</p>
+<p><strong>我遇到的情况：</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;div class=&quot;content&quot;&gt;</span><br><span class="line">     &lt;iframe id=&quot;iframe&quot; src=&quot;https://cpu.baidu.com/xx/xx/xxx&quot; frameborder=&quot;no&quot; scrolling=&quot;no&quot;&gt;&lt;/iframe&gt;</span><br><span class="line">&lt;/div&gt;</span><br></pre></td></tr></table></figure></p>
+<p>这个iframe中的地址每次刷新页面都会有不同的内容推送给用户。进入iframe中的内容之后，按返回按钮返回来想进行页面自动刷新，为的就是让用户看到新的内容。</p>
+<p>做法：</p>
+<p>使用pageshow进行整个页面刷新</p>
+<pre><code>window.addEventListener(&apos;pageshow&apos;, function (e) {
+    if (e.persisted) {
+        window.location.reload()
+    }
+})
+</code></pre><p>这样可以实现。</p>
+<p>后面又觉得不妥，没有因为这个小部分而进行整个页面刷新，想到了另一种思路：因为这个iframe中的内容是动态的，可以对其进行定时器设置，如下：</p>
+<pre><code>let iframe = document.getElementById(&apos;iframe&apos;)
+setInterval(() =&gt; {
+    iframe.setAttribute(&quot;src&quot;, &quot;https://cpu.baidu.com/xx/xx/xx&quot;);
+},15000)
+</code></pre><p>这样也可以实现自己的功能。</p>
+<p>最后可以结合一下：</p>
+<pre><code>let iframe = document.getElementById(&apos;iframe&apos;)
+window.addEventListener(&apos;pageshow&apos;, function (e) {
+    if (e.persisted) {
+        iframe.setAttribute(&quot;src&quot;, &quot;https://cpu.baidu.com/xx/xx/xx&quot;);
+    }
+})
+</code></pre><p>这样做也有好处，可以避免使用定时器，对网页的性能也是比较好。但是这个方法在返回的时候，可以看到iframe里面内容的重新加载，会有一个时间间隙。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/05/21/跨域，你需要知道的全在这里/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3568,291 +3744,6 @@ say.call(obj,&apos;call方法&apos;,&apos;hi&apos;); //call方法:hi afei
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/08/30/JS中的this的七种使用场景/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/08/30/JS中的this的七种使用场景/" itemprop="url">JS中的this的七种使用场景</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-08-30T19:54:45+08:00">
-                2015-08-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>Javascript 中的 this，有时候让人迷惑，所以总结了一下关于this指向的问题。</p>
-<p>在函数中 this 到底取何值，是在函数真正被调用执行的时候确定下来的，函数定义的时候确定不了。</p>
-<blockquote>
-<p>因为 this 的取值是函数执行上下文(context)的一部分，每次调用函数，都会产生一个新的执行上下文环境。当代码中使用了 this，这个 this 的值就直接从执行的上下文中获取了，而不会从作用域链中搜寻。</p>
-</blockquote>
-<h2 id="关于-this-的取值，大体上可以分为以下七种情况："><a href="#关于-this-的取值，大体上可以分为以下七种情况：" class="headerlink" title="关于 this 的取值，大体上可以分为以下七种情况："></a>关于 this 的取值，大体上可以分为以下七种情况：</h2><blockquote>
-<p>由于严格模式下，禁止this指向全局对象，所以以下示例均运行在非严格模式下</p>
-</blockquote>
-<h2 id="情况一：全局-amp-调用普通函数"><a href="#情况一：全局-amp-调用普通函数" class="headerlink" title="情况一：全局 &amp; 调用普通函数"></a>情况一：全局 &amp; 调用普通函数</h2><p>在全局环境中，this 永远指向 window。</p>
-<pre><code>console.log(this === window);     //true
-</code></pre><p>普通函数在调用时候(注意不是构造函数，前面不加 new)，其中的 this 也是指向 window。</p>
-<pre><code>var x = 10;
-function foo(){
-    console.log(this);     //Window
-    console.log(this.x);   //10
-}
-foo();
-</code></pre><h2 id="情况二：构造函数"><a href="#情况二：构造函数" class="headerlink" title="情况二：构造函数"></a>情况二：构造函数</h2><p>所谓的构造函数就是由一个函数 new 出来的对象，一般构造函数的函数名首字母大写，例如像 Object，Function，Array 这些都属于构造函数。</p>
-<pre><code>function Foo(){
-    this.x = 10;
-    console.log(this);    //Foo {x:10}
-}
-var foo = new Foo();
-console.log(foo.x);      //10
-</code></pre><p>上述代码，如果函数作为构造函数使用，那么其中的 this 就代表它即将 new 出来的对象。</p>
-<p>但是如果直接调用 Foo 函数，而不是 new Foo()，那就变成情况1，这时候 Foo() 就变成普通函数。</p>
-<pre><code>function Foo(){
-    this.x = 10;
-    console.log(this);    //Window
-}
-var foo = Foo();
-</code></pre><h2 id="情况三：对象方法"><a href="#情况三：对象方法" class="headerlink" title="情况三：对象方法"></a>情况三：对象方法</h2><p>如果函数作为对象的方法时，方法中的 this 指向该对象。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        console.log(this);        //Object
-        console.log(this.x);      //10
-    }
-};
-obj.foo();
-</code></pre><p>注意：若是在对象方法中定义函数，那么情况就不同了。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        function f(){
-            console.log(this);      //Window
-            console.log(this.x);    //undefined
-        }
-        f();
-    }
-}
-obj.foo();
-</code></pre><p>可以这么理解：函数 f 虽然是在 obj.foo 内部定义的，但它仍然属于一个普通函数，this 仍指向 window。</p>
-<p>在这里，如果想要调用上层作用域中的变量 obj.x，可以使用 self 缓存外部 this 变量。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        var self = this;
-        function f(){
-            console.log(self);      //{x: 10}
-            console.log(self.x);    //10
-        }
-        f();
-    }
-}
-obj.foo();
-</code></pre><p>如果 foo 函数不作为对象方法被调用：</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function () {
-        console.log(this);       //Window
-        console.log(this.x);     //undefined
-    }
-};
-var fn = obj.foo;
-fn();
-</code></pre><p>obj.foo 被赋值给一个全局变量，并没有作为 obj 的一个属性被调用，那么此时 this 的值是 window。</p>
-<h2 id="情况四：构造函数-prototype-属性"><a href="#情况四：构造函数-prototype-属性" class="headerlink" title="情况四：构造函数 prototype 属性"></a>情况四：构造函数 prototype 属性</h2><pre><code>function Foo(){
-    this.x = 10;
-}
-Foo.prototype.getX = function () {
-    console.log(this);        //Foo {x: 10, getX: function}
-    console.log(this.x);      //10
-}
-var foo = new Foo();
-foo.getX();
-</code></pre><p>在 Foo.prototype.getX 函数中，this 指向的 foo 对象。不仅仅如此，即便是在整个原型链中，this 代表的也是当前对象的值。</p>
-<h2 id="情况五：函数用-call、apply或者-bind-调用。"><a href="#情况五：函数用-call、apply或者-bind-调用。" class="headerlink" title="情况五：函数用 call、apply或者 bind 调用。"></a>情况五：函数用 call、apply或者 bind 调用。</h2><pre><code>var obj = {
-    x: 10
-}
-function foo(){
-    console.log(this);     //{x: 10}
-    console.log(this.x);   //10
-}
-foo.call(obj);
-foo.apply(obj);
-foo.bind(obj)();
-</code></pre><p>当一个函数被 call、apply 或者 bind 调用时，this 的值就取传入的对象的值。</p>
-<h2 id="情况六：DOM-event-this"><a href="#情况六：DOM-event-this" class="headerlink" title="情况六：DOM event this"></a>情况六：DOM event this</h2><p>在一个 HTML DOM 事件处理程序里，this 始终指向这个处理程序所绑定的 HTML DOM 节点：</p>
-<pre><code>function Listener(){   
-    document.getElementById(&apos;foo&apos;).addEventListener(&apos;click&apos;, this.handleClick);     //这里的 this 指向 Listener 这个对象。不是强调的是这里的 this
-}
-Listener.prototype.handleClick = function (event) {
-    console.log(this);    //&lt;div id=&quot;foo&quot;&gt;&lt;/div&gt;
-}
-var listener = new Listener();
-document.getElementById(&apos;foo&apos;).click();
-</code></pre><p>这个很好理解，就相当于是给函数传参，使 handleClick 运行时上下文改变了，相当于下面这样的代码：</p>
-<pre><code>var obj = {
-    x: 10,
-    fn: function() {
-        console.log(this);         //Window
-        console.log(this.x);       //undefined
-    }
-};
-function foo(fn) {
-    fn();
-} 
-foo(obj.fn);
-</code></pre><p>你也可以用通过 bind 切换上下文:</p>
-<pre><code>function  Listener(){
-    document.getElementById(&apos;foo&apos;).addEventListener(&apos;click&apos;,this.handleClick.bind(this));      
-}
-Listener.prototype.handleClick = function (event) {
-    console.log(this);    //Listener {}
-}
-var listener = new Listener();
-document.getElementById(&apos;foo&apos;).click();
-</code></pre><p>前六种情况其实可以总结为： this 指向调用该方法的对象。</p>
-<h2 id="情况七：箭头函数中的-this"><a href="#情况七：箭头函数中的-this" class="headerlink" title="情况七：箭头函数中的 this"></a>情况七：箭头函数中的 this</h2><p>当使用箭头函数的时候，情况就有所不同了：箭头函数内部的 this 是词法作用域，由上下文确定。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function() {
-        var fn = () =&gt; {
-            return () =&gt; {
-                return () =&gt; {
-                    console.log(this);      //Object {x: 10}
-                    console.log(this.x);    //10
-                }
-            }
-        }
-        fn()()();
-    }
-}
-obj.foo();
-</code></pre><p>现在，箭头函数完全修复了 this 的指向，this 总是指向词法作用域，也就是外层调用者 obj。</p>
-<p>如果使用箭头函数，以前的这种 hack 写法：</p>
-<pre><code>var self = this;
-</code></pre><p>就不再需要了。</p>
-<pre><code>var obj = {
-    x: 10,
-    foo: function() {
-        var fn = () =&gt; {
-            return () =&gt; {
-                return () =&gt; {
-                    console.log(this);    // Object {x: 10}
-                    console.log(this.x);  //10
-                }
-            }
-        }
-        fn.bind({x: 14})()()();
-        fn.call({x: 14})()();
-    }
-}
-obj.foo();
-</code></pre><p>由于 this 在箭头函数中已经按照词法作用域绑定了，所以，用 call()或者 apply()调用箭头函数时，无法对 this 进行绑定，即传入的第一个参数被忽略。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3905,7 +3796,7 @@ obj.foo();
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">131</span>
+                  <span class="site-state-item-count">132</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
