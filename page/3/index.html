@@ -298,6 +298,481 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/ES6之-Generator-的惰性执行/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="LuckDay">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/04/ES6之-Generator-的惰性执行/" itemprop="url">ES6之 Generator 的惰性执行</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-04T23:56:27+08:00">
+                2018-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="单个异步任务"><a href="#单个异步任务" class="headerlink" title="单个异步任务"></a>单个异步任务</h2><pre><code>var fetch = require(&apos;node-fetch&apos;);
+
+function* gen(){
+    var url = &apos;https://api.github.com/users/github&apos;;
+    var result = yield fetch(url);
+    console.log(result.bio);
+}
+</code></pre><p>为了获得最终的执行结果，你需要这样做：</p>
+<pre><code>var g = gen();
+var result = g.next();
+
+result.value.then(function(data){
+    return data.json();
+}).then(function(data){
+    g.next(data);
+});
+</code></pre><p>首先执行 Generator 函数，获取遍历器对象。</p>
+<p>然后使用 next 方法，执行异步任务的第一阶段，即 fetch(url)。</p>
+<p>注意，由于 fetch(url) 会返回一个 Promise 对象，所以 result 的值为：</p>
+<pre><code>{ value: Promise { &lt;pending&gt; }, done: false }
+</code></pre><p>最后我们为这个 Promise 对象添加一个 then 方法，先将其返回的数据格式化(<code>data.json()</code>)，再调用 g.next，将获得的数据传进去，由此可以执行异步任务的第二阶段，代码执行完毕。</p>
+<h2 id="多个异步任务"><a href="#多个异步任务" class="headerlink" title="多个异步任务"></a>多个异步任务</h2><p>上节我们只调用了一个接口，那如果我们调用了多个接口，使用了多个 yield，我们岂不是要在 then 函数中不断的嵌套下去……</p>
+<p>所以我们来看看执行多个异步任务的情况：</p>
+<pre><code>var fetch = require(&apos;node-fetch&apos;);
+
+function* gen() {
+    var r1 = yield fetch(&apos;https://api.github.com/users/github&apos;);
+    var r2 = yield fetch(&apos;https://api.github.com/users/github/followers&apos;);
+    var r3 = yield fetch(&apos;https://api.github.com/users/github/repos&apos;);
+
+    console.log([r1.bio, r2[0].login, r3[0].full_name].join(&apos;\n&apos;));
+}
+</code></pre><p>为了获得最终的执行结果，你可能要写成：</p>
+<pre><code>var g = gen();
+var result1 = g.next();
+
+result1.value.then(function(data){
+    return data.json();
+})
+.then(function(data){
+    return g.next(data).value;
+})
+.then(function(data){
+    return data.json();
+})
+.then(function(data){
+    return g.next(data).value
+})
+.then(function(data){
+    return data.json();
+})
+.then(function(data){
+    g.next(data)
+});
+</code></pre><p>但我知道你肯定不想写成这样……</p>
+<p>其实，利用递归，我们可以这样写：</p>
+<pre><code>functionrun(gen) {
+    var g = gen();
+
+    function next(data) {
+        var result = g.next(data);
+
+        if (result.done) return;
+
+        result.value.then(function(data) {
+            return data.json();
+        }).then(function(data) {
+            next(data);
+        });
+
+    }
+
+    next();
+}
+
+run(gen);
+</code></pre><p>其中的关键就是 yield 的时候返回一个 Promise 对象，给这个 Promise 对象添加 then 方法，当异步操作成功时执行 then 中的 onFullfilled 函数，onFullfilled 函数中又去执行 g.next，从而让 Generator 继续执行，然后再返回一个 Promise，再在成功时执行 g.next，然后再返回……</p>
+<h2 id="启动器函数"><a href="#启动器函数" class="headerlink" title="启动器函数"></a>启动器函数</h2><p>在 run 这个启动器函数中，我们在 then 函数中将数据格式化 <code>data.json()</code>，但在更广泛的情况下，比如 yield 直接跟一个 Promise，而非一个 fetch 函数返回的 Promise，因为没有 json 方法，代码就会报错。所以为了更具备通用性，连同这个例子和启动器，我们修改为：</p>
+<pre><code>var fetch = require(&apos;node-fetch&apos;);
+
+function* gen() {
+    var r1 = yield fetch(&apos;https://api.github.com/users/github&apos;);
+    var json1 = yield r1.json();
+    var r2 = yield fetch(&apos;https://api.github.com/users/github/followers&apos;);
+    var json2 = yield r2.json();
+    var r3 = yield fetch(&apos;https://api.github.com/users/github/repos&apos;);
+    var json3 = yield r3.json();
+
+    console.log([json1.bio, json2[0].login, json3[0].full_name].join(&apos;\n&apos;));
+}
+
+function run(gen) {
+    var g = gen();
+
+    functionnext(data) {
+        var result = g.next(data);
+
+        if (result.done) return;
+
+        result.value.then(function(data) {
+            next(data);
+        });
+
+    }
+
+    next();
+}
+
+run(gen);
+</code></pre><p>只要 yield 后跟着一个 Promise 对象，我们就可以利用这个 run 函数将 Generator 函数自动执行。</p>
+<h2 id="回调函数"><a href="#回调函数" class="headerlink" title="回调函数"></a>回调函数</h2><p>yield 后一定要跟着一个 Promise 对象才能保证 Generator 的自动执行吗？如果只是一个回调函数呢？我们来看个例子：</p>
+<p>首先我们来模拟一个普通的异步请求：</p>
+<pre><code>function fetchData(url, cb) {
+    setTimeout(function(){
+        cb({status: 200, data: url})
+    }, 1000)
+}
+</code></pre><p>我们将这种函数改造成：</p>
+<pre><code>function fetchData(url) {
+    returnfunction(cb){
+        setTimeout(function(){
+            cb({status: 200, data: url})
+        }, 1000)
+    }
+}
+</code></pre><p>对于这样的 Generator 函数：</p>
+<pre><code>function* gen() {
+    var r1 = yield fetchData(&apos;https://api.github.com/users/github&apos;);
+    var r2 = yield fetchData(&apos;https://api.github.com/users/github/followers&apos;);
+
+    console.log([r1.data, r2.data].join(&apos;\n&apos;));
+}
+</code></pre><p>如果要获得最终的结果：</p>
+<pre><code>var g = gen();
+
+var r1 = g.next();
+
+r1.value(function(data) {
+    var r2 = g.next(data);
+    r2.value(function(data) {
+        g.next(data);
+    });
+});
+</code></pre><p>如果写成这样的话，我们会面临跟第一节同样的问题，那就是当使用多个 yield 时，代码会循环嵌套起来……</p>
+<p>同样利用递归，所以我们可以将其改造为：</p>
+<pre><code>functionrun(gen) {
+    var g = gen();
+
+    functionnext(data) {
+        var result = g.next(data);
+
+        if (result.done) return;
+
+        result.value(next);
+    }
+
+    next();
+}
+
+run(gen);
+</code></pre><h2 id="run"><a href="#run" class="headerlink" title="run"></a>run</h2><p>由此可以看到 Generator 函数的自动执行需要一种机制，即当异步操作有了结果，能够自动交回执行权。</p>
+<p>而两种方法可以做到这一点。</p>
+<p>（1）回调函数。将异步操作进行包装，暴露出回调函数，在回调函数里面交回执行权。</p>
+<p>（2）Promise 对象。将异步操作包装成 Promise 对象，用 then 方法交回执行权。</p>
+<p>在两种方法中，我们各写了一个 run 启动器函数，那我们能不能将这两种方式结合在一些，写一个通用的 run 函数呢？我们尝试一下：</p>
+<pre><code>// 第一版functionrun(gen) {
+    var gen = gen();
+
+    functionnext(data) {
+        var result = gen.next(data);
+        if (result.done) return;
+
+        if (isPromise(result.value)) {
+            result.value.then(function(data) {
+                next(data);
+            });
+        } else {
+            result.value(next)
+        }
+    }
+
+    next()
+}
+
+functionisPromise(obj) {
+    return&apos;function&apos; == typeof obj.then;
+}
+
+module.exports = run;
+</code></pre><p>其实实现的很简单，判断 result.value 是否是 Promise，是就添加 then 函数，不是就直接执行。</p>
+<h2 id="return-Promise"><a href="#return-Promise" class="headerlink" title="return Promise"></a>return Promise</h2><p>我们已经写了一个不错的启动器函数，支持 yield 后跟回调函数或者 Promise 对象。</p>
+<p>现在有一个问题需要思考，就是我们如何获得 Generator 函数的返回值呢？又如果 Generator 函数中出现了错误，就比如 fetch 了一个不存在的接口，这个错误该如何捕获呢？</p>
+<p>这很容易让人想到 Promise，如果这个启动器函数返回一个 Promise，我们就可以给这个 Promise 对象添加 then 函数，当所有的异步操作执行成功后，我们执行 onFullfilled 函数，如果有任何失败，就执行 onRejected 函数。</p>
+<p>我们写一版：</p>
+<pre><code>// 第二版functionrun(gen) {
+    var gen = gen();
+
+    returnnewPromise(function(resolve, reject) {
+
+        functionnext(data) {
+            try {
+                var result = gen.next(data);
+            } catch (e) {
+                return reject(e);
+            }
+
+            if (result.done) {
+                return resolve(result.value)
+            };
+
+            var value = toPromise(result.value);
+
+            value.then(function(data) {
+                next(data);
+            }, function(e) {
+                reject(e)
+            });
+        }
+
+        next()
+    })
+
+}
+
+functionisPromise(obj) {
+    return&apos;function&apos; == typeof obj.then;
+}
+
+functiontoPromise(obj) {
+    if (isPromise(obj)) return obj;
+    if (&apos;function&apos; == typeof obj) return thunkToPromise(obj);
+    return obj;
+}
+
+functionthunkToPromise(fn) {
+    returnnewPromise(function(resolve, reject) {
+        fn(function(err, res) {
+            if (err) return reject(err);
+            resolve(res);
+        });
+    });
+}
+
+module.exports = run;
+</code></pre><p>与第一版有很大的不同：</p>
+<p>首先，我们返回了一个 Promise，当 <code>result.done</code> 为 true 的时候，我们将该值 <code>resolve(result.value)</code>，如果执行的过程中出现错误，被 catch 住，我们会将原因 <code>reject(e)</code>。</p>
+<p>其次，我们会使用 <code>thunkToPromise</code> 将回调函数包装成一个 Promise，然后统一的添加 then 函数。在这里值得注意的是，在 <code>thunkToPromise</code> 函数中，我们遵循了 error first 的原则，这意味着当我们处理回调函数的情况时：</p>
+<pre><code>// 模拟数据请求functionfetchData(url) {
+    returnfunction(cb) {
+        setTimeout(function() {
+            cb(null, { status: 200, data: url })
+        }, 1000)
+    }
+}
+</code></pre><p>在成功时，第一个参数应该返回 null，表示没有错误原因。</p>
+<h2 id="优化"><a href="#优化" class="headerlink" title="优化"></a>优化</h2><p>我们在第二版的基础上将代码写的更加简洁优雅一点，最终的代码如下：</p>
+<pre><code>// 第三版functionrun(gen) {
+
+    returnnewPromise(function(resolve, reject) {
+        if (typeof gen == &apos;function&apos;) gen = gen();
+
+        // 如果 gen 不是一个迭代器if (!gen || typeof gen.next !== &apos;function&apos;) return resolve(gen)
+
+        onFulfilled();
+
+        functiononFulfilled(res) {
+            var ret;
+            try {
+                ret = gen.next(res);
+            } catch (e) {
+                return reject(e);
+            }
+            next(ret);
+        }
+
+        functiononRejected(err) {
+            var ret;
+            try {
+                ret = gen.throw(err);
+            } catch (e) {
+                return reject(e);
+            }
+            next(ret);
+        }
+
+        functionnext(ret) {
+            if (ret.done) return resolve(ret.value);
+            var value = toPromise(ret.value);
+            if (value &amp;&amp; isPromise(value)) return value.then(onFulfilled, onRejected);
+            return onRejected(newTypeError(&apos;You may only yield a function, promise &apos; +
+                &apos;but the following object was passed: &quot;&apos; + String(ret.value) + &apos;&quot;&apos;));
+        }
+    })
+}
+
+functionisPromise(obj) {
+    return&apos;function&apos; == typeof obj.then;
+}
+
+functiontoPromise(obj) {
+    if (isPromise(obj)) return obj;
+    if (&apos;function&apos; == typeof obj) return thunkToPromise(obj);
+    return obj;
+}
+
+functionthunkToPromise(fn) {
+    returnnewPromise(function(resolve, reject) {
+        fn(function(err, res) {
+            if (err) return reject(err);
+            resolve(res);
+        });
+    });
+}
+
+module.exports = run;
+</code></pre><h2 id="co"><a href="#co" class="headerlink" title="co"></a>co</h2><p>如果我们再将这个启动器函数写的完善一些，我们就相当于写了一个 co，实际上，上面的代码确实是来自于 co……</p>
+<p>而 co 是什么？ co 是大神 TJ Holowaychuk 于 2013 年 6 月发布的一个小模块，用于 Generator 函数的自动执行。</p>
+<p>如果直接使用 co 模块，这两种不同的例子可以简写为：</p>
+<pre><code>// yield 后是一个 Promisevar fetch = require(&apos;node-fetch&apos;);
+var co = require(&apos;co&apos;);
+
+function* gen() {
+    var r1 = yield fetch(&apos;https://api.github.com/users/github&apos;);
+    var json1 = yield r1.json();
+    var r2 = yield fetch(&apos;https://api.github.com/users/github/followers&apos;);
+    var json2 = yield r2.json();
+    var r3 = yield fetch(&apos;https://api.github.com/users/github/repos&apos;);
+    var json3 = yield r3.json();
+
+    console.log([json1.bio, json2[0].login, json3[0].full_name].join(&apos;\n&apos;));
+}
+
+co(gen);
+
+
+// yield 后是一个回调函数var co = require(&apos;co&apos;);
+
+functionfetchData(url) {
+    returnfunction(cb) {
+        setTimeout(function() {
+            cb(null, { status: 200, data: url })
+        }, 1000)
+    }
+}
+
+function* gen() {
+    var r1 = yield fetchData(&apos;https://api.github.com/users/github&apos;);
+    var r2 = yield fetchData(&apos;https://api.github.com/users/github/followers&apos;);
+
+    console.log([r1.data, r2.data].join(&apos;\n&apos;));
+}
+
+co(gen);
+</code></pre><p>是不是特别的好用？</p>
+<h2 id="ES6-系列"><a href="#ES6-系列" class="headerlink" title="ES6 系列"></a>ES6 系列</h2><p>ES6 系列预计写二十篇左右，旨在加深 ES6 部分知识点的理解，重点讲解块级作用域、标签模板、箭头函数、Symbol、Set、Map 以及 Promise 的模拟实现、模块加载方案、异步处理等内容。</p>
+<p>如果有错误或者不严谨的地方，请务必给予指正，十分感谢。如果喜欢或者有所启发，欢迎 star，对作者也是一种鼓励。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/03/Vue权限控制addRoutes/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2856,329 +3331,6 @@ private WebView Wv;
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/25/Koa-session和cookie/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="LuckDay">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/25/Koa-session和cookie/" itemprop="url">Koa session和cookie</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-25T17:37:57+08:00">
-                2018-08-25
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="从http协议的无状态性说起"><a href="#从http协议的无状态性说起" class="headerlink" title="从http协议的无状态性说起"></a>从http协议的无状态性说起</h2><p>HTTP是一种无状态协议。关于这个无状态之前我也不太理解，因为HTTP底层是TCP，既然是TCP，就是长连接，这个过程是保持连接状态的，又为什么说http是无状态的呢？先来搞清楚这两个概念：</p>
-<h3 id="无连接和无状态"><a href="#无连接和无状态" class="headerlink" title="无连接和无状态"></a>无连接和无状态</h3><blockquote>
-<p>无连接</p>
-</blockquote>
-<p>每次连接只处理一个请求，服务端处理完客户端一次请求，等到客户端作出回应之后便断开连接；</p>
-<blockquote>
-<p>无状态</p>
-</blockquote>
-<p>是指服务端对于客户端每次发送的请求都认为它是一个新的请求，上一次会话和下一次会话没有联系；</p>
-<p>无连接的维度是连接，无状态的维度是请求；http是基于tcp的，而从http1.1开始默认使用持久连接；在这个连接过程中，客户端可以向服务端发送多次请求，但是各个请求之间的并没有什么联系；这样来考虑，就很好理解无状态这个概念了。</p>
-<h3 id="持久连接"><a href="#持久连接" class="headerlink" title="持久连接"></a>持久连接</h3><blockquote>
-<p>持久连接，本质上是客户端与服务器通信的时候，建立一个持久化的TCP连接，这个连接不会随着请求结束而关闭，通常会保持连接一段时间。`</p>
-</blockquote>
-<p>现有的持久连接类型有两种：HTTP/1.0+的 <strong> keep-alive </strong>和HTTP/1.1的<strong> persistent </strong>。</p>
-<ul>
-<li>HTTP/1.0+的keep-alive</li>
-</ul>
-<p>先来开一张图：<br><img src="/2018/08/25/Koa-session和cookie/1.webp" alt=""><br>这张图是请求<a href="http://www.baidu.com时的请求头信息。这里面我们需要注意的是：" target="_blank" rel="noopener">www.baidu.com时的请求头信息。这里面我们需要注意的是：</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">connection: keep-alive</span><br></pre></td></tr></table></figure></p>
-<p>我们每次发送一个HTTP请求，会附带一个connection:keep-alive，这个参数就是声明一个持久连接。</p>
-<ul>
-<li>HTTP/1.1的persistent</li>
-</ul>
-<p>HTTP/1.1的持久连接默认是开启的，只有首部中包含connection：close，才会事务结束之后关闭连接。当然服务器和客户端仍可以随时关闭持久连接。</p>
-<p>当发送了connection：close首部之后客户端就没有办法在那条连接上发送更多的请求了。当然根据持久连接的特性，一定要传输正确的content-length。</p>
-<p>还有根据HTTP/1.1的特性，是不应该和HTTP/1.0客户端建立持久连接的。最后，一定要做好重发的准备。</p>
-<h3 id="http无状态"><a href="#http无状态" class="headerlink" title="http无状态"></a>http无状态</h3><p>OK，首先来明确下，这个状态的主体指的是什么？应该是信息，这些信息是由服务端所维护的与客户端交互的信息（也称为状态信息）；<br>因为HTTP本身是不保存任何用户的状态信息的，所以HTTP是无状态的协议。</p>
-<h3 id="如何保持状态信息"><a href="#如何保持状态信息" class="headerlink" title="如何保持状态信息"></a>如何保持状态信息</h3><p>在聊这个这个问题之前，我们来考虑下为什么http自己不来做这个事情：也就是让http变成有状态的。</p>
-<blockquote>
-<p>http本身来实现状态维护</p>
-</blockquote>
-<p>从上面关于无状态的理解，如果现在需要让http自己变成有状态的，就意味着http协议需要保存交互的状态信息；暂且不说这种方式是否合适，但从维护状态信息这一点来说，代价就很高，因为既然保存了状态信息，那后续的一些行为必定也会受到状态信息的影响。</p>
-<p>从历史角度来说，最初的http协议只是用来浏览静态文件的，无状态协议已经足够，这样实现的负担也很轻。但是随着web技术的不断发展，越来越多的场景需要状态信息能够得以保存；一方面是http本身不会去改变它的这种无状态的特性（至少目前是这样的），另一方面业务场景又迫切的需要保持状态；那么这个时候就需要来“装饰”一下http，引入一些其他机制来实现有状态。</p>
-<blockquote>
-<p>cookie和session体系</p>
-</blockquote>
-<p>通过引入cookie和session体系机制来维护状态信息。即用户第一次访问服务器的时候，服务器响应报头通常会出现一个Set-Cookie响应头，这里其实就是在本地设置一个cookie，当用户再次访问服务器的时候，http会附带这个cookie过去，cookie中存有sessionId这样的信息来到服务器这边确认是否属于同一次会话。</p>
-<h2 id="Cookie"><a href="#Cookie" class="headerlink" title="Cookie"></a>Cookie</h2><p>cookie是由服务器发送给客户端（浏览器）的小量信息，以{key：value}的形式存在。</p>
-<h3 id="Cookie机制原理"><a href="#Cookie机制原理" class="headerlink" title="Cookie机制原理"></a>Cookie机制原理</h3><p>客户端请求服务器时，如果服务器需要记录该用户状态，就使用response向客户端浏览器颁发一个Cookie。而客户端浏览器会把Cookie保存起来。当浏览器再请求 服务器时，浏览器把请求的网址连同该Cookie一同提交给服务器。服务器通过检查该Cookie来获取用户状态。</p>
-<blockquote>
-<p>cookie 是存储于访问者的计算机中的变量。可以让我们用同一个浏览器访问同一个域名的时候共享数据。</p>
-</blockquote>
-<blockquote>
-<p>HTTP 是无状态协议。简单地说，当你浏览了一个页面，然后转到同一个网站的另一个页面，服务器无法认识到这是同一个浏览器在访问同一个网站。每一次的访问，都是没有任何   关系的。</p>
-</blockquote>
-<h4 id="Koa-Cookie-的使用"><a href="#Koa-Cookie-的使用" class="headerlink" title="Koa Cookie 的使用"></a>Koa Cookie 的使用</h4><p>1、Koa 中设置 Cookie 的值<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ctx.cookies.set(name, value, [options])</span><br></pre></td></tr></table></figure></p>
-<p>通过options 设置 cookie name 的value :</p>
-<table>
-<thead>
-<tr>
-<th>options 名称</th>
-<th style="text-align:left">options 值</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>maxAge</td>
-<td style="text-align:left">一个数字表示从 Date.now() 得到的毫秒数</td>
-</tr>
-<tr>
-<td>expires</td>
-<td style="text-align:left">cookie 过期的Date</td>
-</tr>
-<tr>
-<td>path</td>
-<td style="text-align:left">cookie 路径, 默认是’/‘</td>
-</tr>
-<tr>
-<td>domain</td>
-<td style="text-align:left">cookie 域名,可以访问该Cookie的域名。如果设置为“.baidu.com”，则所有以“baidu.com”结尾的域名都可以访问该Cookie；第一个字符必须为“.”</td>
-</tr>
-<tr>
-<td>secure</td>
-<td style="text-align:left">安全 cookie    默认 false，设置成 true 表示只有 https 可以访问</td>
-</tr>
-<tr>
-<td>httpOnly</td>
-<td style="text-align:left">是否只是服务器可访问 cookie, 默认是true</td>
-</tr>
-<tr>
-<td>overwrite</td>
-<td style="text-align:left">一个布尔值，表示是否覆盖以前设置的同名的 cookie (默认是 false). 如果是 true, 在同一个请求中设置相同名称的所有 Cookie（不管路径或域） 是否在设置此 Cookie 时从Set-Cookie 标头中过滤掉。</td>
-</tr>
-</tbody>
-</table>
-<h3 id="Cookie属性"><a href="#Cookie属性" class="headerlink" title="Cookie属性"></a>Cookie属性</h3><blockquote>
-<p>name</p>
-</blockquote>
-<p>cookie的名字，Cookie一旦创建，名称便不可更改</p>
-<blockquote>
-<p>value</p>
-</blockquote>
-<p>cookie值</p>
-<blockquote>
-<p>comment</p>
-</blockquote>
-<p>该Cookie的用处说明。浏览器显示Cookie信息的时候显示该说明</p>
-<blockquote>
-<p>maxAge</p>
-</blockquote>
-<p>Cookie失效的时间，单位秒。</p>
-<ul>
-<li><p>正数，则超过maxAge秒之后失效。</p>
-</li>
-<li><p>负数，该Cookie为临时Cookie，关闭浏览器即失效，浏览器也不会以任何形式保存该Cookie。</p>
-</li>
-<li><p>为0，表示删除该Cookie。</p>
-</li>
-</ul>
-<blockquote>
-<p>path</p>
-</blockquote>
-<p>该Cookie的使用路径。例如：</p>
-<ul>
-<li>path=/，说明本域名下contextPath都可以访问该Cookie。</li>
-<li>path=/app/，则只有contextPath为“/app”的程序可以访问该Cookie</li>
-</ul>
-<p>path设置时，其以“/”结尾.</p>
-<blockquote>
-<p>secure</p>
-</blockquote>
-<p>该Cookie是否仅被使用安全协议传输。这里的安全协议包括HTTPS，SSL等。默认为false。</p>
-<h3 id="从请求中获取Cookie"><a href="#从请求中获取Cookie" class="headerlink" title="从请求中获取Cookie"></a>从请求中获取Cookie</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ctx.cookies.get(&apos;name&apos;);</span><br></pre></td></tr></table></figure>
-<h3 id="Cookie同源与跨域"><a href="#Cookie同源与跨域" class="headerlink" title="Cookie同源与跨域"></a>Cookie同源与跨域</h3><p>我们知道浏览器的同源策略：</p>
-<blockquote>
-<p>URL由协议、域名、端口和路径组成，如果两个URL的协议、域名和端口相同，则表示他们同源。浏览器的同源策略，限制了来自不同源的”document”或脚本，对当前”document”读取或设置某些属性。</p>
-</blockquote>
-<p>对于Cookie来说，Cookie的同源只关注域名，是忽略协议和端口的。所以一般情况下，<a href="https://localhost:80/和http://localhost:8080/的Cookie是共享的。" target="_blank" rel="noopener">https://localhost:80/和http://localhost:8080/的Cookie是共享的。</a></p>
-<p>Cookie是不可跨域的；在没有经过任何处理的情况下，二级域名不同也是不行的。(wenku.baidu.com和baike.baidu.com)。</p>
-<h3 id="Cookie数量-amp-大小限制及处理策略"><a href="#Cookie数量-amp-大小限制及处理策略" class="headerlink" title="Cookie数量&amp;大小限制及处理策略"></a>Cookie数量&amp;大小限制及处理策略</h3><table>
-<thead>
-<tr>
-<th>–</th>
-<th>IE6.0</th>
-<th>IE7.0/8.0</th>
-<th>Opera</th>
-<th>FF</th>
-<th>Safari</th>
-<th>Chrome</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>个数/个</td>
-<td>20/域</td>
-<td>50/域</td>
-<td>30/域</td>
-<td>50/域</td>
-<td>无限制</td>
-<td>53/域</td>
-</tr>
-<tr>
-<td>大小/Byte</td>
-<td>4095</td>
-<td>4095</td>
-<td>4096</td>
-<td>4097</td>
-<td>4097</td>
-<td>4097</td>
-</tr>
-</tbody>
-</table>
-<h3 id="Koa-中设置中文-Cookie"><a href="#Koa-中设置中文-Cookie" class="headerlink" title="Koa 中设置中文 Cookie"></a>Koa 中设置中文 Cookie</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">// 转换成 base64 字符串：aGVsbG8sIHdvcmxkIQ==</span><br><span class="line">console.log(new Buffer(&apos;hello, world!&apos;).toString(&apos;base64&apos;));</span><br><span class="line"></span><br><span class="line">// 还原 base64 字符串：hello, world!</span><br><span class="line">console.log(new Buffer(&apos;aGVsbG8sIHdvcmxkIQ==&apos;, &apos;base64&apos;).toString());</span><br></pre></td></tr></table></figure>
-<h3 id="eg"><a href="#eg" class="headerlink" title="eg"></a>eg</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line">var Koa=require(&apos;koa&apos;),</span><br><span class="line">    router = require(&apos;koa-router&apos;)(),</span><br><span class="line">    render = require(&apos;koa-art-template&apos;),</span><br><span class="line">    path=require(&apos;path&apos;);</span><br><span class="line"></span><br><span class="line">var app=new Koa();</span><br><span class="line"></span><br><span class="line">//配置 koa-art-template模板引擎</span><br><span class="line">render(app, &#123;</span><br><span class="line">    root: path.join(__dirname, &apos;views&apos;),   // 视图的位置</span><br><span class="line">    extname: &apos;.html&apos;,  // 后缀名</span><br><span class="line">    debug: process.env.NODE_ENV !== &apos;production&apos;  //是否开启调试模式</span><br><span class="line"></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">router.get(&apos;/&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //正常就这样配置就可以使用了</span><br><span class="line">    /*</span><br><span class="line">     ctx.cookies.set(&apos;userinfo&apos;,&apos;zhangsan&apos;,&#123;</span><br><span class="line">        maxAge:60*1000*60</span><br><span class="line">     &#125;);</span><br><span class="line">    * */</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    ctx.cookies.set(&apos;userinfo&apos;,&apos;zhangsan2222&apos;,&#123;</span><br><span class="line">        maxAge:60*1000*60,</span><br><span class="line"></span><br><span class="line">       // path:&apos;/news&apos;,  /*配置可以访问的页面*/</span><br><span class="line">        //domain:&apos;.baidu.com&apos;  /*正常情况不要设置 默认就是当前域下面的所有页面都可以方法*/</span><br><span class="line"></span><br><span class="line">        httpOnly:false,  //true表示这个cookie只有服务器端可以访问，false表示客户端（js），服务器端都可以访问</span><br><span class="line">        /*</span><br><span class="line">            a.baidu.com</span><br><span class="line">            b.baidu.com  共享cookie的数据</span><br><span class="line">            express基础教程</span><br><span class="line">        * */</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    let list=&#123;</span><br><span class="line">        name:&apos;张三&apos;</span><br><span class="line">    &#125;</span><br><span class="line">    await ctx.render(&apos;index&apos;,&#123;</span><br><span class="line">        list:list</span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.get(&apos;/about&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    ctx.cookies.set(&apos;userinfo&apos;,&apos;zhangsan33333&apos;,&#123;</span><br><span class="line">        maxAge:60*1000*60,</span><br><span class="line">        path:&apos;/news&apos;</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    ctx.body=&quot;这是关于我们&quot;;</span><br><span class="line">&#125;)</span><br><span class="line">//接收post提交的数据</span><br><span class="line">router.get(&apos;/news&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    var userinfo=ctx.cookies.get(&apos;userinfo&apos;);</span><br><span class="line"></span><br><span class="line">    console.log(userinfo);</span><br><span class="line">    let app=&#123;</span><br><span class="line">        name:&apos;张三11&apos;</span><br><span class="line">    &#125;;</span><br><span class="line">    await ctx.render(&apos;news&apos;,&#123;</span><br><span class="line">        list:app</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.get(&apos;/shop&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    var userinfo=ctx.cookies.get(&apos;userinfo&apos;);</span><br><span class="line"></span><br><span class="line">    console.log(userinfo);</span><br><span class="line">   ctx.body=&apos;这是一个商品页面&apos;+userinfo;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.use(router.routes());   /*启动路由*/</span><br><span class="line">app.use(router.allowedMethods());</span><br><span class="line">app.listen(3000);</span><br></pre></td></tr></table></figure>
-<hr>
-<h2 id="Session"><a href="#Session" class="headerlink" title="Session"></a>Session</h2><p>session 是另一种记录客户状态的机制，不同的是 Cookie 保存在客户端浏览器中，而session 保存在服务器上。</p>
-<p>Cookie机制弥补了HTTP协议无状态的不足。在Session出现之前，基本上所有的网站都采用Cookie来跟踪会话。</p>
-<p>与Cookie不同的是，session是以服务端保存状态的。</p>
-<h3 id="session机制原理"><a href="#session机制原理" class="headerlink" title="session机制原理"></a>session机制原理</h3><p>当浏览器访问服务器并发送第一次请求时，服务器端会创建一个session 对象，生成一个类似于key,value 的键值对， 然后将key(cookie)返回到浏览器(客户)端，浏览器下次再访问时，携带 key(cookie)，找到对应的 session(value)。 客户的信息都保存在session 中</p>
-<p>当客户端请求创建一个session的时候，服务器会先检查这个客户端的请求里是否已包含了一个session标识 - sessionId，</p>
-<ul>
-<li>如果已包含这个sessionId，则说明以前已经为此客户端创建过session，服务器就按照sessionId把这个session检索出来使用（如果检索不到，可能会新建一个）</li>
-<li>如果客户端请求不包含sessionId，则为此客户端创建一个session并且生成一个与此session相关联的sessionId</li>
-</ul>
-<p>sessionId的值一般是一个既不会重复，又不容易被仿造的字符串，这个sessionId将被在本次响应中返回给客户端保存。保存sessionId的方式大多情况下用的是cookie。</p>
-<h3 id="koa-session-的使用"><a href="#koa-session-的使用" class="headerlink" title="koa-session 的使用:"></a>koa-session 的使用:</h3><blockquote>
-<p>安装    express-session</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm	install	koa-session --save</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>引入express-session</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">const session = require(&apos;koa-session&apos;);</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>设置官方文档提供的中间件</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">app.keys = [&apos;some secret hurr&apos;];   /*cookie的签名*/</span><br><span class="line">const CONFIG = &#123;</span><br><span class="line">    key: &apos;koa:sess&apos;, /** 默认 */</span><br><span class="line">    maxAge: 10000,  /*  cookie的过期时间        【需要修改】  */</span><br><span class="line">    overwrite: true, /** (boolean) can overwrite or not (default true)    没有效果，默认 */</span><br><span class="line">    httpOnly: true, /**  true表示只有服务器端可以获取cookie */</span><br><span class="line">    signed: true, /** 默认 签名 */</span><br><span class="line">    rolling: true, /** 在每次请求时强行设置 cookie，这将重置 cookie 过期时间（默认：false） 【需要修改】 */</span><br><span class="line">    renew: false, /** 快要过期的时候重新设置      【需要修改】*/</span><br><span class="line">&#125;;</span><br><span class="line">app.use(session(CONFIG, app));</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>使用</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//设置值 </span><br><span class="line">ctx.session.username = &quot;张三&quot;;</span><br><span class="line"></span><br><span class="line">//获取值 </span><br><span class="line">ctx.session.username</span><br></pre></td></tr></table></figure>
-<h3 id="eg-1"><a href="#eg-1" class="headerlink" title="eg"></a>eg</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">var Koa=require(&apos;koa&apos;),</span><br><span class="line">    router = require(&apos;koa-router&apos;)(),</span><br><span class="line">    render = require(&apos;koa-art-template&apos;),</span><br><span class="line">    path=require(&apos;path&apos;),</span><br><span class="line">    session = require(&apos;koa-session&apos;);</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">var app=new Koa();</span><br><span class="line"></span><br><span class="line">//配置 koa-art-template模板引擎</span><br><span class="line">render(app, &#123;</span><br><span class="line">    root: path.join(__dirname, &apos;views&apos;),   // 视图的位置</span><br><span class="line">    extname: &apos;.html&apos;,  // 后缀名</span><br><span class="line">    debug: process.env.NODE_ENV !== &apos;production&apos;  //是否开启调试模式</span><br><span class="line">&#125;);</span><br><span class="line">//配置session的中间件</span><br><span class="line">app.keys = [&apos;some secret hurr&apos;];   /*cookie的签名*/</span><br><span class="line">const CONFIG = &#123;</span><br><span class="line">    key: &apos;koa:sess&apos;, /** 默认 */</span><br><span class="line">    maxAge: 10000,  /*  cookie的过期时间        【需要修改】  */</span><br><span class="line">    overwrite: true, /** (boolean) can overwrite or not (default true)    没有效果，默认 */</span><br><span class="line">    httpOnly: true, /**  true表示只有服务器端可以获取cookie */</span><br><span class="line">    signed: true, /** 默认 签名 */</span><br><span class="line">    rolling: true, /** 在每次请求时强行设置 cookie，这将重置 cookie 过期时间（默认：false） 【需要修改】 */</span><br><span class="line">    renew: false, /** (boolean) renew session when session is nearly expired      【需要修改】*/</span><br><span class="line">&#125;;</span><br><span class="line">app.use(session(CONFIG, app));</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">router.get(&apos;/&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //获取session</span><br><span class="line">    console.log(ctx.session.userinfo);</span><br><span class="line">    await ctx.render(&apos;index&apos;,&#123;</span><br><span class="line">        list:&#123;</span><br><span class="line">            name:&apos;张三&apos;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">router.get(&apos;/news&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //获取session</span><br><span class="line">    console.log(ctx.session.userinfo);</span><br><span class="line">    ctx.body=&quot;登录成功&quot;;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">router.get(&apos;/login&apos;,async (ctx)=&gt;&#123;</span><br><span class="line"></span><br><span class="line">    //设置session</span><br><span class="line">    ctx.session.userinfo=&apos;张三&apos;;</span><br><span class="line">    ctx.body=&quot;登录成功&quot;;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">app.use(router.routes());   /*启动路由*/</span><br><span class="line">app.use(router.allowedMethods());</span><br><span class="line">app.listen(3000);</span><br></pre></td></tr></table></figure>
-<h3 id="Cookie-和-Session-区别"><a href="#Cookie-和-Session-区别" class="headerlink" title="Cookie 和 Session 区别"></a>Cookie 和 Session 区别</h3><p>1、cookie 数据存放在客户的浏览器上，session 数据放在服务器上。</p>
-<p>2、cookie 不是很安全，别人可以分析存放在本地的 COOKIE 并进行 COOKIE 欺骗考虑到安全应当使用 session。</p>
-<p>3、session 会在一定时间内保存在服务器上。当访问增多，会比较占用你服务器的性能考虑到减轻服务器性能方面，应当使用 COOKIE。</p>
-<p>4、单个 cookie 保存的数据不能超过 4K，很多浏览器都限制一个站点最多保存 20 个 cookie。    </p>
-<p>这两种是一样的；如果session不存在，就新建一个；如果是false的话，标识如果不存在就返回null；</p>
-<h3 id="生命周期"><a href="#生命周期" class="headerlink" title="生命周期"></a>生命周期</h3><p>session的生命周期指的是创建session对象到销毁的过程。会依据session对象设置的存活时间，在达到session时间后将session对象销毁。session生成后，只要用户继续访问，服务器就会更新session的最后访问时间，并维护该session。</p>
-<p>之前在单进程应用中，session我一般是存在内存中的，不会做持久化操作或者说使用三方的服务来存session信息，如<strong>redis</strong>。但是在分布式场景下，这种存在本机内存中的方式显然是不适用的，因为session无法共享。这个后面说。</p>
-<h3 id="session的有效期"><a href="#session的有效期" class="headerlink" title="session的有效期"></a>session的有效期</h3><p>session一般在内存中存放，内存空间本身大小就有一定的局限性，因此session需要采用一种过期删除的机制来确保session信息不会一直累积，来防止内存溢出的发生。</p>
-<p>session的超时时间可以通过maxInactiveInterval属性来设置。</p>
-<p>如果我们想让session失效的话，也可以当通过调用session的invalidate()来完成。</p>
-<h3 id="分布式session"><a href="#分布式session" class="headerlink" title="分布式session"></a>分布式session</h3><p>首先是为什么会有这样的概念出现？</p>
-<p>先考虑这样一个问题，现在我的应用需要部署在3台机器上。是不是出现这样一种情况，我第一次登陆，请求去了机器1，然后再机器1上创建了一个session；但是我第二次访问时，请求被路由到机器2了，但是机器2上并没有我的session信息，所以得重新登录。当然这种可以通过nginx的IP HASH负载策略来解决。对于同一个IP请求都会去同一个机器。</p>
-<p>但是业务发展的越来越大，拆分的越来越多，机器数不断增加；很显然那种方案就不行了。那么这个时候就需要考虑是不是应该将session信息放在一个独立的机器上，所以分布式session要解决的问题其实就是分布式环境下的session共享的问题。<br> <img src="/2018/08/25/Koa-session和cookie/2.webp" alt=""><br>上图中的关于session独立部署的方式有很多种，可以是一个独立的数据库服务，也可以是一个缓存服务(redis，目前比较常用的一种方式，即使用Redis来作为session缓存服务器)。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3231,7 +3383,7 @@ private WebView Wv;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">132</span>
+                  <span class="site-state-item-count">133</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
