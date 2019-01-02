@@ -694,6 +694,147 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/简单理解async、await语法实现原理/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/04/简单理解async、await语法实现原理/" itemprop="url">简单理解async、await语法实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-04T23:57:27+08:00">
+                2018-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>现在最新的前端框架生态都开始用上了Generator和yield，<br>有的甚至已经开始使用最新的async、await语法了，<br><strong>这两样都是基于Generator自动执行的原理。</strong></p>
+<h2 id="阮一峰-async-函数的实现原理"><a href="#阮一峰-async-函数的实现原理" class="headerlink" title="阮一峰 async-函数的实现原理"></a>阮一峰 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fasync%23async-%25E5%2587%25BD%25E6%2595%25B0%25E7%259A%2584%25E5%25AE%259E%25E7%258E%25B0%25E5%258E%259F%25E7%2590%2586" target="_blank" rel="noopener">async-函数的实现原理</a></h2><h4 id="async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><a href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。" class="headerlink" title="async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。"></a>async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">async function fn(args) &#123;</span><br><span class="line">  // ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 等同于</span><br><span class="line">function fn(args) &#123;</span><br><span class="line">  return spawn(function* () &#123;</span><br><span class="line">    // ...</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>所有的async函数都可以写成上面的第二种形式，其中的spawn函数就是自动执行器。</p>
+<p>下面给出spawn函数的实现，基本就是前文自动执行器的翻版。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function spawn(genF) &#123;</span><br><span class="line">  return new Promise(function(resolve, reject) &#123;</span><br><span class="line">    const gen = genF();</span><br><span class="line">    function step(nextF) &#123;</span><br><span class="line">      let next;</span><br><span class="line">      try &#123;</span><br><span class="line">        next = nextF();</span><br><span class="line">      &#125; catch(e) &#123;</span><br><span class="line">        return reject(e);</span><br><span class="line">      &#125;</span><br><span class="line">      if(next.done) &#123;</span><br><span class="line">        return resolve(next.value);</span><br><span class="line">      &#125;</span><br><span class="line">      Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">        step(function() &#123; return gen.next(v); &#125;);</span><br><span class="line">      &#125;, function(e) &#123;</span><br><span class="line">        step(function() &#123; return gen.throw(e); &#125;);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    step(function() &#123; return gen.next(undefined); &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function timeout(ms) &#123;</span><br><span class="line">				return &#123;</span><br><span class="line">					text: &apos;done&apos;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function* start() &#123;</span><br><span class="line">				const res = yield timeout(1000);</span><br><span class="line">				return res;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">		 </span><br><span class="line">             </span><br><span class="line"></span><br><span class="line">			function fn(args) &#123;</span><br><span class="line">				return spawn(start);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function spawn(genF) &#123;</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					const gen = genF();</span><br><span class="line">					function step(nextF) &#123;</span><br><span class="line">						let next;</span><br><span class="line">						try &#123;</span><br><span class="line">							next = nextF();</span><br><span class="line">						&#125; catch(e) &#123;</span><br><span class="line">							return reject(e);</span><br><span class="line">						&#125;</span><br><span class="line">						if(next.done) &#123;</span><br><span class="line">							return resolve(next.value);</span><br><span class="line">						&#125;</span><br><span class="line">						</span><br><span class="line">					</span><br><span class="line">						Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.next(v);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;, function(e) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.throw(e);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;);</span><br><span class="line">					&#125;</span><br><span class="line">					step(function() &#123;</span><br><span class="line">						return gen.next();</span><br><span class="line">					&#125;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			 fn().then((data)=&gt;&#123;</span><br><span class="line">				console.log(data)</span><br><span class="line">			&#125;)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+<h3 id="看下babel转换后的"><a href="#看下babel转换后的" class="headerlink" title="看下babel转换后的"></a>看下babel转换后的</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">async function fns(args) &#123;</span><br><span class="line">				const res = await fetch(&apos;google.com&apos;);</span><br><span class="line">				return res.text();</span><br><span class="line">			&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">&apos;use strict&apos;;</span><br><span class="line">    </span><br><span class="line">		var fns = function() &#123;</span><br><span class="line">			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(args) &#123;</span><br><span class="line">				var res;</span><br><span class="line">				return regeneratorRuntime.wrap(function _callee$(_context) &#123;</span><br><span class="line">					while(1) &#123;</span><br><span class="line">						switch(_context.prev = _context.next) &#123;</span><br><span class="line">							case 0:</span><br><span class="line">								_context.next = 2;</span><br><span class="line">								return fetch(&apos;google.com&apos;);</span><br><span class="line">    </span><br><span class="line">							case 2:</span><br><span class="line">								res = _context.sent;</span><br><span class="line">								return _context.abrupt(&apos;return&apos;, res.text());</span><br><span class="line">    </span><br><span class="line">							case 4:</span><br><span class="line">							case&apos;end&apos;:</span><br><span class="line">								return _context.stop();</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;, _callee, this);</span><br><span class="line">			&#125;));</span><br><span class="line">    </span><br><span class="line">			returnfunction fns(_x) &#123;</span><br><span class="line">				return _ref.apply(this, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;();</span><br><span class="line">    </span><br><span class="line">		function _asyncToGenerator(fn) &#123;  //Generator函数自动执行</span><br><span class="line">			returnfunction() &#123;</span><br><span class="line">				var gen = fn.apply(this, arguments);</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					function step(key, arg) &#123;</span><br><span class="line">						try &#123;</span><br><span class="line">							var info = gen[key](arg);</span><br><span class="line">							var value = info.value;</span><br><span class="line">						&#125; catch(error) &#123;</span><br><span class="line">							reject(error);</span><br><span class="line">							return;</span><br><span class="line">						&#125;</span><br><span class="line">						if(info.done) &#123;</span><br><span class="line">							resolve(value);</span><br><span class="line">						&#125; else &#123;</span><br><span class="line">							return Promise.resolve(value).then(function(value) &#123;</span><br><span class="line">								step(&quot;next&quot;, value);</span><br><span class="line">							&#125;, function(err) &#123;</span><br><span class="line">								step(&quot;throw&quot;, err);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">					return step(&quot;next&quot;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br></pre></td></tr></table></figure>
+<p>一、thunk函数<br>thunk函数指的是能将执行结果传入回调函数，并将该回调函数返回的函数。<br>是不是有点抽象，举个例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var readFile = function (fileName) &#123;</span><br><span class="line">    returnfunction (callback) &#123;</span><br><span class="line">        return fs.readFile(fileName, callback)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>下面我们来看下thunk函数怎样执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readFile(&apos;./package.json&apos;)((err, str) =&gt; &#123;</span><br><span class="line">    console.log(str.toString())</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>问: thunk的执行比普通函数要麻烦不少，那么它有什么优势呢？</p>
+<h3 id="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><a href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，" class="headerlink" title="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"></a>thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</h3><p>而不是将异步操作结果传入thunk函数本身的作用域内，这点很重要，<br>因为它能结合Generator语法让Generator函数自动执行</p>
+<p>二、Generator<br>es6的Generator函数，具体语法这里就不介绍了，</p>
+<p>我们来编写一个基于thunk函数的Generator：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们来手动执行一下这个Generator:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">let g = gen()</span><br><span class="line">let r1 = g.next()</span><br><span class="line">r1.value(function (err, data) &#123;</span><br><span class="line">    if (err) &#123;</span><br><span class="line">        throw err</span><br><span class="line">    &#125;</span><br><span class="line">    let r2 = g.next(data)</span><br><span class="line">    r2.value(function (err, data) &#123;</span><br><span class="line">        if (err) &#123;</span><br><span class="line">            throw err</span><br><span class="line">        &#125;</span><br><span class="line">        g.next(data)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>可以注意到，在我们手动执行基于thunk函数的Generator时，<br>有很多代码是可以复用的，<br>没错，所谓的Generator自动执行就是把这些可复用的部分封装成函数，<br>然后让它们递归执行，直到执行完所有的yield。</p>
+<p>三、Generator自动执行器<br>下面就是Generator自动执行的核心代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">function run(fn) &#123;</span><br><span class="line">    let gen = fn()</span><br><span class="line">    function next(err, data) &#123;</span><br><span class="line">        let result = gen.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return</span><br><span class="line">        &#125;</span><br><span class="line">        result.value(next)</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到无非就是把可复用的部分封装成next函数，然后让其<strong>递归</strong>执行，<br>直到执行完所有的yield</p>
+<p>其调用代码为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
+<p>这样就将原本繁杂的异步操作封装的十分简单了</p>
+<p>基于Promise的Generator的自动执行<br>上面的例子是基于thunk函数的，而即将出现的es7的async、await语法是基于Promise的</p>
+<p>这里再上一个基于Promise的Generator的自动执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">//包装返回Promise对象的函数</span><br><span class="line">functionreadFile(fileName) &#123;</span><br><span class="line">    return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">        fs.readFile(fileName, (error, data) =&gt; &#123;</span><br><span class="line">            if (error) &#123;</span><br><span class="line">                reject(error)</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                resolve(data)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">// 编写Generator</span><br><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 编写Generator执行器</span><br><span class="line">function run(gen) &#123;</span><br><span class="line">    let g = gen()</span><br><span class="line">    function next(data) &#123;</span><br><span class="line">        let result = g.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return result.value</span><br><span class="line">        &#125;</span><br><span class="line">        result.value.then((data) =&gt; next(data))</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//用Generator执行器自动执行</span><br><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
+<p>这个和基于thunk函数的大同小异，只是把函数返回值的获取权以Promise的方式交出</p>
+<h4 id="参考-简单理解Generator自执行及async、await语法原理"><a href="#参考-简单理解Generator自执行及async、await语法原理" class="headerlink" title="参考 简单理解Generator自执行及async、await语法原理"></a>参考 <a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000008254704" target="_blank" rel="noopener">简单理解Generator自执行及async、await语法原理</a></h4>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/ES6之-Generator-的惰性执行/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3305,428 +3446,6 @@ server.listen(3000)
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/28/JSBridge的原理/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/28/JSBridge的原理/" itemprop="url">JSBridge的原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-28T10:21:44+08:00">
-                2018-08-28
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>关于 JSBridge，绝大多数同学最早遇到的是微信的 WeiXinJSBridge（现在被封装成 JSSDK），各种 Web 页面可以通过 Bridge 调用微信提供的一些原生功能，为用户提供相关的功能。其实，JSBridge 很早就出现在软件开发中，在一些桌面软件中很早就运用了这样的形式，多用在通知、产品详情、广告等模块中，然后这些模块中，使用的是 Web UI，而相关按钮点击后，调用的是 Native 功能。现在移动端盛行，不管是 Hybrid 应用，还是 React-Native 都离不开 JSBridge，当然也包括在国内举足轻重的微信小程序。那么，JSBridge 到底是什么？它的出现是为了什么？它究竟是怎么实现的？在这篇文章中，会在移动混合开发的范畴内，将给大家带来 JSBridge 的深入剖析。</p>
-<p>当然，这段代码片段只是一个示例，主要用于剖析 JSBridge 的原理和流程，里面存在诸多省略和不完善的代码逻辑，读者们可以自行完善。<br><img src="/2018/08/28/JSBridge的原理/1.webp" alt=""><br><img src="/2018/08/28/JSBridge的原理/2.webp" alt=""></p>
-<h1 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a><strong>1 前言</strong></h1><p>有些童鞋听到 JSBridge 这个名词，就是觉得非常高上大，有了它 Web 和 Native 可以进行交互，就像『进化药水』，让 Web 摇身一变，成为移动战场的『上将一名』。其实并非如此，JSBridge 其实真是一个很简单的东西，更多的是一种形式、一种思想。</p>
-<h1 id="2-JSBridge-的起源"><a href="#2-JSBridge-的起源" class="headerlink" title="2 JSBridge 的起源"></a><strong>2 JSBridge 的起源</strong></h1><p>为什么是 JSBridge ？而不是 PythonBridge 或是 RubyBridge ？</p>
-<p>当然不是因为 JavaScript 语言高人一等（虽然斯坦福大学已经把算法导论的语言从 Java 改成 JavaScript，小得意一下，嘻嘻），主要的原因还是因为 JavaScript 主要载体 Web 是当前世界上的 <strong>最易编写</strong> 、 <strong>最易维护</strong> 、<strong>最易部署</strong> 的 UI 构建方式。工程师可以用很简单的 HTML 标签和 CSS 样式快速的构建出一个页面，并且在服务端部署后，用户不需要主动更新，就能看到最新的 UI 展现。</p>
-<p>因此，<strong>开发维护成本</strong> 和 <strong>更新成本</strong> 较低的 Web 技术成为混合开发中几乎不二的选择，而作为 Web 技术逻辑核心的 JavaScript 也理所应当肩负起与其他技术『桥接』的职责，并且作为移动不可缺少的一部分，任何一个移动操作系统中都包含可运行 JavaScript 的容器，例如 WebView 和 JSCore。所以，运行 JavaScript 不用像运行其他语言时，要额外添加运行环境。因此，基于上面种种原因，JSBridge 应运而生。</p>
-<p>PhoneGap（Codova 的前身）作为 Hybrid 鼻祖框架，应该是最先被开发者广泛认知的 JSBridge 的应用场景；而对于 JSBridge 的应用在国内真正兴盛起来，则是因为杀手级应用微信的出现，主要用途是在网页中通过 JSBridge 设置分享内容。</p>
-<p>移动端混合开发中的 JSBridge，主要被应用在两种形式的技术方案上：</p>
-<p>基于 Web 的 Hybrid 解决方案：例如微信浏览器、各公司的 Hybrid 方案</p>
-<p>非基于 Web UI 但业务逻辑基于 JavaScript 的解决方案：例如 React-Native</p>
-<p>【注】：微信小程序基于 Web UI，但是为了追求运行效率，对 UI 展现逻辑和业务逻辑的 JavaScript 进行了隔离。因此小程序的技术方案介于上面描述的两种方式之间。</p>
-<h1 id="3-JSBridge-的用途"><a href="#3-JSBridge-的用途" class="headerlink" title="3 JSBridge 的用途"></a><strong>3 JSBridge 的用途</strong></h1><p>JSBridge 简单来讲，主要是 <strong>给 JavaScript 提供调用 Native 功能的接口</strong>，让混合开发中的『前端部分』可以方便地使用地址位置、摄像头甚至支付等 Native 功能。</p>
-<p>既然是『简单来讲』，那么 JSBridge 的用途肯定不只『调用 Native 功能』这么简单宽泛。实际上，JSBridge 就像其名称中的『Bridge』的意义一样，是 Native 和非 Native 之间的桥梁，它的核心是 <strong>构建 Native 和非 Native 间消息通信的通道</strong>，而且是 <strong>双向通信的通道</strong>。<br><img src="/2018/08/28/JSBridge的原理/3.webp" alt=""><br>所谓 <strong>双向通信的通道</strong>:</p>
-<ul>
-<li>JS 向 Native 发送消息 : 调用相关功能、通知 Native 当前 JS 的相关状态等。</li>
-<li>Native 向 JS 发送消息 : 回溯调用结果、消息推送、通知 JS 当前 Native 的状态等。</li>
-</ul>
-<p>这里有些同学有疑问了：<em>消息都是单向的，那么调用 Native 功能时 Callback 怎么实现的？</em><br>对于这个问题，在下一节里会给出解释。</p>
-<h1 id="4-JSBridge-的实现原理"><a href="#4-JSBridge-的实现原理" class="headerlink" title="4 JSBridge 的实现原理"></a><strong>4 JSBridge 的实现原理</strong></h1><p>JavaScript 是运行在一个单独的 JS Context 中（例如，WebView 的 Webkit 引擎、JSCore）。由于这些 Context 与原生运行环境的天然隔离，我们可以将这种情况与 RPC（Remote Procedure Call，远程过程调用）通信进行类比，将 Native 与 JavaScript 的每次互相调用看做一次 RPC 调用。</p>
-<p>在 JSBridge 的设计中，可以把前端看做 RPC 的客户端，把 Native 端看做 RPC 的服务器端，从而 JSBridge 要实现的主要逻辑就出现了：<strong>通信调用（Native 与 JS 通信）</strong> 和 <strong>句柄解析调用</strong>。（如果你是个前端，而且并不熟悉 RPC 的话，你也可以把这个流程类比成 JSONP 的流程）</p>
-<p>通过以上的分析，可以清楚地知晓 JSBridge 主要的功能和职责，接下来就以 <strong>Hybrid 方案</strong> 为案例从这几点来剖析 JSBridge 的实现原理。</p>
-<h2 id="4-1-JSBridge-的通信原理"><a href="#4-1-JSBridge-的通信原理" class="headerlink" title="4.1 JSBridge 的通信原理"></a><strong>4.1 JSBridge 的通信原理</strong></h2><p>Hybrid 方案是基于 WebView 的，JavaScript 执行在 WebView 的 Webkit 引擎中。因此，Hybrid 方案中 JSBridge 的通信原理会具有一些 Web 特性。</p>
-<h3 id="4-1-1-JavaScript-调用-Native"><a href="#4-1-1-JavaScript-调用-Native" class="headerlink" title="4.1.1 JavaScript 调用 Native"></a><strong>4.1.1 JavaScript 调用 Native</strong></h3><p>JavaScript 调用 Native 的方式，主要有两种：<font color="#ff0000"><strong>注入 API</strong> </font> 和 <font color="#ff0000"> <strong>拦截 URL SCHEME</strong> </font>。</p>
-<h4 id="4-1-1-1-注入API"><a href="#4-1-1-1-注入API" class="headerlink" title="4.1.1.1 注入API"></a><strong>4.1.1.1 注入API</strong></h4><p>注入 API 方式的主要原理是，通过 WebView 提供的接口，向 JavaScript 的 Context（window）中注入对象或者方法，让 JavaScript 调用时，直接执行相应的 Native 代码逻辑，达到 JavaScript 调用 Native 的目的。</p>
-<p>对于 iOS 的 UIWebView，实例如下：</p>
-<pre><code>JSContext *context = [uiWebView valueForKeyPath:@&quot;documentView.webView.mainFrame.javaScriptContext&quot;];
-
-context[@&quot;postBridgeMessage&quot;] = ^(NSArray&lt;NSArray *&gt; *calls) {
-    // Native 逻辑
-};
-</code></pre><p>前端调用方式：</p>
-<pre><code>window.postBridgeMessage(message);
-</code></pre><p>对于 iOS 的 WKWebView 可以用以下方式：</p>
-<pre><code>@interface WKWebVIewVC ()&lt;WKScriptMessageHandler&gt;
-
-@implementation WKWebVIewVC
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-
-    WKWebViewConfiguration* configuration = [[WKWebViewConfiguration alloc] init];
-    configuration.userContentController = [[WKUserContentController alloc] init];
-    WKUserContentController *userCC = configuration.userContentController;
-    // 注入对象，前端调用其方法时，Native 可以捕获到
-    [userCC addScriptMessageHandler:self name:@&quot;nativeBridge&quot;];
-
-    WKWebView wkWebView = [[WKWebView alloc] initWithFrame:self.view.frame configuration:configuration];
-
-    // TODO 显示 WebView
-}
-
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    if ([message.name isEqualToString:@&quot;nativeBridge&quot;]) {
-        NSLog(@&quot;前端传递的数据 %@: &quot;,message.body);
-        // Native 逻辑
-    }
-}
-</code></pre><p>前端调用方式：</p>
-<pre><code>window.webkit.messageHandlers.nativeBridge.postMessage(message);
-</code></pre><p>对于 Android 可以采用下面的方式：</p>
-<pre><code>publicclassJavaScriptInterfaceDemoActivityextendsActivity{
-private WebView Wv;
-
-    @Override
-    publicvoidonCreate(Bundle savedInstanceState){
-        super.onCreate(savedInstanceState);
-
-        Wv = (WebView)findViewById(R.id.webView);     
-        final JavaScriptInterface myJavaScriptInterface = new JavaScriptInterface(this);         
-
-        Wv.getSettings().setJavaScriptEnabled(true);
-        Wv.addJavascriptInterface(myJavaScriptInterface, &quot;nativeBridge&quot;);
-
-        // TODO 显示 WebView
-
-    }
-
-    publicclassJavaScriptInterface{
-         Context mContext;
-
-         JavaScriptInterface(Context c) {
-             mContext = c;
-         }
-
-         publicvoidpostMessage(String webMessage){            
-             // Native 逻辑
-         }
-     }
-}
-</code></pre><p>前端调用方式：</p>
-<pre><code>window.nativeBridge.postMessage(message);
-</code></pre><p>在 4.2 之前，Android 注入 JavaScript 对象的接口是 addJavascriptInterface，但是这个接口有漏洞，可以被不法分子利用，危害用户的安全，因此在 4.2 中引入新的接口 @JavascriptInterface（上面代码中使用的）来替代这个接口，解决安全问题。所以 Android 注入对对象的方式是 <strong>有兼容性问题的</strong>。（4.2 之前很多方案都采用拦截 prompt 的方式来实现，因为篇幅有限，这里就不展开了。）</p>
-<h4 id="4-1-1-2-拦截-URL-SCHEME"><a href="#4-1-1-2-拦截-URL-SCHEME" class="headerlink" title="4.1.1.2 拦截 URL SCHEME"></a><strong>4.1.1.2 拦截 URL SCHEME</strong></h4><p>先解释一下 URL SCHEME：URL SCHEME是一种类似于url的链接，是为了方便app直接互相调用设计的，形式和普通的 url 近似，主要区别是 protocol 和 host 一般是自定义的，例如: qunarhy://hy/url?url=<a href="https://link.juejin.im?target=http%3A%2F%2Fymfe.tech" target="_blank" rel="noopener">ymfe.tech</a>，protocol 是 qunarhy，host 则是 hy。</p>
-<p>拦截 URL SCHEME 的主要流程是：Web 端通过某种方式（例如 iframe.src）发送 URL Scheme 请求，之后 Native 拦截到请求并根据 URL SCHEME（包括所带的参数）进行相关操作。</p>
-<p>在时间过程中，这种方式有一定的 <strong>缺陷</strong>：</p>
-<ul>
-<li><font color="#dd0000"><strong> 使用 iframe.src 发送 URL SCHEME 会有 url 长度的隐患。</strong></font>
-</li>
-<li><font color="#dd0000"><strong>创建请求，需要一定的耗时，比注入 API 的方式调用同样的功能，耗时会较长。</strong></font>
-
-</li>
-</ul>
-<p>但是之前为什么很多方案使用这种方式呢？因为它 <strong>支持 iOS6</strong>。而现在的大环境下，iOS6 占比很小，基本上可以忽略，所以并不推荐为了 iOS6 使用这种 <strong>并不优雅</strong> 的方式。</p>
-<p>【注】：有些方案为了规避 url 长度隐患的缺陷，在 iOS 上采用了使用 Ajax 发送同域请求的方式，并将参数放到 head 或 body 里。这样，虽然规避了 url 长度的隐患，但是 WKWebView 并不支持这样的方式。</p>
-<p>【注2】：为什么选择 iframe.src 不选择 locaiton.href ？因为如果通过 location.href 连续调用 Native，很容易丢失一些调用。</p>
-<h3 id="4-1-2-Native-调用-JavaScript"><a href="#4-1-2-Native-调用-JavaScript" class="headerlink" title="4.1.2 Native 调用 JavaScript"></a><strong>4.1.2 Native 调用 JavaScript</strong></h3><p>相比于 JavaScript 调用 Native， Native 调用 JavaScript 较为简单，毕竟不管是 iOS 的 UIWebView 还是 WKWebView，还是 Android 的 WebView 组件，都以子组件的形式存在于 View/Activity 中，直接调用相应的 API 即可。</p>
-<p>Native 调用 JavaScript，其实就是执行拼接 JavaScript 字符串，从外部调用 JavaScript 中的方法，因此 JavaScript 的方法必须在全局的 window 上。（闭包里的方法，JavaScript 自己都调用不了，更不用想让 Native 去调用了）</p>
-<p>对于 iOS 的 UIWebView，示例如下：</p>
-<pre><code>result = [uiWebview stringByEvaluatingJavaScriptFromString:javaScriptString];
-</code></pre><p>对于 iOS 的 WKWebView，示例如下：</p>
-<pre><code>[wkWebView evaluateJavaScript:javaScriptString completionHandler:completionHandler];
-</code></pre><p>对于 Android，在 Kitkat（4.4）之前并没有提供 iOS 类似的调用方式，只能用 loadUrl 一段 JavaScript 代码，来实现：</p>
-<pre><code>webView.loadUrl(&quot;javascript:&quot; + javaScriptString);
-</code></pre><p>而 Kitkat 之后的版本，也可以用 evaluateJavascript 方法实现：</p>
-<pre><code>webView.evaluateJavascript(javaScriptString, new ValueCallback&lt;String&gt;() {
-    @Override
-    publicvoidonReceiveValue(String value){
-
-    }
-});
-</code></pre><p>【注】：使用 loadUrl 的方式，并不能获取 JavaScript 执行后的结果。</p>
-<h3 id="4-1-3-通信原理小总结"><a href="#4-1-3-通信原理小总结" class="headerlink" title="4.1.3 通信原理小总结"></a><strong>4.1.3 通信原理小总结</strong></h3><p>通信原理是 JSBridge 实现的核心，实现方式可以各种各样，但是万变不离其宗。这里，笔者推荐的实现方式如下：</p>
-<ul>
-<li><p>JavaScript 调用 Native 推荐使用 <strong>注入 API</strong> 的方式（iOS6 忽略，Android 4.2以下使用 WebViewClient 的 onJsPrompt 方式）。</p>
-</li>
-<li><p>Native 调用 JavaScript 则直接执行拼接好的 JavaScript 代码即可。</p>
-</li>
-</ul>
-<p>对于其他方式，诸如 React Native、微信小程序 的通信方式都与上描述的近似，并根据实际情况进行优化。</p>
-<p>以 React Native 的 iOS 端举例：JavaScript 运行在 JSCore 中，实际上可以与上面的方式一样，利用注入 API 来实现 JavaScript 调用 Native 功能。不过 React Native 并没有设计成 JavaScript 直接调用 Object-C，而是 <strong>为了与 Native 开发里事件响应机制一致</strong>，设计成 <strong>需要在 Object-C 去调 JavaScript 时才通过返回值触发调用</strong>。原理基本一样，只是实现方式不同。</p>
-<p>当然不仅仅 iOS 和 Android，其他手机操作系统也用相应的 API，例如 WMP（Win 10）下可以用 window.external.notify 和 WebView.InvokeScript/InvokeScriptAsync 进行双向通信。其他系统也类似。</p>
-<h2 id="4-2-JSBridge-接口实现"><a href="#4-2-JSBridge-接口实现" class="headerlink" title="4.2 JSBridge 接口实现"></a><strong>4.2 JSBridge 接口实现</strong></h2><p>从上面的剖析中，可以得知，JSBridge 的接口主要功能有两个：<strong>调用 Native（给 Native 发消息）</strong> 和 <strong>接被 Native 调用（接收 Native 消息）</strong>。因此，JSBridge 可以设计如下：</p>
-<pre><code>window.JSBridge = {
-    // 调用 Native
-    invoke: function(msg) {
-        // 判断环境，获取不同的 nativeBridge
-        nativeBridge.postMessage(msg);
-    },
-    receiveMessage: function(msg) {
-        // 处理 msg
-    }
-};
-</code></pre><p>在上面的文章中，提到过 RPC 中有一个非常重要的环节是 <strong>句柄解析调用</strong> ，这点在 JSBridge 中体现为 <strong>句柄与功能对应关系</strong>。同时，我们将句柄抽象为 <strong>桥名（BridgeName）</strong>，最终演化为 <strong>一个 BridgeName 对应一个 Native 功能或者一类 Native 消息</strong>。 基于此点，JSBridge 的实现可以优化为如下：</p>
-<pre><code>window.JSBridge = {
-    // 调用 Native
-    invoke: function(bridgeName, data) {
-        // 判断环境，获取不同的 nativeBridge
-        nativeBridge.postMessage({
-            bridgeName: bridgeName,
-            data: data || {}
-        });
-    },
-    receiveMessage: function(msg) {
-        var bridgeName = msg.bridgeName,
-            data = msg.data || {};
-        // 具体逻辑
-    }
-};
-</code></pre><p>JSBridge 大概的雏形出现了。现在终于可以着手解决这个问题了：<strong>消息都是单向的，那么调用 Native 功能时 Callback 怎么实现的？</strong></p>
-<p>对于 JSBridge 的 Callback ，其实就是 RPC 框架的回调机制。当然也可以用更简单的 JSONP 机制解释：</p>
-<blockquote>
-<p>当发送 JSONP 请求时，url 参数里会有 callback 参数，其值是 <strong>当前页面唯一</strong> 的，而同时以此参数值为 key 将回调函数存到 window 上，随后，服务器返回 script 中，也会以此参数值作为句柄，调用相应的回调函数。</p>
-</blockquote>
-<p>由此可见，callback 参数这个 <strong>唯一标识</strong> 是这个回调逻辑的关键。这样，我们可以参照这个逻辑来实现 JSBridge：用一个自增的唯一 id，来标识并存储回调函数，并把此 id 以参数形式传递给 Native，而 Native 也以此 id 作为回溯的标识。这样，即可实现 Callback 回调逻辑。</p>
-<pre><code>(function () {
-    var id = 0,
-        callbacks = {};
-
-    window.JSBridge = {
-        // 调用 Native
-        invoke: function(bridgeName, callback, data) {
-            // 判断环境，获取不同的 nativeBridge
-            var thisId = id ++; // 获取唯一 id
-            callbacks[thisId] = callback; // 存储 Callback
-            nativeBridge.postMessage({
-                bridgeName: bridgeName,
-                data: data || {},
-                callbackId: thisId // 传到 Native 端
-            });
-        },
-        receiveMessage: function(msg) {
-            var bridgeName = msg.bridgeName,
-                data = msg.data || {},
-                callbackId = msg.callbackId; // Native 将 callbackId 原封不动传回
-            // 具体逻辑
-            // bridgeName 和 callbackId 不会同时存在
-            if (callbackId) {
-                if (callbacks[callbackId]) { // 找到相应句柄
-                    callbacks[callbackId](msg.data); // 执行调用
-                }
-            } elseif (bridgeName) {
-
-            }
-        }
-    };
-})();
-</code></pre><p>最后用同样的方式加上 Native 调用的回调逻辑，同时对代码进行一些优化，就大概实现了一个功能比较完整的 JSBridge。其代码如下：</p>
-<pre><code>(function () {
-    var id = 0,
-        callbacks = {},
-        registerFuncs = {};
-
-    window.JSBridge = {
-        // 调用 Native
-        invoke: function(bridgeName, callback, data) {
-            // 判断环境，获取不同的 nativeBridge
-            var thisId = id ++; // 获取唯一 id
-            callbacks[thisId] = callback; // 存储 Callback
-            nativeBridge.postMessage({
-                bridgeName: bridgeName,
-                data: data || {},
-                callbackId: thisId // 传到 Native 端
-            });
-        },
-        receiveMessage: function(msg) {
-            var bridgeName = msg.bridgeName,
-                data = msg.data || {},
-                callbackId = msg.callbackId, // Native 将 callbackId 原封不动传回
-                responstId = msg.responstId;
-            // 具体逻辑
-            // bridgeName 和 callbackId 不会同时存在
-            if (callbackId) {
-                if (callbacks[callbackId]) { // 找到相应句柄
-                    callbacks[callbackId](msg.data); // 执行调用
-                }
-            } elseif (bridgeName) {
-                if (registerFuncs[bridgeName]) { // 通过 bridgeName 找到句柄
-                    var ret = {},
-                        flag = false;
-                    registerFuncs[bridgeName].forEach(function(callback) =&gt; {
-                        callback(data, function(r) {
-                            flag = true;
-                            ret = Object.assign(ret, r);
-                        });
-                    });
-                    if (flag) {
-                        nativeBridge.postMessage({ // 回调 Native
-                            responstId: responstId,
-                            ret: ret
-                        });
-                    }
-                }
-            }
-        },
-        register: function(bridgeName, callback) {
-            if (!registerFuncs[bridgeName])  {
-                registerFuncs[bridgeName] = [];
-            }
-            registerFuncs[bridgeName].push(callback); // 存储回调
-        }
-    };
-})();
-</code></pre><p>当然，这段代码片段只是一个示例，主要用于剖析 JSBridge 的原理和流程，里面存在诸多省略和不完善的代码逻辑，读者们可以自行完善。</p>
-<p>【注】：这一节主要讲的是，JavaScript 端的 JSBridge 的实现，对于 Native 端涉及的并不多。在 Native 端配合实现 JSBridge 的 JavaScript 调用 Native 逻辑也很简单，主要的代码逻辑是：接收到 JavaScript 消息 =&gt; 解析参数，拿到 bridgeName、data 和 callbackId =&gt; 根据 bridgeName 找到功能方法，以 data 为参数执行 =&gt; 执行返回值和 callbackId 一起回传前端。 Native 调用 JavaScript 也同样简单，直接自动生成一个唯一的 ResponseId，并存储句柄，然后和 data 一起发送给前端即可。</p>
-<h1 id="5-JSBridge-如何引用"><a href="#5-JSBridge-如何引用" class="headerlink" title="5 JSBridge 如何引用"></a><strong>5 JSBridge 如何引用</strong></h1><p>对于 JSBridge 的引用，常用有两种方式，各有利弊。</p>
-<h2 id="5-1-由-Native-端进行注入"><a href="#5-1-由-Native-端进行注入" class="headerlink" title="5.1 由 Native 端进行注入"></a><strong>5.1 由 Native 端进行注入</strong></h2><p>注入方式和 Native 调用 JavaScript 类似，直接执行桥的全部代码。</p>
-<p>它的优点在于：桥的版本很容易与 Native 保持一致，Native 端不用对不同版本的 JSBridge 进行兼容；与此同时，它的缺点是：注入时机不确定，需要实现注入失败后重试的机制，保证注入的成功率，同时 JavaScript 端在调用接口时，需要优先判断 JSBridge 是否已经注入成功。</p>
-<h2 id="5-2-由-JavaScript-端引用"><a href="#5-2-由-JavaScript-端引用" class="headerlink" title="5.2 由 JavaScript 端引用"></a><strong>5.2 由 JavaScript 端引用</strong></h2><p>直接与 JavaScript 一起执行。</p>
-<p>与由 Native 端注入正好相反，它的优点在于：JavaScript 端可以确定 JSBridge 的存在，直接调用即可；缺点是：如果桥的实现方式有更改，JSBridge 需要兼容多版本的 Native Bridge 或者 Native Bridge 兼容多版本的 JSBridge。</p>
-<h1 id="如何调用三种唤端媒介"><a href="#如何调用三种唤端媒介" class="headerlink" title="如何调用三种唤端媒介"></a><strong>如何调用三种唤端媒介</strong></h1><p>无论是 URL Scheme 还是 Intent 或者 Universal Link ，他们都算是 URL ，只是 URL Scheme 和 Intent 算是特殊的 URL。所以我们可以拿使用 URL 的方法来使用它们。</p>
-<blockquote>
-<p>iframe</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;iframe src=&quot;sinaweibo://qrcode&quot;&gt;</span><br></pre></td></tr></table></figure>
-<p>在只有 URL Scheme 的日子里，iframe 是使用最多的了。因为在未安装 app 的情况下，不会去跳转错误页面。但是 iframe 在各个系统以及各个应用中的兼容问题还是挺多的，不能全部使用 URL Scheme。</p>
-<blockquote>
-<p>a 标签</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end&quot;&quot;&gt;扫一扫&lt;/a&gt;</span><br></pre></td></tr></table></figure>
-<p>对于动态生成的 a 标签，使用 dispatch 来模拟触发点击事件，发现很多种 event 传递过去都无效；使用 click() 来模拟触发，部分场景下存在这样的情况，第一次点击过后，回到原先页面，再次点击，点击位置和页面所识别位置有不小的偏移，所以 Intent 协议从 a 标签换成了 window.location。</p>
-<blockquote>
-<p>window.location</p>
-</blockquote>
-<p>URL Scheme 在 ios 9+ 上诸如 safari、UC、QQ浏览器中， iframe 均无法成功唤起 APP，只能通过 window.location 才能成功唤端。<br>当然，如果我们的 app 支持 Universal Link，ios 9+ 就用不到 URL Scheme 了。而 Universal Link 在使用过程中，我发现在 qq 中，无论是 iframe 导航 还是 a 标签打开 又或者 window.location 都无法成功唤端，一开始我以为是 qq 和微信一样禁止了 Universal Link 唤端的功能，其实不然，百般试验下，通过 top.location 唤端成功了。</p>
-<h3 id="判断唤端是否成功"><a href="#判断唤端是否成功" class="headerlink" title="判断唤端是否成功"></a>判断唤端是否成功</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">const initialTime = new Date();</span><br><span class="line">let counter = 0;</span><br><span class="line">let waitTime = 0;</span><br><span class="line"></span><br><span class="line">const checkOpen = setInterval(() =&gt; &#123;</span><br><span class="line">   count++;</span><br><span class="line">   waitTime = new Date() - initialTime;</span><br><span class="line"></span><br><span class="line">   if (waitTime &gt; 2500) &#123;</span><br><span class="line">      clearInterval(checkOpen);</span><br><span class="line">      cb();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (counter &lt; 100) return;</span><br><span class="line"></span><br><span class="line">   clearInterval(checkOpen);</span><br><span class="line"></span><br><span class="line">   const hide = document.hidden || document.webkitHidden;</span><br><span class="line"></span><br><span class="line">   if (!hide) &#123;</span><br><span class="line">      cb(); // 唤端失败的回调函数</span><br><span class="line">   &#125;</span><br><span class="line">&#125;, 20);</span><br></pre></td></tr></table></figure>
-<p>APP 如果被唤起的话，页面就会进入后台运行，setInterval 在 ios 中不会停止运行，在 android 中停止运行。<br>每 20ms 执行一次，执行 100次 在页面中实际耗费与 2000 ms 不会相差多少。<br>我们的判断条件比预期时间多设置了 500ms，所以如果安卓中 setInterval 内的函数执行 100 次以内所费时间超过 2500ms，则说明 APP 唤起成功，反之则代表失败。<br>我们通过 document.hidden 和 document.webkitHidden 属性来判断 APP 在 ios 中是否被正常唤起，2000ms 内，页面转入后台运行，document.hidden 会返回 true，代表唤端成功，反之则代表失败。</p>
-<h1 id="判断是否安装app并打开-否则跳转下载的方法"><a href="#判断是否安装app并打开-否则跳转下载的方法" class="headerlink" title="判断是否安装app并打开,否则跳转下载的方法"></a><strong>判断是否安装app并打开,否则跳转下载的方法</strong></h1><blockquote>
-<p>应用场景</p>
-</blockquote>
-<p>App产品在运营推广上有一个需求，就是要求可以让用户在访问我们的推广网页时，就可以判断出这个用户手机上是否安装了我们的App，如果安装了则可以直接在网页上打开，否则就引导用户前往下载。从而形成一个推广上的闭环。</p>
-<blockquote>
-<p>解决办法</p>
-</blockquote>
-<p>而对于点击链接后，能否直接打开，可以通过下面的代码来实现。前提条件：你得知道你的APP对应的打开协议，如贴吧APP，协议为：com.baidu.tieba:// ，微信的：weixin:// ，等等</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- a标签点击打开的动作，在click事件中注册 --&gt;</span><br><span class="line">&lt;a href=&quot;javascript:;&quot; id=&quot;openApp&quot;&gt;贴吧客户端&lt;/a&gt;</span><br><span class="line">&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">    document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">        // 通过iframe的方式试图打开APP，如果能正常打开，会直接切换到APP，并自动阻止js其他行为</span><br><span class="line">        </span><br><span class="line">        var ifr = document.createElement(&apos;iframe&apos;);</span><br><span class="line">        ifr.src = &apos;com.baidu.tieba://&apos;;//打开app的协议，有app同事提供</span><br><span class="line">        ifr.style.display = &apos;none&apos;;</span><br><span class="line">        document.body.appendChild(ifr);</span><br><span class="line">        window.setTimeout(function()&#123;</span><br><span class="line">            document.body.removeChild(ifr);</span><br><span class="line">　　　　　　　window.location.href = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;//打开app下载地址，有app同事提供</span><br><span class="line">        &#125;,2000)</span><br><span class="line">    &#125;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>此方法有些浏览器不兼容iframe，可以window.location的方法解决<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;javascript:;&quot; id=&quot;openApp&quot;&gt;贴吧客户端&lt;/a&gt;</span><br><span class="line">&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">    document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">        window.location.href = &quot;com.baidu.tieba://&quot;;</span><br><span class="line">        window.setTimeout(function()&#123;</span><br><span class="line">            window.location.href = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;//打开app下载地址，有app同事提供</span><br><span class="line">        &#125;,2000)</span><br><span class="line">    &#125;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<h1 id="js判断本地是否安装app"><a href="#js判断本地是否安装app" class="headerlink" title="js判断本地是否安装app"></a><strong>js判断本地是否安装app</strong></h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&lt;script language=&quot;javascript&quot;&gt;</span><br><span class="line">             document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">                if(navigator.userAgent.match(/(iPhone|iPod|iPad);?/i)) &#123;</span><br><span class="line">                var loadDateTime = new Date();</span><br><span class="line">                window.setTimeout(function() &#123;</span><br><span class="line">                        var timeOutDateTime = new Date();</span><br><span class="line">                        if(timeOutDateTime - loadDateTime &lt; 5000) &#123;</span><br><span class="line">                            window.location = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;</span><br><span class="line">                        &#125; else &#123;</span><br><span class="line">                            window.close();</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    25);</span><br><span class="line">                window.location = &quot;weixin:// &quot;;</span><br><span class="line">            &#125; else if(navigator.userAgent.match(/android/i)) &#123;</span><br><span class="line">                var state = null;</span><br><span class="line">                try &#123;</span><br><span class="line">                    state = window.open(&quot;weixin://&quot;);</span><br><span class="line">                &#125; catch(e) &#123;&#125;</span><br><span class="line">                if(state) &#123;</span><br><span class="line">                    window.close();</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    window.location = &quot;http://dldir1.qq.com/weixin/android/weixin656android1020.apk&quot;;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        &lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>如果本地安装了app那么直接打开，否则苹果要跳转到app-store，安卓则要跳到对应的市场</p>
-<blockquote>
-<p>解决方案 一</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">//html代码中 的 a 标签，以微信为例，默认的是调用weixin scheme，去打开本机的微信，如果没有则跳转到相应连接</span><br><span class="line">　　　　&lt;a href=&quot;weixin://&quot; class=&quot;btn-download&quot;&gt;立即打开&lt;/a&gt;</span><br><span class="line">　　</span><br><span class="line">　　　　// 为btn-download 绑定事件，如果在500ms内，没有解析到协议，那么就会跳转到下载链接 </span><br><span class="line">　　　　 var appstore, ua = navigator.userAgent;</span><br><span class="line">        if(ua.match(/Android/i))&#123; </span><br><span class="line">            appstore = &apos;market://search?q=com.singtel.travelbuddy.android&apos;;</span><br><span class="line">        &#125;</span><br><span class="line">        if(ua.match(/iphone|ipod|ipad/))&#123;</span><br><span class="line">            appstore = &quot;https://itunes.apple.com/cn/app/wei-xin/id414478124?mt=8&amp;ign-mpt=uo%3D4&quot;; </span><br><span class="line">        &#125;</span><br><span class="line">        function applink(fail)&#123;  </span><br><span class="line">            return function()&#123;  </span><br><span class="line">                var clickedAt = +new Date;  </span><br><span class="line">                // During tests on 3g/3gs this timeout fires immediately if less than 500ms.  </span><br><span class="line">                setTimeout(function()&#123;  </span><br><span class="line">                     // To avoid failing on return to MobileSafari, ensure freshness!  </span><br><span class="line">                      if (+new Date - clickedAt &lt; 2000)&#123;  </span><br><span class="line">                          window.location = fail;  </span><br><span class="line">                      &#125;  </span><br><span class="line">                &#125;, 500);      </span><br><span class="line">            &#125;;  </span><br><span class="line">        &#125;  </span><br><span class="line">        $(&apos;.icon-download, .btn-download&apos;)[0].onclick = applink(appstore);</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>解决方案二 </p>
-</blockquote>
-<p>通过在页面中生成一个隐藏的iframe，iframe的src指向 app 协议，例如 weixin scheme，并监听onerror事件，意思是如果无法解析协议，就会触发onerror事件，但是我尝试了一下，未果。代码如下，可参考一下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">// 页面中有div#iframe-box 用来插入生成的iframe，还是以微信为例</span><br><span class="line">　　　　 var ifm = document.createElement(&apos;iframe&apos;), isInstalled;</span><br><span class="line">        ifm.style.display = &apos;none&apos;;</span><br><span class="line">        ifm.src = &apos;wixin://&apos;;</span><br><span class="line">        ifm.onload = function(e)&#123;</span><br><span class="line">            var e = e || window.event;</span><br><span class="line">            e.preventDefault();</span><br><span class="line">        &#125;</span><br><span class="line">        ifm.onerror = function()&#123;</span><br><span class="line">            //isInstalled = false;</span><br><span class="line">            alert(1);</span><br><span class="line">        &#125;</span><br><span class="line">        document.getElementById(&apos;iframe-box&apos;).appendChild(ifm);</span><br><span class="line"></span><br><span class="line">　　　　// 但这时的问题是，iframe的src成功解析到了协议，则会直接跳转，但是解析不到的话，也不会触发error事件，这个还要继续研究</span><br><span class="line">　　　　// 可以把上面的代码，放到函数中，然后作为某个按钮的响应函数。</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>解决方案三</p>
-</blockquote>
-<p>对于ios手机，会有如下写法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&quot;apple-itunes-app&quot; content=&quot;app-id=414478124&quot; /&gt;</span><br></pre></td></tr></table></figure></p>
-<p>将上面代码放到head中，根据name也会知道意思，app-id是微信的app-id，用ios手机看会看到提示，andriod比可以，结果自行实验。（ios就是强大）</p>
-<h1 id="H5唤起客户端通用机方案"><a href="#H5唤起客户端通用机方案" class="headerlink" title="H5唤起客户端通用机方案"></a><strong>H5唤起客户端通用机方案</strong></h1><h4 id="H5唤起客户端"><a href="#H5唤起客户端" class="headerlink" title="H5唤起客户端"></a><a href="https://github.com/suanmei/callapp-lib" target="_blank" rel="noopener">H5唤起客户端</a></h4><h1 id="6-总结"><a href="#6-总结" class="headerlink" title="6 总结"></a><strong>6 总结</strong></h1><p>这篇文章主要剖析的 JSBridge 的实现及应用，包括 <strong>JavaScript 与 Native 间的通信原理</strong>，<strong>JSBridge 的 JavaScript 端实现</strong> 以及 <strong>引用方式</strong>，并给出了一些示例代码，希望对读者有一定的帮助。</p>
-<h3 id="JSBridge实战"><a href="#JSBridge实战" class="headerlink" title="JSBridge实战"></a><a href="https://juejin.im/post/5bda6f276fb9a0226d18931f" target="_blank" rel="noopener">JSBridge实战</a></h3>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3779,7 +3498,7 @@ private WebView Wv;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">133</span>
+                  <span class="site-state-item-count">134</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -3845,7 +3564,7 @@ private WebView Wv;
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
   <span class="with-love">
     <i class="fa fa-user"></i>
   </span>

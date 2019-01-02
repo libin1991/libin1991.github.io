@@ -694,6 +694,370 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/04/React高阶组件/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/10/04/React高阶组件/" itemprop="url">React高阶组件HOC</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-04T19:10:27+08:00">
+                2017-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="什么是高阶组件？"><a href="#什么是高阶组件？" class="headerlink" title="什么是高阶组件？"></a>什么是高阶组件？</h4><blockquote>
+<p>高阶部件是一种用于复用组件逻辑的高级技术，它并不是 React API的一部分，而是从React 演化而来的一种模式。 具体地说，高阶组件就是一个接收一个组件并返回另外一个新组件的函数！</p>
+</blockquote>
+<p>这是官方文档说的，我没有截全，因为后面的解释会造成误解，但简单讲高阶组件（函数）就好比一个加工厂，同样的，屏幕、cpu、扬声器、键盘按键、外壳、电池，小米手机工厂组装完就是小米手机，魅族手机组装完就是魅族手机，基本材料都是相同的，不同工厂（高阶组件）有不同的实现及产出，当然这个工厂（高阶组件）也可能是针对某个基本材料的处理。</p>
+<p>总之产出的结果拥有了输入组件不具备的功能，输入的组件可以是一个组件的实例，也可以是一个组件类，还可以是一个无状态组件的函数。</p>
+<h4 id="解决什么问题？"><a href="#解决什么问题？" class="headerlink" title="解决什么问题？"></a>解决什么问题？</h4><p>随着项目越来越复杂，开发过程中，多个组件需要某个功能，而且这个功能和页面并没有关系，所以也不能简单的抽取成一个新的组件，但是如果让同样的逻辑在各个组件里各自实现，无疑会导致重复的代码。比如页面有三种弹窗一个有title，一个没有，一个又有右上角关闭按钮，除此之外别无它样，你总不能整好几个弹窗组件吧，这里除了tilte,关闭按钮其他的就可以做为上面说的基本材料。</p>
+<hr>
+<h4 id="高阶组件总共分为两大类"><a href="#高阶组件总共分为两大类" class="headerlink" title="高阶组件总共分为两大类"></a>高阶组件总共分为两大类</h4><ul>
+<li><p>代理方式</p>
+<ol>
+<li>操纵prop</li>
+<li>访问ref（不推荐）</li>
+<li>抽取状态</li>
+<li>包装组件</li>
+</ol>
+</li>
+<li><p>继承方式</p>
+<ol>
+<li>操纵生命周期</li>
+<li>操纵prop</li>
+</ol>
+</li>
+</ul>
+<h4 id="代理方式之-操纵prop"><a href="#代理方式之-操纵prop" class="headerlink" title="代理方式之 操纵prop"></a>代理方式之 操纵prop</h4><h6 id="删除prop"><a href="#删除prop" class="headerlink" title="删除prop"></a>删除prop</h6><pre><code>import React from&apos;react&apos;functionHocRemoveProp(WrappedComponent) {
+  returnclassWrappingComPonentextendsReact.Component{
+    render() {
+      const { user, ...otherProps } = this.props;
+      return&lt;WrappedComponent {...otherProps} /&gt;
+    }
+  }
+}
+export default HocRemoveProp;
+</code></pre><h6 id="增加prop"><a href="#增加prop" class="headerlink" title="增加prop"></a>增加prop</h6><p>接下来我把简化了写法，把匿名函数去掉，同时换成箭头函数</p>
+<pre><code>import React from&apos;react&apos;const HocAddProp = (WrappedComponent，uid) =&gt;classextendsReact.Component{
+    render() {
+      const newProps = {
+        uid,
+      };
+      return&lt;WrappedComponent {...this.props}  {...newProps}  /&gt;
+    }
+  }
+
+export default HocAddProp;
+</code></pre><p>上面HocRemoveProp高阶组件中，所做的事情和输入组件WrappedComponent功能一样，只是忽略了名为user的prop。也就是说，如果WrappedComponent能处理名为user的prop,这个高阶组件返回的组件则完全无视这个prop。</p>
+<pre><code>const { user, ...otherProps } = this.props;
+</code></pre><p>这是一个利用es6语法技巧，经过上面的语句，otherProps里面就有this.props中所有的字段除了user.</p>
+<p>假如我们现在不希望某个组件接收user的prop,那么我们就不要直接使用这个组件，而是把这个组件作为参数传递给HocRemoveProp，然后我们把这个函数的返回结果当作组件来使用</p>
+<p>两个高阶组件的使用方法：</p>
+<pre><code>const  newComponent = HocRemoveProp(SampleComponent);
+const  newComponent = HocAddProp(SampleComponent,&apos;1111111&apos;);
+</code></pre><p>也可以利用decorator语法糖这样使用</p>
+<pre><code>import React, { Component } from&apos;React&apos;;
+
+@HocRemoveProp 
+classSampleComponentextendsComponent{
+render() {}
+}
+exportdefault SampleComponent;
+</code></pre><h4 id="代理方式之-抽取状态"><a href="#代理方式之-抽取状态" class="headerlink" title="代理方式之 抽取状态"></a>代理方式之 抽取状态</h4><p>将所有的状态的管理交给外面的容器组件，这个模式就是 抽取状态</p>
+<p>外面的容器就是这个高阶组件</p>
+<pre><code>const HocContainer = (WrappedComponent) =&gt;classextendsReact.Component{
+    constructor(props) {
+      super(props)
+      this.state = {
+        name: &apos;&apos;
+      }
+    }
+    onNameChange = (event) =&gt; {
+      this.setState({
+        name: event.target.value
+      })
+    }
+    render() {
+      const newProps = {
+        name: {
+          value: this.state.name,
+          onChange: this.onNameChange
+        }
+      }
+      return&lt;WrappedComponent {...this.props} {...newProps} /&gt;
+    }
+  }
+
+@HocContainer
+classSampleComponentextendsReact.Component{
+  render() {
+    return&lt;inputname=&quot;name&quot; {...this.props.name}/&gt;
+  }
+}
+</code></pre><p>这样当我们在使用这个已经被包裹的input组件（SampleComponent）时候</p>
+<p>它的值就被放在了HocContainer高阶组件中，当很多这样的input组件都用这个HocContainer高阶组件时，那么它们的值都将保存在这个HocContainer高阶组件中</p>
+<h4 id="代理方式之-包装组件"><a href="#代理方式之-包装组件" class="headerlink" title="代理方式之 包装组件"></a>代理方式之 包装组件</h4><pre><code>const HocStyleComponent = (WrappedComponent, style) =&gt;classextendsReact.Component{
+    render() {
+      return (
+        &lt;divstyle={style}&gt;&lt;WrappedComponent {...this.props} {...newProps} /&gt;&lt;/div&gt;
+      )
+    }
+  }
+</code></pre><p>这样使用</p>
+<pre><code>import HocStyleComponent from&apos;./HocStyleComponent&apos;;
+const colorSytle ={color:&apos;#ff5555&apos;}
+const  newComponent = HocStyleComponent(SampleComponent, colorSytle);
+</code></pre><p>-代理方式的生命周期的过程类似于堆栈调用:</p>
+<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;(HOCs will unmount) 一&gt;HOC will unmount一&gt;unmount</p>
+<h4 id="在说继承方式之前先看一个例子"><a href="#在说继承方式之前先看一个例子" class="headerlink" title="在说继承方式之前先看一个例子"></a>在说继承方式之前先看一个例子</h4><pre><code>const MyContainer = (WrappedComponent) =&gt;classextendsWrappedComponent{
+    render() {
+      returnsuper.render();
+    }
+  }
+</code></pre><p>这个例子很简单，相当于把WrappedComponent组件的render方法，通过super.render()方法吐到了MyContainer 中，可以顺序调用。</p>
+<ul>
+<li>继承方式的生命周期的过程类似于队列调用:</li>
+</ul>
+<p>didmount 一&gt; HOC didmount 一&gt;(HOCs didmount) 一&gt;will unmount一&gt;HOC will unmount一&gt; (HOCs will unmount)</p>
+<ul>
+<li>代理方式下WrappedComponent会经历一个完整的生命周期，产生的新组件和参数组件是两个不同的组件，一次渲染，两个组件都会经历各自的生命周期，</li>
+<li>在继承方式下，产生的新组件和参数组件合二为一，super.render只是生命周期中的函数，变成一个生命周期。</li>
+</ul>
+<p>来看下面的例子你就会明白了。</p>
+<h4 id="继承方式之-操纵生命周期-渲染劫持"><a href="#继承方式之-操纵生命周期-渲染劫持" class="headerlink" title="继承方式之 操纵生命周期(渲染劫持)"></a>继承方式之 操纵生命周期(渲染劫持)</h4><p>首先创建一个高阶，在创建一个使用高阶组件的组件，也就是是输入组件，最后我在改变这个输入组件props</p>
+<pre><code>import * as React from&apos;react&apos;;
+
+const HocComponent = (WrappedComponent) =&gt;classMyContainerextendsWrappedComponent{
+    render() {
+      if (this.props.time &amp;&amp; this.state.success) {
+        returnsuper.render()
+      }
+      return&lt;div&gt;倒计时完成了...&lt;/div&gt;
+    }
+  }
+</code></pre><p>这个高阶组件会直接读取输入组件中的props,state,然后控制了输入组件的render展示</p>
+<p>只有在props.time和state.success同时为真的时候才会展示</p>
+<pre><code>import * as React from&apos;react&apos;;
+import HocComponent from&apos;./HocComponent&apos;
+
+@HocComponent
+
+classDemoComponentextendsReact.Component{
+  constructor(props) {
+    super(props);
+   this.state = {
+    success: true,
+   };
+ }
+  render() {
+    return&lt;div&gt;我是一个组件&lt;/div&gt;
+  }
+} 
+exportdefault DemoComponent;
+</code></pre><p>然后调用，递减time数值直到变为0</p>
+<h6 id="由此可以看出高阶组件也可以控制state"><a href="#由此可以看出高阶组件也可以控制state" class="headerlink" title="由此可以看出高阶组件也可以控制state"></a>由此可以看出高阶组件也可以控制state</h6><p>但是最好要限制这样做，可能会让WrappedComponent组件内部状态变得一团糟。建议可以通过重新命名state，以防止混淆。</p>
+<h4 id="继承方式之-操纵prop"><a href="#继承方式之-操纵prop" class="headerlink" title="继承方式之 操纵prop"></a>继承方式之 操纵prop</h4><pre><code>const HOCPropsComponent = (WrappedComponent) =&gt;classextendsWrappedComponent{
+    render() {
+      const elementsTree = super.render();
+      let newProps = {
+        color: (elementsTree &amp;&amp; elementsTree.type === &apos;div&apos;) ? &apos;#fff&apos; : &apos;#ff5555&apos;
+      };
+
+      const props = Object.assign({}, elementsTree.props, newProps)
+      const newElementsTree = React.cloneElement(elementsTree, props, elementsTree.props.children)
+      return newElementsTree
+    }
+  }
+</code></pre><p>这样就传入了新的props，。</p>
+<p>React.cloneElement( element, [props], […children])</p>
+<p>参数：TYPE（ReactElement），[PROPS（object）]，[CHILDREN（ReactElement）]</p>
+<p>克隆并返回一个新的 ReactElement ，新返回的元素会保留有旧元素的 props、ref、key，也会集成新的 props。</p>
+<h5 id="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"><a href="#还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，" class="headerlink" title="还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，"></a>还有一个方式，在传递props上有着强于高阶组件的优势不用关心命名，</h5><pre><code>classaddPropsextendsReact.Component{
+  render() {
+    const newProps = &apos;uid&apos;returnthis.props.children(newProps)
+  }
+} 
+</code></pre><p>使用方式</p>
+<pre><code>&lt;addProps&gt;
+{
+   (argument) =&gt; &lt;div&gt;{argument}&lt;/div&gt;
+}
+&lt;/addProps&gt;
+</code></pre><p>感觉很方便，但是每次渲染都会重新定义一个新的函数，如果不想的话就不要定义匿名函数，</p>
+<pre><code>showUid(argument) {
+    return&lt;div&gt;{argument}&lt;/div&gt;
+}
+</code></pre><h5 id="彩蛋recompose库"><a href="#彩蛋recompose库" class="headerlink" title="彩蛋recompose库"></a>彩蛋recompose库</h5><p>recompose是一个很流行的库，它提供了很多很有用的高阶组件（小工具），而且也可以优雅的组合它们。</p>
+<h6 id="Step-1-扁平props"><a href="#Step-1-扁平props" class="headerlink" title="Step 1 扁平props."></a>Step 1 扁平props.</h6><p>我们有这样一个组件</p>
+<pre><code>const Profile = ({ user }) =&gt; ( 
+&lt;div&gt;&lt;div&gt;Username: {user.username}&lt;/div&gt;&lt;div&gt;Age: {user.age}&lt;/div&gt;&lt;/div&gt;
+ )
+</code></pre><p>如果想要改变组件接口来接收单个 prop 而不是整个用户对象，可以用 recompose 提供的高 阶组件 flattenProp 来实现。</p>
+<pre><code>const Profile = ({ username，age }) =&gt; ( 
+&lt;div&gt;&lt;div&gt;Username: {username}&lt;/div&gt;&lt;div&gt;Age: {age}&lt;/div&gt;&lt;/div&gt;
+ )
+</code></pre><p>const ProfileWithFlattenUser = flattenProp(‘user’)(Profile)；</p>
+<p>现在我们希望同时使用多个高阶组件：一个用于扁平化处理用户 prop，另一个用于重命名用 户对象的单个 prop，不过串联使用函数的做法似乎不太好。 此时 recompose 库提供的 compose 函数就派上用场了。</p>
+<pre><code>const enhance = compose(
+ flattenProp(&apos;user&apos;),
+ renameProp(&apos;username&apos;, &apos;name&apos;)
+ )
+</code></pre><p>然后按照以下方式将它应用于原有组件：</p>
+<pre><code>const EnhancedProfile = enhance(Profile)
+</code></pre><p>还可以将 compose 函数用 在我们自己的高阶组件上，甚至结合使用都可以：</p>
+<pre><code>const enhance = compose( 
+ flattenProp(&apos;user&apos;), 
+ renameProp(&apos;username&apos;, &apos;name&apos;), 
+ withInnerWidth 
+)
+</code></pre><h6 id="Step-2-提取输入表单的State"><a href="#Step-2-提取输入表单的State" class="headerlink" title="Step 2 提取输入表单的State"></a>Step 2 提取输入表单的State</h6><p>我们将从Recompose库中使用withStateHandlers高阶组件。 它将允许我们将组件状态与组件本身隔离开来。 我们将使用它为电子邮件，密码和确认密码字段添加表单状态，以及上述字段的事件处理程序。</p>
+<pre><code>import { withStateHandlers, compose } from&quot;recompose&quot;;
+
+const initialState = {
+  email: { value: &quot;&quot; },
+  password: { value: &quot;&quot; },
+  confirmPassword: { value: &quot;&quot; }
+};
+
+const onChangeEmail = props =&gt; event =&gt; ({
+  email: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const onChangePassword = props =&gt; event =&gt; ({
+  password: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const onChangeConfirmPassword = props =&gt; event =&gt; ({
+  confirmPassword: {
+    value: event.target.value,
+    isDirty: true
+  }
+});
+
+const withTextFieldState = withStateHandlers(initialState, {
+  onChangeEmail,
+  onChangePassword,
+  onChangeConfirmPassword
+});
+
+exportdefault withTextFieldState;
+</code></pre><p>withStateHandlers它接受初始状态和包含状态处理程序的对象。调用时，每个状态处理程序将返回新的状态。</p>
+<p>好了，很辛苦也很感谢你能看到这里，关于recompose介绍到此为止，喜欢的朋友可以深入研究recompose其它的方法和源码。</p>
+<p>不准确的地方欢迎拍砖</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/03/Event-Loop-必知必会（六道题）/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3694,262 +4058,6 @@ main()
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/09/Node-js的文件路径的一些坑/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/07/09/Node-js的文件路径的一些坑/" itemprop="url">Node.js的文件路径的一些坑</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-09T18:16:04+08:00">
-                2017-07-09
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>最近在写一篇weex的webpack配置，刚刚踩坑了，weekpack中会用到path模块，而对于这个模块，我想抽离出来看一下，因为这个用到的还是比较多的,喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯，写的不对的地方，评论拍砖，谢谢。</p>
-<h2 id="node中的路径分类"><a href="#node中的路径分类" class="headerlink" title="node中的路径分类"></a>node中的路径分类</h2><p>node中的路径大致分5类，dirname,filename,process.cwd(),./,../,其中前三个都是绝对路径</p>
-<p>我们先来看一个简单点的例子</p>
-<p>假如，我有一个文件的目录结构如下：</p>
-<pre><code>editor/
-  - dist/
-  - src/
-      - task.js
-</code></pre><p>然后我们在task.js文件中写入一下代码</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(__dirname);
-console.log(__filename);
-console.log(process.cwd());
-console.log(path.resolve(&apos;./&apos;));
-</code></pre><p>在editor目录下运行node src/task.js，我们可以看到结果如下：</p>
-<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
-/Users/laihuamin/Documents/richEditor/editor/src/task.js
-/Users/laihuamin/Documents/richEditor/editor
-/Users/laihuamin/Documents/richEditor/editor
-</code></pre><p>然后我们有可以在src目录下运行这个文件，node task.js,运行结果如下：</p>
-<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
-/Users/laihuamin/Documents/richEditor/editor/src/task.js
-/Users/laihuamin/Documents/richEditor/editor/src
-/Users/laihuamin/Documents/richEditor/editor/src
-</code></pre><p>对比两个输出结果，我们可以归纳一下几点：</p>
-<p>1.<strong>dirname:返回的是这个文件所在文件夹的位置<br>2.</strong>filename:你运行命令代表的是文件所在的位置，不管你运行什么命令，都是指向文件<br>3.process.cwd():你运行node命令所在文件夹的位置，比如你在src目录下运行，那么就是输出到src为止，下面的同理。</p>
-<hr>
-<p>Node.js中的文件路径大概有 <strong>dirname, </strong>filename, process.cwd(), ./ 或者 ../，前三个都是绝对路径，为了便于比较，./ 和 ../ 我们通过 path.resolve(‘./‘)来转换为绝对路径。<br>简单说一下这几个路径的意思，：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname：    获得当前执行文件所在目录的完整目录名</span><br><span class="line">__filename：   获得当前执行文件的带有完整绝对路径的文件名</span><br><span class="line">process.cwd()：获得当前执行node命令时候的文件夹目录名 </span><br><span class="line">./：           文件所在目录</span><br></pre></td></tr></table></figure></p>
-<p>先看一看我电脑当前的目录结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">syntax/</span><br><span class="line">    -nodejs/</span><br><span class="line">        -1.findLargest.js</span><br><span class="line">        -2.path.js</span><br><span class="line">        -3.fs.js</span><br><span class="line">    -regs</span><br><span class="line">        -regx.js</span><br><span class="line">        -test.txt</span><br></pre></td></tr></table></figure></p>
-<p>在 path.js 里面我们写这些代码，看看输出是什么：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">const path = require(&apos;path&apos;)</span><br><span class="line">console.log(&apos;__dirname：&apos;, __dirname)</span><br><span class="line">console.log(&apos;__filename：&apos;, __filename)</span><br><span class="line">console.log(&apos;process.cwd()：&apos;, process.cwd())</span><br><span class="line">console.log(&apos;./：&apos;, path.resolve(&apos;./&apos;))</span><br></pre></td></tr></table></figure></p>
-<p>在当前目录下也就是nodejs目录运行<code>node path.js</code>，我们看看输出结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname：     /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br><span class="line">__filename：    /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs/2.path.js</span><br><span class="line">process.cwd()： /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br><span class="line">./：            /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br></pre></td></tr></table></figure></p>
-<p>然后在 项目根目录ES6-lottery 目录下运行 <code>node syntax/nodejs/2.path.js</code>，我们再来看看输出结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname：     /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br><span class="line">__filename：    /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs/2.path.js</span><br><span class="line">process.cwd()： /Users/jawil/Desktop/nodejs/demo/ES6-lottery</span><br><span class="line">./：            /Users/jawil/Desktop/nodejs/demo/ES6-lottery</span><br></pre></td></tr></table></figure></p>
-<p>答案显而易见？我们可以通过上面的例子对比，暂时得出表面的结论：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname: 总是返回被执行的 js 所在文件夹的绝对路径</span><br><span class="line">__filename: 总是返回被执行的 js 的绝对路径</span><br><span class="line">process.cwd(): 总是返回运行 node 命令时所在的文件夹的绝对路径</span><br><span class="line">./: 跟 process.cwd() 一样，返回 node 命令时所在的文件夹的绝对路径</span><br></pre></td></tr></table></figure></p>
-<h2 id="require-源码解读"><a href="#require-源码解读" class="headerlink" title="require() 源码解读"></a><a href="http://www.ruanyifeng.com/blog/2015/05/require.html" target="_blank" rel="noopener">require() 源码解读</a></h2><p><img src="/2017/07/09/Node-js的文件路径的一些坑/1.webp" alt=""></p>
-<p>那么关于 ./ 正确的结论是：</p>
-<blockquote>
-<p>在 require() 中使用是跟 __dirname 的效果相同，不会因为启动脚本的目录不一样而改变，在其他情况下跟 process.cwd() 效果相同，是相对于启动脚本所在目录的路径。<br>只有在 require() 时才使用相对路径(./, ../)的写法，其他地方一律使用绝对路径，如下：</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">// 当前目录下</span><br><span class="line"> path.dirname(__filename) + &apos;/path.js&apos;; </span><br><span class="line">// 相邻目录下</span><br><span class="line"> path.resolve(__dirname, &apos;../regx/regx.js&apos;);</span><br></pre></td></tr></table></figure>
-<hr>
-<h2 id="path"><a href="#path" class="headerlink" title="path"></a>path</h2><p>讲完前面三个绝对路径，我倒是挺想来聊聊path这个模块的，这个node模块在很多地方都有应用，所以，对于我们来说，掌握他，对我们以后的发展更有利，不用每次看webpack的配置文件还要去查询一下这个api是干什么用的，很影响我们的效率</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fnodejs.org%252Fapi%252Fpath.html" target="_blank" rel="noopener">nodeJS/path</a></p>
-<p>上面那个网站有详细的api，但是我们这里不用都掌握吧，我就讲几个我遇到过的，我觉得webpack等工程配置中会用到的</p>
-<h2 id="path-normalize"><a href="#path-normalize" class="headerlink" title="path.normalize"></a>path.normalize</h2><p>这个方法就是把不规范的路径规范化，比如看下面的例子</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.normalize(&apos;/foo/bar//baz/asdf/quux/..&apos;));
-</code></pre><p>输出结果：</p>
-<pre><code>/foo/bar/baz/asdf
-</code></pre><h2 id="path-join"><a href="#path-join" class="headerlink" title="path.join"></a>path.join</h2><pre><code>const path = require(&apos;path&apos;);
-console.log(path.join(&apos;src&apos;, &apos;task.js&apos;));
-
-const path = require(&apos;path&apos;);
-console.log(path.join(&apos;dist&apos;, &apos;task.js&apos;));
-
-const path = require(&apos;path&apos;);
-console.log(path.join(&apos;&apos;));
-</code></pre><p>这么两个的输出结果是：</p>
-<pre><code>src/task.js
-dist/task.js
-.
-</code></pre><p>他的作用也就显而易见，他有一下几条规则：<br>1.传入的参数是字符串的路径片段，可以是一个，也可以是多个</p>
-<p>2.返回的是一个拼接好的路径，但是根据平台的不同，他会对路径进行不同的规范化，举个例子，Unix系统是”/“，Windows系统是”\“，那么你在两个系统下看到的返回结果就不一样。</p>
-<p>3.如果返回的路径字符串长度为零，那么他会返回一个’.’，代表当前的文件夹。</p>
-<p>4.如果传入的参数中有不是字符串的，那就直接会报错</p>
-<h2 id="path-parse"><a href="#path-parse" class="headerlink" title="path.parse"></a>path.parse</h2><p>我们先来看个例子，在src目录下的task.js写入</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor&apos;));
-</code></pre><p>然后运行node src/task.js之后,输出的结果如下：</p>
-<pre><code>{ 
-  root: &apos;/&apos;,
-  dir: &apos;/Users/laihuamin/Documents/richEditor&apos;,
-  base: &apos;editor&apos;,
-  ext: &apos;&apos;,
-  name: &apos;editor&apos; 
-}
-</code></pre><p>他返回的是一个对象，那么我们来把这么几个名词熟悉一下：</p>
-<p><img src="https://pic3.zhimg.com/v2-b7c5d496b89fde98f097a4a6e2ba7d03_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-b7c5d496b89fde98f097a4a6e2ba7d03_hd.jpg" alt=""></p>
-<p>这个表格应该展示的很形象，但是我们还是来解释一下这些名词：<br>1.root：代表根目录<br>2.dir：代表文件所在的文件夹<br>3.base：代表整一个文件<br>4.name：代表文件名<br>5.ext: 代表文件的后缀名</p>
-<p>那我们根据下面的规则，来看一下下面这个例子，最好自己脑子做一遍</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
-</code></pre><p>输出的结果：</p>
-<pre><code>{ 
-  root: &apos;/&apos;,
-  dir: &apos;/Users/laihuamin/Documents/richEditor/editor/src&apos;,
-  base: &apos;task.js&apos;,
-  ext: &apos;.js&apos;,
-  name: &apos;task&apos; 
-}
-</code></pre><p>你做对了么？0.0</p>
-<h2 id="path-basename"><a href="#path-basename" class="headerlink" title="path.basename"></a>path.basename</h2><p>那有了前面这个铺垫，想必这个接口猜也能猜的到了。。。。我们看下面这个例子</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
-</code></pre><p>输出的结果是：</p>
-<pre><code>task.js
-</code></pre><p>我们还是简单介绍一下，接收两个参数，一个是path,还有一个是ext（可选参数）.</p>
-<pre><code>const path = require(&apos;path&apos;)
-console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;, &apos;.js&apos;));
-</code></pre><p>输出结果:</p>
-<pre><code>task
-</code></pre><h2 id="path-dirname"><a href="#path-dirname" class="headerlink" title="path.dirname"></a>path.dirname</h2><p>这个接口比basename还要简单，我就不多说了，看例子，看结果</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
-</code></pre><p>输出的结果:</p>
-<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
-</code></pre><p>注意一下，接收的参数是字符串类型</p>
-<h2 id="path-extname"><a href="#path-extname" class="headerlink" title="path.extname"></a>path.extname</h2><p>这个就是展示文件的扩展名，我们得注意几种情况</p>
-<pre><code>const path = require(&apos;path&apos;);
-path.extname(&apos;index.html&apos;);
-path.extname(&apos;index.coffee.md&apos;);
-path.extname(&apos;index.&apos;);
-path.extname(&apos;index&apos;);
-path.extname(&apos;.index&apos;);
-</code></pre><p>输出的结果是：</p>
-<pre><code>.html
-.md
-.
-&apos;&apos;
-&apos;&apos;
-</code></pre><p>自己注意一下这几个情况</p>
-<h2 id="path-resolve"><a href="#path-resolve" class="headerlink" title="path.resolve"></a>path.resolve</h2><p>我们通过下面这几个例子先来熟悉一下：</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.resolve(&apos;/foo/bar&apos;, &apos;/bar/faa&apos;, &apos;..&apos;, &apos;a/../c&apos;));
-</code></pre><p>输出的结果是</p>
-<pre><code>/bar/c
-</code></pre><p>他就相当于一堆cd操作，我们一步一步看</p>
-<pre><code>cd /foo/bar/    //这是第一步, 现在的位置是/foo/bar/
-cd /bar/faa     //这是第二步，这里和第一步有区别，他是从/进入的，也就时候根目录，现在的位置是/bar/faa
-cd ..       //第三步，从faa退出来，现在的位置是 /bar
-cd a/../c   //第四步，进入a，然后在推出，在进入c，最后位置是/bar/c
-</code></pre><p>但是这个操作和cd还是有区别的，这个路径不一定要存在，而且最后的可以是文件</p>
-<h2 id="path-relative"><a href="#path-relative" class="headerlink" title="path.relative"></a>path.relative</h2><p>这个返回的是from到to的相对路径，什么意思呢，我们看下面的例子就知道了.</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.relative(&apos;src/bar/baz&apos;, &apos;src/aaa/bbb&apos;));
-</code></pre><p>输出的结果是：</p>
-<pre><code>../../aaa/bbb
-</code></pre><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这些比较实用的方法，分享给大家，自己还是老老实实去看weektool的webpack的配置文件了，喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4002,7 +4110,7 @@ console.log(path.relative(&apos;src/bar/baz&apos;, &apos;src/aaa/bbb&apos;));
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">133</span>
+                  <span class="site-state-item-count">134</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4068,7 +4176,7 @@ console.log(path.relative(&apos;src/bar/baz&apos;, &apos;src/aaa/bbb&apos;));
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
   <span class="with-love">
     <i class="fa fa-user"></i>
   </span>

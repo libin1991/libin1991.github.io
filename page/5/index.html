@@ -694,6 +694,366 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/30/关于-ES6-中-Promise-的面试题/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/30/关于-ES6-中-Promise-的面试题/" itemprop="url">关于 ES6 中 Promise 的面试题</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-30T20:16:20+08:00">
+                2018-07-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="说明"><a href="#说明" class="headerlink" title="说明"></a>说明</h3><p>最近在复习 Promise 的知识，所以就做了一些题，这里挑出几道题，大家一起看看吧。</p>
+<h3 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h3><pre><code>const promise = newPromise((resolve, reject) =&gt; {
+    console.log(1);
+    resolve();
+    console.log(2);
+})
+
+promise.then(() =&gt; {
+    console.log(3);
+})
+
+console.log(4);
+</code></pre><h3 id="解析"><a href="#解析" class="headerlink" title="解析"></a>解析</h3><p>首先 Promise 新建后立即执行，所以会先输出 1，2，而 <code>Promise.then()</code> 内部的代码在 当次 事件循环的 结尾 立刻执行 ，所以会继续输出4，最后输出3。</p>
+<h3 id="答案"><a href="#答案" class="headerlink" title="答案"></a>答案</h3><pre><code>1243
+</code></pre><h3 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h3><pre><code>const promise = newPromise((resolve, reject) =&gt; {
+    resolve(&apos;success1&apos;);
+    reject(&apos;error&apos;);
+    resolve(&apos;success2&apos;);
+});
+
+promise.then((res) =&gt; {
+    console.log(&apos;then:&apos;, res);
+}).catch((err) =&gt; {
+    console.log(&apos;catch:&apos;, err);
+})
+</code></pre><h3 id="解析-1"><a href="#解析-1" class="headerlink" title="解析"></a>解析</h3><p><code>resolve 函数</code>将 Promise 对象的状态从<code>“未完成”变为“成功”</code>（即从 <code>pending 变为 resolved</code>），在异步操作成功时调用，并将异步操作的结果，作为参数传递出去；</p>
+<p><code>reject 函数</code>将 Promise 对象的状态从<code>“未完成”变为“失败”</code>（即从 <code>pending 变为 rejected</code>），在异步操作失败时调用，并将异步操作报出的错误，作为参数传递出去。</p>
+<p>而一旦状态改变，就不会再变。<br>所以 代码中的<code>reject(&#39;error&#39;);</code> 不会有作用。</p>
+<p>Promise 只能 resolve 一次，剩下的调用都会被忽略。<br>所以 第二次的 <code>resolve(&#39;success2&#39;);</code> 也不会有作用。</p>
+<h3 id="答案-1"><a href="#答案-1" class="headerlink" title="答案"></a>答案</h3><pre><code>then: success1
+</code></pre><h3 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h3><pre><code>Promise.resolve(1)
+  .then(2)
+  .then(Promise.resolve(3))
+  .then(console.log)
+</code></pre><h3 id="解析-2"><a href="#解析-2" class="headerlink" title="解析"></a>解析</h3><p><code>Promise.resolve</code> 方法的参数如果是一个原始值，或者是一个不具有 <code>then</code> 方法的对象，则 <code>Promise.resolve</code> 方法返回一个新的 <code>Promise</code> 对象，状态为<code>resolved</code>，<code>Promise.resolve</code> 方法的参数，会同时传给回调函数。</p>
+<p><code>then</code> 方法接受的参数是函数，而如果传递的并非是一个函数，它实际上会将其解释为 <code>then(null)</code>，这就会导致前一个 <code>Promise</code> 的结果会穿透下面。</p>
+<h3 id="答案-2"><a href="#答案-2" class="headerlink" title="答案"></a>答案</h3><pre><code>1
+</code></pre><h3 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h3><p>红灯三秒亮一次，绿灯一秒亮一次，黄灯2秒亮一次；如何让三个灯不断交替重复亮灯？（用Promse实现）三个亮灯函数已经存在：</p>
+<pre><code>functionred() {
+    console.log(&apos;red&apos;);
+}
+functiongreen() {
+    console.log(&apos;green&apos;);
+}
+functionyellow() {
+    console.log(&apos;yellow&apos;);
+}
+</code></pre><h3 id="解析-3"><a href="#解析-3" class="headerlink" title="解析"></a>解析</h3><p>红灯三秒亮一次，绿灯一秒亮一次，黄灯2秒亮一次，意思就是3秒，执行一次 red 函数，2秒执行一次 green 函数，1秒执行一次 yellow 函数，不断交替重复亮灯，意思就是按照这个顺序一直执行这3个函数，这步可以就利用递归来实现。</p>
+<h3 id="答案-3"><a href="#答案-3" class="headerlink" title="答案"></a>答案</h3><pre><code>functionred() {
+    console.log(&apos;red&apos;);
+}
+functiongreen() {
+    console.log(&apos;green&apos;);
+}
+functionyellow() {
+    console.log(&apos;yellow&apos;);
+}
+
+var light = function (timmer, cb) {
+    returnnewPromise(function (resolve, reject) {
+        setTimeout(function () {
+            cb();
+            resolve();
+        }, timmer);
+    });
+};
+
+var step = function () {
+    Promise.resolve().then(function () {
+        return light(3000, red);
+    }).then(function () {
+        return light(2000, green);
+    }).then(function () {
+        return light(1000, yellow);
+    }).then(function () {
+        step();
+    });
+}
+
+step();
+</code></pre><p>这个答案，看上去已经很不错了，不过经小伙伴提醒，如果一直这么递归下去，会有栈溢出的问题，对于这个问题，其他小伙伴有什么优化建议的话，可以在评论区展示出来。</p>
+<h3 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h3><p>实现 mergePromise 函数，把传进去的数组按顺序先后执行，并且把返回的数据先后放到数组 data 中。</p>
+<pre><code>const timeout = ms =&gt;newPromise((resolve, reject) =&gt; {
+    setTimeout(() =&gt; {
+        resolve();
+    }, ms);
+});
+
+const ajax1 = () =&gt; timeout(2000).then(() =&gt; {
+    console.log(&apos;1&apos;);
+    return1;
+});
+
+const ajax2 = () =&gt; timeout(1000).then(() =&gt; {
+    console.log(&apos;2&apos;);
+    return2;
+});
+
+const ajax3 = () =&gt; timeout(2000).then(() =&gt; {
+    console.log(&apos;3&apos;);
+    return3;
+});
+
+const mergePromise = ajaxArray =&gt; {
+    // 在这里实现你的代码
+
+};
+
+mergePromise([ajax1, ajax2, ajax3]).then(data =&gt; {
+    console.log(&apos;done&apos;);
+    console.log(data); // data 为 [1, 2, 3]
+});
+
+// 要求分别输出// 1// 2// 3// done// [1, 2, 3]
+</code></pre><h3 id="解析-4"><a href="#解析-4" class="headerlink" title="解析"></a>解析</h3><p>首先 <code>ajax1 、ajax2、ajax3</code> 都是函数，只是这些函数执行后会返回一个 <code>Promise</code>，按题目的要求我们只要顺序执行这三个函数就好了，然后把结果放到 <code>data</code> 中，但是这些函数里都是异步操作，想要按顺序执行，然后输出 1，2，3并没有那么简单，看个例子。</p>
+<pre><code>functionA() {
+    setTimeout(function () {
+        console.log(&apos;a&apos;);
+    }, 3000);
+}
+
+functionB() {
+    setTimeout(function () {
+        console.log(&apos;b&apos;);
+    }, 1000);
+}
+
+A();
+B();
+
+// b// a
+</code></pre><p>例子中我们是按顺序执行的 <code>A</code>，<code>B</code> 但是输出的结果却是 <code>b</code>，<code>a</code> 对于这些异步函数来说，并不会按顺序执行完一个，再执行后一个。<br>这道题就是考用 <code>Promise</code> 控制异步流程，我们要想办法，让这些函数，一个执行完之后，再执行下一个，看答案吧。</p>
+<h3 id="答案-4"><a href="#答案-4" class="headerlink" title="答案"></a>答案</h3><pre><code>// 保存数组中的函数执行后的结果var data = [];
+
+// Promise.resolve方法调用时不带参数，直接返回一个resolved状态的 Promise 对象。var sequence = Promise.resolve();
+
+ajaxArray.forEach(function (item) {
+    // 第一次的 then 方法用来执行数组中的每个函数，// 第二次的 then 方法接受数组中的函数执行后返回的结果，// 并把结果添加到 data 中，然后把 data 返回。
+    sequence = sequence.then(item).then(function (res) {
+        data.push(res);
+        return data;
+    });
+})
+
+// 遍历结束后，返回一个 Promise，也就是 sequence， 他的 [[PromiseValue]] 值就是 data，// 而 data（保存数组中的函数执行后的结果） 也会作为参数，传入下次调用的 then 方法中。return sequence;
+</code></pre><h3 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h3><p>以下代码最后输出什么？</p>
+<pre><code>const first = () =&gt; (newPromise((resolve, reject) =&gt; {
+    console.log(3);
+    let p = newPromise((resolve, reject) =&gt; {
+        console.log(7);
+        setTimeout(() =&gt; {
+            console.log(5);
+            resolve(6);
+        }, 0)
+        resolve(1);
+    });
+    resolve(2);
+    p.then((arg) =&gt; {
+        console.log(arg);
+    });
+
+}));
+
+first().then((arg) =&gt; {
+    console.log(arg);
+});
+console.log(4);
+</code></pre><h3 id="解析-5"><a href="#解析-5" class="headerlink" title="解析"></a>解析</h3><p>这道题就其实和 <code>Promise</code> 的关系不太大，主要是需要理解 JS执行机制，才能很好的解决这道题，对于 JS 执行机制不了解的朋友推荐看看这篇文章</p>
+<p><a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F59e85eebf265da430d571f89" target="_blank" rel="noopener">这一次，彻底弄懂 JavaScript 执行机制</a></p>
+<h4 id="第一轮事件循环"><a href="#第一轮事件循环" class="headerlink" title="第一轮事件循环"></a>第一轮事件循环</h4><p>先执行宏任务，主script ，new Promise立即执行，输出【3】，</p>
+<p>执行 p 这个new Promise 操作，输出【7】，</p>
+<p>发现 setTimeout，将回调放入下一轮任务队列（Event Queue），p 的 then，姑且叫做 then1，放入微任务队列，发现 first 的 then，叫 then2，放入微任务队列。执行<code>console.log(4)</code>，输出【4】，宏任务执行结束。</p>
+<p>再执行微任务，执行 then1，输出【1】，</p>
+<p>执行 then2，输出【2】。</p>
+<p>到此为止，第一轮事件循环结束。开始执行第二轮。</p>
+<h4 id="第二轮事件循环"><a href="#第二轮事件循环" class="headerlink" title="第二轮事件循环"></a>第二轮事件循环</h4><p>先执行宏任务里面的，也就是 setTimeout 的回调，输出【5】。<br><code>resolve(6)</code> 不会生效，因为 p 这个 Promise 的状态一旦改变就不会在改变了。</p>
+<h3 id="答案-5"><a href="#答案-5" class="headerlink" title="答案"></a>答案</h3><pre><code>374125
+</code></pre><h3 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h3><p>有 8 个图片资源的 url，已经存储在数组 <code>urls</code> 中（即<code>urls = [&#39;http://example.com/1.jpg&#39;, ...., &#39;http://example.com/8.jpg&#39;]）</code>，而且已经有一个函数 <code>function loadImg</code>，输入一个 url 链接，返回一个 Promise，该 Promise 在图片下载完成的时候 resolve，下载失败则 reject。<br>但是我们要求，任意时刻，同时下载的链接数量不可以超过 3 个。<br>请写一段代码实现这个需求，要求尽可能快速地将所有图片下载完成。</p>
+<pre><code>var urls = [&apos;https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/gray.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/Particle.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.png&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic2.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.gif&apos;, &apos;https://user-gold-cdn.xitu.io/2018/10/29/166be40ccc434be0?w=600&amp;h=342&amp;f=png&amp;s=122185&apos;];
+functionloadImg(url) {
+    returnnewPromise((resolve, reject) =&gt; {
+        const img = new Image()
+        img.onload = function () {
+            console.log(&apos;一张图片加载完成&apos;);
+            resolve();
+        }
+        img.onerror = reject
+        img.src = url
+    })
+};
+</code></pre><h3 id="解析-6"><a href="#解析-6" class="headerlink" title="解析"></a>解析</h3><p>题目的意思是需要我们这么做，先并发请求 3 张图片，当一张图片加载完成后，又会继续发起一张图片的请求，让并发数保持在 3 个，直到需要加载的图片都全部发起请求。</p>
+<p>用 Promise 来实现就是，先并发请求3个图片资源，这样可以得到 3 个 Promise，组成一个数组，就叫<code>promises</code> 吧，然后不断的调用 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fpromise%23Promise-race" target="_blank" rel="noopener">Promise.race</a> 来返回最快改变状态的 Promise，然后从数组（<code>promises</code>）中删掉这个 Promise 对象，再加入一个新的 Promise，直到全部的 url 被取完，最后再使用 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fpromise%23Promise-all" target="_blank" rel="noopener">Promise.all</a> 来处理一遍数组（<code>promises</code>）中没有改变状态的 Promise。</p>
+<h3 id="答案-6"><a href="#答案-6" class="headerlink" title="答案"></a>答案</h3><pre><code>var urls = [&apos;https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/gray.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/Particle.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.png&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic2.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.gif&apos;, &apos;https://user-gold-cdn.xitu.io/2018/10/29/166be40ccc434be0?w=600&amp;h=342&amp;f=png&amp;s=122185&apos;];
+functionloadImg(url) {
+    returnnewPromise((resolve, reject) =&gt; {
+        const img = new Image()
+        img.onload = function () {
+            console.log(&apos;一张图片加载完成&apos;);
+            resolve();
+        }
+        img.onerror = reject
+        img.src = url
+    })
+};
+
+functionlimitLoad(urls, handler, limit) {
+    // 对数组做一个拷贝const sequence = [].concat(urls)
+    let promises = [];
+
+    //并发请求到最大数
+    promises = sequence.splice(0, limit).map((url, index) =&gt; {
+        // 这里返回的 index 是任务在 promises 的脚标，用于在 Promise.race 之后找到完成的任务脚标return handler(url).then(() =&gt; {
+            return index
+        }); 
+    });
+
+    // 利用数组的 reduce 方法来以队列的形式执行return sequence.reduce((last, url, currentIndex) =&gt; {
+        return last.then(() =&gt; {
+            // 返回最快改变状态的 PromisereturnPromise.race(promises)
+        }).catch(err =&gt; {
+            // 这里的 catch 不仅用来捕获 前面 then 方法抛出的错误// 更重要的是防止中断整个链式调用console.error(err)
+        }).then((res) =&gt; {
+            // 用新的 Promise 替换掉最快改变状态的 Promise
+            promises[res] = handler(sequence[currentIndex]).then(() =&gt; { return res });
+        })
+    }, Promise.resolve()).then(() =&gt; {
+        returnPromise.all(promises)
+    })
+
+}
+limitLoad(urls, loadImg, 3)
+
+/*
+因为 limitLoad 函数也返回一个 Promise，所以当 所有图片加载完成后，可以继续链式调用
+
+limitLoad(urls, loadImg, 3).then(() =&gt; {
+    console.log(&apos;所有图片加载完成&apos;);
+}).catch(err =&gt; {
+    console.error(err);
+})
+*/
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -4022,445 +4382,6 @@ return {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/30/JS继承/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/03/30/JS继承/" itemprop="url">JS继承</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-30T20:16:47+08:00">
-                2018-03-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><img src="/2018/03/30/JS继承/1.webp" alt=""><br><img src="/2018/03/30/JS继承/2.webp" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;  </span><br><span class="line">&lt;html&gt;  </span><br><span class="line">  </span><br><span class="line">    &lt;head&gt;  </span><br><span class="line">        &lt;meta charset=&quot;UTF-8&quot;&gt;  </span><br><span class="line">        &lt;title&gt;&lt;/title&gt;  </span><br><span class="line">        &lt;script type=&quot;text/javascript&quot;&gt;  </span><br><span class="line">            function MAN(name, sex, age) &#123;  </span><br><span class="line">                this.name = name;  </span><br><span class="line">                this.sex = sex;  </span><br><span class="line">                this.age = age;  </span><br><span class="line">                this.say = function(school, zhuanye) &#123;  </span><br><span class="line">                    console.log(this.name + &quot;,&quot; + this.sex + &quot;,今年&quot; + this.age + &quot;岁！在&quot; + school + &quot;学习&quot; + zhuanye);  </span><br><span class="line">                &#125;  </span><br><span class="line">            &#125;  </span><br><span class="line">            MAN.prototype.cao = function() &#123;  </span><br><span class="line">                console.log(this.name + &quot;,&quot; + this.sex + &quot;,都已经&quot; + this.age + &quot;了,再不疯狂我们就老了！&quot;)  </span><br><span class="line">            &#125;  </span><br><span class="line">  </span><br><span class="line">            function WOMAN(name, sex, age) &#123;  </span><br><span class="line">                //方法1：对象冒充  </span><br><span class="line">                //this.man = MAN;   </span><br><span class="line">                //this.man(name, sex, age);  </span><br><span class="line">                //方法2：call  </span><br><span class="line">                //MAN.call(this,name, sex, age);  </span><br><span class="line">                //方法3：apply  </span><br><span class="line">                //MAN.apply(this,[name, sex, age]);  </span><br><span class="line">                //方法4：bind  </span><br><span class="line">                //MAN.bind(this)(name, sex, age);  </span><br><span class="line">                MAN.bind(this)(name, sex, age);  </span><br><span class="line">            &#125;  </span><br><span class="line">            //方法5：prototype  </span><br><span class="line">            WOMAN.prototype = new MAN();  </span><br><span class="line">              </span><br><span class="line">              </span><br><span class="line">            //注意：方法1,2,3,4只能继承this.XXX=XXX的属性,不能继承XXX.prototype.xxx==function()&#123;&#125;,注释掉方法5可以看到  </span><br><span class="line">            //方法5只能继承XXX.prototype.xxx==function()&#123;&#125;的属性，不能继承this.XXX=XXX的属性，注释掉方法1,2,3,4可以看到  </span><br><span class="line">              </span><br><span class="line">            var man = new MAN(&quot;张三&quot;, &quot;男&quot;, 26);  </span><br><span class="line">            man.say(&apos;蓝翔技校&apos;, &apos;电气焊&apos;);  </span><br><span class="line">            man.cao();  </span><br><span class="line">            var woman = new WOMAN(&quot;小红&quot;, &quot;女&quot;, 18);  </span><br><span class="line">            woman.say(&apos;清华大学&apos;, &apos;挖掘机&apos;);  </span><br><span class="line">            woman.cao();  </span><br><span class="line">        &lt;/script&gt;  </span><br><span class="line">    &lt;/head&gt;  </span><br><span class="line">  </span><br><span class="line">    &lt;body&gt;  </span><br><span class="line">    &lt;/body&gt;  </span><br><span class="line">  </span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2018/03/30/JS继承/3.webp" alt=""><br>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
-<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-function Child(name) {
-    this.name = name;
-}
-
-Child.prototype = new Parent(&apos;father&apos;);
-Child.prototype.constructor = Child;
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();    // child name: son
-</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
-<p>这种方法存在两个缺点：</p>
-<ol>
-<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
-<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
-</ol>
-<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomthing = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      // child name: son
-child.doSomthing();   // TypeError: child.doSomthing is not a function
-</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
-<p>缺点：</p>
-<ol>
-<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
-</ol>
-<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();      
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();       // child name: son
-child.doSomething();   // parent do something!
-</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
-<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
-<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
-<pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);      // 第二次调用
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();         // 第一次调用
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      
-child.doSomething();   
-</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
-<pre><code>Child.prototype = Parent.prototype;
-</code></pre><p>这样写显然是不对的：</p>
-<ol>
-<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
-<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
-</ol>
-<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
-<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function create(proto) {
-    function F(){}
-    F.prototype = proto;
-    F.prototype.construtor = F;
-    return new F();
-}
-
-Child.prototype = create(Parent.prototype);
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-Child.prototype.construtor = Child;
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();    // parent name: father
-
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();     // child name: son
-</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
-<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
-<pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function inheritPrototype(Parent, Child) {
-    Child.prototype = Object.create(Parent.prototype);   //修改
-    Child.prototype.construtor = Child;
-}
-
-inheritPrototype(Parent, Child);
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();      // parent name: father
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();       // child name: son
-</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
-<pre><code>class Parent {
-    constructor(name) {
-    this.name = name;
-    }
-    doSomething() {
-    console.log(&apos;parent do something!&apos;);
-    }
-    sayName() {
-    console.log(&apos;parent name:&apos;, this.name);
-    }
-}
-
-class Child extends Parent {
-    constructor(name, parentName) {
-    super(parentName);
-    this.name = name;
-    }
-    sayName() {
-     console.log(&apos;child name:&apos;, this.name);
-    }
-}
-
-const child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();            // child name: son
-child.doSomething();        // parent do something!
-
-const parent = new Parent(&apos;father&apos;);
-parent.sayName();           // parent name: father
-</code></pre><p>JavaScript前端开发</p>
-<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
-<pre><code>/**
- * JavaScript(ES5)中实现继承的几种方法
- */
-
-// 定义基类Person
-function Person(name, age) {
-  this.name = name;
-  this.age = age;
-}
-
-// 共享数据
-Person.prototype.LEGS_NUM = 2;
-
-// 共享方法
-Person.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
-};
-
-Person.prototype.walk = function () {
-  console.log(this.name + &apos; is walking...&apos;);
-};
-
-// Student子类
-function Student(name, age, className) {
-  // 调用父类
-  Person.call(this, name, age);
-  this.className = className;
-}
-
-// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
-// Student.prototype = Person.prototype;
-
-// 2⃣️ 方法二：Student.prototype为Person的实例
-// Student.prototype = new Person();
-
-// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
-Student.prototype = Object.create(Person.prototype);
-
-Student.prototype.constructor = Student;
-
-// 覆盖父类的info方法
-Student.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
-};
-
-// Student类的共享方法
-Student.prototype.learn = function (subject) {
-  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
-};
-
-// 测试,创建一个Student的实例
-var microzz = new Student(&apos;Microzz&apos;, 22, 5);
-microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
-console.log(microzz.LEGS_NUM); // 2
-microzz.walk(); // Microzz is walking...
-microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
-console.log(microzz.__proto__.__proto__ === Person.prototype); // true
-console.log(microzz.__proto__ === Student.prototype); // true
-console.log(microzz.__proto__.constructor === Student); // true
-</code></pre><p>三种方法比较</p>
-<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
-<pre><code>if (!Object.create) {
-  Object.prototype.create = function (proto) {
-    function F() {}
-    F.prototype = proto;
-    return new F;
-  }
-}
-</code></pre><p>这样在ES5中就完美实现了继承😄</p>
-<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
-<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
-<p>代码</p>
-<pre><code>// 基类 Person
-class Person {
-  // 父类的构造方法
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-    // 共享变量
-    this.LEGS_NUM = 2;
-  }
-  // 父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
-  }
-
-  // 父类的walk方法
-  walk() {
-    console.log(this.name + &apos; is walking...&apos;);
-  }
-
-}
-
-// 子类 Student
-class Student extends Person {
-  constructor(name, age, className) {
-    // 调用基类的构造方法
-    super(name, age);
-    this.className = className;
-  }
-
-  // 覆盖父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
-  }
-}
-
-// 实例化一个Student的实例
-let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
-stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
-stu.walk(); // Zhaohui is walking...
-console.log(stu.LEGS_NUM); // 2
-console.log(stu instanceof Student); // true
-console.log(stu instanceof Person); // true
-</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4513,7 +4434,7 @@ console.log(stu instanceof Person); // true
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">133</span>
+                  <span class="site-state-item-count">134</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4579,7 +4500,7 @@ console.log(stu instanceof Person); // true
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
   <span class="with-love">
     <i class="fa fa-user"></i>
   </span>
