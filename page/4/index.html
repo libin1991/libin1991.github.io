@@ -2914,304 +2914,6 @@ export const asyncComponent = loadComponent =&gt; (
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/03/redux中间件/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/03/redux中间件/" itemprop="url">redux中间件</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-03T00:11:00+08:00">
-                2018-08-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到中间件，你可能会想到<code>Express</code>和<code>Koa</code>等服务端框架，没想到也没关系，这句话是我装逼用的。</p>
-<p>那么redux中的中间件到底干嘛用的？</p>
-<p>有这样一个问题？我们之前用的<code>Redux</code>都是在<code>Action</code>发出之后立即执行<code>Reducer</code>,计算出<code>state</code>,这是同步操作。如果想异步操作呢？即过一段时间再执行<code>Reducer</code>怎么办？这里就需要用到中间件<code>middleware</code>。</p>
-<p>先放一张图看看：<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dcb142c194bfb?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""></p>
-<h2 id="一、中间件的概念"><a href="#一、中间件的概念" class="headerlink" title="一、中间件的概念"></a>一、中间件的概念</h2><p><code>redux</code>是有流程的，那么，我们该把这个异步操作放在哪个环节比较合适呢？</p>
-<ul>
-<li><code>Reducer</code>?纯函数只承担计算<code>State</code>功能，不适合其它功能。</li>
-<li><code>View</code>?与<code>State</code>一一对应，可以看做是<code>State</code>的视觉层，也不适合承担其它功能。</li>
-<li><code>Action</code>？它是一个对象，即存储动作的载体，只能被操作。</li>
-</ul>
-<p>其实，也只有<code>dispatch</code>能胜任此重任了。那么怎么在<code>dispatch</code>中添加其它操作呢？</p>
-<pre><code>let next = store.dispatch;
-store.dispatch = function(action){
-   console.log(&apos;老状态 &apos;,store.getState());
-   next(action);
-   console.log(&apos;新状态 &apos;,store.getState());
-}
-</code></pre><p>示例中可以看出，我们对<code>store.dispatch</code>重新进行了定义，在发送<code>action</code>的前后，做了打印。</p>
-<p>这是中间件的大致雏形，真实的中间件要比这么复杂多了</p>
-<h2 id="二、中间件的用法"><a href="#二、中间件的用法" class="headerlink" title="二、中间件的用法"></a>二、中间件的用法</h2><p>我们在这里先看看中间件是怎么使用，下面我们一步步剖析每个细节。</p>
-<pre><code>import {applyMiddleware,createStore} from &apos;redux&apos;;
-import reduxLogger form &apos;redux-logger&apos;;
-
-const store = createStore(reducer,inital_state,applyMiddleware(thunk, promise,reduxLogger));
-</code></pre><p>代码中有两点需要注意：</p>
-<ul>
-<li><p>1、<code>createStore</code>方法可以整个应用的初始状态作为参数<br>内部是这么处理的</p>
-<p>  let state = inital_state;</p>
-</li>
-</ul>
-<ul>
-<li>2、中间件的参数次序有讲究。下面我会把这个问题讲明白。</li>
-</ul>
-<h2 id="三、applyMiddleware"><a href="#三、applyMiddleware" class="headerlink" title="三、applyMiddleware"></a>三、applyMiddleware</h2><p>Middleware可以让你包装<code>store</code>的<code>dispatch</code>方法来达到你想要的目的。同时，<code>middleWare</code>还拥有“可组合”这一关键特性。多个<code>middleWare</code>可以被组合到一起使用，形成<code>middleWare</code>链，依次执行。其中每个<code>middleware</code>不需要关心链前后的的<code>middleWare</code>的任何信息。</p>
-<pre><code>function applyMiddleware(...middlewares){
-    returnfunction(createStore){
-        returnfunction(reducer){
-            //引入store
-            let store = createStore(reducer);
-            let dispatch = store.dispatch;
-            let middlewareAPI = {
-                getState:store.getState,
-                // 对dispatch进行包装
-                dispatch:action=&gt;dispatch(action)
-            }
-            //每个中间件都是这种模型  ({ getState, dispatch }) =&gt; next =&gt; action
-            chain = middlewares.map(middleware=&gt;middleware(middleAPI));
-            dispatch = compose(...chain)(store.dispatch);
-            // dispatch被改装后，返回store
-            return{...store,dispatch};
-        }
-    }
-}
-</code></pre><p>上面代码中，所有中间件都被放进了一个数组<code>chain</code>,然后嵌套执行，最后执行<code>store.dispatch</code>。中间件内部<code>middlewaAPI</code>可以拿到<code>getState</code>和<code>dispatch</code>这两个方法。</p>
-<p><code>...middleware</code>：遵循<code>Redux middleware API</code>的函数。每个<code>middleware</code>接受<code>Store</code>的<code>dispatch</code>和<code>getState</code>函数作为命名参数，并返回一个函数。该函数会被传入成为<code>next</code>的下一个middleWare 的dispatch方法，并返回一个接收action的新函数，这个函数可以直接调用next(action)，或者在其他需要的时刻调用，甚至根本不去调用它。</p>
-<p>所以，接下来，我们就能看到middleware的函数签名是<code>({ getState, dispatch }) =&gt; next =&gt; action</code></p>
-<p>其实，它的本质就是包装sotre中的<code>dispatch</code>。</p>
-<p>上面代码中，还用到了<code>compose</code>方法，我们来看看compose是怎么是实现的？</p>
-<h3 id="compose"><a href="#compose" class="headerlink" title="compose"></a>compose</h3><p>先看下面一个栗子：</p>
-<pre><code>function add1(str){
-   return str+1;
-}
-function add2(str){
-    return str+2;
- }
- function add3(str){
-    return str+3;
- }
- let result = add3(add2(add1(&apos;好吃&apos;)));// 好吃123;
-</code></pre><p>这中写法调用起来，一层套一层，是不是看着很不爽，我们简化一下：</p>
-<pre><code>function compose(...fns){
-    if(fns.length==1)
-     return fns[0];
-   returnfunction(...args){
-    let last = fns.pop();
-    return fns.reduceRight((prev,next)=&gt;{
-         return  next(prev);  
-    },last(...args));
-   }
- }
- let add = compose(add3,add2,add1);//
- let result = add(&apos;好吃&apos;);// 好吃123
- // 上面的代码其实就是redux3.6.0版本中compose的实现方式
-</code></pre><p>看看这个代码是不是用起来，很干练一些。其实还可以简化</p>
-<pre><code>function compose(...fns){
-  if(fns.length==1)
-     return fns[0];
-   return fns.reduce((a,b)=&gt;(...args)=&gt;a(b(...args)));//add3(add2(add1(&apos;好吃&apos;)))
- }
- let add = compose(add3,add2,add1);//
- let result = add(&apos;好吃&apos;);// 好吃123
- // 这是redux3.6.0版本之后的compose实现方式，一直沿用至今。
-</code></pre><p>至于为什么<code>applyMiddleWare</code>的参数有顺序，这里给出了答案。</p>
-<h2 id="四、Applymiddleware的三个常用参数"><a href="#四、Applymiddleware的三个常用参数" class="headerlink" title="四、Applymiddleware的三个常用参数"></a>四、Applymiddleware的三个常用参数</h2><h3 id="4-1、日志记录"><a href="#4-1、日志记录" class="headerlink" title="4.1、日志记录"></a>4.1、日志记录</h3><p>使用 Redux 的一个益处就是它让 state 的变化过程变的可预知和透明。每当一个 action 发起完成后，新的 state 就会被计算并保存下来。State 不能被自身修改，只能由特定的 action 引起变化。</p>
-<p>试想一下，当我们的应用中每一个 action 被发起以及每次新的 state 被计算完成时都将它们记录下来，岂不是很好？当程序出现问题时，我们可以通过查阅日志找出是哪个 action 导致了 state 不正确。<br><img src="https://user-gold-cdn.xitu.io/2018/4/19/162dd052d2e07b77?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt=""><br>图片的效果是不是很期待啊！！！</p>
-<p>我们先来手动实现一版。</p>
-<pre><code>// 记录所有被发起的action和新的statelet next = store.dispatch;
-store.dispatch = function(action){
-   console.log(&apos;老状态 &apos;,store.getState());
-   next(action);
-   console.log(&apos;新状态 &apos;,store.getState());
-}
-</code></pre><p>还是上面的示例，我们来做个修改</p>
-<pre><code>let logger = function({ getState, dispatch }){
-   returnfunction(next){// 这里的next可以理解为store.dispath,本质上就是调用 middleware 链中下一个 middleware 的 dispatch。returnfunction(action){
-        console.log(&apos;老状态1 &apos;,getState());
-        next(action);//派发动作console.log(&apos;新状态1 &apos;,getState());
-    }
-    }
-}
-// 高逼格写法let logger = ({ getState, dispatch }) =&gt; next =&gt; action =&gt; {
-  console.log(&apos;老状态1 &apos;,getState());
-  next(action)
-  console.log(&apos;新状态1 &apos;,getState());
-}
-</code></pre><h3 id="4-2、redux-thunk-中间件"><a href="#4-2、redux-thunk-中间件" class="headerlink" title="4.2、redux-thunk 中间件"></a>4.2、redux-thunk 中间件</h3><p><code>redux-thunk</code> 是<code>redux</code>官方文档中用到的异步组件，实质就是一个<code>redux</code>中间件，一个封装表达式的函数，封装的目的就是延迟执行表达式。</p>
-<p><code>redux-thunk</code>是一个通用的解决方案，其核心思想是让<code>action</code>可以变成一个<code>thunk</code>，这样的话，同步情况：<code>dispatch(action)</code>,异步情况：<code>dispatch(thunk)</code>。</p>
-<p>下面是<code>redux-thunk</code>的实现：</p>
-<pre><code>let thunk = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
-    if(typeof action == &apos;function&apos;){
-        action(dispatch,getState);
-    }else{
-        next(action);//这里可以理解为dispatch(action),本质上就是调用 middleware 链中下一个 middleware 的 dispatch。
-    }
-}
-</code></pre><p>使用redux-thunk</p>
-<pre><code>const store = createStore(  
-  reducer,
-  applyMiddleware(thunk)
-);
-</code></pre><p>然后我们实现一个thunkActionCreator</p>
-<pre><code>//过一秒加1
-exportfunction thunkActionCreator(payload){
-    returnfunction(dispatch,getState){
-        setTimeout(function(){
-            dispatch({type:types.INCREMENT,payload:payload});
-        },1000);
-    }
-},
-</code></pre><p>最后，在组件中dispatch thunk</p>
-<pre><code>this.dispatch(thunkActionCreator(payload));
-</code></pre><h3 id="4-3、redux-promise"><a href="#4-3、redux-promise" class="headerlink" title="4.3、redux-promise"></a>4.3、redux-promise</h3><p><code>redux-promise</code>也是延迟执行的表达式，它是解决异步的另外一种方案。</p>
-<p><code>redux-thunk</code>和核心思想是把<code>action</code>变成<code>thunk</code>，而<code>redux-promise</code>的核心思想是让<code>action</code>返回一个promise对象。</p>
-<p>这个中间件使得<code>store.dispatch</code>方法可以接收Promise对象作为参数。这时 ，action 有两种写法:</p>
-<p>写法一、返回值是一个Promise对象。</p>
-<pre><code>functionpromiseIncrement(payload){
- //  return {type:types.INCREMENT,payload:payload}  以前是这种写法returnnewPromise(function(resolve,reject){
-      setTimeout(function(){
-        resolve({type:types.INCREMENT,payload:payload});
-      },1000);
-    });
- },
-</code></pre><p>写法二，action 对象的payload属性是一个Promise对象，这需要从</p>
-<pre><code>functionpayloadIncrement(){
-    return {
-        type:types.INCREMENT,
-        payload: newPromise(function(resolve,reject){
-            setTimeout(function(){
-                if(Math.random()&gt;.5){
-                    resolve(100);
-                }else{
-                    reject(-100);
-                }
-            },1000)
-        })
-    }
-}
-</code></pre><p>下面我们来看看 <code>redux-promise</code>是怎么实现的，就会明白它内部是怎么操作的.</p>
-<pre><code>let promise = ({dispatch,getState})=&gt;next=&gt;action=&gt;{
-    if(action.then &amp;&amp; typeof action.then == &apos;function&apos;){
-        action.then(dispatch);
-        // 这里的dispatch就是一个函数，dispatch(action){state:reducer(state,action)};
-    }elseif(action.payload&amp;&amp; action.payload.then&amp;&amp; typeof action.payload.then == &apos;function&apos;){
-        action.payload.then(payload=&gt;dispatch({...action,payload}),payload=&gt;dispatch({...action,payload}));
-    }else{
-        next(action);
-    }
-}
-</code></pre><p>上面的代码可以看出，如果Action本身就是一个Promise，它resolve以后的值应该是一个Action对象，会被dispatch方法送出action.then(dispatch)；如果<code>Action</code>对象的 <code>payload</code>属性是一个<code>Promise</code>对象，那么无论<code>resolve</code>和<code>reject</code>,dispatch 方法都会发出<code>Action</code>。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/30/关于-ES6-中-Promise-的面试题/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3525,6 +3227,286 @@ limitLoad(urls, loadImg, 3).then(() =&gt; {
 })
 */
 </code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/02/Vue安全权限控制axios拦截/" itemprop="url">Vue安全权限控制axios拦截</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-02T22:57:53+08:00">
+                2018-07-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>何为权限控制</p>
+<pre><code>//请求失败后的统一拦截，以及ajax的基本设置
+import axios from &apos;axios&apos;;
+import qs from &apos;qs&apos;;
+
+function cleanRequest(req) {
+  for (const i in req) {
+    /* eslint guard-for-in: 0 */
+    if (req[i] !== 0 &amp;&amp; !req[i]) {
+      delete req[i];
+    }
+  }
+}
+
+axios.defaults.withCredentials = true;
+axios.defaults.xsrfCookieName = null;
+axios.defaults.headers.common[&apos;X-Requested-With&apos;] = &apos;XMLHttpRequest&apos;;
+axios.defaults.headers.post[&apos;Content-Type&apos;] = &apos;application/x-www-form-urlencoded&apos;;
+//系统弹层
+import Toast from &apos;mint-ui/lib/toast&apos;;
+import &apos;mint-ui/lib/toast/style.css&apos;;
+
+module.exports.install = function (Vue) {
+  axios.defaults.baseURL=&quot;/&quot;;
+  Vue.prototype.$http = axios;
+  Vue.http = axios;
+
+  axios.interceptors.request.use(
+    function (request) {
+      const params = request.params;
+      if (params) {
+        cleanRequest(params);
+      }
+      if (request.data) {
+        cleanRequest(request.data);
+        request.data=qs.stringify(Object.assign(request.data,Bus.movieConfig))
+      }else{
+        request.data=qs.stringify(Bus.movieConfig)
+      }
+      return request;
+    },
+    function (error) {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add a response interceptor
+  axios.interceptors.response.use(
+    function (response) {
+      return response;
+    },
+    function (error) {
+      Toast(&apos;系统繁忙，请稍后重试!&apos;);
+      // Do something with response error
+      return Promise.reject(error);
+    }
+  );
+};
+</code></pre><p>权限控制大致分为两个维度:</p>
+<ul>
+<li>垂直维度: 控制用户可以访问哪些url的权限</li>
+<li>水平维度: 控制用户访问特定url，获取哪些数据的权限（e.g. 普通用户、管理员、超级管理员访问同一url，获取的数据是不同的）</li>
+</ul>
+<p>Web权限控制方案List</p>
+<ul>
+<li>前后端不分离：以Java为例，后端通过jsp、freemark、thmeleaf等模板来渲染相应权限的数据，渲染完呈现在浏览器端</li>
+<li>前后端分离：<br>▫SPA单页面应用，路由由前端控制，前端通过js控制hash路由的权限<br>▫SSR服务端渲染，Node中间层做代理路由，判断权限渲染特定的路由至浏览器端</li>
+</ul>
+<p>SPA前端权限控制方案</p>
+<p>SPA: 单页Web应用（single page web application）将所有web活动局限于一个html页面中，利用js通过hash或者浏览器history api来实现无刷新路由跳转，前后端通过ajax数据通信，避免了浏览器的刷新重新加载，为用户提供流程的操作体验。这意味着前端接管了路由层，需要通过调用前端自身的MVC模块，来渲染不同的页面。</p>
+<blockquote>
+<p>Base on：</p>
+</blockquote>
+<ul>
+<li>Vue 前端MVVM框架</li>
+<li>Vuex 状态管理机</li>
+<li>Vue-router 路由</li>
+<li>Axios HTTP请求库</li>
+</ul>
+<p>1.登陆事件Login</p>
+<pre><code>// 1.触发登陆事件
+dispatch(&apos;login&apos;)
+
+// actions
+commit(types.LOGIN_SUCCESS, res.data.data)
+...
+</code></pre><p>2.获取Token，经Base64编码后存至sessionStorage</p>
+<pre><code>// mutations
+const mutations = {
+    [types.LOGIN_SUCCESS] (state, data) {
+        state.authlock = false
+    // 2.登陆成功回调拿到token,经Base64 编码后存入本地sessionStorage
+        let token = Base64.encode(data + &apos;:HIKDATAE&apos;)
+        sessionStorage.setItem(&apos;userToken&apos;, token)
+    // 路由跳转至目标页面
+        router.push({name: &apos;xxx&apos;})
+    },
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+        router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>3.所有HTTP Header Authorization 加上编码后的token(前后端可约定规则)</p>
+<pre><code>// Axios 请求钩子（request）
+axios.interceptors.request.use(req =&gt; {
+    let token = sessionStorage.getItem(&apos;user&apos;)     
+    if (token) {         
+        // 3.token 存在,则在之后所有请求的http请求头 Authorization 带上base64编码后的token,后台拿到token后进行验证权限         
+        req.headers.Authorization = `Basic ${token}`     
+    }
+    req.data = qs.stringify(req.data)     
+    return req 
+}, error =&gt; {
+    return Promise.reject(error) 
+})
+</code></pre><p>浏览器http header<br><img src="https://pic4.zhimg.com/v2-48ee52913451d66397f33a47f6af3374_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-48ee52913451d66397f33a47f6af3374_hd.jpg" alt=""></p>
+<p>4.请求拦截：后台拿到token后对每个请求进行校验，若校验失败返回401，前端response钩子里统一catch error 跳转至登陆页面。</p>
+<pre><code>// Axios 请求钩子（response）
+axios.interceptors.response.use(res =&gt; {
+    return res
+}, error =&gt; {
+    if (error.response) {
+        switch (error.response.status) {
+        // 4.所有接口response校验钩子,若token检验失败,后台返回 401 error code, 清除token信息并跳转到登录页面
+            case 401:
+                store.commit(types.LOGOUT)
+                router.replace({
+                    path: &apos;/login&apos;
+        })
+    }
+    }
+    return Promise.reject(error)
+})
+</code></pre><p>5.路由跳转拦截：任意路由跳转时，在路由beforeEach钩子里校验本地是否存在token，若没有，则跳转至登陆页面</p>
+<pre><code>// 路由钩子(每个路由跳转前调起beforeEach钩子)
+router.beforeEach((to, from, next) =&gt; {
+  if (to.path === &apos;/login&apos;) {
+    sessionStorage.removeItem(&apos;userToken&apos;)
+  }
+  let user = sessionStorage.getItem(&apos;userToken&apos;)
+  if (!user &amp;&amp; to.path !== &apos;/login&apos;) {
+    // 若本地token不存在,则任意路由跳转的时候,重定向至login 登陆页面
+    next({ path: &apos;/login&apos; })
+  } else {
+    next()
+  }
+})
+</code></pre><p>6.登出Logout：清楚本地sessionStorage的token信息</p>
+<pre><code>// mutations
+const mutations = {
+    ...
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+    router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>流程示意图如下:<br><img src="https://pic2.zhimg.com/v2-064f7b05f15399ac9ff6aa03ee1cb710_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-064f7b05f15399ac9ff6aa03ee1cb710_hd.jpg" alt=""></p>
+
           
         
       
