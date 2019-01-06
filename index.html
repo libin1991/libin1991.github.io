@@ -990,6 +990,143 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/12/31/写一个webpack-loader-插件/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/12/31/写一个webpack-loader-插件/" itemprop="url">写一个webpack-loader-插件</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-12-31T22:39:14+08:00">
+                2018-12-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="DEMO-Code-地址"><a href="#DEMO-Code-地址" class="headerlink" title="DEMO Code 地址"></a><a href="https://github.com/libin1991/webpack4-vue-more-page-cli/tree/master/%E5%86%99%E4%B8%80%E4%B8%AAwebpack-loader-%E6%8F%92%E4%BB%B6" target="_blank" rel="noopener"><font color="#ff0000">DEMO Code 地址</font></a></h3><h3 id="Webpack-Loader"><a href="#Webpack-Loader" class="headerlink" title="Webpack Loader"></a>Webpack Loader</h3><p>loader 用于对模块的源代码进行转换。loader 可以使你在 import 或”加载”模块时预处理文件。因此，loader 类似于其他构建工具中“任务(task)”，并提供了处理前端构建步骤的强大方法。loader 可以将文件从不同的语言（如 TypeScript）转换为 JavaScript，或将内联图像转换为 data URL。</p>
+<p>loader 是导出为一个函数的 node 模块。该函数在 loader 转换资源的时候调用。给定的函数将调用 loader API，并通过 this 上下文访问。</p>
+<p>loader是一个node module,那么它的基本形式如下<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">module.exports = function(source) &#123;</span><br><span class="line">  return source;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>loader只能传入一个包含包含资源文件内容的字符串（source）<br>如果是同步loader,可以用 return 或者 this.callback(err, value…) 将代码返回<br>异步loader：在一个异步的模块中，回传时需要调用 Loader API 提供的回调方法 this.async 来获取 callback 函数：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">module.exports = function(content, map, meta) &#123;</span><br><span class="line">  var callback = this.async();</span><br><span class="line">  someAsyncOperation(content, function(err, result) &#123;</span><br><span class="line">    if (err) return callback(err);</span><br><span class="line">    callback(null, result, map, meta);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<h4 id="txt-loader"><a href="#txt-loader" class="headerlink" title="txt-loader"></a>txt-loader</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">const &#123; getOptions &#125; = require(&apos;loader-utils&apos;);</span><br><span class="line">const validateOptions = require(&apos;schema-utils&apos;);</span><br><span class="line"></span><br><span class="line">const schema = require(&apos;./options&apos;);</span><br><span class="line"></span><br><span class="line">module.exports = function rawLoader(source) &#123;</span><br><span class="line">  const options = getOptions(this) || &#123;&#125;;</span><br><span class="line">   </span><br><span class="line">  validateOptions(schema, options, &apos;Raw Loader&apos;);</span><br><span class="line"></span><br><span class="line">  const json = JSON.stringify(source)</span><br><span class="line">    .replace(/\u2028/g, &apos;\\u2028&apos;)</span><br><span class="line">    .replace(/\u2029/g, &apos;\\u2029&apos;);</span><br><span class="line">  return `module.exports = $&#123;json&#125;`;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h4 id="webpack-config-js"><a href="#webpack-config-js" class="headerlink" title="webpack.config.js"></a>webpack.config.js</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br></pre></td><td class="code"><pre><span class="line">let path=require(&quot;path&quot;);</span><br><span class="line">let HtmlWebpackPlugin=require(&quot;html-webpack-plugin&quot;);</span><br><span class="line">let ExtractTextWebpackPlugin=require(&quot;extract-text-webpack-plugin&quot;);</span><br><span class="line">let CleanWebpackPlugin=require(&quot;clean-webpack-plugin&quot;);</span><br><span class="line">let webpack=require(&quot;webpack&quot;);</span><br><span class="line">let VueLoaderPlugin = require(&apos;vue-loader/lib/plugin&apos;);</span><br><span class="line"></span><br><span class="line">module.exports=&#123;</span><br><span class="line">    entry:&quot;./src/index.js&quot;,</span><br><span class="line">    output:&#123;</span><br><span class="line">        filename:&quot;bundle.[hash:4].js&quot;,</span><br><span class="line">        path:path.resolve(&quot;dist&quot;)</span><br><span class="line">    &#125;,</span><br><span class="line">    resolveLoader: &#123;</span><br><span class="line">        modules: [</span><br><span class="line">            path.resolve(__dirname, &apos;loaders&apos;),</span><br><span class="line">            &apos;node_modules&apos;</span><br><span class="line">        ]</span><br><span class="line">    &#125;,</span><br><span class="line">    module:&#123;</span><br><span class="line">        rules:[</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.css$/,</span><br><span class="line">                use:ExtractTextWebpackPlugin.extract(&#123;</span><br><span class="line">                    use:&quot;css-loader&quot;,</span><br><span class="line">                    publicPath:&quot;../&quot;</span><br><span class="line">                &#125;)</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.less$/,</span><br><span class="line">                use:[</span><br><span class="line">                    &#123;loader:&quot;style-loader&quot;&#125;,</span><br><span class="line">                    &#123;loader:&quot;css-loader&quot;&#125;,</span><br><span class="line">                    &#123;loader:&quot;less-loader&quot;&#125;</span><br><span class="line">                ]</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.(jpe?g|png|gif)$/,</span><br><span class="line">                use:[</span><br><span class="line">                    &#123;</span><br><span class="line">                        loader:&quot;url-loader&quot;,</span><br><span class="line">                        options:&#123;</span><br><span class="line">                            limit:8192,</span><br><span class="line">                            outputPath:&quot;images/&quot;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                ]</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.(htm|html)$/,</span><br><span class="line">                use:&quot;html-withimg-loader&quot;</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.(eot|ttf|woff|svg)$/,</span><br><span class="line">                use:&quot;file-loader&quot;</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.js$/,</span><br><span class="line">                include:/src/,</span><br><span class="line">                exclude:/node_modules/,</span><br><span class="line">                use:&#123;</span><br><span class="line">                    loader:&quot;babel-loader&quot;,</span><br><span class="line">                    options:&#123;</span><br><span class="line">                        presets:[&quot;@babel/preset-env&quot;]</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">                test:/\.vue$/,</span><br><span class="line">                use:&quot;vue-loader&quot;</span><br><span class="line">            &#125;,</span><br><span class="line">            &#123;</span><br><span class="line">		        test: /\.txt$/,</span><br><span class="line">		        use: &#123;</span><br><span class="line">		            loader:&apos;txt-loader&apos;,</span><br><span class="line">		            options:&#123;</span><br><span class="line">                       </span><br><span class="line">                    &#125;</span><br><span class="line">		        &#125;</span><br><span class="line">		      &#125;</span><br><span class="line">        ]</span><br><span class="line">    &#125;,</span><br><span class="line">    plugins:[</span><br><span class="line">        new HtmlWebpackPlugin(&#123;</span><br><span class="line">            template:&quot;./src/index.html&quot;,</span><br><span class="line">            hash:true</span><br><span class="line">        &#125;),</span><br><span class="line">        new ExtractTextWebpackPlugin(&quot;css/style.css&quot;),</span><br><span class="line">        new CleanWebpackPlugin(&quot;dist&quot;),</span><br><span class="line">        new webpack.HotModuleReplacementPlugin(),</span><br><span class="line">        new VueLoaderPlugin()</span><br><span class="line">    ],</span><br><span class="line">    devServer:&#123;</span><br><span class="line">        contentBase:&quot;./dist&quot;,</span><br><span class="line">        host:&quot;localhost&quot;,</span><br><span class="line">        port:8888,</span><br><span class="line">        open:true,</span><br><span class="line">        hot:true</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h4 id="file-txt"><a href="#file-txt" class="headerlink" title="file.txt"></a>file.txt</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">//file.txt</span><br><span class="line"></span><br><span class="line">123456</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">import txt from &apos;./file.txt&apos;;</span><br><span class="line">console.log(txt)   //123456</span><br></pre></td></tr></table></figure>
+<h3 id="写一个webpack插件："><a href="#写一个webpack插件：" class="headerlink" title="写一个webpack插件："></a>写一个webpack插件：</h3><p>主要的步骤如下:</p>
+<ul>
+<li>编写一个JavaScript命名函数。</li>
+<li>在它的原型上定义一个apply方法。</li>
+<li>指定挂载的webpack事件钩子。</li>
+<li>处理webpack内部实例的特定数据。<br>  功能完成后调用webpack提供的回调。<br>  编写插件之前要理解compiler和compilation两个对象，以及webpack生命周期的各个阶段和钩子，plugin比loader强大，通过plugin你可以访问compliler和compilation过程，通过钩子拦截webpack的执行。</li>
+</ul>
+<p>比如我们可以在构建读取txt文件内容生成到文件名到out.txt的文件中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">var fs = require(&apos;fs&apos;);</span><br><span class="line">var RawSource = require(&apos;webpack-core/lib/RawSource&apos;);</span><br><span class="line"></span><br><span class="line">module.exports = TestPlugin;</span><br><span class="line"></span><br><span class="line">function TestPlugin() &#123;</span><br><span class="line">	this.imports = [];</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">TestPlugin.prototype.apply = function(compiler) &#123;</span><br><span class="line">	var imports = this.imports;</span><br><span class="line"></span><br><span class="line">	compiler.plugin(&apos;this-compilation&apos;, function(compilation) &#123;</span><br><span class="line">		compilation.plugin(&apos;normal-module-loader&apos;, function(loaderContext, module) &#123;</span><br><span class="line">			loaderContext[__dirname] = function(file) &#123;</span><br><span class="line">				if(imports.indexOf(file) === -1) &#123;</span><br><span class="line">					imports.push(file);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;);</span><br><span class="line">	&#125;);</span><br><span class="line"></span><br><span class="line">	compiler.plugin(&apos;after-compile&apos;, function(compilation, callback) &#123;</span><br><span class="line">		var filename = &apos;out.txt&apos;;</span><br><span class="line">		var content = imports.map(function(file) &#123;</span><br><span class="line">			return fs.readFileSync(file);</span><br><span class="line">		&#125;).join(&apos;\n&apos;);</span><br><span class="line">		console.log(content);</span><br><span class="line">		compilation.assets[filename] = new RawSource(content);</span><br><span class="line">		callback();</span><br><span class="line">	&#125;);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<h3 id="webpack-config-js-1"><a href="#webpack-config-js-1" class="headerlink" title="webpack.config.js"></a>webpack.config.js</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">var MyPlugin = require(&apos;./plugin&apos;);</span><br><span class="line"></span><br><span class="line">module.exports = &#123;</span><br><span class="line">	entry: &apos;./index.js&apos;,</span><br><span class="line">	output: &#123;</span><br><span class="line">		filename: &apos;out.js&apos;</span><br><span class="line">	&#125;,</span><br><span class="line">	module: &#123;</span><br><span class="line">		loaders: [</span><br><span class="line">			&#123;</span><br><span class="line">				test: /\.txt$/,</span><br><span class="line">				loader: &apos;./loader&apos;,</span><br><span class="line">			&#125;</span><br><span class="line">		]</span><br><span class="line">	&#125;,</span><br><span class="line">	plugins: [</span><br><span class="line">		new MyPlugin()</span><br><span class="line">	]</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h3 id="index-js"><a href="#index-js" class="headerlink" title="index.js"></a>index.js</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">require(&apos;./sample.txt&apos;);</span><br><span class="line">require(&apos;./sample2.txt&apos;);</span><br><span class="line">require(&apos;./sample3.txt&apos;);</span><br></pre></td></tr></table></figure>
+<h3 id="webpack-loader—自己写一个按需加载插件"><a href="#webpack-loader—自己写一个按需加载插件" class="headerlink" title="webpack loader—自己写一个按需加载插件"></a><a href="https://juejin.im/post/5b8e3162f265da432f655639#heading-5" target="_blank" rel="noopener">webpack loader—自己写一个按需加载插件</a></h3><h3 id="webpack-之-loader-和-plugin-简介"><a href="#webpack-之-loader-和-plugin-简介" class="headerlink" title="webpack 之 loader 和 plugin 简介"></a><a href="https://juejin.im/post/5980752ef265da3e2e56e82e#heading-0" target="_blank" rel="noopener">webpack 之 loader 和 plugin 简介</a></h3><h3 id="webpack-doc"><a href="#webpack-doc" class="headerlink" title="webpack doc"></a><a href="https://webpack.js.org/contribute/writing-a-loader/" target="_blank" rel="noopener">webpack doc</a></h3>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/12/30/JS监听div元素的resize/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2296,330 +2433,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/22/HTTP缓存机制-200还是304/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/11/22/HTTP缓存机制-200还是304/" itemprop="url">HTTP缓存机制(200还是304)</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-22T20:03:16+08:00">
-                2018-11-22
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="f5到底刷新了点什么，你知道吗"><a href="#f5到底刷新了点什么，你知道吗" class="headerlink" title="f5到底刷新了点什么，你知道吗"></a><a href="https://juejin.im/post/5bfcd79e6fb9a04a08215cf3" target="_blank" rel="noopener">f5到底刷新了点什么，你知道吗</a></h2><h2 id="缓存从入门到放弃"><a href="#缓存从入门到放弃" class="headerlink" title="缓存从入门到放弃"></a><a href="https://juejin.im/post/5bfe879a51882531b81b0891" target="_blank" rel="noopener">缓存从入门到放弃</a></h2><p><img src="/2018/11/22/HTTP缓存机制-200还是304/0.webp" alt=""><br>当浏览器第一次加载资源的时候，返回一般为200，意思是成功获取资源，并会在浏览器的缓存中记录下max-age，第二次访问的时候： 如果只是用浏览器打开，那么浏览器会去判断这个资源在缓存里有没有，如果有的话，会去判断max-age，看看过期没有，如果没有过期，则直接读缓存，根本不会和服务器进行交互，换句话说，断网都能打开，就和本地跑一样！如果已经过期了，那就去服务器请求，等待服务器响应，这是很费时间的，服务器如果发现资源没有改变过，那么就会返回304，告诉浏览器，我没变过，你去读缓存吧，于是浏览器也不用从服务器拉数据了，然而，等待服务器响应也是一个很要命的问题，在网速发达的今天，等一个响应，有时比下载还慢。 如果是用浏览器刷新的，那么浏览器不会去判断max-age了，直接去服务器拿，如果服务器判断资源没变过，则还是会返回304，和上面是一样的，所以刷新一下，其实很可怕，等于把所有的资源都要去服务器请求一边，问问服务器我过期了没有。</p>
-<p>浏览器在第一次请求资源的时候，服务端响应头里可以设置expires字段，该字段表示该资源的缓存过期时间，第二次请求的时候，如果时间还在该缓存时间之内，则会直接使用缓存，否则重新加载资源，<strong> 这个expires字段有个缺陷，就是它必须服务端和客户端的时间严格同步才能生效，所以现在很多人不会使用改方案。</strong> 另外一种方案是第一次请求资源的时候，服务端设置响应头cache-control: max-age，这样设置的意思是告诉浏览器，这个资源什么时候过期，等第二次请求资源的时候，判断是否超出了过期时间，如果没超出，直接使用缓存。</p>
-<h2 id="记一次前端面试的全过程"><a href="#记一次前端面试的全过程" class="headerlink" title="记一次前端面试的全过程"></a><a href="https://juejin.im/post/5bf8fe2ee51d452d705fee3d" target="_blank" rel="noopener">记一次前端面试的全过程</a></h2><h2 id="缓存状态码-200-OK-from-cache-与-304-Not-Modified"><a href="#缓存状态码-200-OK-from-cache-与-304-Not-Modified" class="headerlink" title="缓存状态码 200 OK (from cache) 与   304 Not Modified"></a>缓存状态码 200 OK (from cache) 与   304 Not Modified</h2><blockquote>
-<p>200 OK (from cache)  是浏览器没有跟服务器确认，直接用了浏览器缓存；</p>
-</blockquote>
-<blockquote>
-<p>304 Not Modified 是浏览器和服务器多确认了一次缓存有效性，再用的缓存。</p>
-</blockquote>
-<blockquote>
-<p>304 Not Modified：客户端有缓冲的文件并发出了一个条件性的请求（一般是提供If-Modified-Since头表示客户只想比指定日期更新的文档）。服务器告诉客户，原来缓冲的文档还可以继续使用。</p>
-</blockquote>
-<blockquote>
-<p>304 Not Modified 比 200 OK (from cache) 慢，指的是浏览器还向服务器确认了下 “If-Not-Modified”，才用的缓存</p>
-</blockquote>
-<h2 id="参考http-200、301、304等状态码详解"><a href="#参考http-200、301、304等状态码详解" class="headerlink" title="参考http 200、301、304等状态码详解"></a>参考<a href="https://www.jb51.net/article/119562.htm" target="_blank" rel="noopener">http 200、301、304等状态码详解</a></h2><h2 id="200和304特点"><a href="#200和304特点" class="headerlink" title="200和304特点"></a>200和304特点</h2><blockquote>
-<p>状态码200：请求已成功，请求所希望的响应头或数据体将随此响应返回。即返回的数据为全量的数据，如果文件不通过GZIP压缩的话，文件是多大，则要有多大传输量。</p>
-</blockquote>
-<blockquote>
-<p>状态码304：如果客户端发送了一个带条件的 GET 请求且该请求已被允许，而文档的内容（自上次访问以来或者根据请求的条件）并没有改变，则服务器应当返回这个状态码。即客户端和服务器端只需要传输很少的数据量来做文件的校验，如果文件没有修改过，则不需要返回全量的数据。</p>
-</blockquote>
-<font color="#dd0000"> <strong> 状态为304的请求要比状态为200的请求的数据量小很多，因为304只需要返回响应头，并不需要返回整个文件，所以只需要几字节就可以了，这样能够节省大量的网络带宽，并减少了页面的渲染时间。 </strong> </font>
-
-<h2 id="缓存HTTP头信息"><a href="#缓存HTTP头信息" class="headerlink" title="缓存HTTP头信息"></a>缓存HTTP头信息</h2><p>Date：原服务器发送该资源响应报文的时间（GMT格式）</p>
-<p>Age：Age表示这个响应已经存活了多久了(HTTP/1.0的响应不带Age)</p>
-<p>Expires：即在 HTTP 头中指明具体失效的时间(HTTP/1.0)，Expires = HTTP-date</p>
-<p>Pragma：no-cache，每次请求页面时都不要读缓存，兼容HTTP/1.0，优先级高于Expires(HTTP/1.0 + HTTP/1.1)</p>
-<p>Cache Control：优先级高于Pragma、Expires(HTTP/1.1)  <font color="#ff0000"><strong> 【public，客户端和服务端都可以缓存；private，只能客户端缓存；no-store，不使用缓存；no-cache，使用协商缓存。】 </strong></font></p>
-<h3 id="Expires"><a href="#Expires" class="headerlink" title="Expires"></a>Expires</h3><ul>
-<li>Expires是http1.0提出的一个表示资源过期时间的header，它描述的是一个绝对时间，由服务器返回。</li>
-<li>Expires第二次请求时，将和本地时间比对。</li>
-</ul>
-<blockquote>
-<p>Expires 第一次请求服务器是，响应头会返回一个Expires的文件过期时间。<br>Expires 第二次请求，客户端使用本地时间和文件的过期时间进行比对，如果文件未过期则直接使用本地缓存，返回状态码200(from memory cache)或200(from disk cache)。</p>
-</blockquote>
-<h3 id="Expires-Cache-Control"><a href="#Expires-Cache-Control" class="headerlink" title="Expires Cache-Control"></a>Expires Cache-Control</h3><ul>
-<li>Cache-Control: no-cache    必须先与代理服务器确认是否更改，然后在在决定使用缓存还是请求，类似于协商缓存（304）</li>
-<li>Cache-Control: no-store 才是真正的不缓存数据到本地</li>
-<li>Cache-Control: public 可以被所有用户缓存（多用户共享），包括终端和CDN等中间代理服务器</li>
-<li>Cache-Control: private 只能被终端浏览器缓存（而且是私有缓存），不允许中继缓存服务器进行缓存</li>
-<li>Cache-Control: must-revalidate如果缓存内容失效，请求必须发送服务器进行验证</li>
-<li>Cache-Control: max-age=s    缓存内容在s秒后失效，仅HTTP1.1可用</li>
-</ul>
-<blockquote>
-<p>max-gae 第一次请求服务器时，响应头会返回一个 max-age，是文件多少时间后过期。<br>max-gae 第二次请求，客户端会校验文件是否过期，如果文件未过期则直接使用本地缓存，返回状态码200(from memory cache)或200(from disk cache)。 </p>
-</blockquote>
-<hr>
-<p>本地缓存，是指在客户端本地机器中的缓存。</p>
-<p>共享缓存，处于客户端和服务器之间的缓存，例如：CDN。</p>
-<p>请求 Cache Control</p>
-<table>
-<thead>
-<tr>
-<th>–</th>
-<th style="text-align:left">–</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>max-age</td>
-<td style="text-align:left">可以接收缓存最长时间</td>
-</tr>
-<tr>
-<td>max-stale</td>
-<td style="text-align:left">可以接收过期的资源，但是过期时间必须小于 max-stale 值</td>
-</tr>
-<tr>
-<td>min-fresh</td>
-<td style="text-align:left">可以接收一个更新过的资源，fresh生命期大于其当前 Age 跟 min-fresh 值之和</td>
-</tr>
-<tr>
-<td>no-cache</td>
-<td style="text-align:left">在源服务器返回成功的验证之前不能使用缓存响应</td>
-</tr>
-<tr>
-<td>no-store</td>
-<td style="text-align:left">直接禁止浏览器和所有中继缓存存储返回的任何版本的响应</td>
-</tr>
-<tr>
-<td>no-transform</td>
-<td style="text-align:left">获取没有被转换过（比如压缩）的资源</td>
-</tr>
-<tr>
-<td>only-if-cached</td>
-<td style="text-align:left">希望获取缓存内容而不发起请求</td>
-</tr>
-</tbody>
-</table>
-<p>响应 Cache Control</p>
-<table>
-<thead>
-<tr>
-<th>–</th>
-<th style="text-align:left">–</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>no-cache</td>
-<td style="text-align:left">缓存必须重新校验</td>
-</tr>
-<tr>
-<td>no-store</td>
-<td style="text-align:left">不存储缓存</td>
-</tr>
-<tr>
-<td>no-transform</td>
-<td style="text-align:left">缓存内容时不能对改变任何数据</td>
-</tr>
-<tr>
-<td>public</td>
-<td style="text-align:left">响应可被任何缓存区缓存</td>
-</tr>
-<tr>
-<td>private</td>
-<td style="text-align:left">只在本地缓存，不允许任何中继缓存对其进行缓存（例如，浏览器可以缓存，但是CDN不能缓存）</td>
-</tr>
-<tr>
-<td>must-revalidate</td>
-<td style="text-align:left">如果缓存的内容失效，请求必须发送到服务器以进行重新验证（请求失败返回504，而非中间缓存CDN）</td>
-</tr>
-<tr>
-<td>proxy-revalidate</td>
-<td style="text-align:left">与must-revalidate类似，仅能用于共享缓存（如：CDN）</td>
-</tr>
-<tr>
-<td>max-age</td>
-<td style="text-align:left">只接受 Age 值小于 max-age 值，并且没有过期的资源</td>
-</tr>
-<tr>
-<td>s-maxage</td>
-<td style="text-align:left">仅能用于共享缓存，一般用在cache服务器上(如：CDN)</td>
-</tr>
-</tbody>
-</table>
-<p>Cache Control Extensions</p>
-<p>通过使用1个或多个cache-extension tokens扩展（可选）字段，服务器不识别则忽略掉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Cache-Control:private, community=&quot;UCI&quot;</span><br></pre></td></tr></table></figure></p>
-<p>Cache-Control 允许自由组合可选值<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Cache-Control: max-age=3600, must-revalidate</span><br></pre></td></tr></table></figure></p>
-<p>Last-Modified/If-Modified-Since：文件最后一次修改的时间（精度是秒，HTTP/1.0），需要Cache-Contral过期</p>
-<p>Etag：当前资源在服务器的唯一标识（生成规则由服务器决定）ETag的值，默认是对文件的索引节（INode），大小（Size）和最后修改时间（MTime）进行Hash后得到的，优先级高于Last-Modified；在分布式的Web系统中，当访问落在不同的物理机上时会返回不同的ETag，进而导致304失效，降级为200请求（HTTP/1.1），需要Cache-Contral过期</p>
-<p>如果 Last-Modified 和 ETag 同时被使用，则要求它们的验证都必须通过才会返回304，否则返回200。</p>
-<h2 id="Meta标签"><a href="#Meta标签" class="headerlink" title="Meta标签"></a>Meta标签</h2><p>meta是用来在HTML文档中模拟HTTP协议的响应头报文。在HTML页面加上meta标签来给请求报头加上请求字段。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta http-equiv=&quot;Expires&quot;content=&quot;0&quot;&gt;</span><br><span class="line">&lt;meta http-equiv=&quot;Pragma&quot;content=&quot;no-cache&quot;&gt;</span><br><span class="line">&lt;meta http-equiv=&quot;Cache-Control&quot;content=&quot;no-cache&quot;&gt;</span><br></pre></td></tr></table></figure></p>
-<p>Pragma的meta标签只有IE能识别</p>
-<p><a href="https://support.microsoft.com/zh-cn/help/222064/-pragma-no-cache-tag-may-not-prevent-page-from-being-cached" target="_blank" rel="noopener">“Pragma:No-cache”标记可能无法防止页面被缓存</a></p>
-<blockquote>
-<p><strong>优先级：Cache-Control &gt; Pragma &gt; Expires </strong></p>
-</blockquote>
-<p>清除浏览器中的缓存，必须从服务端获取最新内容，但不是所有浏览器都支持</p>
-<h2 id="缓存机制"><a href="#缓存机制" class="headerlink" title="缓存机制"></a>缓存机制</h2><blockquote>
-<p>Freshness</p>
-</blockquote>
-<p>和浏览器策略以及Cache Control（HTTP/1.1）与Expires(HTTP/1.0)有关</p>
-<p>最好的请求是不必与服务器进行通信的请求：通过响应的本地缓存，可以避免所有的网络延迟以及数据传输的数据成本。</p>
-<p>服务器给响应设置显示过期时间（explicit expiration time），当请求资源时，只需要检测资源的过期状态，判断是否使用缓存。</p>
-<p>服务器不提供一个显示过期时间，HTTP缓存通常会设置一个启发式过期时间（heuristic expiration time），采用算法通过其他值（例如Last-Modified）估计一个合理的时间。</p>
-<p>如何判断响应是否新的？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">response_is_fresh =(freshness_lifetime &gt; current_age)</span><br></pre></td></tr></table></figure></p>
-<p>freshness_lifetime计算，同时存在多个，按优先级获取</p>
-<ul>
-<li><p>如果是共享缓存，使用s-maxage</p>
-</li>
-<li><p>如果有max-age字段，使用max-age</p>
-</li>
-<li><p>如果有Expires字段，使用Expires超过Date的时间数</p>
-</li>
-<li><p>如果没有显示过期时间设置，使用浏览器的启发式过期时间（heuristic expiration time）</p>
-</li>
-</ul>
-<p>current_age计算</p>
-<ul>
-<li><p>age_value Age字段的值</p>
-</li>
-<li><p>date_value Date字段的值</p>
-</li>
-<li><p>now 当前时间</p>
-</li>
-<li><p>request_time 请求时间</p>
-</li>
-<li><p>response_time 响应时间</p>
-</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">apparent_age = max(0, response_time - date_value);</span><br><span class="line">response_delay = response_time - request_time;</span><br><span class="line">corrected_age_value = age_value + response_delay;</span><br><span class="line">corrected_initial_age = max(apparent_age, corrected_age_value);</span><br><span class="line">resident_time = now - response_time;</span><br><span class="line">current_age = corrected_initial_age + resident_time;</span><br></pre></td></tr></table></figure>
-<p>缓存策略</p>
-<p><img src="/2018/11/22/HTTP缓存机制-200还是304/1.png" alt=""></p>
-<p>HTML5 Boilerplate 项目<a href="https://github.com/h5bp/server-configs-nginx" target="_blank" rel="noopener">nginx配置文件样例</a></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"># cache.appcache, your document html and data</span><br><span class="line">location ~* \.(?:manifest|appcache|html?|xml|json)$ &#123;</span><br><span class="line">  expires -1;</span><br><span class="line">&#125;</span><br><span class="line"># Feed</span><br><span class="line">location ~* \.(?:rss|atom)$ &#123;</span><br><span class="line">  expires 1h;</span><br><span class="line">&#125;</span><br><span class="line"># Media: images, icons, video, audio, HTC</span><br><span class="line">location ~* \.(?:jpg|jpeg|gif|png|ico|cur|gz|svg|svgz|mp4|ogg|ogv|webm|htc)$ &#123;</span><br><span class="line">  expires 1M;</span><br><span class="line">  access_log off;</span><br><span class="line">  add_header Cache-Control &quot;public&quot;;</span><br><span class="line">&#125;</span><br><span class="line"># CSS and Javascript</span><br><span class="line">location ~* \.(?:css|js)$ &#123;</span><br><span class="line">  expires 1y;</span><br><span class="line">  access_log off;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>Validation</p>
-</blockquote>
-<p>检查一个缓存的响应是否仍然可用 <code>Last-Modified和ETag（entity-tag）</code><br>通过验证令牌可以进行高效的资源更新检查：如果资源未更改，则不会传输任何数据<br><img src="/2018/11/22/HTTP缓存机制-200还是304/2.png" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Status Code:304 Not Modified</span><br><span class="line">Response Head</span><br><span class="line">ETag:&quot;578ba64c-7ddf&quot;</span><br><span class="line">Last-Modified:Sun, 17 Jul 2016 15:37:48 GMT</span><br><span class="line">Request Head</span><br><span class="line">If-Modified-Since:Sun, 17 Jul 2016 15:37:48 GMT</span><br><span class="line">If-None-Match:&quot;578ba64c-7ddf&quot;</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2018/11/22/HTTP缓存机制-200还是304/3.png" alt=""></p>
-<blockquote>
-<p>Invalidation</p>
-</blockquote>
-<p>类似PUT、POST 和 DELETE的”非安全”请求可能会改变原服务端状态，在此期间缓存会让它们的内容过期失效。</p>
-<p>当一个非安全的请求收到非错误的返回状态码（2xx或者3xx），缓存必须使请求URI的包括其他相关URI(s)的Location和Content-Location响应头字段失效。</p>
-<p>为了防止服务器攻击拒绝，一个基于Location或Content-Location头域里的URI的无效性处理必须只有在host部分和请求URI里的host部分相同时才被执行。</p>
-<p>注：只读请求（GET/HEAD）认为是“安全”的，详细可查看<a href="http://httpwg.org/specs/rfc7231.html#safe.methods" target="_blank" rel="noopener">safe.methods</a>。</p>
-<h2 id="200-or-304"><a href="#200-or-304" class="headerlink" title="200 or 304"></a>200 or 304</h2><p>在没有设置Cache-Contral的情况下，设置Last-Modified和ETag缓存，会出现时而200（from cache），时而304 出现的情况。</p>
-<p>chrome 测试 刷新 和 输入URL回车 测试并不会影响200（from cache）和304 的出现。</p>
-<p>可能的情况，是在服务器没有设置显示缓存时间的情况下，freshness_lifetime是浏览器按某种算法计算出来，这个时间并不长，所以会出现这种情况。</p>
-<p>设置Cache-Contral max-age的情况下，max-age过期后首次刷新会出现304(如果有更新内容，则是200)，之后在max-age缓存过期之前刷新都是200（from cache）。</p>
-<h2 id="缓存方案"><a href="#缓存方案" class="headerlink" title="缓存方案"></a>缓存方案</h2><p>较长的过期时间，节省带宽，提高性能；更改资源的网址，强制用户下载新响应</p>
-<p><img src="/2018/11/22/HTTP缓存机制-200还是304/4.png" alt=""></p>
-<p>按需更新，精确的缓存控制</p>
-<p>静态资源CDN部署</p>
-<p>更资源发布路径实现非覆盖式发布（多版本共存）</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2672,7 +2485,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">135</span>
+                  <span class="site-state-item-count">136</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
