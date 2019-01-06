@@ -694,262 +694,6 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/07/09/Node-js的文件路径的一些坑/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/07/09/Node-js的文件路径的一些坑/" itemprop="url">Node.js的文件路径的一些坑</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-07-09T18:16:04+08:00">
-                2017-07-09
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>最近在写一篇weex的webpack配置，刚刚踩坑了，weekpack中会用到path模块，而对于这个模块，我想抽离出来看一下，因为这个用到的还是比较多的,喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯，写的不对的地方，评论拍砖，谢谢。</p>
-<h2 id="node中的路径分类"><a href="#node中的路径分类" class="headerlink" title="node中的路径分类"></a>node中的路径分类</h2><p>node中的路径大致分5类，dirname,filename,process.cwd(),./,../,其中前三个都是绝对路径</p>
-<p>我们先来看一个简单点的例子</p>
-<p>假如，我有一个文件的目录结构如下：</p>
-<pre><code>editor/
-  - dist/
-  - src/
-      - task.js
-</code></pre><p>然后我们在task.js文件中写入一下代码</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(__dirname);
-console.log(__filename);
-console.log(process.cwd());
-console.log(path.resolve(&apos;./&apos;));
-</code></pre><p>在editor目录下运行node src/task.js，我们可以看到结果如下：</p>
-<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
-/Users/laihuamin/Documents/richEditor/editor/src/task.js
-/Users/laihuamin/Documents/richEditor/editor
-/Users/laihuamin/Documents/richEditor/editor
-</code></pre><p>然后我们有可以在src目录下运行这个文件，node task.js,运行结果如下：</p>
-<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
-/Users/laihuamin/Documents/richEditor/editor/src/task.js
-/Users/laihuamin/Documents/richEditor/editor/src
-/Users/laihuamin/Documents/richEditor/editor/src
-</code></pre><p>对比两个输出结果，我们可以归纳一下几点：</p>
-<p>1.<strong>dirname:返回的是这个文件所在文件夹的位置<br>2.</strong>filename:你运行命令代表的是文件所在的位置，不管你运行什么命令，都是指向文件<br>3.process.cwd():你运行node命令所在文件夹的位置，比如你在src目录下运行，那么就是输出到src为止，下面的同理。</p>
-<hr>
-<p>Node.js中的文件路径大概有 <strong>dirname, </strong>filename, process.cwd(), ./ 或者 ../，前三个都是绝对路径，为了便于比较，./ 和 ../ 我们通过 path.resolve(‘./‘)来转换为绝对路径。<br>简单说一下这几个路径的意思，：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname：    获得当前执行文件所在目录的完整目录名</span><br><span class="line">__filename：   获得当前执行文件的带有完整绝对路径的文件名</span><br><span class="line">process.cwd()：获得当前执行node命令时候的文件夹目录名 </span><br><span class="line">./：           文件所在目录</span><br></pre></td></tr></table></figure></p>
-<p>先看一看我电脑当前的目录结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">syntax/</span><br><span class="line">    -nodejs/</span><br><span class="line">        -1.findLargest.js</span><br><span class="line">        -2.path.js</span><br><span class="line">        -3.fs.js</span><br><span class="line">    -regs</span><br><span class="line">        -regx.js</span><br><span class="line">        -test.txt</span><br></pre></td></tr></table></figure></p>
-<p>在 path.js 里面我们写这些代码，看看输出是什么：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">const path = require(&apos;path&apos;)</span><br><span class="line">console.log(&apos;__dirname：&apos;, __dirname)</span><br><span class="line">console.log(&apos;__filename：&apos;, __filename)</span><br><span class="line">console.log(&apos;process.cwd()：&apos;, process.cwd())</span><br><span class="line">console.log(&apos;./：&apos;, path.resolve(&apos;./&apos;))</span><br></pre></td></tr></table></figure></p>
-<p>在当前目录下也就是nodejs目录运行<code>node path.js</code>，我们看看输出结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname：     /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br><span class="line">__filename：    /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs/2.path.js</span><br><span class="line">process.cwd()： /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br><span class="line">./：            /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br></pre></td></tr></table></figure></p>
-<p>然后在 项目根目录ES6-lottery 目录下运行 <code>node syntax/nodejs/2.path.js</code>，我们再来看看输出结果：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname：     /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs</span><br><span class="line">__filename：    /Users/jawil/Desktop/nodejs/demo/ES6-lottery/syntax/nodejs/2.path.js</span><br><span class="line">process.cwd()： /Users/jawil/Desktop/nodejs/demo/ES6-lottery</span><br><span class="line">./：            /Users/jawil/Desktop/nodejs/demo/ES6-lottery</span><br></pre></td></tr></table></figure></p>
-<p>答案显而易见？我们可以通过上面的例子对比，暂时得出表面的结论：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__dirname: 总是返回被执行的 js 所在文件夹的绝对路径</span><br><span class="line">__filename: 总是返回被执行的 js 的绝对路径</span><br><span class="line">process.cwd(): 总是返回运行 node 命令时所在的文件夹的绝对路径</span><br><span class="line">./: 跟 process.cwd() 一样，返回 node 命令时所在的文件夹的绝对路径</span><br></pre></td></tr></table></figure></p>
-<h2 id="require-源码解读"><a href="#require-源码解读" class="headerlink" title="require() 源码解读"></a><a href="http://www.ruanyifeng.com/blog/2015/05/require.html" target="_blank" rel="noopener">require() 源码解读</a></h2><p><img src="/2017/07/09/Node-js的文件路径的一些坑/1.webp" alt=""></p>
-<p>那么关于 ./ 正确的结论是：</p>
-<blockquote>
-<p>在 require() 中使用是跟 __dirname 的效果相同，不会因为启动脚本的目录不一样而改变，在其他情况下跟 process.cwd() 效果相同，是相对于启动脚本所在目录的路径。<br>只有在 require() 时才使用相对路径(./, ../)的写法，其他地方一律使用绝对路径，如下：</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">// 当前目录下</span><br><span class="line"> path.dirname(__filename) + &apos;/path.js&apos;; </span><br><span class="line">// 相邻目录下</span><br><span class="line"> path.resolve(__dirname, &apos;../regx/regx.js&apos;);</span><br></pre></td></tr></table></figure>
-<hr>
-<h2 id="path"><a href="#path" class="headerlink" title="path"></a>path</h2><p>讲完前面三个绝对路径，我倒是挺想来聊聊path这个模块的，这个node模块在很多地方都有应用，所以，对于我们来说，掌握他，对我们以后的发展更有利，不用每次看webpack的配置文件还要去查询一下这个api是干什么用的，很影响我们的效率</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fnodejs.org%252Fapi%252Fpath.html" target="_blank" rel="noopener">nodeJS/path</a></p>
-<p>上面那个网站有详细的api，但是我们这里不用都掌握吧，我就讲几个我遇到过的，我觉得webpack等工程配置中会用到的</p>
-<h2 id="path-normalize"><a href="#path-normalize" class="headerlink" title="path.normalize"></a>path.normalize</h2><p>这个方法就是把不规范的路径规范化，比如看下面的例子</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.normalize(&apos;/foo/bar//baz/asdf/quux/..&apos;));
-</code></pre><p>输出结果：</p>
-<pre><code>/foo/bar/baz/asdf
-</code></pre><h2 id="path-join"><a href="#path-join" class="headerlink" title="path.join"></a>path.join</h2><pre><code>const path = require(&apos;path&apos;);
-console.log(path.join(&apos;src&apos;, &apos;task.js&apos;));
-
-const path = require(&apos;path&apos;);
-console.log(path.join(&apos;dist&apos;, &apos;task.js&apos;));
-
-const path = require(&apos;path&apos;);
-console.log(path.join(&apos;&apos;));
-</code></pre><p>这么两个的输出结果是：</p>
-<pre><code>src/task.js
-dist/task.js
-.
-</code></pre><p>他的作用也就显而易见，他有一下几条规则：<br>1.传入的参数是字符串的路径片段，可以是一个，也可以是多个</p>
-<p>2.返回的是一个拼接好的路径，但是根据平台的不同，他会对路径进行不同的规范化，举个例子，Unix系统是”/“，Windows系统是”\“，那么你在两个系统下看到的返回结果就不一样。</p>
-<p>3.如果返回的路径字符串长度为零，那么他会返回一个’.’，代表当前的文件夹。</p>
-<p>4.如果传入的参数中有不是字符串的，那就直接会报错</p>
-<h2 id="path-parse"><a href="#path-parse" class="headerlink" title="path.parse"></a>path.parse</h2><p>我们先来看个例子，在src目录下的task.js写入</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor&apos;));
-</code></pre><p>然后运行node src/task.js之后,输出的结果如下：</p>
-<pre><code>{ 
-  root: &apos;/&apos;,
-  dir: &apos;/Users/laihuamin/Documents/richEditor&apos;,
-  base: &apos;editor&apos;,
-  ext: &apos;&apos;,
-  name: &apos;editor&apos; 
-}
-</code></pre><p>他返回的是一个对象，那么我们来把这么几个名词熟悉一下：</p>
-<p><img src="https://pic3.zhimg.com/v2-b7c5d496b89fde98f097a4a6e2ba7d03_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-b7c5d496b89fde98f097a4a6e2ba7d03_hd.jpg" alt=""></p>
-<p>这个表格应该展示的很形象，但是我们还是来解释一下这些名词：<br>1.root：代表根目录<br>2.dir：代表文件所在的文件夹<br>3.base：代表整一个文件<br>4.name：代表文件名<br>5.ext: 代表文件的后缀名</p>
-<p>那我们根据下面的规则，来看一下下面这个例子，最好自己脑子做一遍</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.parse(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
-</code></pre><p>输出的结果：</p>
-<pre><code>{ 
-  root: &apos;/&apos;,
-  dir: &apos;/Users/laihuamin/Documents/richEditor/editor/src&apos;,
-  base: &apos;task.js&apos;,
-  ext: &apos;.js&apos;,
-  name: &apos;task&apos; 
-}
-</code></pre><p>你做对了么？0.0</p>
-<h2 id="path-basename"><a href="#path-basename" class="headerlink" title="path.basename"></a>path.basename</h2><p>那有了前面这个铺垫，想必这个接口猜也能猜的到了。。。。我们看下面这个例子</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
-</code></pre><p>输出的结果是：</p>
-<pre><code>task.js
-</code></pre><p>我们还是简单介绍一下，接收两个参数，一个是path,还有一个是ext（可选参数）.</p>
-<pre><code>const path = require(&apos;path&apos;)
-console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;, &apos;.js&apos;));
-</code></pre><p>输出结果:</p>
-<pre><code>task
-</code></pre><h2 id="path-dirname"><a href="#path-dirname" class="headerlink" title="path.dirname"></a>path.dirname</h2><p>这个接口比basename还要简单，我就不多说了，看例子，看结果</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.basename(&apos;/Users/laihuamin/Documents/richEditor/editor/src/task.js&apos;));
-</code></pre><p>输出的结果:</p>
-<pre><code>/Users/laihuamin/Documents/richEditor/editor/src
-</code></pre><p>注意一下，接收的参数是字符串类型</p>
-<h2 id="path-extname"><a href="#path-extname" class="headerlink" title="path.extname"></a>path.extname</h2><p>这个就是展示文件的扩展名，我们得注意几种情况</p>
-<pre><code>const path = require(&apos;path&apos;);
-path.extname(&apos;index.html&apos;);
-path.extname(&apos;index.coffee.md&apos;);
-path.extname(&apos;index.&apos;);
-path.extname(&apos;index&apos;);
-path.extname(&apos;.index&apos;);
-</code></pre><p>输出的结果是：</p>
-<pre><code>.html
-.md
-.
-&apos;&apos;
-&apos;&apos;
-</code></pre><p>自己注意一下这几个情况</p>
-<h2 id="path-resolve"><a href="#path-resolve" class="headerlink" title="path.resolve"></a>path.resolve</h2><p>我们通过下面这几个例子先来熟悉一下：</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.resolve(&apos;/foo/bar&apos;, &apos;/bar/faa&apos;, &apos;..&apos;, &apos;a/../c&apos;));
-</code></pre><p>输出的结果是</p>
-<pre><code>/bar/c
-</code></pre><p>他就相当于一堆cd操作，我们一步一步看</p>
-<pre><code>cd /foo/bar/    //这是第一步, 现在的位置是/foo/bar/
-cd /bar/faa     //这是第二步，这里和第一步有区别，他是从/进入的，也就时候根目录，现在的位置是/bar/faa
-cd ..       //第三步，从faa退出来，现在的位置是 /bar
-cd a/../c   //第四步，进入a，然后在推出，在进入c，最后位置是/bar/c
-</code></pre><p>但是这个操作和cd还是有区别的，这个路径不一定要存在，而且最后的可以是文件</p>
-<h2 id="path-relative"><a href="#path-relative" class="headerlink" title="path.relative"></a>path.relative</h2><p>这个返回的是from到to的相对路径，什么意思呢，我们看下面的例子就知道了.</p>
-<pre><code>const path = require(&apos;path&apos;);
-console.log(path.relative(&apos;src/bar/baz&apos;, &apos;src/aaa/bbb&apos;));
-</code></pre><p>输出的结果是：</p>
-<pre><code>../../aaa/bbb
-</code></pre><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这些比较实用的方法，分享给大家，自己还是老老实实去看weektool的webpack的配置文件了，喜欢的朋友可以点个喜欢，或者去我的<a href="https://link.zhihu.com/?target=https%3A//link.juejin.im/%3Ftarget%3Dhttps%253A%252F%252Fgithub.com%252Flaihuamin%252FJS-total" target="_blank" rel="noopener">github</a>点个star也行，谢谢支持，举起小手指点一点哦😯。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/06/04/100-100的-canvas-占多少内存/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3571,6 +3315,488 @@ then
 setImmediate
 </code></pre><p>解释：process.nextTick 和 promise.then 都属于 microtasks，而 setImmediate 属于 macrotasks，在事件循环的 check 阶段执行。事件循环的每个阶段（macrotasks）之间都会执行 microtasks，事件循环的开始会先执行一次 microtasks。</p>
 
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/03/02/ES6-实现自己的-Promise/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/03/02/ES6-实现自己的-Promise/" itemprop="url">ES6实现自己的 Promise</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-03-02T22:15:53+08:00">
+                2017-03-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、JavaScript异步编程背景"><a href="#一、JavaScript异步编程背景" class="headerlink" title="一、JavaScript异步编程背景"></a>一、JavaScript异步编程背景</h2><p>从去年ES2015发布至今，已经过去了一年多，ES2015发布的新的语言特性中最为流行的也就莫过于Promise了，Promise使得如今JavaScript异步编程如此轻松惬意，甚至慢慢遗忘了曾经那不堪回首的痛楚。其实从JavaScript诞生，JavaScript中的异步编程就已经出现，例如点击鼠标、敲击键盘这些事件的处理函数都是异步的，时间到了2009年，Node.js横空出世，在整个Node.js的实现中，将回调模式的异步编程机制发挥的淋漓尽致，Node的流行也是的越来越多的JavaScripter开始了异步编程，但是回调模式的副作用也慢慢展现在人们眼前，错误处理不够优雅以及嵌套回调带来的“回调地狱”。这些副作用使得人们从回调模式的温柔乡中慢慢清醒过来，开始寻找更为优雅的异步编程模式，路漫漫其修远兮、吾将上下而求索。时间到了2015年，Promise拯救那些苦苦探索的先驱。行使它历史使命的时代似乎已经到来。</p>
+<p>每个事物的诞生有他的历史使命，更有其历史成因，促进其被那些探索的先驱们所发现。了解nodejs或者熟悉浏览器的人都知道，JavaScript引擎是基于事件循环或单线程这两个特性的。更为甚者在浏览器中，更新UI(也就是浏览器重绘、重拍页面布局)和执行JavaScript代码也在一个单线程中，可想而知，一个线程就相当于只有一条马路，如果一辆马车抛锚在路上了阻塞了马路，那么别的马车也就拥堵在了那儿，这个单线程容易被阻塞是一个道理，单线程也只能允许某一时间点只能够执行一段代码。同时，JavaScript没有想它的哥哥姐姐们那么财大气粗，像Java或者C++，一个线程不够，那么再加一个线程，这样就能够同时执行多段代码了，但是这样就会带来的隐患就是状态不容易维护，JavaScript选择了单线程非阻塞式的方式，也就是异步编程的方式，就像上面的马车抛锚在了路上，那么把马车推到路边的维修站，让其他马车先过去，等马车修好了再回到马路上继续行驶，这就是单线程非阻塞方式。正如Promise的工作方式一样，通过Promise去向服务器发起一个请求，毕竟请求有网络开销，不可能马上就返回请求结果的，这个时候Promise就处于pending状态，但是其并不会阻塞其他代码的执行，当请求返回时，修改Promise状态为fulfilled或者rejected（失败请求）。同时执行绑定到这两个状态上面的“处理函数”。这就是异步编程的模式，也就是Promise兢兢业业的工作方式，在下面一个部分将详细讨论Promise。</p>
+<h2 id="二、Promise基础"><a href="#二、Promise基础" class="headerlink" title="二、Promise基础"></a>二、Promise基础</h2><p>怎么一句话解释Promise呢？Promise可以代指那些尚未完成的一些操作，但是其在未来的某个时间会返回某一特定的结果。</p>
+<p>当创建一个Promise实例后，其代表一个未知的值，在将来的某个时间会返回一个成功的返回值，或者失败的返回值，我们可以为这些返回值添加处理函数，当值返回时，处理函数被调用。Promise总是处于下面三种状态之一：</p>
+<ul>
+<li>pending： Promise的初始状态，也就是未被fulfilled或者rejected的状态。</li>
+<li>fulfilled： 意味着promise代指的操作已经成功完成。</li>
+<li>rejected：意味着promise代指的操作由于某些原因失败。</li>
+</ul>
+<p>一个处于pending状态的promise可能由于某个成功返回值而发展为fulfilled状态，也有可能因为某些错误而进入rejected状态，无论是进入fulfilled状态或者rejected状态，绑定到这两种状态上面的处理函数就会被执行。并且进入fulfilled或者rejected状态也就不能再返回pending状态了。<br><img src="https://pic4.zhimg.com/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_hd.jpg" alt=""></p>
+<h2 id="三、边学边写"><a href="#三、边学边写" class="headerlink" title="三、边学边写"></a>三、边学边写</h2><p>上面说了那么多，其实都是铺垫。接下来我们就开始实现自己的Promise对象。go go go！！！</p>
+<h2 id="第一步：Promise构造函数"><a href="#第一步：Promise构造函数" class="headerlink" title="第一步：Promise构造函数"></a>第一步：Promise构造函数</h2><p>Promise有三种状态，pending、fulfilled、rejected。</p>
+<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+</code></pre><p>有了三种状态后，那么我们怎么创建一个Promise实例呢？</p>
+<blockquote>
+<p>const promise = new Promise(executor) // 创建Promise的语法</p>
+</blockquote>
+<p>通过上面生成promise语法我们知道，Promise实例是调用Promise构造函数通过new操作符生成的。这个构造函数我们可以先这样写：</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING // 创建一个promise时，首先进行状态初始化。pending
+        this.result = undefined // result属性用来缓存promise的返回结果，可以是成功的返回结果，或失败的返回结果
+    }
+}
+</code></pre><p>我们可以看到上面构造函数接受的参数executor。它是一个函数，并且接受其他两个函数（resolve和reject）作为参数，当resolve函数调用后，promise的状态转化为fulfilled，并且执行成功返回的处理函数（不用着急后面会说到怎么添加处理函数）。当reject函数调用后，promise状态转化为rejected，并且执行失败返回的处理函数。</p>
+<p>现在我们的代码大概是这样的：</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING 
+        this.result = undefined
+        executor(data =&gt; resolveProvider(this, data), err =&gt; rejectProvider(this, err))
+    }
+}
+
+function resolveProvider(promise, data) {
+    if (promise.status !== PENDING) return false
+    promise.status = FULFILLED
+}
+function rejectProvider(promise, data) {
+    if (promise.status !== PENDING) return false
+    promise.status = FULFILLED
+}
+</code></pre><p>Dont Repeat Yourselt！！！我们可以看到上面代码后面两个函数基本相同，其实我们可以把它整合成一个函数，在结合高阶函数的使用。</p>
+<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+}
+class Promise {
+    constructor(executor) {
+        this.status = PENDING 
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+}
+</code></pre><p>现在我们的代码就看上去简洁多了。</p>
+<h2 id="第二步：为Promise添加处理函数"><a href="#第二步：为Promise添加处理函数" class="headerlink" title="第二步：为Promise添加处理函数"></a>第二步：为Promise添加处理函数</h2><p>其实通过 <code>new Promise(executor)</code>已经可以生成一个Promise实例了，甚至我们可以通过传递到executor中的resolve和reject方法来改变promise状态，但是！现在的promise依然没啥卵用！！！因为我们并没有给它添加成功和失败返回的处理函数。</p>
+<p>首先我们需要给我们的promise增加两个属性，successListener和failureListener用来分别缓存成功处理函数和失败处理函数。</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING
+         this.successListener = []
+         this.failureListener = []
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+}
+</code></pre><p>怎么添加处理函数呢？ECMASCRIPT标准中说到，我们可以通过promise原型上面的then方法为promise添加成功处理函数和失败处理函数，可以通过catch方法为promise添加失败处理函数。</p>
+<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    switch(status) {
+        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
+        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
+    }
+}
+class Promise {
+    constructor(executor) {
+        this.status = PENDING
+        this.successListener = []
+        this.failurelistener = []
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+    /**
+     * Promise原型上面的方法
+     */
+    then(...args) {
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(args[0])
+                this.failurelistener.push(args[1])
+                break
+            }
+            case FULFILLED: {
+                args[0](this.result)
+                break
+            }
+            case REJECTED: {
+                args[1](this.result)
+            }
+        }
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><p>我们现在的Promise基本初具雏形了。甚至可以运用到一些简单的场景中了。举个例子。</p>
+<pre><code>/*创建一个延时resolve的pormise*/
+new Promise((resolve, reject) =&gt; {setTimeout(() =&gt; resolve(5), 2000)}).then(data =&gt; console.log(data)) // 5
+/*创建一个及时resolve的promise*/
+new Promise((resolve, reject) =&gt; resolve(5)).then(data =&gt; console.log(data)) // 5
+/*链式调用then方法还不能够使用！*/
+new Promise(resolve=&gt; resolve(5)).then(data =&gt; data).then(data =&gt; console.log(data))
+// Uncaught TypeError: Cannot read property &apos;then&apos; of undefined
+</code></pre><h2 id="第三步：Promise的链式调用"><a href="#第三步：Promise的链式调用" class="headerlink" title="第三步：Promise的链式调用"></a>第三步：Promise的链式调用</h2><p>Promise需要实现链式调用，我们需要再次回顾下then方法的定义：</p>
+<blockquote>
+<p>then方法为pormise添加成功和失败的处理函数，同时then方法返回一个新的promise对象，这个新的promise对象resolve处理函数的返回值，或者当没有提供处理函数时直接resolve原始的值。</p>
+</blockquote>
+<p>可以看出，promise能够链式调用归功于then方法返回一个全新的promise，并且resolve处理函数的返回值，当然，如果then方法的处理函数本身就返回一个promise，那么久不用我们自己手动生成一个promise了。了解了这些，就开始动手写代码了。</p>
+<pre><code>const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
+const noop = () =&gt; {}
+
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    // 同上面代码
+}
+
+class Promise {
+    constructor(executor) {
+        // 同上面代码
+    }
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                const result = fn(data)
+                if (isPromise(result)) {
+                    Object.assign(child, result)
+                } else {
+                    statusProvider(child, FULFILLED)(result)
+                }   
+            } else if(!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(handler(args[0]))
+                this.failurelistener.push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><p>首先我们写了一个isPromise方法，用于判断一个对象是否是promise。就是判断对象是否有一个<code>then</code>方法，免责声明为了实现上的简单，我们不区分thenable和promise的区别，但是我们应该是知道。所有的promise都是thenable的，而并不是所有的thenable对象都是promise。（thenable对象是指带有一个then方法的对象，该then方法其实就是一个executor。）isPromise的作用就是用于判断then方法返回值是否是一个promise，如果是promise，就直接返回该promise，如果不是，就新生成一个promise并返回该promise。</p>
+<p>由于需要链式调用，我们对successListener和failureListener中处理函数进行了重写，并不是直接push进去then方法接受的参数函数了，因为then方法需要返回一个promise，所以当then方法里面的处理函数被执行的同时，我们也需要对then方法返回的这个promise进行处理，要么resolve，要么reject掉。当然，大部分情况都是需要resolve掉的，只有当then方法没有添加第二个参数函数，同时调用then方法的promise就是rejected的时候，才需要把then方法返回的pormise进行reject处理，也就是调用<code>statusProvider(child, REJECTED)(data)</code>.</p>
+<p>toy Promise实现的完整代码：</p>
+<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+
+const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
+const noop = () =&gt; {}
+
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    switch(status) {
+        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
+        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
+    }
+}
+
+class Promise {
+    constructor(executor) {
+        this.status = PENDING
+        this.successListener = []
+        this.failurelistener = []
+        this.result = undefined 
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+    /**
+     * Promise原型上面的方法
+     */
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                const result = fn(data)
+                if (isPromise(result)) {
+                    Object.assign(child, result)
+                } else {
+                    statusProvider(child, FULFILLED)(result)
+                }   
+            } else if(!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(handler(args[0]))
+                this.failurelistener.push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><h2 id="四、怎么让我们的toy-Promise变强健"><a href="#四、怎么让我们的toy-Promise变强健" class="headerlink" title="四、怎么让我们的toy Promise变强健"></a>四、怎么让我们的toy Promise变强健</h2><ol>
+<li>在ECMAScript标准中，Promise构造函数上面还提供了一些静态方法，比如<code>Promise.resolve</code>、<code>Promise.reject</code>、<code>Promsie.all</code>、<code>Promise.race</code>。当我们有了上面的基础实现后，为我们的toy Promise添加上面这些新的功能一定能让其更加实用。</li>
+<li>在我们的基本实现中，我们并没有区分thenable对象，其实<code>Promise.resolve</code>和<code>then</code>方法都可以接受一个thenable对象，并把该thenable对象转化为一个promise对象，如果想让我们的toy Promise用于生产的话，这也是要考虑的。</li>
+<li>为了让我们的toy Promise变得更强壮，我们需要拥有强健的错误处理机制，比如验证executor必须是一个函数、then方法的参数只能是函数或者undefined或null，又比如executor和then方法中抛出的错误并不能够被window.onerror监测到，而只能够通过错误处理函数来处理，这也是需要考虑的因素。</li>
+<li>如果我们的Promise polyfill是考虑支持多平台，那么首要考虑的就是浏览器环境或Node.js环境，其实在这两个平台，原生Promise都是支持两个事件的。就拿浏览器端举例：</li>
+</ol>
+<ul>
+<li><code>unhandledrejection</code>: 在一个事件循环中，如果我们没有对promise返回的错误进行处理，那么就会在window对象上面触发该事件。</li>
+<li><code>rejectionhandled</code>:如果在一个事件循环后，我们才去对promise返回的错误进行处理，那么就会在window对象上面监听到此事件。</li>
+</ul>
+<p>关于这两个事件以及node.js平台上面类似的事件请参考Nicholas C. Zakas新书</p>
+<p>Promise能够很棒的处理异步编程，要想学好它我认为最好的方法就是亲自动手去实现一个自己的Promise。</p>
+<p>完整code：</p>
+<pre><code>/**
+ * 2016.09.19
+ */
+const PENDING = &apos;PENDING&apos; // Promise 的初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+
+const isThenable = data =&gt; data &amp;&amp; data.then &amp;&amp; typeof data.then === &apos;function&apos;
+const isPromise = object =&gt; isThenable(object) &amp;&amp; (&apos;catch&apos; in object) &amp;&amp; typeof object.catch === &apos;function&apos;
+const noop = () =&gt; {}
+const range = n =&gt; n === 0 ? [] : [n, ...range(n - 1)]
+
+// resolve function
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    promise.listeners[status].forEach(fn =&gt; fn(data))
+}
+
+class APromise {
+    constructor(executor) {
+        if (typeof executor !== &apos;function&apos;) {
+            throw new TypeError(`Promise resolver ${executor.toString()} is not a function`)
+        }
+        this.status = PENDING
+        this.listeners = {
+            FULFILLED: [],
+            REJECTED: []
+        }
+        this.result = undefined
+
+        try {
+            executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+        } catch (e) {
+            statusProvider(this, REJECTED)(e)
+        }
+    }
+    // prototype method
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                try {
+                    const result = fn(data)
+                    if (isThenable(result)) {
+                        isPromise(result) ? Object.assign(child, result) : Object.assign(child, new this.constructor(result.then))
+                    } else {
+                        statusProvider(child, FULFILLED)(result)
+                    }
+                } catch (e) {
+                    statusProvider(child, REJECTED)(e)
+                }
+            } else if (!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.listeners[FULFILLED].push(handler(args[0]))
+                this.listeners[REJECTED].push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+
+APromise.resolve = data =&gt; {
+    if (isPromise(data)) return data
+    return isThenable(data) ? new APromise(data.then) : new APromise((resolve, reject) =&gt; resolve(data))
+}
+
+APromise.reject = err =&gt; new APromise((resolve, reject) =&gt; reject(err))
+
+APromise.all = promises =&gt; {
+    const length = promises.length
+    const result = new APromise(noop)
+    let count = 0
+    const values = range(length)
+
+    promises.forEach((p, i) =&gt; {
+        p.then(data =&gt; {
+            values[i] = data
+            count++
+            if (count === length) statusProvider(result, FULFILLED)(values)
+        }, statusProvider(result, REJECTED))
+    })
+    return result
+}
+
+APromise.race = promises =&gt; {
+    const result = new APromise(noop)
+    promises.forEach((p, i) =&gt; {
+        p.then(statusProvider(result, FULFILLED), statusProvider(result, REJECTED))
+    })
+    return result
+}
+
+export default APromise
+</code></pre>
           
         
       
