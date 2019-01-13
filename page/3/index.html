@@ -694,6 +694,223 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/10/koa-bodyparser中间件模拟/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/10/koa-bodyparser中间件模拟/" itemprop="url">koa-bodyparser中间件模拟</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-10T23:05:34+08:00">
+                2018-10-10
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>Koa 2.x</code> 版本是当下最流行的 NodeJS 框架，<code>Koa 2.0</code> 的源码特别精简，不像 <code>Express</code> 封装的功能那么多，所以大部分的功能都是由 <code>Koa</code> 开发团队（同 <code>Express</code> 是一家出品）和社区贡献者针对 <code>Koa</code> 对 NodeJS 的封装特性实现的中间件来提供的，用法非常简单，就是引入中间件，并调用 <code>Koa</code> 的 <code>use</code> 方法使用在对应的位置，这样就可以通过在内部操作 <code>ctx</code> 实现一些功能，我们接下来就讨论常用中间件的实现原理以及我们应该如何开发一个 <code>Koa</code> 中间件供自己和别人使用。</p>
+<h2 id="Koa-的洋葱模型介绍"><a href="#Koa-的洋葱模型介绍" class="headerlink" title="Koa 的洋葱模型介绍"></a>Koa 的洋葱模型介绍</h2><p>我们本次不对洋葱模型的实现原理进行过多的刨析，主要根据 API 的使用方式及洋葱模型分析中间件是如何工作的。</p>
+<pre><code>// 洋葱模型特点// 引入 Koa
+const Koa = require(&quot;koa&quot;);
+
+// 创建服务
+const app = new Koa();
+
+app.use(async (ctx, next) =&gt; {
+    console.log(1);
+    await next();
+    console.log(2);
+});
+
+app.use(async (ctx, next) =&gt; {
+    console.log(3);
+    await next();
+    console.log(4);
+});
+
+app.use(async (ctx, next) =&gt; {
+    console.log(5);
+    await next();
+    console.log(6);
+});
+
+// 监听服务
+app.listen(3000);
+
+// 1
+// 3
+// 5
+// 6
+// 4
+// 2
+</code></pre><p>我们知道 <code>Koa</code> 的 <code>use</code> 方法是支持异步的，所以为了保证正常的按照洋葱模型的执行顺序执行代码，需要在调用 <code>next</code> 的时候让代码等待，等待异步结束后再继续向下执行，所以我们在 <code>Koa</code> 中都是建议使用 <code>async/await</code> 的，引入的中间件都是在 <code>use</code> 方法中调用，由此我们可以分析出每一个 <code>Koa</code> 的中间件都是返回一个 <code>async</code> 函数的。</p>
+<h2 id="koa-bodyparser-中间件模拟"><a href="#koa-bodyparser-中间件模拟" class="headerlink" title="koa-bodyparser 中间件模拟"></a>koa-bodyparser 中间件模拟</h2><p>想要分析 <code>koa-bodyparser</code> 的原理首先需要知道用法和作用，<code>koa-bodyparser</code> 中间件是将我们的 <code>post</code> 请求和表单提交的查询字符串转换成对象，并挂在 <code>ctx.request.body</code> 上，方便我们在其他中间件或接口处取值，使用前需提前安装。</p>
+<blockquote>
+<p>npm install koa koa-bodyparser</p>
+</blockquote>
+<p><strong>koa-bodyparser 具体用法如下：</strong></p>
+<pre><code>// koa-bodyparser 的用法
+const Koa = require(&quot;koa&quot;);
+const bodyParser = require(&quot;koa-bodyparser&quot;);
+
+const app = new Koa();
+
+// 使用中间件
+app.use(bodyParser());
+
+app.use(async (ctx, next) =&gt; {
+    if (ctx.path === &quot;/&quot; &amp;&amp; ctx.method === &quot;POST&quot;) {
+        // 使用中间件后 ctx.request.body 属性自动加上了 post 请求的数据
+        console.log(ctx.request.body);
+    }
+});
+
+app.listen(3000);
+</code></pre><p>根据用法我们可以看出 <code>koa-bodyparser</code> 中间件引入的其实是一个函数，我们把它放在了 <code>use</code> 中执行，根据 <code>Koa</code> 的特点，我们推断出 <code>koa-bodyparser</code> 的函数执行后应该给我们返回了一个 <code>async</code> 函数，下面是我们模拟实现的代码。</p>
+<pre><code>// 文件：my-koa-bodyparser.js
+const querystring = require(&quot;querystring&quot;);
+
+module.exports = functionbodyParser() {
+    returnasync (ctx, next) =&gt; {
+        await new Promise((resolve, reject) =&gt; {
+            // 存储数据的数组
+            let dataArr = [];
+
+            // 接收数据
+            ctx.req.on(&quot;data&quot;, data =&gt; dataArr.push(data));
+
+            // 整合数据并使用 Promise 成功
+            ctx.req.on(&quot;end&quot;, () =&gt; {
+                // 获取请求数据的类型 json 或表单
+                let contentType = ctx.get(&quot;Content-Type&quot;);
+
+                // 获取数据 Buffer 格式
+                let data = Buffer.concat(dataArr).toString();
+
+                if (contentType === &quot;application/x-www-form-urlencoded&quot;) {
+                    // 如果是表单提交，则将查询字符串转换成对象赋值给 ctx.request.body
+                    ctx.request.body = querystring.parse(data);
+                } elseif (contentType === &quot;applaction/json&quot;) {
+                    // 如果是 json，则将字符串格式的对象转换成对象赋值给 ctx.request.body
+                    ctx.request.body = JSON.parse(data);
+                }
+
+                // 执行成功的回调
+                resolve();
+            });
+        });
+
+        // 继续向下执行
+        await next();
+    };
+};
+</code></pre><p>在上面代码中由几点是需要我们注意的，即 <code>next</code> 的调用以及为什么通过流接收数据、处理数据和将数据挂在 <code>ctx.request.body</code> 要在 Promise 中进行。</p>
+<p><strong>首先是 <code>next</code> 的调用，我们知道 <code>Koa</code> 的 <code>next</code> 执行，其实就是在执行下一个中间件的函数，即下一个 <code>use</code> 中的 <code>async</code> 函数，为了保证后面的异步代码执行完毕后再继续执行当前的代码，所以我们需要使用 <code>await</code> 进行等待，其次就是数据从接收到挂在 <code>ctx.request.body</code> 都在 Promise 中执行，是因为在接收数据的操作是异步的，整个处理数据的过程需要等待异步完成后，再把数据挂在 <code>ctx.request.body</code> 上，可以保证我们在下一个 <code>use</code> 的 <code>async</code> 函数中可以在 <code>ctx.request.body</code> 上拿到数据，所以我们使用 <code>await</code> 等待一个 Promise 成功后再执行 <code>next</code>。</strong></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/08/基于IntersectionObserver的图片懒加载实现/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3254,206 +3471,6 @@ wss.on(&apos;connection&apos;, (wsocket) =&gt; {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/02/理解-HTTPS/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/02/理解-HTTPS/" itemprop="url">理解 HTTPS</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-02T17:33:47+08:00">
-                2018-09-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="HTTP2"><a href="#HTTP2" class="headerlink" title="HTTP2"></a>HTTP2</h3><h4 id="关于TLS-SSL协议"><a href="#关于TLS-SSL协议" class="headerlink" title="关于TLS/SSL协议"></a><a href="https://juejin.im/post/5c1a02a06fb9a049db7313c9" target="_blank" rel="noopener">关于TLS/SSL协议</a></h4><h4 id="面试官问：你了解HTTP2-0吗？"><a href="#面试官问：你了解HTTP2-0吗？" class="headerlink" title="面试官问：你了解HTTP2.0吗？"></a><a href="https://juejin.im/post/5c0ce870f265da61171c8c66" target="_blank" rel="noopener">面试官问：你了解HTTP2.0吗？</a></h4><blockquote>
-<p>SSL，是利用数据加密技术，用以保障在Internet上数据传输安全的协议，ssl证书就是遵守SSL协议的一种数字证书，验证网站主体身份和数据传输加密。<br>TLS，安全传输层协议，用于在两个通信应用程序之间提供保密性和数据完整性。TLS加密于TLS加密区别在于，加密算法不同。现在还是SSL加密比较多，GDCA的SSL证书比较常见！</p>
-</blockquote>
-<p><img src="/2018/09/02/理解-HTTPS/1.webp" alt=""><br>http2 的前身是由 google 领导开发的 SPDY，后来 google 把整个成果交给 IETF，IETF 把 SPDY 标准化之后变成 http2。google 也很大方的废弃掉 SPDY，转向支持 http2。http2 是完全兼容 http/1.x 的，在此基础上添加了 4 个主要新特性：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">二进制分帧</span><br><span class="line">头部压缩</span><br><span class="line">服务端推送</span><br><span class="line">多路复用</span><br><span class="line">优化手段</span><br></pre></td></tr></table></figure></p>
-<p><a href="https://juejin.im/post/5aaccf8f51882555784dbabc" target="_blank" rel="noopener">http2 简介</a></p>
-<h3 id="存在即合理"><a href="#存在即合理" class="headerlink" title="存在即合理"></a>存在即合理</h3><p><font color="#ff0000">http是非常常见的应用层协议，是超文本传输协议的简称，其传输的内容都是明文的。</font> 在这个混乱的世界，明文传输信息想想就可怕，网络“小混混”的手段远比我们这些凡人高明得多，他们有一万种方式劫持，篡改我们的数据。对于一个网站或者服务，如果你给你的用户两个选择：</p>
-<ul>
-<li>通讯数据明文传输，速度快；</li>
-<li>通讯数据加密传输，但是速度可能会稍微慢一点.<br>我想，只要脑袋没有长歪的用户都宁愿牺牲一点速度去换取数据传输的安全。</li>
-</ul>
-<p>这样，https的存在就具备了合理性，https中的s表示SSL或者TLS，就是在原http的基础上加上一层用于<font color="#ff0000">数据加密、解密、身份认证</font>的安全层。</p>
-<h3 id="HTTP协议的缺点"><a href="#HTTP协议的缺点" class="headerlink" title="HTTP协议的缺点"></a>HTTP协议的缺点</h3><ul>
-<li>通信使用明文；</li>
-<li>不验证通信方的身份；</li>
-<li>无法验证报文的完整性；</li>
-</ul>
-<p><strong>通信使用明文:</strong> 通信使用明文意味着安全性大大降低，当通信过程被窃听后，无需花费额外的投入就可看到传输的数据。例如使用抓包工具，无需任何配置就可查看任何使用HTTP协议的通信数据；<br><strong>不验证通信方身份 :</strong>不验证通信方的身份，将导致通信过程被窃听后，可能会遭遇伪装，例如使用抓包工具抓取数据后，就可按照数据包的格式构造HTTP请求；<br><strong>无法验证报文的完整性:</strong>不验证报文的完整性，数据在传输过程中就可能被篡改，本来想看喜洋洋呢，结果数据在传输过程中被换成了光头强。</p>
-<p>为解决了HTTP的以上问题，HTTPS协议就诞生了：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Https = Http + 加密 + 认证 + 完整性验证</span><br><span class="line">        ||</span><br><span class="line">Https = Http + SSL</span><br><span class="line">        ||</span><br><span class="line">HTTPS=数据加密+网站认证+完整性验证+HTTP</span><br></pre></td></tr></table></figure></p>
-<h3 id="HTTP-与-HTTPS-的区别"><a href="#HTTP-与-HTTPS-的区别" class="headerlink" title="HTTP 与 HTTPS 的区别"></a>HTTP 与 HTTPS 的区别</h3><ul>
-<li>HTTP 是明文传输，HTTPS 通过 SSL\TLS 进行了加密</li>
-<li>HTTP 的端口号是 80，HTTPS 是 443</li>
-<li>HTTPS 需要到 CA 申请证书，一般免费证书很少，需要交费</li>
-<li>HTTPS 的连接很简单，是无状态的；HTTPS 协议是由 SSL+HTTP 协议构建的可进行加密传输、身份认证的网络协议，比 HTTP 协议安全。</li>
-</ul>
-<h3 id="HTTPS主要缺点："><a href="#HTTPS主要缺点：" class="headerlink" title="HTTPS主要缺点："></a>HTTPS主要缺点：</h3><ul>
-<li>网络耗时（比HTTP多了交互次数）。</li>
-<li>加解密耗时。</li>
-<li>比HTTP慢几百毫秒以上，页面加载时间增加了50%，增加10%到20%的耗电</li>
-</ul>
-<h3 id="HTTPS工作流程："><a href="#HTTPS工作流程：" class="headerlink" title="HTTPS工作流程："></a>HTTPS工作流程：</h3><p><img src="/2018/09/02/理解-HTTPS/20170113193549689.png" alt=""><br>1.客户端向服务器发送请求，并告诉服务器支持的算法列表；<br>2.服务器选择一种算法，并将自己的证书返回给客户端，证书包含服务器域名和公钥等信息；<br>3.客户端得到证书后进行验证，验证通过的话就生成一个随机值，并用证书中的公钥进行加密<br>4.传递加密信息，目的就是让服务器得到这个随机值，以后客户端与服务器的通信就可以通过这个随机值来进行加密解密；<br>5.服务器用自己的私钥解密客户端传过来的随机值，然后把内容进行对称加密，即将信息和私钥通过加密算法混在一起，这样除非知道私钥，不然无法获取到内容，而客户端与服务器都知道这个私钥，所以只要加密算法够强大，私钥够复杂，数据就很安全了；<br>6.将加密后的信息发给客户端，客户端还原信息<br>7.客户端用之前生成的私钥解密服务器发过来的信息，便获取到了解密后的内容；</p>
-<p>那么加密的信息通道又加密了哪些信息呢？</p>
-<p>签发证书的 CA 中心会发布一种权威性的电子文档——数字证书，它可以通过加密技术（对称加密与非对称加密）对我们在网上传输的信息进行加密，比如我在 Pornhub 上输入：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">账号：cbssfaw</span><br><span class="line">密码：123djaosid</span><br></pre></td></tr></table></figure></p>
-<p>可是这个数据被黑客拦截盗窃了，那么加密后，黑客得到的数据可能就是这样的：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">账号：çµø…≤¥ƒ∂ø†®∂˙∆¬</span><br><span class="line">密码：∆ø¥§®†ƒ©®†©˚¬</span><br></pre></td></tr></table></figure></p>
-<hr>
-<p>想要理解 HTTPS 加密。需要理解几个概念：</p>
-<ul>
-<li>对称加密算法</li>
-<li>非对称加密算法</li>
-<li>CA(Certificate Authority)</li>
-<li>数字证书</li>
-<li>摘要算法</li>
-</ul>
-<blockquote>
-<p>常用的加密方式分为两种：</p>
-</blockquote>
-<ul>
-<li>对称加密：<strong> <font color="#dd0000">加密和解密使用的是相同的密钥。</font></strong></li>
-<li>非对称加密：<strong> <font color="#dd0000">加密和解密使用的不是相同的密钥，而是一对密钥对，分别称为公钥和私钥。 </font></strong></li>
-</ul>
-<blockquote>
-<p>HTTPS 用了哪种加密方法？</p>
-</blockquote>
-<p>在 HTTPS 中，对称加密和非对称加密都用到了。非对称加密可以在不安全的信道上传递秘密内容，但是由于通常使用的非对称加密方法相较于对称加密算法慢很多，因此在 HTTPS 中仅使用非对称加密算法交换对称密钥，交换密钥之后的通信内容均使用对称加密算法加密和解密，这样既可以保证密钥的安全也可以保证内容的加解密速度，这对于移动端设备来说至关重要。</p>
-<p>现在的问题是，如何在实现 HTTP 协议的情况下，对传输的信息进行加密解密？最开始使用到的是最简单的对称加密算法。 </p>
-<h3 id="对称加密算法"><a href="#对称加密算法" class="headerlink" title="对称加密算法"></a>对称加密算法</h3><p>对称加密算法非常简单，只要加密方和解密方都拥有同一密钥（可为128，192，256 bit 大小的密钥，密钥越长，加密解密时间越长，解密难度也越高），即可完成加密解密过程，且假设无法强制对加密过的明文进行解密。</p>
-<p><strong> 问题：对于需要传递加密信息的双方而言，对称加密算法用于加密解密没有什么问题，但是密钥的传输就成了另外一个问题。因为密钥也需要传输才能使双方通信，密钥明文传输出去，被人轻易截取，就能利用密钥破解加密的密文。 </strong></p>
-<p>所以引出了下面的非对称加密算法来传输密钥。</p>
-<h3 id="公开密钥加密-Public-Key-Cryptography-的非对称加密算法"><a href="#公开密钥加密-Public-Key-Cryptography-的非对称加密算法" class="headerlink" title="公开密钥加密(Public-Key Cryptography)的非对称加密算法"></a>公开密钥加密(Public-Key Cryptography)的非对称加密算法</h3><p>对于使用最广泛的非对称加密算法——RSA，RSA 算法基于一个简单的数论理论：将两个大素数相乘十分容易，但是想要对其乘积进行因式分解却极其困难，因此可以将乘积公开作为加密密钥。</p>
-<p>RSA 算法得出了下面的规则：通讯两方 A, B 分别都有各自的一套公钥和私钥。同一套公钥私钥当中，公钥的加密需要私钥才能解密，私钥的加密需要公钥才能解密。</p>
-<p>假设 A 把自己的公钥公开出去，B 得到了 A 的公钥，然后 B 用 A 的公钥加密了明文，传给 A，A 用私钥解密，即可获得明文。所以，过程中公开的信息任何第三方得到都不可以破解 A 和 B 要传递的信息。有了这个算法之后，对称加密算法所用到的密钥传输安全性就没问题了。但是因为加密解密过程时间比较长，非对称加密算法不适合应用于数据量大的信息传递，只适用于密钥的传递。（这个问题解释了对于数字签名的摘要算法的必要性）</p>
-<h4 id="问题：虽然-RSA-算法也没有什么问题，但是却有人想出更绝的方法破解加解密的过程。这个方法就是中间人攻击。"><a href="#问题：虽然-RSA-算法也没有什么问题，但是却有人想出更绝的方法破解加解密的过程。这个方法就是中间人攻击。" class="headerlink" title="问题：虽然 RSA 算法也没有什么问题，但是却有人想出更绝的方法破解加解密的过程。这个方法就是中间人攻击。"></a>问题：虽然 RSA 算法也没有什么问题，但是却有人想出更绝的方法破解加解密的过程。这个方法就是<strong>中间人攻击</strong>。</h4><p>在用非对称加密算法传递密钥的过程中，因为公钥都是公开的，并没有任何东西可以认证这个公钥是 A 的还是 B 的。现在出现了中间人 M，M 采取某种手段在 A 和 B 的通讯过程成为中间人。在 B 想要得到 A 的公钥的时候，M 向 B 谎称自己的这个公钥是 A 的公钥，B 拿到用 M 的公钥加密信息后，传出 M 手中，然后 M 拿加密过的信息，然后用自己的私钥把这个信息解密，得到明文。既然已经知道了明文，还是用 A 的公钥加密这个信息，继续给 A，这样 A 还是以为这个信息是安全的，继续用私钥解开。而在这个过程中，M 既获得了信息，又没有让 A，B 双方知道。至于这个 M 是怎么欺骗 A，B 的，又是另外一个安全的问题。总之，假如 M 只要让 B 相信这个公钥是 A 的，就可以作中间人攻击。</p>
-<p>假如上面的 A 是服务器，B 是用户，那么中间人就很容易获取和修改 A，B 需要传输的信息。所以为了让 M 不再得逞，出现一个具有公信力的第三方——CA。</p>
-<h3 id="CA-Certificate-Authority-第三方认证机构"><a href="#CA-Certificate-Authority-第三方认证机构" class="headerlink" title="CA(Certificate Authority) 第三方认证机构"></a>CA(Certificate Authority) 第三方认证机构</h3><p>简单来说，CA 要做的就是，让 B 相信拿到的 A 的公钥真正属于 A，而不是其他中间人 M 伪造。</p>
-<p>而在 CA 在做这件事的过程中如何才能让 B 认证这个公钥是 A 的呢？</p>
-<p>这里需要另外一个概念：数字证书。</p>
-<p>普通证书产生的过程就是：将个人提交的信息进行第三方具有权威性部门的认证，然后第三方权威部门确认个人信息<strong>合法无误</strong>后在自己的系统中登记，再把认证证书盖章签名给到个人手上，然后个人就可以用证书从事各类证明活动。现实世界中的做法是在个人提交的信息上盖章，例如4，6级的证书认证。假设你的成绩申请无误而合法，教育局就会将你的成绩记录，然后给你一张盖过章的证书。</p>
-<p>数字证书同理。不过，与现实不一样，在互联网上完成一个完整的验证过程，需要兼顾到很多过程中的纰漏。</p>
-<p>例如：</p>
-<h4 id="问题：证书上的章是一个不可信任的机构的，该如何认证哪些机构才是可信任机构？"><a href="#问题：证书上的章是一个不可信任的机构的，该如何认证哪些机构才是可信任机构？" class="headerlink" title="问题：证书上的章是一个不可信任的机构的，该如何认证哪些机构才是可信任机构？"></a>问题：证书上的章是一个不可信任的机构的，该如何认证哪些机构才是可信任机构？</h4><p>现实中就是向政府部门认证哪些是登记过的可信任的部门，像4，6级证书颁发的部门——全国大学英语四六级考试委员会，是全国的教育局的下级和内部部门，是认证过的。而在互联网中，就需要顶级的最具有公信力的 CA，这个 CA 颁发的证书是最受信任的，这个就是<strong>根证书</strong>。为了不让所有鸡蛋都放在一个篮子里，其他的 CA 机构可以向上一级的 CA 机构申请成为中间 CA，获取自己的<strong>中间证书</strong>，最终个人像 A 向某一个中间 CA 申请的证书就是最终的<strong>终端普通数字证书</strong>。这个过程的签发关系就是<strong>证书链</strong>。当 B 得到 A 的数字证书之后，会在证书的信息中找到 A 申请的 CA，而这个 CA 则会根据自己中间证书找到的自己申请的 CA，就这样沿着证书链找证书，假如某个中间证书或者根证书在本机中安装有，则认证的时候会将 A 的证书设置为可被信任的。</p>
-<p>如何识别可信任机构的这个问题就解决了。</p>
-<h4 id="问题：可以轻易做到用与政府同样的章在证书上盖章伪造，该如何认证这个证书不是个人盖章签名伪造的？"><a href="#问题：可以轻易做到用与政府同样的章在证书上盖章伪造，该如何认证这个证书不是个人盖章签名伪造的？" class="headerlink" title="问题：可以轻易做到用与政府同样的章在证书上盖章伪造，该如何认证这个证书不是个人盖章签名伪造的？"></a>问题：可以轻易做到用与政府同样的章在证书上盖章伪造，该如何认证这个证书不是个人盖章签名伪造的？</h4><p>现实中可以在这个已经被认证的第三方机构系统中查询，像4，6级，可以到教育局的网上公开系统中查询。而在互联网中，则需要一个类似的查询验证过程——数字签名。为了对这个证书的验证，确保这个签名是来自可信任的 CA，而不是其他不可信的 CA。CA 在给 A 的数字证书中有一个数字签名。该签名是 CA 用自己的私钥对 A 的个人信息进行非对称加密得到的加密信息。当 B 得到 A 提供的数字证书，会拿到其中的数字签名和 A 的个人信息，然后用 CA 的公钥对这个数字签名进行非对称解密，得出的信息假如和 A 的数字证书中 A 的个人信息一样的话，就相信这个数字证书确实是 CA 认证过的。</p>
-<p>如何认证这个签名是不是伪造的这个问题也解决了。但是这个问题又引出了另外一个问题：数字证书中 A 的个人信息数据比较大，而非对成加密算法的加密解密速度非常慢，使得认证过程中对个人信息的非对称加密解密非常耗占时间。所以需要用到另外一种算法来加快这个验证过程，这个算法就是摘要算法。（一直很疑惑为什么需要到摘要算法，总算找到了一个原因）</p>
-<p>摘要算法可以将任意大小的原文消息加密并摘要成固定长度的简短密文。对于不同的原文消息，用同一种摘要算法，都可以得到不同但是固定长度的密文，而相同的原文消息，用同一种摘要算法，则可以得到相同固定长度的密文。这就解决了数字签名过程中，对数据大的个人信息文件的非对称加密解密的时间慢的问题。CA 用 A 个人信息进行摘要算法的处理，然后继续用私钥加密，作为数字证书的数字签名给到 A。B 拿到 A 提供的数字签名和 A 的个人信息，然后用 CA 的公钥解密 A 的数字签名，得到 A 个人信息的摘要。再用同一种摘要算法对 A 的个人信息进行处理，得到 A 个人信息的摘要，再与解密得到的 A 个人信息摘要对比，就可以确认改数字签名和个人信息是匹配的。 </p>
-<p>到这一步，中间人攻击已经很难可以发生了，假设 M 想要在 A 和 B 之间充当中间人，有三种手段：</p>
-<ul>
-<li>需要从 A 服务器中直接获取域名数字证书；</li>
-<li>得到 A 的域名管理，向 CA 申请证书</li>
-<li>自己签发证书，然后要求 B 安装自己的证书。</li>
-</ul>
-<p>对于第一第二个问题的防范，在服务器端，只要要保护好私钥和服务器和域名的安全，就不会出现大问题。</p>
-<p>对于第三个问题，在客户端，有一个很好的例子：12306。12306 的证书就是中铁局自己搞的认证机构颁发的。当你浏览 12306 的时候，虽然请求是带 HTTPS，但是浏览器检查的时候发现这个中铁局的认证机构没有在证书链当中，会提示“可能会被攻击”，当然 12306 会要求你直接安装他们的证书。这就要求你自己的明察秋毫了，你是选择相信 ZF 的证书，然后可能以后 ZF 的某些网站可能会在中铁局的认证机构认证证书，然后假装是 HTTPS，并且可能会伪装窃取你的个人信息。所以在客户端，安装证书需要谨慎，不要随意安装不信任的证书。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3506,7 +3523,7 @@ wss.on(&apos;connection&apos;, (wsocket) =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">136</span>
+                  <span class="site-state-item-count">138</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

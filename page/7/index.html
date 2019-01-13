@@ -694,6 +694,479 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-01T13:17:32+08:00">
+                2018-01-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
+<pre><code>let s =newString(&apos;abc&apos;);
+typeof s ===&apos;object&apos;// true
+s instanceofString// true
+</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
+<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
+<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>1：整数</li>
+</ul>
+<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
+<p><code>null</code>：所有机器码均为0</p>
+<p><code>undefined</code>：用 −2^30 整数来表示</p>
+<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
+<p>然而用 <code>instanceof</code> 来判断的话👉</p>
+<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
+</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
+<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
+<p>还有一个不错的判断类型的方法，就是<strong><font color="#dd0000">Object.prototype.toString</font></strong>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
+<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
+Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
+Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
+Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
+Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
+Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
+Object.prototype.toString.call(null)// &quot;[object Null]&quot;
+Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
+Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
+</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
+<pre><code>let person =function(){
+}
+let nicole =new person()
+nicole instanceof person // true
+</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
+<pre><code>let person =function(){
+}
+let programmer =function(){
+}
+programmer.prototype =new person()
+let nicole =new programmer()
+nicole instanceof person // true
+nicole instanceof programmer // true
+</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
+<pre><code>function new_instance_of(leftVaule, rightVaule){
+    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
+    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
+    while(true){
+        if(leftVaule ===null){
+            returnfalse;    
+        }
+        if(leftVaule === rightProto){
+            returntrue;    
+        }
+        leftVaule = leftVaule.__proto__ 
+    }
+}
+</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
+<pre><code>functionFoo(){
+}
+Object instanceof Object// true
+Function instanceof Function// true
+Function instanceof Object// true
+Foo instanceof Foo// false
+Foo instanceof Object// true
+Foo instanceof Function// true
+</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
+<p>关于原型继承的原理，我简单用一张图来表示</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
+<p><code>Object instanceof Object</code></p>
+<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
+<pre><code>leftValue =Object.__proto__ =Function.prototype;
+rightValue =Object.prototype;
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true
+</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
+<p><code>Foo instanceof Foo</code></p>
+<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
+<p>我们用代码简单的表示一下</p>
+<pre><code>leftValue =Foo, rightValue =Foo
+leftValue =Foo.__proto =Function.prototype
+rightValue =Foo.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue != rightValue
+leftValue =Object.prototype =null
+// 第三次判断
+leftValue ===null
+// 返回 false
+</code></pre><p><code>Foo instanceof Object</code></p>
+<pre><code>leftValue =Foo, rightValue =Object
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Object.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><p><code>Foo instanceof Function</code></p>
+<pre><code>leftValue =Foo, rightValue =Function
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Function.prototype
+// 第一次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/跨域之由Request-Method-OPTIONS初窥CORS/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/01/01/跨域之由Request-Method-OPTIONS初窥CORS/" itemprop="url">跨域之由Request Method:OPTIONS初窥CORS</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-01T00:09:02+08:00">
+                2018-01-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="跨域资源共享CORS"><a href="#跨域资源共享CORS" class="headerlink" title="跨域资源共享CORS"></a><a href="https://juejin.im/post/5c370772e51d4503834d40c1" target="_blank" rel="noopener">跨域资源共享CORS</a></h2><h2 id="跨域资源共享——CORS"><a href="#跨域资源共享——CORS" class="headerlink" title="跨域资源共享——CORS"></a><a href="https://juejin.im/post/5bfa5f8e6fb9a049a7117b67" target="_blank" rel="noopener">跨域资源共享——CORS</a></h2><h2 id="一篇文章搞明白CORS跨域"><a href="#一篇文章搞明白CORS跨域" class="headerlink" title="一篇文章搞明白CORS跨域"></a><a href="https://segmentfault.com/a/1190000017149446" target="_blank" rel="noopener">一篇文章搞明白CORS跨域</a></h2><h2 id="不就是跨域么-慌个XX-掘金"><a href="#不就是跨域么-慌个XX-掘金" class="headerlink" title="不就是跨域么?慌个XX - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a2f92c65188253e2470f16d" target="_blank" rel="noopener">不就是跨域么?慌个XX - 掘金</a></h2><p>面试问到数据交互的时候，经常会问跨域如何处理。大部分人都会回答JSONP，然后面试官紧接着就会问：“JSONP缺点是什么啊？”这个时候坑就来了，如果面试者说它支持GET方式，然后面试官就会追问，那如果POST方式发送请求怎么办？基础扎实一些的面试者会说，使用CORS跨域，不扎实的可能就摇摇头了。</p>
+<p>这还没结束，如果公司比较正规或者很在乎技术功底，你面试的又是重要岗位，HR还想砍你的工资，就会再补一刀，CORS跨域有什么问题呢？这时候能回答上来的就没几个了，就算是你答出来兼容性不好，需要IE10+浏览器,对方依然有话说，那兼容性怎么处理呢？应试者就没话了，要么被Pass掉，即便留下来，谈工资的时候就没底气了。</p>
+<p>CORS跨域实在是面试官pass一个人的利器。</p>
+<p>为什么会这样呢？</p>
+<ul>
+<li><p>1.遇到CORS请求的情况不多，开发者使用这个场景的很少，大部分都JSONP搞定了。</p>
+</li>
+<li><p>2.开发者自身技能不扎实，偷懒心态，平常没有意识和意愿去提升自己的技术水平。</p>
+</li>
+<li><p>3.相关的学习资料少、纯前端小白搭建可测试的环境难度大。</p>
+</li>
+</ul>
+<p>面对这条拦路虎，我们今天就彻底解决掉它，让它不再是我们的软肋，而是彰显我们技术实力的亮点。</p>
+<h2 id="首先，什么是CORS"><a href="#首先，什么是CORS" class="headerlink" title="首先，什么是CORS?"></a>首先，什么是CORS?</h2><blockquote>
+<p>CORS是一个W3C标准，全称是”跨域资源共享”（Cross-origin resource sharing）。<br>    它允许浏览器向跨源服务器，发出XMLHttpRequest请求，从而克服了AJAX只能同源使用的限制。</p>
+</blockquote>
+<p>优缺点</p>
+<p>优点：</p>
+<ul>
+<li>1.支持POST以及所有HTTP请求</li>
+<li>2.安全性相对JSOP更高</li>
+<li>3.前端要做的事儿比较少</li>
+</ul>
+<p>缺点：</p>
+<ul>
+<li>1.不兼容老版本浏览器，如IE9及其以下</li>
+<li>2.需要服务端支持</li>
+<li>3.使用起来稍微复杂了些</li>
+</ul>
+<p>怎么用？</p>
+<p>前端部分：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=&quot;en&quot;&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">    &lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;</span><br><span class="line">    &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;</span><br><span class="line">    &lt;title&gt;CORS跨域请求&lt;/title&gt;</span><br><span class="line">    &lt;script&gt;</span><br><span class="line">        function createCORSRequest(method, url) &#123;</span><br><span class="line">            var xhr = new XMLHttpRequest();</span><br><span class="line">            if (&quot;withCredentials&quot; in xhr) &#123;</span><br><span class="line">                xhr.open(method, url, true);</span><br><span class="line">            &#125; else if (typeof XDomainRequest != &quot;undefined&quot;) &#123;</span><br><span class="line">                xhr = new XDomainRequest();</span><br><span class="line">                xhr.open(method, url);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                xhr = null;</span><br><span class="line">            &#125;</span><br><span class="line">            return xhr;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        window.onload = function () &#123;</span><br><span class="line">            var oBtn = document.getElementById(&apos;btn1&apos;);</span><br><span class="line">            oBtn.onclick = function () &#123;</span><br><span class="line">                var xhr = createCORSRequest(&quot;get&quot;, &quot;http://wpdic.com/cors.php&quot;);</span><br><span class="line">                if (xhr) &#123;</span><br><span class="line">                    xhr.onload = function () &#123;</span><br><span class="line">                        var json = JSON.parse(xhr.responseText);</span><br><span class="line">                        alert(json.a);</span><br><span class="line">                    &#125;;</span><br><span class="line">                    xhr.onerror = function () &#123;</span><br><span class="line">                        alert(&apos;请求失败.&apos;);</span><br><span class="line">                    &#125;;</span><br><span class="line">                    xhr.send();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;;</span><br><span class="line">    &lt;/script&gt;</span><br><span class="line">&lt;/head&gt;</span><br><span class="line">&lt;body&gt;</span><br><span class="line">    &lt;input type=&quot;button&quot; value=&quot;获取数据&quot; id=&quot;btn1&quot;&gt;</span><br><span class="line">&lt;/body&gt;</span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure></p>
+<p>注意点：</p>
+<p>1.上面代码兼容IE8,因为用了XDomainRequest</p>
+<p>2.其它代码你就当成XMLHttpRequset用，别考虑什么2.0不2.0的</p>
+<p>3.如果你想post数据，可以往 xhr.send()里面搞</p>
+<p>4.这里不建议大家研究”simple methdod”之类的知识，代码弄懂了会用就行，遇到问题了再查也不晚</p>
+<p>后台部分：</p>
+<pre><code>&lt;?php
+header(&apos;content-type:application:json;charset=utf8&apos;);
+header(&apos;Access-Control-Allow-Origin:*&apos;);
+header(&apos;Access-Control-Allow-Methods:GET,POST&apos;);
+header(&apos;Access-Control-Allow-Credentials: true&apos;);
+header(&apos;Access-Control-Allow-Headers:x-requested-with,content-type&apos;);
+$str = &apos;{&quot;a&quot;:1,&quot;b&quot;:2,&quot;c&quot;:3,&quot;d&quot;:4,&quot;e&quot;:5}&apos;; 
+echo $str;
+?&gt;
+</code></pre><p>注意点：</p>
+<p>1.Access-Control-Allow-Origin:<em> 表示允许任何域名跨域访问，如果需要指定某域名才允许跨域访问，只需把Access-Control-Allow-Origin:</em>改为Access-Control-Allow-Origin:允许的域名,实际工作也要这么做2.Access-Control-Allow-Methods:GET,POST  规定允许的方法，建议控制严格些，不要随意放开DELETE之类的权限</p>
+<p>2.Access-Control-Allow-Credentials</p>
+<p>该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。默认情况下，Cookie不包括在CORS请求之中。设为true，即表示服务器明确许可，Cookie可以包含在请求中，一起发给服务器。这个值也只能设为true，如果服务器不要浏览器发送Cookie，删除该字段即可。</p>
+<p>最后，面试常考问题：</p>
+<p>CORS和JSONP的应用场景区别？</p>
+<blockquote>
+<p>CORS要求浏览器(&gt;IE10)和服务器的同时支持，是跨域的根本解决方法，由浏览器自动完成。优点在于功能更加强大支持各种HTTP Method，缺点是兼容性不如JSONP。</p>
+</blockquote>
+<hr>
+<p>刚接触前端的时候，以为HTTP的Request Method只有GET与POST两种，后来才了解到，原来还有HEAD、PUT、DELETE、OPTIONS……</p>
+<p>目前的工作中，HEAD、PUT、DELETE我是真的没有见过……但是OPTIONS几乎天天都会遇到。本地环境跑公司项目的时候，每次POST之前，为啥浏览器还偷偷给我来一次没有返回的OPTIONS请求？</p>
+<blockquote>
+<p>原来，浏览器在某些请求中，在正式通信前会增加一次HTTP查询请求，称为”预检”请求（preflight）。OPTIONS方法是用于请求获得由Request-URI标识的资源在请求/响应的通信过程中可以使用的功能选项。通过这个方法，客户端可以在采取具体资源请求之前，决定对该资源采取何种必要措施，或者了解服务器的性能。该请求方法的响应不能缓存。浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
+</blockquote>
+<p>如果这个OPTIONS请求包含一个正文（有Content-Length或Transfer-Encoding存在），则必须有Content-Type来指定媒体类型。虽然规范里没有定义这种正文的用法，但是HTTP将来的扩展可能会用它来查询服务器上更详细的信息。不支持该扩展的服务器可以忽略该请求正文。</p>
+<p>如果该URI是一个星号（“<em>”），OPTIONS请求将试图应用于服务器，而不是某个指定资源。由于服务器的通信选项通常依赖于资源，所以此“</em>”请求只能作为“ping”或者“no-op”方法；或者用来测试服务器的性能。例如，用来测试HTTP/1.1代理。</p>
+<p>如果该URI不是星号，则只能用来获取该资源通信中可用的选项。</p>
+<p>得到的200响应应该包含一个头域，指明服务器实现的和适用于该资源的可选特征（如：Allow），可能还包括该规范尚未定义的扩展。如果有响应正文，则应包含关于通信选项的信息。本规范没有定义该正文格式，但可能在HTTO将来的扩展中定义。可以利用内容协商来选择合适的响应格式。如果没有响应正文，响应必须包含Content-Length，并且值为“0”。</p>
+<p>请求头的Max-Forwards用来请求特定代理。当代理收到一个允许URI转发的OPTIONS请求，则检查Max-Forwards。如果Max-Forwards值为0，则不能转发该消息；相反，代理会将自己的通信选项去响应。如果Max-Forwards是正整数，代理转发请求的时候会将该值减1。如果请求中没有Max-Forwards，转发的请求也不会有。</p>
+<h2 id="简而言之"><a href="#简而言之" class="headerlink" title="简而言之"></a>简而言之</h2><p>OPTIONS请求方法的主要用途有两个：</p>
+<p>1、获取服务器支持的HTTP请求方法；也是黑客经常使用的方法。</p>
+<p>2、用来检查服务器的性能。例如：AJAX进行跨域请求时的预检，需要向另外一个域名的资源发送一个HTTP OPTIONS请求头，用以判断实际发送的请求是否安全。<br><img src="https://pic3.zhimg.com/v2-8f8d34a757502c306d82fa44f4645068_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8f8d34a757502c306d82fa44f4645068_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-38b8f2ec0da0115511cee8a1b604c6a4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-38b8f2ec0da0115511cee8a1b604c6a4_hd.jpg" alt=""><br>如上两张图片，图2就是本地环境，本地环境请求接口的时候，每次请求接口之前都会多一次OPTIONS请求。</p>
+<p><img src="https://pic4.zhimg.com/v2-31c4436fae8e077e9d935ac58bd861d6_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-31c4436fae8e077e9d935ac58bd861d6_hd.jpg" alt=""></p>
+<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS"></a>CORS</h2><p>CORS是一个W3C标准，全称是”跨域资源共享”（Cross-origin resource sharing）。</p>
+<p>它允许浏览器向跨源服务器，发出<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2012/09/xmlhttprequest_level_2.html" target="_blank" rel="noopener">XMLHttpRequest</a>请求，从而克服了AJAX只能<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/same-origin-policy.html" target="_blank" rel="noopener">同源</a>使用的限制。</p>
+<blockquote>
+<p>CORS需要浏览器和服务器同时支持。目前，所有浏览器都支持该功能，IE浏览器不能低于IE10。<br>整个CORS通信过程，都是浏览器自动完成，不需要用户参与。对于开发者来说，CORS通信与同源的AJAX通信没有差别，代码完全一样。浏览器一旦发现AJAX请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。<br>因此，实现CORS通信的关键是服务器。只要服务器实现了CORS接口，就可以跨源通信。</p>
+</blockquote>
+<h2 id="两种请求"><a href="#两种请求" class="headerlink" title="两种请求"></a>两种请求</h2><p>浏览器将CORS请求分为两类：简单请求（simple request）和非简单请求（not-so-simple request）。</p>
+<p>同时满足以下条件，就是简单请求：</p>
+<blockquote>
+<p>（1) 请求方法是以下三种方法之一：</p>
+</blockquote>
+<ul>
+<li>HEAD</li>
+<li>GET</li>
+<li>POST</li>
+</ul>
+<p>（2）HTTP的头信息不超出以下几种字段：</p>
+<ul>
+<li>Accept</li>
+<li>Accept-Language</li>
+<li>Content-Language</li>
+<li>Last-Event-ID</li>
+<li>Content-Type：只限于三个值application/x-www-form-urlencoded、multipart/form-data、text/plain</li>
+</ul>
+<h2 id="简单请求"><a href="#简单请求" class="headerlink" title="简单请求"></a>简单请求</h2><p>对于简单请求，浏览器直接发出CORS请求。具体来说，就是在头信息之中，增加一个Origin字段。</p>
+<p>Origin字段用来说明，本次请求来自哪个源（协议 + 域名 + 端口）。服务器根据这个值，决定是否同意这次请求。</p>
+<p>如果Origin指定的源，不在许可范围内，服务器会返回一个正常的HTTP回应。浏览器发现，这个回应的头信息没有包含Access-Control-Allow-Origin字段（详见下文），就知道出错了，从而抛出一个错误，被XMLHttpRequest的onerror回调函数捕获。注意，这种错误无法通过状态码识别，因为HTTP回应的状态码有可能是200。</p>
+<p>如果Origin指定的域名在许可范围内，服务器返回的响应，会多出几个头信息字段。都以Access-Control- 开头：</p>
+<p>（1）Access-Control-Allow-Origin</p>
+<p>该字段是必须的。它的值要么是请求时Origin字段的值，要么是一个*，表示接受任意域名的请求。</p>
+<blockquote>
+<p>需要注意的是，如果要发送Cookie，Access-Control-Allow-Origin就不能设为星号，必须指定明确的、与请求网页一致的域名。同时，Cookie依然遵循同源政策，只有用服务器域名设置的Cookie才会上传，其他域名的Cookie并不会上传，且（跨源）原网页代码中的document.cookie也无法读取服务器域名下的Cookie。</p>
+</blockquote>
+<p>（2）Access-Control-Allow-Credentials</p>
+<p>该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。默认情况下，Cookie不包括在CORS请求之中。设为true，即表示服务器明确许可，Cookie可以包含在请求中，一起发给服务器。这个值也只能设为true，如果服务器不要浏览器发送Cookie，删除该字段即可。</p>
+<p>（3）Access-Control-Expose-Headers</p>
+<p>该字段可选。CORS请求时，XMLHttpRequest对象的getResponseHeader()方法只能拿到6个基本字段：Cache-Control、Content-Language、Content-Type、Expires、Last-Modified、Pragma。如果想拿到其他字段，就必须在Access-Control-Expose-Headers里面指定。</p>
+<h2 id="非简单请求"><a href="#非简单请求" class="headerlink" title="非简单请求"></a>非简单请求</h2><p>非简单请求是那种对服务器有特殊要求的请求，比如请求方法是PUT或DELETE，或者Content-Type字段的类型是application/json。</p>
+<p>我工作中写的所有页面拉的接口都是非简单请求。<br><img src="https://pic1.zhimg.com/v2-6749c6523db660ed4e194e16779c5fa3_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-6749c6523db660ed4e194e16779c5fa3_hd.jpg" alt=""><br>非简单请求的CORS请求，会在正式通信之前，增加一次HTTP查询请求，称为”预检”请求（preflight）。</p>
+<p>浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
+<p>在页面域名与接口域名不一致的情况下，就出现了每次请求前先发送一个options请求的问题。</p>
+<p>OPTIONS请求头信息中，除了Origin字段，还至少会多两个特殊字段：</p>
+<p>（1）Access-Control-Request-Method</p>
+<p>该字段是必须的，用来列出浏览器的CORS请求会用到哪些HTTP方法。</p>
+<p>（2）Access-Control-Request-Headers</p>
+<p>该字段是一个逗号分隔的字符串，指定浏览器CORS请求会额外发送的头信息字段。</p>
+<p><img src="https://pic3.zhimg.com/v2-da5ae04890068d4ffc9f4714e48719dd_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-da5ae04890068d4ffc9f4714e48719dd_hd.jpg" alt=""><br>至于其他乱七八糟的字段，现在的我还用不到也不懂，将会慢慢深入了解。</p>
+<p>服务器收到预检请求后，检查了Origin、Access-Control-Request-Method和Access-Control-Request-Headers字段以后，确认允许跨源请求，就可以做出回应。</p>
+<p>上面的HTTP回应中，关键的是Access-Control-Allow-Origin字段，表示<a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a>可以请求数据。该字段也可以设为星号，表示同意任意跨源请求。</p>
+<p>如果浏览器否定了”预检”请求，会返回一个正常的HTTP回应，但是没有任何CORS相关的头信息字段。这时，浏览器就会认定，服务器不同意预检请求，因此触发一个错误，被XMLHttpRequest对象的onerror回调函数捕获。控制台会打印出如下的报错信息。</p>
+<p>XMLHttpRequest cannot load <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a><br>Origin <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a> is not allowed by Access-Control-Allow-Origin.</p>
+<p>其他字段中Access-Control-Max-Age 用来指定本次预检请求的有效期，单位为秒。该字段可选。</p>
+<h2 id="与JSONP的对比"><a href="#与JSONP的对比" class="headerlink" title="与JSONP的对比"></a>与JSONP的对比</h2><p>CORS与JSONP的使用目的相同，但是比JSONP更强大。</p>
+<p>JSONP只支持GET请求，JSONP的优势在于支持老旧浏览器。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/31/44个JavaScript-变态题解析/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2966,306 +3439,6 @@ if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/18/Virtual-Dom介绍/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/18/Virtual-Dom介绍/" itemprop="url">Virtual Dom介绍</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-18T12:18:24+08:00">
-                2017-11-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><a href="https://segmentfault.com/a/1190000016129036" target="_blank" rel="noopener">你不知道的Virtual DOM（一）：Virtual Dom介绍</a><br><a href="https://segmentfault.com/a/1190000016145981" target="_blank" rel="noopener">你不知道的Virtual DOM（二）：Virtual Dom的更新</a><br><a href="https://segmentfault.com/a/1190000016186666" target="_blank" rel="noopener">你不知道的Virtual DOM（三）：Virtual Dom更新优化</a><br><a href="https://segmentfault.com/a/1190000016200003" target="_blank" rel="noopener">你不知道的Virtual DOM（四）：key的作用</a><br><a href="https://segmentfault.com/a/1190000016248276" target="_blank" rel="noopener">你不知道的Virtual DOM（五）：自定义组件</a><br><a href="https://segmentfault.com/a/1190000016328371" target="_blank" rel="noopener">你不知道的Virtual DOM（六）：事件处理&amp;异步更新</a> </p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/16/实现一个回到顶部/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/16/实现一个回到顶部/" itemprop="url">实现一个回到顶部</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-16T20:12:29+08:00">
-                2017-11-16
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>在实际应用中，经常用到滚动到页面顶部或某个位置，一般简单用锚点处理或用js将<code>document.body.scrollTop</code>设置为0，结果是页面一闪而过滚到指定位置，不是特别友好。我们想要的效果是要有点缓冲效果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$(&apos;html,body&apos;).animate(&#123;</span><br><span class="line">   scrollTop: 0</span><br><span class="line">&#125;, 700);</span><br></pre></td></tr></table></figure></p>
-<p>现代浏览器陆续意识到了这种需求，<code>scrollIntoView</code>意思是滚动到可视，css中提供了<code>scroll-behavior</code>属性，js有<code>Element.scrollIntoView()</code>方法。</p>
-<blockquote>
-<p>纯css实现tab切换</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;utf-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;纯css实现tab切换&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			* &#123;</span><br><span class="line">				margin: 0;</span><br><span class="line">				padding: 0;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab &#123;</span><br><span class="line">				width: 300px;</span><br><span class="line">				height: 150px;</span><br><span class="line">				margin-left: 30px;</span><br><span class="line">				margin-top: 30px;</span><br><span class="line">				border: 1px solid #eee;</span><br><span class="line">				position: relative;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			input[type=&apos;radio&apos;] &#123;</span><br><span class="line">				display: none;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab label &#123;</span><br><span class="line">				display: block;</span><br><span class="line">				cursor: pointer;</span><br><span class="line">				position: absolute;</span><br><span class="line">				width: 60px;</span><br><span class="line">				height: 30px;</span><br><span class="line">				line-height: 30px;</span><br><span class="line">				text-align: center;</span><br><span class="line">				border: 1px solid #eee;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.label-1 &#123;</span><br><span class="line">				left: 0;</span><br><span class="line">				top: 0;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.label-2 &#123;</span><br><span class="line">				left: 60px;</span><br><span class="line">				top: 0;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			input[type=&apos;radio&apos;]:checked~div[class^=&apos;mod&apos;] &#123;</span><br><span class="line">				display: block;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			input[type=&apos;radio&apos;]:checked~label &#123;</span><br><span class="line">				background: orange;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			[class^=&apos;mod&apos;] &#123;</span><br><span class="line">				position: absolute;</span><br><span class="line">				top: 40px;</span><br><span class="line">				left: 20px;</span><br><span class="line">				display: none;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div class=&quot;tab&quot;&gt;</span><br><span class="line">			&lt;div&gt;</span><br><span class="line">				&lt;input type=&quot;radio&quot; id=&quot;r-1&quot; name=&quot;tab&quot; checked&gt;</span><br><span class="line">				&lt;label for=&quot;r-1&quot; class=&quot;label-1&quot;&gt;第一张&lt;/label&gt;</span><br><span class="line">				&lt;div class=&quot;mod-1&quot;&gt;</span><br><span class="line">					&lt;ul&gt;</span><br><span class="line">						&lt;li&gt;275万购昌平邻铁三居&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;总价20万买一居&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;200万内购五环三居&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;北京首现零首付楼盘&lt;/li&gt;</span><br><span class="line">					&lt;/ul&gt;</span><br><span class="line">				&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div&gt;</span><br><span class="line">				&lt;input type=&quot;radio&quot; id=&quot;r-2&quot; name=&quot;tab&quot;&gt;</span><br><span class="line">				&lt;label for=&quot;r-2&quot; class=&quot;label-2&quot;&gt;第二张&lt;/label&gt;</span><br><span class="line">				&lt;div class=&quot;mod-2&quot;&gt;</span><br><span class="line">					&lt;ul&gt;</span><br><span class="line">						&lt;li&gt;新中式的酷色温情&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;深圳房价大跌,每平8W&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;800万买沙井三房&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;宝安房价平均900W&lt;/li&gt;</span><br><span class="line">					&lt;/ul&gt;</span><br><span class="line">				&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>纯css实现tab切换2</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;utf-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;cssTab切换2&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			* &#123;</span><br><span class="line">				margin: 0;</span><br><span class="line">				padding: 0;</span><br><span class="line">				text-decoration: none;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab &#123;</span><br><span class="line">				width: 300px;</span><br><span class="line">				height: 300px;</span><br><span class="line">				margin: 30px auto;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.nav &#123;</span><br><span class="line">				height: 30px</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.content &#123;</span><br><span class="line">				height: 270px;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.cont &#123;</span><br><span class="line">				height: 270px;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			#the1 &#123;</span><br><span class="line">				background: green;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			#the2 &#123;</span><br><span class="line">				background: blue;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div class=&quot;tab&quot;&gt;</span><br><span class="line">			&lt;div class=&quot;nav&quot;&gt;</span><br><span class="line">				&lt;a href=&quot;#the1&quot;&gt;ONE&lt;/a&gt;</span><br><span class="line">				&lt;a href=&quot;#the2&quot;&gt;TWO&lt;/a&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;content&quot;&gt;</span><br><span class="line">				&lt;div id=&quot;the1&quot; class=&quot;cont&quot;&gt;第一张&lt;/div&gt;</span><br><span class="line">				&lt;div id=&quot;the2&quot; class=&quot;cont&quot;&gt;第二张&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<h1 id="scroll-behavior"><a href="#scroll-behavior" class="headerlink" title="scroll-behavior"></a>scroll-behavior</h1><p><code>scroll-behavior</code>属性可取值 <code>auto</code> | <code>smooth</code> | <code>inherit</code> | <code>unset</code></p>
-<p><code>scroll-behavior: smooth;</code>是我们想要的缓冲效果。在PC浏览器中，页面默认滚动是在<code>&lt;html&gt;</code>标签上，移动端大多数在<code>&lt;body&gt;</code>标签上，在我们想要实现平滑“回到顶部”，只需在这两个标签上都加上：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">html, body &#123;</span><br><span class="line">  scroll-behavior: smooth;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>准确的说，写在容器元素上，可以让容器（非鼠标手势触发）的滚动变得平滑，而不局限于<code>&lt;html&gt;</code>，<code>&lt;body&gt;</code>标签。</p>
-<p>利用这个css属性可以一步将原来纯css标签直接切换，变成平滑过渡切换效果。</p>
-<blockquote>
-<p>纯css实现tab切换3</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			html,</span><br><span class="line">			body &#123;</span><br><span class="line">				scroll-behavior: smooth;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab label &#123;</span><br><span class="line">				padding: 10px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				margin-right: -1px;</span><br><span class="line">				text-align: center;</span><br><span class="line">				float: left;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab::after &#123;</span><br><span class="line">				content: &quot;&quot;;</span><br><span class="line">				display: table;</span><br><span class="line">				clear: both;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.box &#123;</span><br><span class="line">				height: 200px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				scroll-behavior: smooth;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">				margin-top: 10px;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.item &#123;</span><br><span class="line">				height: 100%;</span><br><span class="line">				position: relative;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.item input &#123;</span><br><span class="line">				position: absolute;</span><br><span class="line">				top: 0;</span><br><span class="line">				height: 100%;</span><br><span class="line">				width: 1px;</span><br><span class="line">				border: 0;</span><br><span class="line">				padding: 0;</span><br><span class="line">				margin: 0;</span><br><span class="line">				clip: rect(0 0 0 0);</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;h1&gt;纯CSS选项卡&lt;/h1&gt;</span><br><span class="line">		&lt;div class=&quot;tab&quot;&gt;</span><br><span class="line">			&lt;label for=&quot;tab1&quot;&gt;选项卡1&lt;/label&gt;</span><br><span class="line">			&lt;label for=&quot;tab2&quot;&gt;选项卡2&lt;/label&gt;</span><br><span class="line">			&lt;label for=&quot;tab3&quot;&gt;选项卡3&lt;/label&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">		&lt;div class=&quot;box&quot;&gt;</span><br><span class="line">			&lt;div class=&quot;item&quot;&gt;</span><br><span class="line">				&lt;input type=&quot;text&quot; id=&quot;tab1&quot;&gt;</span><br><span class="line">				&lt;p&gt;选项卡1内容&lt;/p&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;item&quot;&gt;</span><br><span class="line">				&lt;input type=&quot;text&quot; id=&quot;tab2&quot;&gt;</span><br><span class="line">				&lt;p&gt;选项卡2内容&lt;/p&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;item&quot;&gt;</span><br><span class="line">				&lt;input type=&quot;text&quot; id=&quot;tab3&quot;&gt;</span><br><span class="line">				&lt;p&gt;选项卡3内容&lt;/p&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<p><img src="/2017/11/16/实现一个回到顶部/1.gif" alt="css-tab"></p>
-<p>再来看一下这个css属性<a href="https://www.caniuse.com/#search=scroll-behavior" target="_blank" rel="noopener">scroll-behavior</a>在各大浏览器中的支持情况</p>
-<p><img src="/2017/11/16/实现一个回到顶部/2.png" alt="scroll-behavior-compatibility"></p>
-<p>呃~支持度不是很好，这样一行css代码能应用上当然是最好的，不行就退化成一闪而过的效果咯。下面再看下js提供的api。</p>
-<h1 id="Element-scrollIntoView"><a href="#Element-scrollIntoView" class="headerlink" title="Element.scrollIntoView()"></a>Element.scrollIntoView()</h1><p><code>Element.scrollIntoView()</code> 方法让当前的元素滚动到浏览器窗口的可视区域内。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">element.scrollIntoView();    // 等同于element.scrollIntoView(true)</span><br><span class="line">element.scrollIntoView(alignToTop);      // Boolean型参数</span><br><span class="line">element.scrollIntoView(scrollIntoViewOptions);     // Object型参数</span><br></pre></td></tr></table></figure></p>
-<blockquote>
-<p>一个很实用的用法【解决键盘弹出后挡表单的问题】</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">// 解决键盘弹出后挡表单的问题</span><br><span class="line">    window.addEventListener(&apos;resize&apos;, function() &#123;</span><br><span class="line">      if(</span><br><span class="line">        document.activeElement.tagName === &apos;INPUT&apos; ||</span><br><span class="line">        document.activeElement.tagName === &apos;TEXTAREA&apos;</span><br><span class="line">      ) &#123;</span><br><span class="line">        window.setTimeout(function() &#123;</span><br><span class="line">          if(&apos;scrollIntoView&apos; in document.activeElement) &#123;</span><br><span class="line">            document.activeElement.scrollIntoView();</span><br><span class="line">          &#125; else &#123;</span><br><span class="line">            document.activeElement.scrollIntoViewIfNeeded();</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;, 0);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure>
-<h2 id="参数alignToTop"><a href="#参数alignToTop" class="headerlink" title="参数alignToTop"></a>参数alignToTop</h2><p>一个<code>Boolean</code>值：</p>
-<ul>
-<li>如果为<code>true</code>，元素的顶端将和其所在滚动区的可视区域的顶端对齐。相应的<code>scrollIntoViewOptions: {block: &quot;start&quot;, inline: &quot;nearest&quot;}</code>。这是这个参数的默认值。</li>
-<li>如果为<code>false</code>，元素的底端将和其所在滚动区的可视区域的底端对齐。相应的<code>scrollIntoViewOptions: {block: &quot;end&quot;, inline: &quot;nearest&quot;}</code>。</li>
-</ul>
-<h2 id="参数scrollIntoViewOptions"><a href="#参数scrollIntoViewOptions" class="headerlink" title="参数scrollIntoViewOptions"></a>参数scrollIntoViewOptions</h2><p>一个带有选项的 <code>object</code>：</p>
-<pre><code>{
-  behavior: &quot;auto&quot;  | &quot;instant&quot; | &quot;smooth&quot;,
-  block:    &quot;start&quot; | &quot;end&quot;,
-}
-</code></pre><ul>
-<li><code>behavior</code> 可选<br>定义缓动动画， “auto”, “instant”, 或 “smooth” 之一。默认为 “auto”。</li>
-<li><code>block</code> 可选<br><code>&quot;start&quot;</code>, <code>&quot;center&quot;</code>, <code>&quot;end&quot;</code>, 或 <code>&quot;nearest&quot;</code>之一。默认为 <code>&quot;center&quot;</code>。</li>
-<li><code>inline</code> 可选<br><code>&quot;start&quot;</code>, <code>&quot;center&quot;</code>, <code>&quot;end&quot;</code>, 或 <code>&quot;nearest&quot;</code>之一。默认为 <code>&quot;nearest&quot;</code>。</li>
-</ul>
-<p>浏览器支持</p>
-<p><img src="/2017/11/16/实现一个回到顶部/3.png" alt=""></p>
-<p>可以看到对于无参数的情况支持还是很好的，有参数的该API在浏览器中支持不是很好，我们可以同时结合CSS设置<code>scroll-behavior: smooth;</code>滚动效果，在执行滚动使用<code>target.scrollIntoView()</code>，即可达到“完美滚动”（不太完美）效果。</p>
-<h1 id="向下兼容"><a href="#向下兼容" class="headerlink" title="向下兼容"></a>向下兼容</h1><p>要达到所有浏览器都有相同（类似）效果，那就要把剩余不支持<code>scroll-behavior</code>属性的浏览器揪出来，用js去完成使命了。</p>
-<h2 id="判断是否支持scroll-behavior属性"><a href="#判断是否支持scroll-behavior属性" class="headerlink" title="判断是否支持scroll-behavior属性"></a>判断是否支持<code>scroll-behavior</code>属性</h2><p>很简单，用以下这一行代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if(typeofwindow.getComputedStyle(document.body).scrollBehavior === &apos;undefined&apos;) &#123;</span><br><span class="line">  // 兼容js代码</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  // 原生滚动api</span><br><span class="line">  // Element.scrollIntoView()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>判断是否支持<code>scroll-behavior</code>属性，直接利用原生<code>Element.scrollIntoView()</code>滚动，否则向下兼容处理。</p>
-<h2 id="缓冲算法"><a href="#缓冲算法" class="headerlink" title="缓冲算法"></a>缓冲算法</h2><p>缓冲的直观效果是越来越慢，直到停止，也就是在相同时间内运动的距离越来越短。这样可以设置一个定时器，移动到当前点到目标点距离的缓冲率（比如1/2，1/3，…）处，比如，缓冲率设为2，当前距离目标点64px，下一秒就是32px，然后16px，8px…，到达某个阈值结束，也就是：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">var position = position + (destination - position) / n;</span><br></pre></td></tr></table></figure></p>
-<p>下面来简单实现一个点击右下方的”回到顶部“按钮，页面缓动滚动到顶部的demo。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			.content &#123;</span><br><span class="line">				height: 3000px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				box-shadow: 0 0 2px solid;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.back-to-top &#123;</span><br><span class="line">				width: 18px;</span><br><span class="line">				padding: 10px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				box-shadow: 0 0 2px #333;</span><br><span class="line">				position: fixed;</span><br><span class="line">				right: 20px;</span><br><span class="line">				bottom: 40px;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.back-to-top:hover &#123;</span><br><span class="line">				cursor: pointer;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line"></span><br><span class="line">		&lt;div class=&quot;content&quot;&gt;</span><br><span class="line">			&lt;p&gt;很多内容。。。&lt;/p&gt;</span><br><span class="line">			...</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">		&lt;section class=&quot;back-to-top&quot;&gt;</span><br><span class="line">			回到顶部</span><br><span class="line">		&lt;/section&gt;</span><br><span class="line"></span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			var scrollTopSmooth = function(position) &#123;</span><br><span class="line">				// 不存在原生`requestAnimationFrame`，用`setTimeout`模拟替代</span><br><span class="line">				if(!window.requestAnimationFrame) &#123;</span><br><span class="line">					window.requestAnimationFrame = function(cb) &#123;</span><br><span class="line">						return setTimeout(cb, 17);</span><br><span class="line">					&#125;;</span><br><span class="line">				&#125;</span><br><span class="line">				// 当前滚动高度</span><br><span class="line">				var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;</span><br><span class="line">				// step</span><br><span class="line">				var step = function() &#123;</span><br><span class="line">					var distance = position - scrollTop;</span><br><span class="line">					scrollTop = scrollTop + distance / 5;</span><br><span class="line">					if(Math.abs(distance) &lt; 1) &#123;</span><br><span class="line">						window.scrollTo(0, position);</span><br><span class="line">					&#125; else &#123;</span><br><span class="line">						window.scrollTo(0, scrollTop);</span><br><span class="line">						requestAnimationFrame(step);</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;;</span><br><span class="line">				step();</span><br><span class="line">			&#125;</span><br><span class="line">			$backToTop = document.querySelector(&apos;.back-to-top&apos;)</span><br><span class="line">			$backToTop.addEventListener(&apos;click&apos;, function() &#123;</span><br><span class="line">				scrollTopSmooth(0);</span><br><span class="line">			&#125;, false);</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2017/11/16/实现一个回到顶部/4.gif" alt=""></p>
-<h2 id="简单封装"><a href="#简单封装" class="headerlink" title="简单封装"></a>简单封装</h2><p>上面的小demo中，缓冲算法和当前滚动业务代码耦合在一起了，下面单独拆解出单独一个函数。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"> /**</span><br><span class="line"> * 缓冲函数</span><br><span class="line"> * @param &#123;Number&#125; position 当前滚动位置</span><br><span class="line"> * @param &#123;Number&#125; destination 目标位置</span><br><span class="line"> * @param &#123;Number&#125; rate 缓动率</span><br><span class="line"> * @param &#123;Function&#125; callback 缓动结束回调函数 两个参数分别是当前位置和是否结束</span><br><span class="line"> */</span><br><span class="line">var easeout = function (position, destination, rate, callback) &#123;</span><br><span class="line">   if (position === destination || typeof destination !== &apos;number&apos;) &#123;</span><br><span class="line">     returnfalse;</span><br><span class="line">   &#125;</span><br><span class="line">   destination = destination || 0;</span><br><span class="line">   rate = rate || 2;</span><br><span class="line"> </span><br><span class="line">   // 不存在原生`requestAnimationFrame`，用`setTimeout`模拟替代</span><br><span class="line">   if (!window.requestAnimationFrame) &#123;</span><br><span class="line">     window.requestAnimationFrame = function (fn) &#123;</span><br><span class="line">       return setTimeout(fn, 17);</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line"> </span><br><span class="line">   var step = function () &#123;</span><br><span class="line">     position = position + (destination - position) / rate;</span><br><span class="line">     if (Math.abs(destination - position) &lt; 1) &#123;</span><br><span class="line">       callback(destination, true);</span><br><span class="line">       return;</span><br><span class="line">     &#125;</span><br><span class="line">     callback(position, false);</span><br><span class="line">     requestAnimationFrame(step);</span><br><span class="line">   &#125;;</span><br><span class="line">   step();</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
-<p>拆分后，这个小缓冲算法就可以被重复调用啦，而且，适用于滚动到指定位置（不仅仅是到顶部）和缓冲率（控制滚动快慢），当前小demo调用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">var scrollTopSmooth = function (position) &#123;</span><br><span class="line">  // 当前滚动高度</span><br><span class="line">  var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;</span><br><span class="line">  easeout(scrollTop, position, 5, function (val) &#123;</span><br><span class="line">    window.scrollTo(0, val);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">$backToTop = document.querySelector(&apos;.back-to-top&apos;)</span><br><span class="line">$backToTop.addEventListener(&apos;click&apos;, function () &#123;</span><br><span class="line">  scrollTopSmooth(200);</span><br><span class="line">&#125;, false);</span><br></pre></td></tr></table></figure></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>综合来看，简单实现一个完美滚动注意以下即可</p>
-<ol>
-<li><code>&lt;html&gt;</code>，<code>&lt;body&gt;</code>标签加上<code>scroll-behavior: smooth;</code>属性；</li>
-<li>判断当前浏览器是否支持<code>scrollBehavior</code>属性；</li>
-<li>如果支持直接用原生滚动api<code>Element.scrollIntoView()</code>；</li>
-<li>如果不支持则用js小缓冲算法兼容处理。</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line">/* 滚动条动画：</span><br><span class="line"> * 移动端:document.body.scrollTop</span><br><span class="line">   PC端：document.documentElement.scrollTop</span><br><span class="line">   </span><br><span class="line">   //使用:gotoTop(400,callBack)</span><br><span class="line">   gotoTop(durations,  callback = undefined) &#123;</span><br><span class="line">      const doc = document.documentElement</span><br><span class="line">      const scrollTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0)</span><br><span class="line">      for (var i = 60; i &gt;= 0; i--) &#123;</span><br><span class="line">        setTimeout((i =&gt; &#123;</span><br><span class="line">          return () =&gt; &#123;</span><br><span class="line">            doc.scrollTop = scrollTop * i / 60</span><br><span class="line">            if (i === 0 &amp;&amp; typeof callback === &apos;function&apos;) &#123;</span><br><span class="line">              callback()</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;)(i), durations * (1 - i / 60))</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"> * */</span><br><span class="line"></span><br><span class="line">------------------------------------------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line">var requestAnimFrame = (function() &#123;</span><br><span class="line">	return window.requestAnimationFrame ||</span><br><span class="line">		window.webkitRequestAnimationFrame ||</span><br><span class="line">		window.mozRequestAnimationFrame ||</span><br><span class="line">		function(callback) &#123;</span><br><span class="line">			window.setTimeout(callback, 1000 / 60);</span><br><span class="line">		&#125;;</span><br><span class="line">&#125;)();</span><br><span class="line">var cancelAnimationFrame = (function() &#123;</span><br><span class="line">	return window.cancelAnimationFrame ||</span><br><span class="line">		window.webkitCancelAnimationFrame ||</span><br><span class="line">		window.mozCancelAnimationFrame ||</span><br><span class="line">		window.oCancelAnimationFrame ||</span><br><span class="line">		function(id) &#123;</span><br><span class="line">			window.clearTimeout(id)</span><br><span class="line">		&#125;</span><br><span class="line">&#125;)()</span><br><span class="line"></span><br><span class="line">// Tween中的方法接受4个参数t,b,c,d 。t为初始时间 b、c、d三个参数（即初始值，变化量，持续时间）。返回值为当前位置</span><br><span class="line">// t =&gt; time(初始记步次数)  b =&gt; begin(初始位置)   c =&gt; change(变化量)   d =&gt; duration(持续次数)</span><br><span class="line"></span><br><span class="line">var tween = &#123;</span><br><span class="line">	linear: function(t, b, c, d) &#123;</span><br><span class="line">		return c * t / d + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	easeIn: function(t, b, c, d) &#123;</span><br><span class="line">		return c * (t /= d) * t + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	strongEaseIn: function(t, b, c, d) &#123;</span><br><span class="line">		return c * (t /= d) * t * t * t * t + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	strongEaseOut: function(t, b, c, d) &#123;</span><br><span class="line">		return c * ((t = t / d - 1) * t * t * t * t + 1) + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	sineaseIn: function(t, b, c, d) &#123;</span><br><span class="line">		return c * (t /= d) * t * t + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	sineaseOut: function(t, b, c, d) &#123;</span><br><span class="line">		return c * ((t = t / d - 1) * t * t + 1) + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	easeInOutQuad: function(t, b, c, d) &#123;</span><br><span class="line">		t /= d / 2;</span><br><span class="line">		if(t &lt; 1) return c / 2 * t * t + b;</span><br><span class="line">		t--;</span><br><span class="line">		return -c / 2 * (t * (t - 2) - 1) + b;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;;</span><br><span class="line">var myReq; </span><br><span class="line">//回到顶部元素元素，结束位置，耗时，回调，滚动函数</span><br><span class="line">export var animatedScrollTo = function(element, to, duration, callback, Bzr = &apos;linear&apos;) &#123;</span><br><span class="line">	var start = element.scrollTop,</span><br><span class="line">		change = to - start,</span><br><span class="line">		animationStart = +new Date();</span><br><span class="line">	var animating = true;</span><br><span class="line">	var lastpos = null;</span><br><span class="line"></span><br><span class="line">	var animateScroll = function() &#123;</span><br><span class="line">		if(!animating) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line">		myReq=requestAnimFrame(animateScroll);</span><br><span class="line">		var now = +new Date();</span><br><span class="line">		var val = Math.floor(tween[Bzr](now - animationStart, start, change, duration));</span><br><span class="line"></span><br><span class="line">		if(lastpos) &#123;</span><br><span class="line">			if(lastpos === element.scrollTop) &#123;</span><br><span class="line">				lastpos = val;</span><br><span class="line">				element.scrollTop = val;</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				animating = false;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			lastpos = val;</span><br><span class="line">			element.scrollTop = val;</span><br><span class="line">		&#125;</span><br><span class="line">		if(now &gt; animationStart + duration) &#123;</span><br><span class="line">			element.scrollTop = to;</span><br><span class="line">			animating = false;</span><br><span class="line">			cancelAnimationFrame(myReq);   //清除定时器动画</span><br><span class="line">			callback&amp;&amp;callback();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line">	myReq=requestAnimFrame(animateScroll);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3318,7 +3491,7 @@ if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">136</span>
+                  <span class="site-state-item-count">138</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

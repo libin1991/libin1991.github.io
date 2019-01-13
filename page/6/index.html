@@ -694,6 +694,314 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/Vue2-0模板渲染底层思想/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/02/Vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
+                2018-04-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>初衷</p>
+<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
+<p>vue2.0和1.0模板渲染的区别</p>
+<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
+<p>知识普及</p>
+<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
+<p>AST 数据结构</p>
+<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
+<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
+<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
+declare type ASTElement = { // 有关元素的一些定义
+  type: 1;
+  tag: string;
+  attrsList: Array&lt;{ name: string; value: string }&gt;;
+  attrsMap: { [key: string]: string | null };
+  parent: ASTElement | void;
+  children: Array&lt;ASTNode&gt;;
+  //......
+}
+declare type ASTExpression = {
+  type: 2;
+  expression: string;
+  text: string;
+  static?: boolean;
+}
+declare type ASTText = {
+  type: 3;
+  text: string;
+  static?: boolean;
+}
+</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
+<p>VNode数据结构</p>
+<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
+<pre><code>constructor {
+  this.tag = tag   //元素标签
+  this.data = data  //属性
+  this.children = children  //子元素列表
+  this.text = text
+  this.elm = elm  //对应的真实 DOM 元素
+  this.ns = undefined
+  this.context = context 
+  this.functionalContext = undefined
+  this.key = data &amp;&amp; data.key
+  this.componentOptions = componentOptions
+  this.componentInstance = undefined
+  this.parent = undefined
+  this.raw = false
+  this.isStatic = false //是否被标记为静态节点
+  this.isRootInsert = true
+  this.isComment = false
+  this.isCloned = false
+  this.isOnce = false
+}
+</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
+<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
+<pre><code>let div = document.createElement(&apos;div&apos;);
+for(let k in div) {
+  console.log(k);
+}
+</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
+<p>render函数</p>
+<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
+<pre><code>&lt;div id=&quot;app&quot;&gt;
+  &lt;header&gt;
+    &lt;h1&gt;I am a template!&lt;/h1&gt;
+  &lt;/header&gt;
+  &lt;p v-if=&quot;message&quot;&gt;
+    {{ message }}
+  &lt;/p&gt;
+  &lt;p v-else&gt;
+    No message.
+  &lt;/p&gt;
+&lt;/div&gt;
+</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
+<pre><code>(function() {
+  with(this){
+    return _c(&apos;div&apos;,{   //创建一个 div 元素
+      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
+      },[
+        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
+        _v(&quot; &quot;), //空的文本节点
+        (message) //三元表达式，判断 message 是否存在
+         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
+        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
+        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
+        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
+      ]
+    )
+  }
+})
+</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
+<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
+<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
+  with(this){
+    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
+  }
+})
+</code></pre><p>模板渲染过程（重要的函数介绍）</p>
+<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
+<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
+<pre><code>// 有缓存的话就直接在缓存里面拿
+const key = options &amp;&amp; options.delimiters
+            ? String(options.delimiters) + template
+            : template
+if (cache[key]) {
+    return cache[key]
+}
+const res = {}
+const compiled = compile(template, options) // compile 后面会详细讲
+res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
+const l = compiled.staticRenderFns.length
+res.staticRenderFns = new Array(l)
+for (let i = 0; i &lt; l; i++) {
+    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
+}
+......
+}
+return (cache[key] = res) // 记录至缓存中
+</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
+<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
+<pre><code>// 触发 beforeMount 生命周期钩子
+callHook(vm, &apos;beforeMount&apos;)
+// 重点：新建一个 Watcher 并赋值给 vm._watcher
+vm._watcher = new Watcher(vm, function updateComponent () {
+  vm._update(vm._render(), hydrating)
+}, noop)
+hydrating = false
+// manually mounted instance, call mounted on self
+// mounted is called for render-created child components in its inserted hook
+if (vm.$vnode == null) {
+  vm._isMounted = true
+  callHook(vm, &apos;mounted&apos;)
+}
+return vm
+</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
+<p>compile</p>
+<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
+<pre><code>export function compile (
+  template: string,
+  options: CompilerOptions
+): CompiledResult {
+  const AST = parse(template.trim(), options) //1. parse
+  optimize(AST, options)  //2.optimize
+  const code = generate(AST, options) //3.generate
+  return {
+    AST,
+    render: code.render,
+    staticRenderFns: code.staticRenderFns
+  }
+}
+</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
+<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
+<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
+staticRenderFns = prevStaticRenderFns
+onceCount = prevOnceCount
+return {
+    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
+    staticRenderFns: currentStaticRenderFns
+}
+</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
+<pre><code>function genElement (el: ASTElement): string {
+  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
+    return genStatic(el)
+  } else if (el.once &amp;&amp; !el.onceProcessed) {
+    return genOnce(el)
+  } else if (el.for &amp;&amp; !el.forProcessed) {
+    return genFor(el)
+  } else if (el.if &amp;&amp; !el.ifProcessed) {
+    return genIf(el)
+  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
+    return genChildren(el) || &apos;void 0&apos;
+  } else if (el.tag === &apos;slot&apos;) {
+  }
+    return code
+  }
+}
+</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
+<p>patch</p>
+<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
+<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
+<p>总结</p>
+<ul>
+<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
+<li>render函数 与数据通过 Watcher 产生关联；</li>
+<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/30/JS继承/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2266,6 +2574,130 @@ app.use(serve(__dirname + &apos;/project&apos;));
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/13/Vue插件/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/01/13/Vue插件/" itemprop="url">Vue插件</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-13T15:28:22+08:00">
+                2018-01-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="编写插件"><a href="#编写插件" class="headerlink" title="编写插件"></a>编写插件</h3><p>写 vue 插件稍微复杂一点 😢，根据<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fplugins.html%23%25E5%25BC%2580%25E5%258F%2591%25E6%258F%2592%25E4%25BB%25B6" target="_blank" rel="noopener">官网</a>的案例，我们需要提供一个包含 install 方法的对象或者一个函数（<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23Vue-use" target="_blank" rel="noopener">传送门</a>），供 Vue.use 调用注册你的插件</p>
+<p>写法一<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">import Component from&apos;./YanProgress.vue&apos;; // 这个就是你平时写的 SFC 组件// 这里要导出一个包含 install 方法的对象let plugin = &#123; // 这里要导出一个 install 方法</span><br><span class="line">    install(Vue,options) &#123; </span><br><span class="line">        // 这里写你的代码，你可以全局注册组件，也可以写全局指令，也可以扩展 Vue 的方法// 1. 全局组件</span><br><span class="line">        Vue.component(&apos;yan-progress&apos;,Component); </span><br><span class="line">        // 2. 全局方法或属性</span><br><span class="line">        Vue.myGlobalMethod = function () &#123;</span><br><span class="line">            // 逻辑...</span><br><span class="line">        &#125;</span><br><span class="line">        // 3. 全局指令</span><br><span class="line">        Vue.directive(&apos;my-directive&apos;, &#123;</span><br><span class="line">            bind (el, binding, vnode, oldVnode) &#123;</span><br><span class="line">                // 逻辑...</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">        // 4. 注入组件</span><br><span class="line">        Vue.mixin(&#123;</span><br><span class="line">            created: function () &#123;</span><br><span class="line">                // 逻辑...</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">        // 5. 添加实例方法</span><br><span class="line">        Vue.prototype.$myMethod = function (methodOptions) &#123;</span><br><span class="line">            // 逻辑...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">if (window &amp;&amp; window.Vue) &#123; // 如果是渐进式开发（script 引入简单粗暴的开发方式），需要自动注册你的插件window.Vue.use(plugin);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">exportdefault plugin;</span><br></pre></td></tr></table></figure></p>
+<p>写法二<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">import Component from&apos;./YanProgress.vue&apos;; // 这个就是你平时写的 SFC 组件// 或者这里也可以写成函数functionplugin(Vue,options) &#123; </span><br><span class="line">        // 这里写你的代码，你可以全局注册组件，也可以写全局指令，也可以扩展 Vue 的方法</span><br><span class="line">        Vue.component(&apos;yan-progress&apos;,Component); </span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">if (window &amp;&amp; window.Vue) &#123; // 如果是渐进式开发（script 引入简单粗暴的开发方式），需要自动注册你的插件window.Vue.use(plugin);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">exportdefault plugin;</span><br></pre></td></tr></table></figure></p>
+<p>这样写的原因是，下面<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2Fvuejs%2Fvue%2Fblob%2Fdev%2Fsrc%2Fcore%2Fglobal-api%2Fuse.js" target="_blank" rel="noopener">源码</a>伺候😄<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">export function initUse (Vue: GlobalAPI) &#123;</span><br><span class="line">  Vue.use = function (plugin: Function | Object) &#123; // 在这里哦，可以传对象，也可以传函数</span><br><span class="line">    const installedPlugins = (this._installedPlugins || (this._installedPlugins = []))</span><br><span class="line">    if (installedPlugins.indexOf(plugin) &gt; -1) &#123; // 避免重复注册插件</span><br><span class="line">      return this</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // additional parameters</span><br><span class="line">    const args = toArray(arguments, 1)</span><br><span class="line">    args.unshift(this)</span><br><span class="line">    if (typeof plugin.install === &apos;function&apos;) &#123; // 如果是带有 install 方法的对象</span><br><span class="line">      plugin.install.apply(plugin, args) // 不改变插件的 this（这里的 this 还是指向插件对象本身）</span><br><span class="line">    &#125; else if (typeof plugin === &apos;function&apos;) &#123; // 如果是函数</span><br><span class="line">      plugin.apply(null, args) // 不改变插件的 this（这里应该是指向window，在浏览器非严格模式下）</span><br><span class="line">    &#125;</span><br><span class="line">    installedPlugins.push(plugin)</span><br><span class="line">    return this</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="vue-alert插件"><a href="#vue-alert插件" class="headerlink" title="vue-alert插件"></a>vue-alert插件</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">import AlertComponent from &quot;./vue-alert.vue&quot;; // 引入先前写好的vue</span><br><span class="line">var Alert = &#123;&#125;;</span><br><span class="line">//避免重复install，设立flag</span><br><span class="line">Alert.installed = false;</span><br><span class="line">Alert.install = function(Vue, options) &#123;</span><br><span class="line">	if(Alert.installed) return;</span><br><span class="line"></span><br><span class="line">	Vue.prototype.$alert = (alertMsg, okFun, abortFun) =&gt; &#123;</span><br><span class="line">		// 如果页面有toast则不继续执行</span><br><span class="line">		if(document.querySelector(&apos;.vue-alert&apos;)) return;</span><br><span class="line">		// 1、创建构造器，定义好提示信息的模板</span><br><span class="line">		const toastTip = Vue.extend(AlertComponent);</span><br><span class="line">		var obj = new toastTip();</span><br><span class="line">		//2.数据和函数</span><br><span class="line">		if(Object.prototype.toString.call(alertMsg).slice(8, -1).toLowerCase() == &apos;function&apos;) &#123;</span><br><span class="line">			obj.okFun = alertMsg;</span><br><span class="line">			obj.abortFun = okFun;</span><br><span class="line">			obj.alertMsg = &apos;&apos;;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			obj.alertMsg = alertMsg;</span><br><span class="line">			obj.okFun = okFun;</span><br><span class="line">			obj.abortFun = abortFun;</span><br><span class="line">		&#125;</span><br><span class="line">        //删除弹框</span><br><span class="line">		obj.removeAlert = function() &#123;</span><br><span class="line">			document.getElementById(&apos;zhenwu&apos;).removeChild(tpl);</span><br><span class="line">		&#125;</span><br><span class="line">		//插入页面</span><br><span class="line">		let tpl = obj.$mount().$el;</span><br><span class="line">		document.getElementById(&apos;zhenwu&apos;).appendChild(tpl);</span><br><span class="line">		Alert.installed = true;</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;;</span><br><span class="line">// 自动安装  ，有了ES6就不要写AMD，CMD了</span><br><span class="line">if(typeof window !== &apos;undefined&apos; &amp;&amp; window.Vue) &#123;</span><br><span class="line">	window.Vue.use(Alert)</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">export default Alert</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">	&lt;div class=&quot;mask vue-alert&quot;&gt;</span><br><span class="line">		&lt;div class=&quot;alert&quot;&gt;</span><br><span class="line">			&lt;span class=&quot;icon&quot;&gt;&lt;/span&gt;</span><br><span class="line">			&lt;p&gt;&#123;&#123;alertMsg||&apos;确定删除该条数据吗?&apos;&#125;&#125;&lt;/p&gt;</span><br><span class="line">			&lt;div class=&quot;btn&quot;&gt;</span><br><span class="line">				&lt;div class=&quot;ok hoverhands&quot; @click=&quot;ok&quot;&gt;确定&lt;/div&gt;</span><br><span class="line">				&lt;div class=&quot;abort hoverhands&quot; @click=&quot;abort&quot;&gt;取消&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">	export default &#123;</span><br><span class="line">		data() &#123;</span><br><span class="line">			return &#123;</span><br><span class="line">				alertMsg: &apos;&apos;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;,</span><br><span class="line">		created() &#123;</span><br><span class="line"></span><br><span class="line">		&#125;,</span><br><span class="line">		methods: &#123;</span><br><span class="line">			ok() &#123;</span><br><span class="line">			  this.okFun&amp;&amp;this.okFun();</span><br><span class="line">			  this.removeAlert();  //清除弹框</span><br><span class="line">			&#125;,</span><br><span class="line">			abort() &#123;</span><br><span class="line">			   this.abortFun&amp;&amp;this.abortFun()</span><br><span class="line">               this.removeAlert();  //清除弹框</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;,</span><br><span class="line">		computed: &#123;</span><br><span class="line"></span><br><span class="line">		&#125;,</span><br><span class="line">		components: &#123;</span><br><span class="line"></span><br><span class="line">		&#125;,</span><br><span class="line">		directives: &#123;</span><br><span class="line"></span><br><span class="line">		&#125;,</span><br><span class="line">	&#125;;</span><br><span class="line">&lt;/script&gt;</span><br><span class="line"></span><br><span class="line">&lt;style scoped=&quot;scoped&quot; lang=&quot;less&quot;&gt;</span><br><span class="line">	.mask &#123;</span><br><span class="line">		width: 100%;</span><br><span class="line">		height: 100%;</span><br><span class="line">		background: rgba(0, 0, 0, 0.6);</span><br><span class="line">		position: absolute;</span><br><span class="line">		left: 0px;</span><br><span class="line">		top: 0px;</span><br><span class="line">		display: flex;</span><br><span class="line">		justify-content: center;</span><br><span class="line">		align-items: center;</span><br><span class="line">		z-index: 10000000;</span><br><span class="line">		.alert &#123;</span><br><span class="line">			width: 362px;</span><br><span class="line">			border-top: 3px solid #d1926f;</span><br><span class="line">			background: #fff;</span><br><span class="line">			.icon &#123;</span><br><span class="line">				background: url(&apos;../../assets/img/yellow.png&apos;);</span><br><span class="line">				display: block;</span><br><span class="line">				margin: 15px auto;</span><br><span class="line">				background-repeat: no-repeat;</span><br><span class="line">				background-position: center;</span><br><span class="line">				background-size: 32px;</span><br><span class="line">				display: block;</span><br><span class="line">				margin: 15px auto 5px;</span><br><span class="line">				width: 50px;</span><br><span class="line">				height: 50px;</span><br><span class="line">			&#125;</span><br><span class="line">			p &#123;</span><br><span class="line">				text-align: center;</span><br><span class="line">				font-size: 14px;</span><br><span class="line">			&#125;</span><br><span class="line">			.btn &#123;</span><br><span class="line">				margin-top: 20px;</span><br><span class="line">				margin-bottom: 20px;</span><br><span class="line">				display: flex;</span><br><span class="line">				justify-content: center;</span><br><span class="line">				align-items: center;</span><br><span class="line">				.ok &#123;</span><br><span class="line">					font-size: 12px;</span><br><span class="line">					width: 60px;</span><br><span class="line">					height: 25px;</span><br><span class="line">					line-height: 25px;</span><br><span class="line">					color: white;</span><br><span class="line">					text-align: center;</span><br><span class="line">					background: #fe8242;</span><br><span class="line">				&#125;</span><br><span class="line">				.abort &#123;</span><br><span class="line">					font-size: 12px;</span><br><span class="line">					width: 60px;</span><br><span class="line">					height: 25px;</span><br><span class="line">					line-height: 25px;</span><br><span class="line">					color: #525252;</span><br><span class="line">					text-align: center;</span><br><span class="line">					margin-left: 15px;</span><br><span class="line">					background: #f2f2f2;</span><br><span class="line">					border: 1px solid #ccc;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&lt;/style&gt;</span><br></pre></td></tr></table></figure>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/08/KOA2框架原理解析和实现/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2952,479 +3384,6 @@ app.on(&apos;error&apos;, err =&gt; {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-01T13:17:32+08:00">
-                2018-01-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
-<pre><code>let s =newString(&apos;abc&apos;);
-typeof s ===&apos;object&apos;// true
-s instanceofString// true
-</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
-<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
-<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>1：整数</li>
-</ul>
-<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
-<p><code>null</code>：所有机器码均为0</p>
-<p><code>undefined</code>：用 −2^30 整数来表示</p>
-<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
-<p>然而用 <code>instanceof</code> 来判断的话👉</p>
-<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
-</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
-<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
-<p>还有一个不错的判断类型的方法，就是<strong><font color="#dd0000">Object.prototype.toString</font></strong>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
-<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
-Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
-Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
-Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
-Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
-Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
-Object.prototype.toString.call(null)// &quot;[object Null]&quot;
-Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
-Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
-</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
-<pre><code>let person =function(){
-}
-let nicole =new person()
-nicole instanceof person // true
-</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
-<pre><code>let person =function(){
-}
-let programmer =function(){
-}
-programmer.prototype =new person()
-let nicole =new programmer()
-nicole instanceof person // true
-nicole instanceof programmer // true
-</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
-<pre><code>function new_instance_of(leftVaule, rightVaule){
-    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
-    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
-    while(true){
-        if(leftVaule ===null){
-            returnfalse;    
-        }
-        if(leftVaule === rightProto){
-            returntrue;    
-        }
-        leftVaule = leftVaule.__proto__ 
-    }
-}
-</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
-<pre><code>functionFoo(){
-}
-Object instanceof Object// true
-Function instanceof Function// true
-Function instanceof Object// true
-Foo instanceof Foo// false
-Foo instanceof Object// true
-Foo instanceof Function// true
-</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
-<p>关于原型继承的原理，我简单用一张图来表示</p>
-<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
-<p><code>Object instanceof Object</code></p>
-<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
-<pre><code>leftValue =Object.__proto__ =Function.prototype;
-rightValue =Object.prototype;
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue === rightValue
-// 返回 true
-</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
-<p><code>Foo instanceof Foo</code></p>
-<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
-<p>我们用代码简单的表示一下</p>
-<pre><code>leftValue =Foo, rightValue =Foo
-leftValue =Foo.__proto =Function.prototype
-rightValue =Foo.prototype
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue != rightValue
-leftValue =Object.prototype =null
-// 第三次判断
-leftValue ===null
-// 返回 false
-</code></pre><p><code>Foo instanceof Object</code></p>
-<pre><code>leftValue =Foo, rightValue =Object
-leftValue =Foo.__proto__ =Function.prototype
-rightValue =Object.prototype
-// 第一次判断
-leftValue != rightValue
-leftValue =Function.prototype.__proto__ =Object.prototype
-// 第二次判断
-leftValue === rightValue
-// 返回 true 
-</code></pre><p><code>Foo instanceof Function</code></p>
-<pre><code>leftValue =Foo, rightValue =Function
-leftValue =Foo.__proto__ =Function.prototype
-rightValue =Function.prototype
-// 第一次判断
-leftValue === rightValue
-// 返回 true 
-</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/跨域之由Request-Method-OPTIONS初窥CORS/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/01/跨域之由Request-Method-OPTIONS初窥CORS/" itemprop="url">跨域之由Request Method:OPTIONS初窥CORS</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-01T00:09:02+08:00">
-                2018-01-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="跨域资源共享——CORS"><a href="#跨域资源共享——CORS" class="headerlink" title="跨域资源共享——CORS"></a><a href="https://juejin.im/post/5bfa5f8e6fb9a049a7117b67" target="_blank" rel="noopener">跨域资源共享——CORS</a></h2><h2 id="一篇文章搞明白CORS跨域"><a href="#一篇文章搞明白CORS跨域" class="headerlink" title="一篇文章搞明白CORS跨域"></a><a href="https://segmentfault.com/a/1190000017149446" target="_blank" rel="noopener">一篇文章搞明白CORS跨域</a></h2><h2 id="不就是跨域么-慌个XX-掘金"><a href="#不就是跨域么-慌个XX-掘金" class="headerlink" title="不就是跨域么?慌个XX - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a2f92c65188253e2470f16d" target="_blank" rel="noopener">不就是跨域么?慌个XX - 掘金</a></h2><p>面试问到数据交互的时候，经常会问跨域如何处理。大部分人都会回答JSONP，然后面试官紧接着就会问：“JSONP缺点是什么啊？”这个时候坑就来了，如果面试者说它支持GET方式，然后面试官就会追问，那如果POST方式发送请求怎么办？基础扎实一些的面试者会说，使用CORS跨域，不扎实的可能就摇摇头了。</p>
-<p>这还没结束，如果公司比较正规或者很在乎技术功底，你面试的又是重要岗位，HR还想砍你的工资，就会再补一刀，CORS跨域有什么问题呢？这时候能回答上来的就没几个了，就算是你答出来兼容性不好，需要IE10+浏览器,对方依然有话说，那兼容性怎么处理呢？应试者就没话了，要么被Pass掉，即便留下来，谈工资的时候就没底气了。</p>
-<p>CORS跨域实在是面试官pass一个人的利器。</p>
-<p>为什么会这样呢？</p>
-<ul>
-<li><p>1.遇到CORS请求的情况不多，开发者使用这个场景的很少，大部分都JSONP搞定了。</p>
-</li>
-<li><p>2.开发者自身技能不扎实，偷懒心态，平常没有意识和意愿去提升自己的技术水平。</p>
-</li>
-<li><p>3.相关的学习资料少、纯前端小白搭建可测试的环境难度大。</p>
-</li>
-</ul>
-<p>面对这条拦路虎，我们今天就彻底解决掉它，让它不再是我们的软肋，而是彰显我们技术实力的亮点。</p>
-<h2 id="首先，什么是CORS"><a href="#首先，什么是CORS" class="headerlink" title="首先，什么是CORS?"></a>首先，什么是CORS?</h2><blockquote>
-<p>CORS是一个W3C标准，全称是”跨域资源共享”（Cross-origin resource sharing）。<br>    它允许浏览器向跨源服务器，发出XMLHttpRequest请求，从而克服了AJAX只能同源使用的限制。</p>
-</blockquote>
-<p>优缺点</p>
-<p>优点：</p>
-<ul>
-<li>1.支持POST以及所有HTTP请求</li>
-<li>2.安全性相对JSOP更高</li>
-<li>3.前端要做的事儿比较少</li>
-</ul>
-<p>缺点：</p>
-<ul>
-<li>1.不兼容老版本浏览器，如IE9及其以下</li>
-<li>2.需要服务端支持</li>
-<li>3.使用起来稍微复杂了些</li>
-</ul>
-<p>怎么用？</p>
-<p>前端部分：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=&quot;en&quot;&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">    &lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">    &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;</span><br><span class="line">    &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;</span><br><span class="line">    &lt;title&gt;CORS跨域请求&lt;/title&gt;</span><br><span class="line">    &lt;script&gt;</span><br><span class="line">        function createCORSRequest(method, url) &#123;</span><br><span class="line">            var xhr = new XMLHttpRequest();</span><br><span class="line">            if (&quot;withCredentials&quot; in xhr) &#123;</span><br><span class="line">                xhr.open(method, url, true);</span><br><span class="line">            &#125; else if (typeof XDomainRequest != &quot;undefined&quot;) &#123;</span><br><span class="line">                xhr = new XDomainRequest();</span><br><span class="line">                xhr.open(method, url);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                xhr = null;</span><br><span class="line">            &#125;</span><br><span class="line">            return xhr;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        window.onload = function () &#123;</span><br><span class="line">            var oBtn = document.getElementById(&apos;btn1&apos;);</span><br><span class="line">            oBtn.onclick = function () &#123;</span><br><span class="line">                var xhr = createCORSRequest(&quot;get&quot;, &quot;http://wpdic.com/cors.php&quot;);</span><br><span class="line">                if (xhr) &#123;</span><br><span class="line">                    xhr.onload = function () &#123;</span><br><span class="line">                        var json = JSON.parse(xhr.responseText);</span><br><span class="line">                        alert(json.a);</span><br><span class="line">                    &#125;;</span><br><span class="line">                    xhr.onerror = function () &#123;</span><br><span class="line">                        alert(&apos;请求失败.&apos;);</span><br><span class="line">                    &#125;;</span><br><span class="line">                    xhr.send();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;;</span><br><span class="line">        &#125;;</span><br><span class="line">    &lt;/script&gt;</span><br><span class="line">&lt;/head&gt;</span><br><span class="line">&lt;body&gt;</span><br><span class="line">    &lt;input type=&quot;button&quot; value=&quot;获取数据&quot; id=&quot;btn1&quot;&gt;</span><br><span class="line">&lt;/body&gt;</span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure></p>
-<p>注意点：</p>
-<p>1.上面代码兼容IE8,因为用了XDomainRequest</p>
-<p>2.其它代码你就当成XMLHttpRequset用，别考虑什么2.0不2.0的</p>
-<p>3.如果你想post数据，可以往 xhr.send()里面搞</p>
-<p>4.这里不建议大家研究”simple methdod”之类的知识，代码弄懂了会用就行，遇到问题了再查也不晚</p>
-<p>后台部分：</p>
-<pre><code>&lt;?php
-header(&apos;content-type:application:json;charset=utf8&apos;);
-header(&apos;Access-Control-Allow-Origin:*&apos;);
-header(&apos;Access-Control-Allow-Methods:GET,POST&apos;);
-header(&apos;Access-Control-Allow-Credentials: true&apos;);
-header(&apos;Access-Control-Allow-Headers:x-requested-with,content-type&apos;);
-$str = &apos;{&quot;a&quot;:1,&quot;b&quot;:2,&quot;c&quot;:3,&quot;d&quot;:4,&quot;e&quot;:5}&apos;; 
-echo $str;
-?&gt;
-</code></pre><p>注意点：</p>
-<p>1.Access-Control-Allow-Origin:<em> 表示允许任何域名跨域访问，如果需要指定某域名才允许跨域访问，只需把Access-Control-Allow-Origin:</em>改为Access-Control-Allow-Origin:允许的域名,实际工作也要这么做2.Access-Control-Allow-Methods:GET,POST  规定允许的方法，建议控制严格些，不要随意放开DELETE之类的权限</p>
-<p>2.Access-Control-Allow-Credentials</p>
-<p>该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。默认情况下，Cookie不包括在CORS请求之中。设为true，即表示服务器明确许可，Cookie可以包含在请求中，一起发给服务器。这个值也只能设为true，如果服务器不要浏览器发送Cookie，删除该字段即可。</p>
-<p>最后，面试常考问题：</p>
-<p>CORS和JSONP的应用场景区别？</p>
-<blockquote>
-<p>CORS要求浏览器(&gt;IE10)和服务器的同时支持，是跨域的根本解决方法，由浏览器自动完成。优点在于功能更加强大支持各种HTTP Method，缺点是兼容性不如JSONP。</p>
-</blockquote>
-<hr>
-<p>刚接触前端的时候，以为HTTP的Request Method只有GET与POST两种，后来才了解到，原来还有HEAD、PUT、DELETE、OPTIONS……</p>
-<p>目前的工作中，HEAD、PUT、DELETE我是真的没有见过……但是OPTIONS几乎天天都会遇到。本地环境跑公司项目的时候，每次POST之前，为啥浏览器还偷偷给我来一次没有返回的OPTIONS请求？</p>
-<blockquote>
-<p>原来，浏览器在某些请求中，在正式通信前会增加一次HTTP查询请求，称为”预检”请求（preflight）。OPTIONS方法是用于请求获得由Request-URI标识的资源在请求/响应的通信过程中可以使用的功能选项。通过这个方法，客户端可以在采取具体资源请求之前，决定对该资源采取何种必要措施，或者了解服务器的性能。该请求方法的响应不能缓存。浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
-</blockquote>
-<p>如果这个OPTIONS请求包含一个正文（有Content-Length或Transfer-Encoding存在），则必须有Content-Type来指定媒体类型。虽然规范里没有定义这种正文的用法，但是HTTP将来的扩展可能会用它来查询服务器上更详细的信息。不支持该扩展的服务器可以忽略该请求正文。</p>
-<p>如果该URI是一个星号（“<em>”），OPTIONS请求将试图应用于服务器，而不是某个指定资源。由于服务器的通信选项通常依赖于资源，所以此“</em>”请求只能作为“ping”或者“no-op”方法；或者用来测试服务器的性能。例如，用来测试HTTP/1.1代理。</p>
-<p>如果该URI不是星号，则只能用来获取该资源通信中可用的选项。</p>
-<p>得到的200响应应该包含一个头域，指明服务器实现的和适用于该资源的可选特征（如：Allow），可能还包括该规范尚未定义的扩展。如果有响应正文，则应包含关于通信选项的信息。本规范没有定义该正文格式，但可能在HTTO将来的扩展中定义。可以利用内容协商来选择合适的响应格式。如果没有响应正文，响应必须包含Content-Length，并且值为“0”。</p>
-<p>请求头的Max-Forwards用来请求特定代理。当代理收到一个允许URI转发的OPTIONS请求，则检查Max-Forwards。如果Max-Forwards值为0，则不能转发该消息；相反，代理会将自己的通信选项去响应。如果Max-Forwards是正整数，代理转发请求的时候会将该值减1。如果请求中没有Max-Forwards，转发的请求也不会有。</p>
-<h2 id="简而言之"><a href="#简而言之" class="headerlink" title="简而言之"></a>简而言之</h2><p>OPTIONS请求方法的主要用途有两个：</p>
-<p>1、获取服务器支持的HTTP请求方法；也是黑客经常使用的方法。</p>
-<p>2、用来检查服务器的性能。例如：AJAX进行跨域请求时的预检，需要向另外一个域名的资源发送一个HTTP OPTIONS请求头，用以判断实际发送的请求是否安全。<br><img src="https://pic3.zhimg.com/v2-8f8d34a757502c306d82fa44f4645068_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8f8d34a757502c306d82fa44f4645068_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-38b8f2ec0da0115511cee8a1b604c6a4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-38b8f2ec0da0115511cee8a1b604c6a4_hd.jpg" alt=""><br>如上两张图片，图2就是本地环境，本地环境请求接口的时候，每次请求接口之前都会多一次OPTIONS请求。</p>
-<p><img src="https://pic4.zhimg.com/v2-31c4436fae8e077e9d935ac58bd861d6_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-31c4436fae8e077e9d935ac58bd861d6_hd.jpg" alt=""></p>
-<h2 id="CORS"><a href="#CORS" class="headerlink" title="CORS"></a>CORS</h2><p>CORS是一个W3C标准，全称是”跨域资源共享”（Cross-origin resource sharing）。</p>
-<p>它允许浏览器向跨源服务器，发出<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2012/09/xmlhttprequest_level_2.html" target="_blank" rel="noopener">XMLHttpRequest</a>请求，从而克服了AJAX只能<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/04/same-origin-policy.html" target="_blank" rel="noopener">同源</a>使用的限制。</p>
-<blockquote>
-<p>CORS需要浏览器和服务器同时支持。目前，所有浏览器都支持该功能，IE浏览器不能低于IE10。<br>整个CORS通信过程，都是浏览器自动完成，不需要用户参与。对于开发者来说，CORS通信与同源的AJAX通信没有差别，代码完全一样。浏览器一旦发现AJAX请求跨源，就会自动添加一些附加的头信息，有时还会多出一次附加的请求，但用户不会有感觉。<br>因此，实现CORS通信的关键是服务器。只要服务器实现了CORS接口，就可以跨源通信。</p>
-</blockquote>
-<h2 id="两种请求"><a href="#两种请求" class="headerlink" title="两种请求"></a>两种请求</h2><p>浏览器将CORS请求分为两类：简单请求（simple request）和非简单请求（not-so-simple request）。</p>
-<p>同时满足以下条件，就是简单请求：</p>
-<blockquote>
-<p>（1) 请求方法是以下三种方法之一：</p>
-</blockquote>
-<ul>
-<li>HEAD</li>
-<li>GET</li>
-<li>POST</li>
-</ul>
-<p>（2）HTTP的头信息不超出以下几种字段：</p>
-<ul>
-<li>Accept</li>
-<li>Accept-Language</li>
-<li>Content-Language</li>
-<li>Last-Event-ID</li>
-<li>Content-Type：只限于三个值application/x-www-form-urlencoded、multipart/form-data、text/plain</li>
-</ul>
-<h2 id="简单请求"><a href="#简单请求" class="headerlink" title="简单请求"></a>简单请求</h2><p>对于简单请求，浏览器直接发出CORS请求。具体来说，就是在头信息之中，增加一个Origin字段。</p>
-<p>Origin字段用来说明，本次请求来自哪个源（协议 + 域名 + 端口）。服务器根据这个值，决定是否同意这次请求。</p>
-<p>如果Origin指定的源，不在许可范围内，服务器会返回一个正常的HTTP回应。浏览器发现，这个回应的头信息没有包含Access-Control-Allow-Origin字段（详见下文），就知道出错了，从而抛出一个错误，被XMLHttpRequest的onerror回调函数捕获。注意，这种错误无法通过状态码识别，因为HTTP回应的状态码有可能是200。</p>
-<p>如果Origin指定的域名在许可范围内，服务器返回的响应，会多出几个头信息字段。都以Access-Control- 开头：</p>
-<p>（1）Access-Control-Allow-Origin</p>
-<p>该字段是必须的。它的值要么是请求时Origin字段的值，要么是一个*，表示接受任意域名的请求。</p>
-<blockquote>
-<p>需要注意的是，如果要发送Cookie，Access-Control-Allow-Origin就不能设为星号，必须指定明确的、与请求网页一致的域名。同时，Cookie依然遵循同源政策，只有用服务器域名设置的Cookie才会上传，其他域名的Cookie并不会上传，且（跨源）原网页代码中的document.cookie也无法读取服务器域名下的Cookie。</p>
-</blockquote>
-<p>（2）Access-Control-Allow-Credentials</p>
-<p>该字段可选。它的值是一个布尔值，表示是否允许发送Cookie。默认情况下，Cookie不包括在CORS请求之中。设为true，即表示服务器明确许可，Cookie可以包含在请求中，一起发给服务器。这个值也只能设为true，如果服务器不要浏览器发送Cookie，删除该字段即可。</p>
-<p>（3）Access-Control-Expose-Headers</p>
-<p>该字段可选。CORS请求时，XMLHttpRequest对象的getResponseHeader()方法只能拿到6个基本字段：Cache-Control、Content-Language、Content-Type、Expires、Last-Modified、Pragma。如果想拿到其他字段，就必须在Access-Control-Expose-Headers里面指定。</p>
-<h2 id="非简单请求"><a href="#非简单请求" class="headerlink" title="非简单请求"></a>非简单请求</h2><p>非简单请求是那种对服务器有特殊要求的请求，比如请求方法是PUT或DELETE，或者Content-Type字段的类型是application/json。</p>
-<p>我工作中写的所有页面拉的接口都是非简单请求。<br><img src="https://pic1.zhimg.com/v2-6749c6523db660ed4e194e16779c5fa3_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-6749c6523db660ed4e194e16779c5fa3_hd.jpg" alt=""><br>非简单请求的CORS请求，会在正式通信之前，增加一次HTTP查询请求，称为”预检”请求（preflight）。</p>
-<p>浏览器先询问服务器，当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些HTTP动词和头信息字段。只有得到肯定答复，浏览器才会发出正式的XMLHttpRequest请求，否则就报错。</p>
-<p>在页面域名与接口域名不一致的情况下，就出现了每次请求前先发送一个options请求的问题。</p>
-<p>OPTIONS请求头信息中，除了Origin字段，还至少会多两个特殊字段：</p>
-<p>（1）Access-Control-Request-Method</p>
-<p>该字段是必须的，用来列出浏览器的CORS请求会用到哪些HTTP方法。</p>
-<p>（2）Access-Control-Request-Headers</p>
-<p>该字段是一个逗号分隔的字符串，指定浏览器CORS请求会额外发送的头信息字段。</p>
-<p><img src="https://pic3.zhimg.com/v2-da5ae04890068d4ffc9f4714e48719dd_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-da5ae04890068d4ffc9f4714e48719dd_hd.jpg" alt=""><br>至于其他乱七八糟的字段，现在的我还用不到也不懂，将会慢慢深入了解。</p>
-<p>服务器收到预检请求后，检查了Origin、Access-Control-Request-Method和Access-Control-Request-Headers字段以后，确认允许跨源请求，就可以做出回应。</p>
-<p>上面的HTTP回应中，关键的是Access-Control-Allow-Origin字段，表示<a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a>可以请求数据。该字段也可以设为星号，表示同意任意跨源请求。</p>
-<p>如果浏览器否定了”预检”请求，会返回一个正常的HTTP回应，但是没有任何CORS相关的头信息字段。这时，浏览器就会认定，服务器不同意预检请求，因此触发一个错误，被XMLHttpRequest对象的onerror回调函数捕获。控制台会打印出如下的报错信息。</p>
-<p>XMLHttpRequest cannot load <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a><br>Origin <a href="https://link.zhihu.com/?target=http%3A//lizard.qa.nt.ctripcorp.com" target="_blank" rel="noopener">http://lizard.qa.nt.ctripcorp.com</a> is not allowed by Access-Control-Allow-Origin.</p>
-<p>其他字段中Access-Control-Max-Age 用来指定本次预检请求的有效期，单位为秒。该字段可选。</p>
-<h2 id="与JSONP的对比"><a href="#与JSONP的对比" class="headerlink" title="与JSONP的对比"></a>与JSONP的对比</h2><p>CORS与JSONP的使用目的相同，但是比JSONP更强大。</p>
-<p>JSONP只支持GET请求，JSONP的优势在于支持老旧浏览器。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3477,7 +3436,7 @@ echo $str;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">136</span>
+                  <span class="site-state-item-count">138</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
