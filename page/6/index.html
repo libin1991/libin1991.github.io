@@ -694,6 +694,364 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/10/Vue你可能不知道的7个技巧/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/04/10/Vue你可能不知道的7个技巧/" itemprop="url">Vue你可能不知道的7个技巧</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-10T15:02:13+08:00">
+                2018-04-10
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、善用watch的immediate属性"><a href="#一、善用watch的immediate属性" class="headerlink" title="一、善用watch的immediate属性"></a>一、善用watch的immediate属性</h2><p>这一点我在项目中也是这么写的。例如有请求需要再也没初始化的时候就执行一次，然后监听他的变化，很多人这么写：</p>
+<pre><code>created(){
+    this.fetchPostList()
+},
+watch: {
+    searchInputValue(){
+        this.fetchPostList()
+    }
+}
+</code></pre><p>上面的这种写法我们可以完全如下写：</p>
+<pre><code> watch: {
+    searchInputValue:{
+        handler: &apos;fetchPostList&apos;,
+        immediate: true
+    }
+}
+</code></pre><h2 id="二、组件注册，值得借鉴"><a href="#二、组件注册，值得借鉴" class="headerlink" title="二、组件注册，值得借鉴"></a>二、组件注册，值得借鉴</h2><p>一般情况下，我们组件如下写：</p>
+<pre><code>import BaseButton from &apos;./baseButton&apos;
+import BaseIcon from &apos;./baseIcon&apos;
+import BaseInput from &apos;./baseInput&apos;export default {
+  components: {
+    BaseButton,
+    BaseIcon,
+    BaseInput
+  }
+}
+&lt;BaseInput  v-model=&quot;searchText&quot; @keydown.enter=&quot;search&quot; /&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;  &lt;BaseIcon name=&quot;search&quot;/&gt;&lt;/BaseButton&gt;
+</code></pre><p>步骤一般有三部，</p>
+<blockquote>
+<p>第一步，引入、</p>
+</blockquote>
+<blockquote>
+<p>第二步注册、</p>
+</blockquote>
+<blockquote>
+<p>第三步才是正式的使用，</p>
+</blockquote>
+<p>这也是最常见和通用的写法。但是这种写法经典归经典，好多组件，要引入多次，注册多次，感觉很烦。</p>
+<p>我们可以借助一下webpack，使用 require.context() 方法来创建自己的（模块）上下文，从而实现自动动态require组件。</p>
+<p>思路是：在src文件夹下面main.js中，借助webpack动态将需要的基础组件统统打包进来。</p>
+<p>代码如下：</p>
+<pre><code>import Vue from &apos;vue&apos;
+import upperFirst from &apos;lodash/upperFirst&apos;
+import camelCase from &apos;lodash/camelCase&apos;
+
+// Require in a base component context
+const requireComponent = require.context(&apos;./components&apos;, false, /base-[\w-]+\.vue$/)
+
+requireComponent.keys().forEach(fileName =&gt; {
+  // Get component config
+  const componentConfig = requireComponent(fileName)
+
+  // Get PascalCase name of component
+  const componentName = upperFirst(
+    camelCase(fileName.replace(/^\.\//, &apos;&apos;).replace(/\.\w+$/, &apos;&apos;))
+  )
+
+  // Register component globally
+  Vue.component(componentName, componentConfig.default || componentConfig)
+})
+</code></pre><p>这样我们引入组件只需要第三步就可以了：</p>
+<pre><code>&lt;BaseInput
+   v-model=&quot;searchText&quot;
+   @keydown.enter=&quot;search&quot;
+/&gt;
+&lt;BaseButton @click=&quot;search&quot;&gt;
+   &lt;BaseIcon name=&quot;search&quot;/&gt;
+&lt;/BaseButton&gt;
+</code></pre><h2 id="三、精简vuex的modules引入"><a href="#三、精简vuex的modules引入" class="headerlink" title="三、精简vuex的modules引入"></a>三、精简vuex的modules引入</h2><p>对于vuex，我们输出store如下写：</p>
+<pre><code>import auth from &apos;./modules/auth&apos;
+import posts from &apos;./modules/posts&apos;
+import comments from &apos;./modules/comments&apos;
+
+
+export default new Vuex.Store({
+  modules: {
+    auth,
+    posts,
+    comments
+  }
+})
+</code></pre><p>要引入好多modules，然后再注册到Vuex.Store中~~</p>
+<p>精简的做法和上面类似，也是运用 require.context()读取文件，代码如下：</p>
+<pre><code>import camelCase from &apos;lodash/camelCase&apos;
+const requireModule = require.context(&apos;.&apos;, false, /\.js$/)
+const modules = {}
+
+requireModule.keys().forEach(fileName =&gt; {
+// Don&apos;t register this file as a Vuex module
+if (fileName === &apos;./index.js&apos;) return
+
+const moduleName = camelCase(
+  fileName.replace(/(\.\/|\.js)/g, &apos;&apos;)
+)
+modules[moduleName] = {
+              namespaced: true,
+             ...requireModule(fileName),
+            }
+
+})
+
+export default modules
+</code></pre><p>这样我们只需如下代码就可以了：</p>
+<pre><code>import modules from &apos;./modules&apos;
+export default new Vuex.Store({
+   modules
+})
+</code></pre><h2 id="四、路由的延迟加载"><a href="#四、路由的延迟加载" class="headerlink" title="四、路由的延迟加载"></a>四、路由的延迟加载</h2><p>这一点，关于vue的引入，我之前在中也提及过，可以通过require方式或者import()方式动态加载组件。</p>
+<pre><code>{
+ path: &apos;/admin&apos;,
+ name: &apos;admin-dashboard&apos;,
+ component:require(&apos;@views/admin&apos;).default
+}
+</code></pre><p>或者</p>
+<pre><code>{
+  path: &apos;/admin&apos;,
+  name: &apos;admin-dashboard&apos;,
+  component:() =&gt; import(&apos;@views/admin&apos;)
+}
+</code></pre><p>加载路由。</p>
+<h2 id="五、router-key组件刷新"><a href="#五、router-key组件刷新" class="headerlink" title="五、router key组件刷新"></a>五、router key组件刷新</h2><p>下面这个场景真的是伤透了很多程序员的心…<br> 先默认大家用的是Vue-router来实现路由的控制。 假设我们在写一个博客网站，需求是从/post-haorooms/a，跳转到/post-haorooms/b。然后我们惊人的发现，页面跳转后数据竟然没更新？！原因是vue-router”智能地”发现这是同一个组件，然后它就决定要复用这个组件，所以你在created函数里写的方法压根就没执行。通常的解决方案是监听$route的变化来初始化数据，如下：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+}, 
+watch: {
+  &apos;$route&apos;: {
+    handler: &apos;resetData&apos;,
+    immediate: true
+  }
+},
+methods: {
+  resetData() {
+    this.loading = false
+    this.error = null
+    this.post = null
+    this.getPost(this.$route.params.id)
+  },
+  getPost(id){
+
+  }
+}
+</code></pre><p>bug是解决了，可每次这么写也太不优雅了吧？秉持着能偷懒则偷懒的原则，我们希望代码这样写：</p>
+<pre><code>data() {
+  return {
+    loading: false,
+    error: null,
+    post: null
+  }
+},
+created () {
+  this.getPost(this.$route.params.id)
+},
+methods () {
+  getPost(postId) {
+    // ...
+  }
+}
+</code></pre><p>解决方案：给router-view添加一个唯一的key，这样即使是公用组件，只要url变化了，就一定会重新创建这个组件。</p>
+<pre><code>&lt;router-view :key=&quot;$route.fullpath&quot;&gt;&lt;/router-view&gt;
+</code></pre><p>注：我个人的经验，这个一般应用在子路由里面，这样才可以不避免大量重绘，假设app.vue根目录添加这个属性，那么每次点击改变地址都会重绘，还是得不偿失的！</p>
+<h2 id="六、唯一组件根元素"><a href="#六、唯一组件根元素" class="headerlink" title="六、唯一组件根元素"></a>六、唯一组件根元素</h2><p>场景如下：</p>
+<pre><code>(Emitted value instead of an instance of Error)
+ Error compiling template:
+
+ &lt;div&gt;&lt;/div&gt;
+ &lt;div&gt;&lt;/div&gt;
+
+ - Component template should contain exactly one root element. 
+   If you are using v-if on multiple elements, use v-else-if 
+   to chain them instead.
+</code></pre><p>模板中div只能有一个，不能如上面那么平行2个div。</p>
+<p>例如如下代码：</p>
+<pre><code>&lt;template&gt;
+  &lt;li
+    v-for=&quot;route in routes&quot;
+    :key=&quot;route.name&quot;
+  &gt;
+    &lt;router-link :to=&quot;route&quot;&gt;
+      {{ route.title }}
+    &lt;/router-link&gt;
+  &lt;/li&gt;
+&lt;/template&gt;
+</code></pre><p>会报错！</p>
+<p>我们可以用render函数来渲染</p>
+<pre><code>functional: true,
+render(h, { props }) {
+ return props.routes.map(route =&gt;
+   &lt;li key={route.name}&gt;
+     &lt;router-link to={route}&gt;
+       {route.title}
+     &lt;/router-link&gt;
+   &lt;/li&gt;
+ )
+}
+</code></pre><h2 id="七、组件包装、事件属性穿透问题"><a href="#七、组件包装、事件属性穿透问题" class="headerlink" title="七、组件包装、事件属性穿透问题"></a>七、组件包装、事件属性穿透问题</h2><p>当我们写组件的时候，通常我们都需要从父组件传递一系列的props到子组件，同时父组件监听子组件emit过来的一系列事件。举例子：</p>
+<pre><code>//父组件
+&lt;BaseInput 
+    :value=&quot;value&quot;
+    label=&quot;密码&quot; 
+    placeholder=&quot;请填写密码&quot;
+    @input=&quot;handleInput&quot;
+    @focus=&quot;handleFocus&gt;
+&lt;/BaseInput&gt;
+
+//子组件
+&lt;template&gt;
+  &lt;label&gt;
+    {{ label }}
+    &lt;input
+      :value=&quot;value&quot;
+      :placeholder=&quot;placeholder&quot;
+      @focus=$emit(&apos;focus&apos;, $event)&quot;
+      @input=&quot;$emit(&apos;input&apos;, $event.target.value)&quot;
+    &gt;
+  &lt;/label&gt;
+&lt;/template&gt;
+</code></pre><p>这样写很不精简，很多属性和事件都是手动定义的，我们可以如下写：</p>
+<pre><code>&lt;input
+    :value=&quot;value&quot;
+    v-bind=&quot;$attrs&quot;
+    v-on=&quot;listeners&quot;
+&gt;
+
+computed: {
+  listeners() {
+    return {
+      ...this.$listeners,
+      input: event =&gt; 
+        this.$emit(&apos;input&apos;, event.target.value)
+    }
+  }
+}
+</code></pre><p>$attrs包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (class 和 style 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定，并且可以通过 v-bind=”$attrs” 传入内部组件。</p>
+<p>$listeners包含了父作用域中的 (不含 .native 修饰器的) v-on 事件监听器。它可以通过 v-on=”$listeners” 传入内部组件。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/Vue2-0模板渲染底层思想/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3189,201 +3547,6 @@ app.on(&apos;error&apos;, err =&gt; {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/02/关于Viewport与device-width的一点理解/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/01/02/关于Viewport与device-width的一点理解/" itemprop="url">关于Viewport与device-width的一点理解</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-02T16:55:37+08:00">
-                2018-01-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="再进行移动web开发的时候都要加一句："><a href="#再进行移动web开发的时候都要加一句：" class="headerlink" title="再进行移动web开发的时候都要加一句："></a>再进行移动web开发的时候都要加一句：</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&quot; /&gt;</span><br></pre></td></tr></table></figure>
-<p>devicePixelRatio其实指的是window.devicePixelRatio,window.devicePixelRatio是设备上物理像素和设备独立像素(device-independent pixels (dips))的比例。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.devicePixelRatio</span><br></pre></td></tr></table></figure></p>
-<blockquote>
-<p>非视网膜屏幕的iphone上，屏幕物理像素320像素，独立像素也是320像素，因此，window.devicePixelRatio等于1.<br>在视网膜屏幕的iphone上，屏幕物理像素640像素，独立像素还是320像素，因此，window.devicePixelRatio等于2。</p>
-</blockquote>
-<p>此时的CSS像素对应着以后要提到的理想视口，其对应的javascript属性是<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">screen.width/screen.height</span><br></pre></td></tr></table></figure></p>
-<p>而对于设备像素比DPR也有对应的javascript属性<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.devicePixelRatio</span><br></pre></td></tr></table></figure></p>
-<p>以iphone8为例，iphone8的CSS像素为375px<em>677px，DPR是2，所以其设备像素为750px</em>1354px<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">750(px) / 375(px)  = 2</span><br><span class="line">1354(px) / 677(px) = 2</span><br><span class="line">750(px)*1354(px) /  375(px)*677(px) = 4</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2018/01/02/关于Viewport与device-width的一点理解/2.jpg" alt=""><br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">(<span class="function"><span class="keyword">function</span>(<span class="params">doc, win</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">var</span> docEl = doc.documentElement,</span><br><span class="line">		resizeEvt = <span class="string">'orientationchange'</span> <span class="keyword">in</span> <span class="built_in">window</span> ? <span class="string">'orientationchange'</span> : <span class="string">'resize'</span>,</span><br><span class="line">		recalc = <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">			<span class="keyword">var</span> clientWidth = docEl.clientWidth;</span><br><span class="line">			<span class="keyword">if</span>(!clientWidth) <span class="keyword">return</span>;</span><br><span class="line">			<span class="keyword">if</span>(clientWidth &gt;= <span class="number">750</span>) &#123;</span><br><span class="line">				docEl.style.fontSize = <span class="string">'100px'</span>;</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				docEl.style.fontSize = <span class="number">100</span> * (clientWidth / <span class="number">750</span>) + <span class="string">'px'</span>;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;;</span><br><span class="line">	<span class="keyword">if</span>(!doc.addEventListener) <span class="keyword">return</span>;</span><br><span class="line">	win.addEventListener(resizeEvt, recalc, <span class="literal">false</span>);</span><br><span class="line">	doc.addEventListener(<span class="string">'DOMContentLoaded'</span>, recalc, <span class="literal">false</span>);</span><br><span class="line">&#125;)(<span class="built_in">document</span>, <span class="built_in">window</span>);</span><br></pre></td></tr></table></figure></p>
-<ol>
-<li>我们经常使用的<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">里的viewport究竟是什么意思，这里的device-width跟我们用JS获取到的屏宽的区别与联系分别是什么，为什么去掉<meta>标签后页面会变得很小很小？</li>
-<li>为什么很多分辨率很大的屏幕宽度其实并不大，屏幕分辨率与用JS获取到的屏宽的区别与联系分别又是什么？</li>
-</ol>
-<h3 id="视口-viewport"><a href="#视口-viewport" class="headerlink" title="视口 viewport"></a>视口 viewport</h3><h4 id="viewport-基础"><a href="#viewport-基础" class="headerlink" title="viewport 基础"></a>viewport 基础</h4><p>viewport 解释为中文就是‘视口’的意思，也就是浏览器中用于显示网页的区域。在 PC 端，其大小也就是浏览器可视区域的大小，所以我们也不会太关注此概念；而在移动端，绝大多数情况下 viewport 都大于浏览器可视区，保证 PC 页面在移动浏览器上面的可视性。为提升可视性体验，针对移动端有了对 viewport 的深入研究。</p>
-<h4 id="viewport-详解"><a href="#viewport-详解" class="headerlink" title="viewport 详解"></a>viewport 详解</h4><p>在移动端有三种类型的 viewport: layoutviewport、visualviewport、idealviewport。具体解释如下：</p>
-<ul>
-<li>layoutviewport:  大于实际屏幕， 元素的宽度继承于 layoutviewport，用于保证网站的外观特性与桌面浏览器一样。layoutviewport 到底多宽，每个浏览器不同。iPhone 的 safari 为 980px，通过 document.document.clientWidth 获取。</li>
-<li>visualviewport: 当前显示在屏幕上的页面，即浏览器可视区域的宽度。</li>
-<li>idealviewport: 为浏览器定义的可完美适配移动端的理想 viewport，固定不变，可以认为是设备视口宽度。比如 iphone 7 为 375px, iphone 7p 为 414px。</li>
-</ul>
-<h4 id="viewport-设置"><a href="#viewport-设置" class="headerlink" title="viewport 设置"></a>viewport 设置</h4><p>我们通过对几种 viewport 设置可以对网页的展示进行有效的控制，在移动端我们经常会在 head 标签中看到这段代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&apos;viewport&apos; content=&apos;width=device-width,initial-scale=1,user-scale=no&apos; /&gt;</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2018/01/02/关于Viewport与device-width的一点理解/1.webp" alt=""></p>
-<h4 id="1px的物理像素的解决方案"><a href="#1px的物理像素的解决方案" class="headerlink" title="1px的物理像素的解决方案"></a>1px的物理像素的解决方案</h4><p>从第一部分的讨论可知 viewport 的 initial-scale 具有缩放页面的效果。对于 dpr=2 的屏幕，1px压缩一半便可与1px的设备像素比匹配，这就可以通过将缩放比 initial-scale 设置为 0.5=1/2 而实现。以此类推 dpr=3的屏幕可以将 initial-scale设置为 0.33=1/3 来实现。</p>
-<pre><code>(function (baseFontSize) {
-    const _baseFontSize = baseFontSize || 75;
-    const ua = navigator.userAgent;
-    const matches = ua.match(/Android[\S\s]+AppleWebkit\/(\d{3})/i);
-    const isIos = navigator.appVersion.match(/(iphone|ipad|ipod)/gi);
-    const dpr = window.devicePixelRatio || 1;
-    if (!isIos &amp;&amp; !(matches &amp;&amp; matches[1] &gt; 534)) {
-        // 如果非iOS, 非Android4.3以上, dpr设为1;
-        dpr = 1;
-    }
-    const scale = 1 / dpr;
-    const metaEl = document.querySelector(&apos;meta[name=&quot;viewport&quot;]&apos;);
-    if (!metaEl) {
-        metaEl = document.createElement(&apos;meta&apos;);
-        metaEl.setAttribute(&apos;name&apos;, &apos;viewport&apos;);
-        window.document.head.appendChild(metaEl);
-    }
-    metaEl.setAttribute(&apos;content&apos;, &apos;width=device-width,user-scalable=no,initial-scale=&apos; + scale + &apos;,maximum-scale=&apos; + scale + &apos;,minimum-scale=&apos; + scale);
-
-    document.documentElement.style.fontSize = document.documentElement.clientWidth / (750 / _baseFontSize) + &apos;px&apos;;
-})();
-
-</code></pre><hr>
-<p>要说这个，先来了解下一些移动端基础知识：</p>
-<h3 id="1、物理像素-设备像素，分辨率"><a href="#1、物理像素-设备像素，分辨率" class="headerlink" title="1、物理像素(设备像素，分辨率)"></a>1、物理像素(设备像素，分辨率)</h3><p>设备像素，在同一个设备上，它的物理像素是固定的，这是厂商在出厂时就设置好了的，即一个设备的分辨率是固定的。</p>
-<h3 id="2、逻辑像素-CSS像素"><a href="#2、逻辑像素-CSS像素" class="headerlink" title="2、逻辑像素(CSS像素)"></a>2、逻辑像素(CSS像素)</h3><p>CSS像素，viewport中的一个小方格，CSS样式代码中使用的是逻辑像素。如果在一个设备中，物理像素与逻辑像素相等，将不会产生任何问题。但是，在iphone 4中，物理像素是640px<em>960px，而逻辑像素数为320</em>480px。因此，需要使用大约4个物理像素来显示一个CSS像素。</p>
-<h3 id="3、像素比"><a href="#3、像素比" class="headerlink" title="3、像素比"></a>3、像素比</h3><p>物理像素与逻辑像素之间的比例。当像素比为1:1时，使用1个物理像素显示1个逻辑像素；当像素比为2:1时，使用4个物理像素显示1个逻辑像素。</p>
-<h3 id="4、CSS中的1px并不等于设备的1px"><a href="#4、CSS中的1px并不等于设备的1px" class="headerlink" title="4、CSS中的1px并不等于设备的1px"></a>4、CSS中的1px并不等于设备的1px</h3><p>在CSS中一般使用px作为单位，在Web浏览器中CSS的1个像素往往都是对应着电脑屏幕的1个物理像素，这可能会造成一个错觉，那就是CSS中的像素就是设备的物理像素。但实际情况却并非如此，CSS中的像素只是一个抽象的单位，在不同的设备或不同的环境中，CSS中的1px所代表的设备物理像素是不同的。<br>在早先的移动设备中，屏幕像素密度都比较低，如iphone3，它的分辨率为320<em>480，在iphone3上，1个CSS像素确实是等于1个物理像素的。后来随着技术的发展，移动设备的像素越来越高，从iphone4开始，推出了所谓的Retina屏，分辨率提高了一倍，变成640</em>960，但屏幕尺寸却没变化，这就意味着同样大小的屏幕上，像素却多了一倍，这时，1个CSS像素是等于4个物理像素的。</p>
-<h3 id="5、实现真正的1物理像素"><a href="#5、实现真正的1物理像素" class="headerlink" title="5、实现真正的1物理像素"></a>5、实现真正的1物理像素</h3><p>当viewport的属性initial-scale为1时，页面大小正常，但initial-scale为0.5时，页面被缩小了1倍，像素比为2:1的设备本来1个CSS像素宽度占2个物理像素宽度，缩小后的1个CSS像素宽度就只占1个物理像素，即实现了真正的1物理像素。<br><code>eg：border-width:1px</code>并不是最小边框，浏览器可以显示的最小粒度比1px还要小。为什么会出现比border-width:1px更细的边框？<br>屏幕能够显示的最小粒度是1个物理像素，iPhone4的像素比为2，设置border-width:1px后，边框占了4个物理像素，如果能让边框的宽度为1物理像素，那么它就比1个CSS像素要细，这可以通过设置<code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=0.5&quot;&gt;</code>。</p>
-<h2 id="CSS-pixel与device-pixels-css-px与device-px"><a href="#CSS-pixel与device-pixels-css-px与device-px" class="headerlink" title="CSS pixel与device pixels (css px与device px)"></a>CSS pixel与device pixels (css px与device px)</h2><p>首先了解下什么是CSS pixels，什么是device pixels；</p>
-<p>1．CSS pixels可以理解为<code>css像素</code>，是浏览器使用的抽象单位，主要用来在网页上绘制内容。也可以说css px是专门为web开发者提出的一个抽象概念，也只跟我们平时写的css样式有关，与分辨率（比如720px*1280px）里的px没关系。</p>
-<p>2． device pixels可以理解为是设备像素，官方的解释是：显示屏幕的最小物理单位，每个dp包含自己的颜色、高宽等。</p>
-<p>对于我们做web开发的人来说，我们用到的最多的地方是“css像素”，即类似width:300px;font-size:14px;这类的css语句里用到的。它跟设备自身的px是没关系的。也就是说1个CSS 像素占多少个物理像素是不确定的，这个问题通过页面的放缩比较容易理解。比如一个普通的html页面上，有一个300px的元素；如果我们放大页面，元素会占据更多的设备像素（即device pixels），但它的CSS pixels不变，依然是300px；缩小页面也是同样的道理，占据了更少的device pixels，但它的CSS pixels不变。也就是说，元素占据了多少device pixels，是由当前页面的放缩比例而定的。</p>
-<p>不过，页面的缩放对我们web开发来说是好像没有任何意义的。但有一个问题，我们开发出来的页面是想要在各个屏幕个以最佳的样式展示出来的，我们不能让页面里存在不能控制的元素。所以就出现了它：<code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0&quot; /&gt;</code> 也就是我们在进行web开发的时候经常用到的viewport。那么viewport到底是个什么玩意儿呢，而且content里面width为什么要等于device-width呢，device-width又是个什么概念呢？下面我们来看看它们哥俩儿是什么。</p>
-<h2 id="Viewport-与-device-width"><a href="#Viewport-与-device-width" class="headerlink" title="Viewport 与 device-width"></a>Viewport 与 device-width</h2><p>在解释这两个概念之前，先说一个大家都知道，但不明白为什么的情况：把一个普通的在PC上开发的HTML页面直接放手机上，你会发现不管多大的页面都可以在小小的手机屏幕上显示，但是图文都会显示的特别小；如果你用js获取下页面宽度，你会发现，大多数的页面宽度都是980px的，这个就跟viewport有关。</p>
-<p>Viewport起源于苹果，但现在已经被大多数浏览器支持。关于viewport有两个概念visual viewport跟layout viewport。这里visual viewport也就是视觉上的窗口，可以理解为设备自己的宽度。这时，如果你有一个长960的页面，有一个元素是20%（实际解析出来就是192px）。但如果我用宽为320px的屏幕打开呢，这个元素就成了64px，但是这个时候我设置的字体大小是12px，在320px的屏幕上就只能显示64/12个字了～</p>
-<p>鉴于这个问题，苹果找到一种解决方法，在移动版的safari中定义了viewport meta标签，它的作用就是创建一个虚拟的窗口（viewport），这个虚拟的窗口就是layout viewport分辨率接近桌面显示器，apple将其定位为980px。在手机上，可以通过document.documentElement.clientWidth来获取。</p>
-<p>其他浏览器厂商也有不同的解决办法，例如UCweb是使用的中间技术。</p>
-<p>另外据说，不同浏览器厂商对于layout viewport的大小都有自己的定义。但是，我用手上不多的几个手机（小米2s、SONY、金立、ipad）测试的结果，都是980px。其中在小米2s上测试了小米自带浏览器、QQ浏览器、UC浏览器、谷歌浏览器，还有opera浏览器，结果都一样；其他的手机上面不管装了什么浏览器，都测试了，结果都是980px。但是这个值对于我们web开发来说，好像也没有什么用处。</p>
-<p>因为大多数情况下，<code>&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width&quot; /&gt;</code>这个标签对我们来说是最给力的，可以让我们的页面里的图文显示的是正常的，很大程度上提高了页面的可读性。而这一meta标签的功能就是设置layout viewport为device-width的宽度。但是device-width具体是什么呢？</p>
-<blockquote>
-<font color="#ff0000">第一代iphone的时候，分辨率为320<em>480，屏幕尺寸为3.5寸<span style="border-bottom:2px solid blue;">（注意，这个3.5寸说的是屏幕的对角线宽）</span>，这时候device-width就是320px，也是手机的分辨率宽，此时device-width就是设备宽。但第二代的iphone分辨率提高为了480</em>960，屏幕尺寸为依然为3.5寸，如果device-width还是设备宽，那么同样是320px的页面放480*960的手机屏上，图文就会变得比较小，又会影响其可读性。<span style="border-bottom:2px solid blue;">因此iphone的device-width一直维持在320px，ipad一直维持在1024px</span>。这个时候，device-width就不是设备宽了（也就不是分辨率的宽了），是一个中间层。Android采用的也是这一概念，其device-width值以360居多，但也不乏有像540px和600px这样的奇葩。在设置了<meta>标签以后，device-width值可以用window.innerWidth来获取device-width值。</font>
-</blockquote>
-<h2 id="有关DPI"><a href="#有关DPI" class="headerlink" title="有关DPI"></a>有关DPI</h2><p>dpi(Dots Per Inch)，有时也叫做ppi(Point Per Inch)，翻译过来也叫像素密度，表示设备每英寸所占有的像素数；数值越高，即代表显示屏能够以越高的密度显示图像。（注：这里的像素，指的是device pixels。）DPI的计算公式：</p>
-<p><img src="/2018/01/02/关于Viewport与device-width的一点理解/201157547867064.jpg" alt=""></p>
-<p>有意思的是，这个值比苹果官网上公布的326还有高一点点。</p>
-<p><img src="/2018/01/02/关于Viewport与device-width的一点理解/201158077397288.jpg" alt=""></p>
-<p>其中，PPI在120-160之间的手机被归为低密度手机，160-240被归为中密度，240-320被归为高密度，320以上被归为超高密度（Apple给了它一个上流的名字——retina）。</p>
-<p>这些密度对应着一个特定的缩放比例值，拿我们最熟悉的iphone4或4s来说，它们的PPI是326，属于超高密度的手机。当我们书写一个宽度为320px的页面放到iphone中显示，你会发现，它竟然是满宽的。这是因为，页面被默认放大了两倍，也就是640px，而iphone4或4s的宽，正是640px。    </p>
-<h2 id="DevicePixelRadio"><a href="#DevicePixelRadio" class="headerlink" title="DevicePixelRadio"></a>DevicePixelRadio</h2><p>DevicePixelRadio，定义：<code>window.devicePixelRatio</code>是设备上物理像素（也就是device-width）和设备独立像素（device-independent pixels，即dips）的比例。公式表示就是：window.devicePixelRatio = 物理像素/dips</p>
-<p>Android 和 iPhone 中，都有一个占整个屏幕大小的换算单位，<font color="#ff0000"><strong> Android 中叫 dip 或 dp，iPhone 中叫 point </strong></font>。Dip，就是device independent pixels，设备独立像素。而设备的物理像素和 dip 的比例就是 devicePixelRatio，此值可以通过 window.devicePixelRatio 属性获取。</p>
-<p>据我查找到的一些资料显示，这里的独立像素的值其实就是device-width值。这个值也就是我们平时在手机上布局用的宽度，当然是在设置了<meta>标签的前提下。</p>
-<h3 id="这里为什么提到devicePixelRatio这个概念呢？"><a href="#这里为什么提到devicePixelRatio这个概念呢？" class="headerlink" title="这里为什么提到devicePixelRatio这个概念呢？"></a>这里为什么提到devicePixelRatio这个概念呢？</h3><p>因为当devicePixelRatio=1.5的时候，也就是说当屏幕分辨率宽与device-width的比值为1.5时，某些手机自带的浏览器（特别是三星手机出现在最多）会出现1px的线解析成2px的bug，但是经测试同一部手机上安装的UC浏览器一般不会有这个bug。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3436,7 +3599,7 @@ app.on(&apos;error&apos;, err =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-count">139</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
