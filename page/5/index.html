@@ -694,6 +694,570 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/13/交叉观察器-intersectionObserver-Vue实战/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/13/交叉观察器-intersectionObserver-Vue实战/" itemprop="url">交叉观察器(intersectionObserver) Vue实战</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-13T23:04:27+08:00">
+                2018-08-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="参考文章：IntersectionObserver-API-使用教程"><a href="#参考文章：IntersectionObserver-API-使用教程" class="headerlink" title="参考文章：IntersectionObserver API 使用教程"></a>参考文章：<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2016/11/intersectionobserver_api.html" target="_blank" rel="noopener">IntersectionObserver API 使用教程</a></h2><h2 id="Intersection-Observer"><a href="#Intersection-Observer" class="headerlink" title="Intersection Observer"></a><a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver" target="_blank" rel="noopener">Intersection Observer</a></h2><h2 id="【译】使用-Intersection-Observer-实现图片延迟加载"><a href="#【译】使用-Intersection-Observer-实现图片延迟加载" class="headerlink" title="【译】使用 Intersection Observer 实现图片延迟加载"></a><a href="https://link.zhihu.com/?target=https%3A//c7sky.com/lazy-loading-images-using-intersection-observer.html" target="_blank" rel="noopener">【译】使用 Intersection Observer 实现图片延迟加载</a></h2><p>intersectionObserver解决什么问题？</p>
+<p>intersectionObserver解决目标元素与视口产生一个交叉区，所以这个 API 叫做”交叉观察器”，</p>
+<p>比如在web网页开发中，常常需要了解某个元素是否进入了”视口”（viewport），即用户能不能看到它。</p>
+<p>传统的实现方法是，监听到scroll事件后，调用目标元素（绿色方块）的<a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en/docs/Web/API/Element/getBoundingClientRect" target="_blank" rel="noopener">getBoundingClientRect()</a>方法，得到它对应于视口左上角的坐标，再判断是否在视口之内。这种方法的缺点是，由于scroll事件密集发生，计算量很大，容易造成<a href="https://link.zhihu.com/?target=http%3A//www.ruanyifeng.com/blog/2015/09/web-page-performance-in-depth.html" target="_blank" rel="noopener">性能问题</a>。</p>
+<p>目前有一个新的 <a href="https://link.zhihu.com/?target=https%3A//wicg.github.io/IntersectionObserver/" target="_blank" rel="noopener">IntersectionObserver API</a>，可以自动”观察”元素是否可见，Chrome 51+ 已经支持。由于可见（visible）的本质是，目标元素与视口产生一个交叉区，所以这个 API 叫做”交叉观察器”。</p>
+<blockquote>
+<p>IntersectionObserver API 是异步的，不随着目标元素的滚动同步触发。规格写明，<code>IntersectionObserver</code>的实现，应该采用<code>requestIdleCallback()</code>，即只有线程空闲下来，才会执行观察器。这意味着，这个观察器的优先级非常低，只在其他任务执行完，浏览器有了空闲才会执行。</p>
+</blockquote>
+<p>IntersectionObserverEntry 对象</p>
+<p><code>IntersectionObserverEntry</code>对象提供目标元素的信息，一共有六个属性。</p>
+<pre><code>{
+  time: 3893.92,
+  rootBounds: ClientRect {
+    bottom: 920,
+    height: 1024,
+    left: 0,
+    right: 1024,
+    top: 0,
+    width: 920 },
+  boundingClientRect: ClientRect {  // ...
+ },
+  intersectionRect: ClientRect {  // ...
+ },
+  intersectionRatio: 0.54,
+  target: element
+} 
+</code></pre><p>每个属性的含义如下。</p>
+<ul>
+<li><code>time</code>：可见性发生变化的时间，是一个高精度时间戳，单位为毫秒</li>
+<li><code>target</code>：被观察的目标元素，是一个 DOM 节点对象</li>
+<li><code>rootBounds</code>：根元素的矩形区域的信息，<code>getBoundingClientRect()</code>方法的返回值，如果没有根元素（即直接相对于视口滚动），则返回<code>null</code></li>
+<li><code>boundingClientRect</code>：目标元素的矩形区域的信息</li>
+<li><code>intersectionRect</code>：目标元素与视口（或根元素）的交叉区域的信息</li>
+<li><code>intersectionRatio</code>：目标元素的可见比例，即<code>intersectionRect</code>占<code>boundingClientRect</code>的比例，完全可见时为<code>1</code>，完全不可见时小于等于<code>0</code></li>
+</ul>
+<p>现在我们已经创建了一个 Intersection Observer 并且正在观察页面上的图片，我们现在来了解 intersection 事件，它将在元素进入视区时触发。</p>
+<h2 id="浏览器支持"><a href="#浏览器支持" class="headerlink" title="浏览器支持"></a>浏览器支持</h2><p>此时此刻，你也许想知道关于这项特性的浏览器支持情况。Intersection Observer 现在已被 <a href="https://link.zhihu.com/?target=http%3A//caniuse.com/%23feat%3Dintersectionobserver" target="_blank" rel="noopener">Edge、Firefox、Chrome 和 Opera</a> 支持，这是一个好消息。</p>
+<p>然而，为了确保我们的代码不会在不支持它的浏览器中造成破坏，我们可以使用特性检测来确定我们应该如何来加载图片。让我们看看下面的代码。</p>
+<pre><code>// If we don&apos;t have support for intersection observer, load the images immediately
+if (!(&apos;IntersectionObserver&apos; in window)) {
+  Array.from(images).forEach(image =&gt; preloadImage(image));
+} else {
+  // It is supported, load the images
+  observer = new IntersectionObserver(onIntersection, config);
+  images.forEach(image =&gt; {
+
+   observer.observe(image);
+  });
+}
+view raw
+</code></pre><p>Vue:</p>
+<pre><code>&lt;template&gt;
+    &lt;img :src=&quot;lazysrc&quot; /&gt;
+&lt;/template&gt;
+&lt;script&gt;
+    import Bus from &apos;../bus&apos;;
+    import nonepng from &apos;../../assets/img/none.png&apos;;
+
+    export default {
+        name: &apos;lazyimg&apos;,
+        data: function() {
+            return {
+                isShow: false,
+                lazysrc: nonepng
+            }
+        },
+        mounted() {
+            if(!this.needlazy) {
+                this.lazysrc = this.src;
+            } else {
+                if(!(&apos;IntersectionObserver&apos; in window)) {
+                    //TODO
+                } else {
+                    var io = new IntersectionObserver(
+                        entries =&gt; {
+                            entries.forEach(i =&gt; {
+                                if(i.intersectionRatio &gt;= 0.25) { //可见元素占视窗的25%触发
+                                    i.target.setAttribute(&quot;src&quot;, this.src)
+                                }
+                            });
+                        }, {
+                            threshold: [0, 0.25, 0.5, 0.75, 1],
+                        }
+                    );
+                    io.observe(this.$el);
+                }
+            }
+        },
+        props: {
+            needlazy: {
+                type: Boolean,
+                default: false,
+            },
+            src: {
+                type: String,
+                default: &apos;&apos;,
+            },
+        }
+    };
+&lt;/script&gt;
+</code></pre><blockquote>
+<p>通常都是通过判断intersectionRatio来做某些事，比如当intersectionRatio大于多少的时候做什么事，加载图片等！</p>
+</blockquote>
+<p><img src="https://pic4.zhimg.com/v2-8e8d0a7aa6b83f2150c8916a0ec90b43_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-8e8d0a7aa6b83f2150c8916a0ec90b43_hd.jpg" alt=""><br>   灰色的水平方框代表视口，深红色的区域代表四个被观察的目标元素。它们各自的<code>intersectionRatio</code>图中都已经注明。</p>
+<p>DEMO：  <a href="https://zhuanlan.zhihu.com/p/25455672" target="_blank" rel="noopener">延迟加载(Lazyload)三种实现方式</a></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+
+    &lt;head&gt;
+        &lt;meta charset=&quot;utf-8&quot;&gt;
+        &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width&quot;&gt;
+        &lt;title&gt; &lt;/title&gt;
+        &lt;style type=&quot;text/css&quot;&gt;
+            * {
+                padding: 0px;
+                margin: 0px;
+                outline: none;
+            }
+
+            body {}
+
+            #main {
+                margin: 0 auto;
+                width: 600px;
+                height: 300px;
+                overflow: scroll;
+            }
+
+            #con {
+                width: 1200px;
+                height: 300px;
+            }
+
+            .cc {
+                width: 300px;
+                height: 300px;
+                float: left;
+                background-size: cover;
+            }
+
+            #a {
+                background-color: red;
+            }
+
+            #b {
+                background-color: black;
+            }
+
+            #c {
+                background-color: blue;
+            }
+
+            #d {
+                background-color: green;
+            }
+        &lt;/style&gt;
+    &lt;/head&gt;
+
+    &lt;body&gt;
+        &lt;div id=&quot;main&quot;&gt;
+            &lt;div id=&quot;con&quot;&gt;
+                &lt;div id=&quot;a&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;b&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;c&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+                &lt;div id=&quot;d&quot; class=&quot;cc&quot;&gt;&lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/body&gt;
+    &lt;script type=&quot;text/javascript&quot;&gt;
+        var io = new IntersectionObserver(
+            entries =&gt; {
+                console.log(&apos;********************************&apos;);
+                console.log(entries);
+                console.log(&apos;********************************&apos;);
+                entries.forEach(i =&gt; {
+                    console.log(&apos;================================&apos;);
+                    console.log(&apos;Time: &apos; + i.time);
+                    console.log(&apos;Target: &apos; + i.target.nodeName);
+                    console.log(&apos;IntersectionRatio: &apos; + i.intersectionRatio);
+                    console.log(&apos;rootBounds: &apos; + i.rootBounds);
+                    console.log(i.boundingClientRect);
+                    console.log(i.intersectionRect);
+                    console.log(&apos;================================&apos;);
+
+                    if(i.intersectionRatio &gt;= 0.25) { //可见元素占视窗的25%触发
+                        console.log(&apos;^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^&apos;);
+                        i.target.style.backgroundImage = &quot;url(&quot; + &apos;http://pic35.photophoto.cn/20150528/0020032932102307_b.jpg&apos; + &quot;)&quot;
+                    }
+
+                });
+            }, {
+                /* Using default options. Details below */
+                threshold: [0, 0.25, 0.5, 0.75, 1],   //会执行5次
+            }
+        );
+        // Start observing an element
+        io.observe(document.querySelector(&apos;#d&apos;));
+        io.observe(document.querySelector(&apos;#c&apos;));
+    &lt;/script&gt;
+
+&lt;/html&gt;
+</code></pre><p><img src="https://pic1.zhimg.com/v2-83bcd2ce4df13a07da99e0c051e9fcaa_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-83bcd2ce4df13a07da99e0c051e9fcaa_hd.jpg" alt=""></p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+    &lt;meta charset=&quot;UTF-8&quot;&gt;
+    &lt;title&gt;Lazyload 3&lt;/title&gt;
+    &lt;style&gt;
+        img {
+        display: block;
+        margin-bottom: 50px;
+        width: 800px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/1.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/2.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/3.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/4.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/5.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/6.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/7.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/8.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/9.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/10.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/11.png&quot;&gt;
+    &lt;img src=&quot;images/loading.gif&quot; data-src=&quot;images/12.png&quot;&gt;
+    &lt;script&gt;
+    function query(selector) {
+        return Array.from(document.querySelectorAll(selector));
+    }
+    var io = new IntersectionObserver(function(items) {
+        items.forEach(function(item) {
+        var target = item.target;
+        if(target.getAttribute(&apos;src&apos;) == &apos;images/loading.gif&apos;) {
+            target.src = target.getAttribute(&apos;data-src&apos;);
+        }
+        })
+    });
+    query(&apos;img&apos;).forEach(function(item) {
+        io.observe(item);
+    });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre><ol>
+<li>IntersectionObserver 传入一个回调函数，当其观察到元素集合出现时候，则会执行该函数。</li>
+<li>io.observe 即要观察的元素，要一个个添加才可以。</li>
+<li>io 管理的是一个数组，当元素出现或消失的时候，数组添加或删除该元素，并且执行该回调函数。</li>
+</ol>
+<h2 id="一、API"><a href="#一、API" class="headerlink" title="一、API"></a>一、API</h2><p>它的用法非常简单。</p>
+<pre><code>var io = new IntersectionObserver(callback, option); 
+</code></pre><p>上面代码中，<code>IntersectionObserver</code>是浏览器原生提供的构造函数，接受两个参数：<code>callback</code>是可见性变化时的回调函数，<code>option</code>是配置对象（该参数可选）。</p>
+<p>构造函数的返回值是一个观察器实例。实例的<code>observe</code>方法可以指定观察哪个 DOM 节点。</p>
+<pre><code>// 开始观察
+io.observe(document.getElementById(&apos;example&apos;)); 
+// 停止观察
+io.unobserve(element); 
+// 关闭观察器
+io.disconnect(); 
+</code></pre><p>上面代码中，<code>observe</code>的参数是一个 DOM 节点对象。如果要观察多个节点，就要多次调用这个方法。</p>
+<pre><code>io.observe(elementA);
+io.observe(elementB); 
+</code></pre><h2 id="二、callback-参数"><a href="#二、callback-参数" class="headerlink" title="二、callback 参数"></a>二、callback 参数</h2><p>目标元素的可见性变化时，就会调用观察器的回调函数<code>callback</code>。</p>
+<p><code>callback</code>一般会触发两次。一次是目标元素刚刚进入视口（开始可见），另一次是完全离开视口（开始不可见）。</p>
+<pre><code>var io = new IntersectionObserver(
+  entries =&gt; {
+    console.log(entries); } 
+); 
+</code></pre><p>上面代码中，回调函数采用的是<a href="https://link.zhihu.com/?target=http%3A//es6.ruanyifeng.com/%23docs/function%23%25E7%25AE%25AD%25E5%25A4%25B4%25E5%2587%25BD%25E6%2595%25B0" target="_blank" rel="noopener">箭头函数</a>的写法。<code>callback</code>函数的参数（<code>entries</code>）是一个数组，每个成员都是一个<code>[IntersectionObserverEntry](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Web/API/IntersectionObserverEntry)</code>对象。举例来说，如果同时有两个被观察的对象的可见性发生变化，<code>entries</code>数组就会有两个成员。</p>
+<h2 id="三、Option-对象"><a href="#三、Option-对象" class="headerlink" title="三、Option 对象"></a>三、Option 对象</h2><p>IntersectionObserver构造函数的第二个参数是一个配置对象。它可以设置以下属性。</p>
+<p><code>[IntersectionObserver.root](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/root)</code> 只读所监听对象的具体祖先元素(<code>[element](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/Element)</code>)。如果未传入任何值或值为null，则默认使用viewport。</p>
+<p><code>[IntersectionObserver.rootMargin](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/rootMargin)</code> 只读计算交叉时添加到根(root)边界盒<a href="https://link.zhihu.com/?target=https%3A//developer.mozilla.org/en-US/docs/Glossary/bounding_box" target="_blank" rel="noopener">bounding box</a>的矩形偏移量， 可以有效的缩小或扩大根的判定范围从而满足计算需要。此属性返回的值可能与调用构造函数时指定的值不同，因此可能需要更改该值，以匹配内部要求。所有的偏移量均可用像素(pixel)(px)或百分比(percentage)(%)来表达, 默认值为”0px 0px 0px 0px”。</p>
+<p><code>[IntersectionObserver.thresholds](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/thresholds)</code> 只读一个包含阈值的list, 升序排列, list中的每个阈值都是监听对象的交叉区域与边界区域的比率。当监听对象的任何阈值被越过时，都会生成一个通知(Notification)。如果构造器未传入值, 则默认值为0.</p>
+<p>threshold 属性</p>
+<p><code>threshold</code>属性决定了什么时候触发回调函数。它是一个数组，每个成员都是一个门槛值，默认为<code>[0]</code>，即交叉比例（<code>intersectionRatio</code>）达到<code>0</code>时触发回调函数。</p>
+<pre><code>new IntersectionObserver(
+  entries =&gt; {/* ... */}, {
+    threshold: [0, 0.25, 0.5, 0.75, 1] } ); 
+</code></pre><p>用户可以自定义这个数组。比如，<code>[0, 0.25, 0.5, 0.75, 1]</code>就表示当目标元素 0%、25%、50%、75%、100% 可见时，会触发回调函数。</p>
+<p>root 属性，rootMargin 属性</p>
+<p>很多时候，目标元素不仅会随着窗口滚动，还会在容器里面滚动（比如在<code>iframe</code>窗口里滚动）。容器内滚动也会影响目标元素的可见性，参见本文开始时的那张示意图。</p>
+<p>IntersectionObserver API 支持容器内滚动。<code>root</code>属性指定目标元素所在的容器节点（即根元素）。注意，容器元素必须是目标元素的祖先节点。</p>
+<pre><code>var opts = { 
+  root: document.querySelector(&apos;.container&apos;),
+  rootMargin: &quot;500px 0px&quot; 
+}; 
+
+var observer = new IntersectionObserver(
+  callback,
+  opts
+); 
+</code></pre><p>上面代码中，除了<code>root</code>属性，还有<code>[rootMargin](https://link.zhihu.com/?target=https%3A//wicg.github.io/IntersectionObserver/%23dom-intersectionobserverinit-rootmargin)</code>属性。后者定义根元素的<code>margin</code>，用来扩展或缩小<code>rootBounds</code>这个矩形的大小，从而影响<code>intersectionRect</code>交叉区域的大小。它使用CSS的定义方法，比如<code>10px 20px 30px 40px</code>，表示 top、right、bottom 和 left 四个方向的值。</p>
+<pre><code>//离视窗还有top=500px 或者 bottom=500 触发加载
+rootMargin = `500px 0px`  
+//离视窗还有top=-500px 或者 bottom=-500 触发加载 （惰性加载）
+rootMargin = `-500px 0px` 
+</code></pre><p>这样设置以后，不管是窗口滚动或者容器内滚动，只要目标元素可见性变化，都会触发观察器。</p>
+<h2 id="四、方法"><a href="#四、方法" class="headerlink" title="四、方法"></a>四、方法</h2><p><code>[IntersectionObserver.disconnect](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/disconnect)</code>使IntersectionObserver对象停止监听工作。</p>
+<p><code>[IntersectionObserver.observe](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/observe)使IntersectionObserver开始监听一个目标元素。</code></p>
+<p><code>[IntersectionObserver.takeRecords](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/takeRecords)</code>为所有监听目标返回一个<code>[IntersectionObserverEntry](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserverEntry)</code>对象数组并且停止监听这些目标。</p>
+<p><code>[IntersectionObserver.unobserve](https://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/API/IntersectionObserver/unobserve)使IntersectionObserver停止监听特定目标元素。</code></p>
+<h2 id="五、Vue（xunleif2e-vue-lazy-component）"><a href="#五、Vue（xunleif2e-vue-lazy-component）" class="headerlink" title="五、Vue（xunleif2e/vue-lazy-component）"></a>五、Vue（<a href="https://link.zhihu.com/?target=https%3A//github.com/xunleif2e/vue-lazy-component" target="_blank" rel="noopener">xunleif2e/vue-lazy-component</a>）</h2><p>核心 VueLazyComponent.vue</p>
+<pre><code>&lt;template&gt;
+  &lt;transition-group :tag=&quot;tagName&quot; name=&quot;lazy-component&quot; style=&quot;position: relative;&quot;
+    @before-enter=&quot;(el) =&gt; $emit(&apos;before-enter&apos;, el)&quot;
+    @before-leave=&quot;(el) =&gt; $emit(&apos;before-leave&apos;, el)&quot;
+    @after-enter=&quot;(el) =&gt; $emit(&apos;after-enter&apos;, el)&quot;
+    @after-leave=&quot;(el) =&gt; $emit(&apos;after-leave&apos;, el)&quot;
+  &gt;
+    &lt;div v-if=&quot;isInit&quot; key=&quot;component&quot;&gt;
+      &lt;slot :loading=&quot;loading&quot;&gt;&lt;/slot&gt;
+    &lt;/div&gt;
+    &lt;div v-else-if=&quot;$slots.skeleton&quot; key=&quot;skeleton&quot;&gt;
+      &lt;slot name=&quot;skeleton&quot;&gt;&lt;/slot&gt;
+    &lt;/div&gt;
+    &lt;div v-else key=&quot;loading&quot;&gt;
+    &lt;/div&gt;
+  &lt;/transition-group&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  export default {
+    name: &apos;VueLazyComponent&apos;,
+
+    props: {
+      timeout: {
+        type: Number
+      },
+      tagName: {
+        type: String,
+        default: &apos;div&apos;
+      },
+      viewport: {
+        type: typeof window !== &apos;undefined&apos; ? window.HTMLElement : Object,
+        default: () =&gt; null
+      },
+      threshold: {
+        type: String,
+        default: &apos;0px&apos;
+      },
+      direction: {
+        type: String,
+        default: &apos;vertical&apos;
+      },
+      maxWaitingTime: {
+        type: Number,
+        default: 50
+      }
+    },
+
+    data () {
+      return {
+        isInit: false,
+        timer: null,
+        io: null,
+        loading: false
+      }
+    },
+
+    created () {
+      // 如果指定timeout则无论可见与否都是在timeout之后初始化
+      if (this.timeout) {
+        this.timer = setTimeout(() =&gt; {
+          this.init()
+        }, this.timeout)
+      }
+    },
+
+    mounted () {
+      if (!this.timeout) {
+        // 根据滚动方向来构造视口外边距，用于提前加载
+        let rootMargin
+        switch (this.direction) {
+          case &apos;vertical&apos;:
+            rootMargin = `${this.threshold} 0px`
+            break
+          case &apos;horizontal&apos;:
+            rootMargin = `0px ${this.threshold}`
+            break
+        }
+
+        // 观察视口与组件容器的交叉情况
+        this.io = new window.IntersectionObserver(this.intersectionHandler, {
+          rootMargin,
+          root: this.viewport,
+          threshold: [ 0, Number.MIN_VALUE, 0.01]
+        })
+        this.io.observe(this.$el)
+      }
+    },
+
+    beforeDestroy () {
+      // 在组件销毁前取消观察
+      if (this.io) {
+        this.io.unobserve(this.$el)
+      }
+    },
+
+    methods: {
+      // 交叉情况变化处理函数
+      intersectionHandler (entries) {
+        if (
+          // 正在交叉
+          entries[0].isIntersecting ||
+          // 交叉率大于0
+          entries[0].intersectionRatio
+        ) {
+          this.init()
+          this.io.unobserve(this.$el)
+        }
+      },
+
+      // 处理组件和骨架组件的切换
+      init () {
+        // 此时说明骨架组件即将被切换
+        this.$emit(&apos;beforeInit&apos;)
+        this.$emit(&apos;before-init&apos;)
+
+        // 此时可以准备加载懒加载组件的资源
+        this.loading = true
+
+        // 由于函数会在主线程中执行，加载懒加载组件非常耗时，容易卡顿
+        // 所以在requestAnimationFrame回调中延后执行
+        this.requestAnimationFrame(() =&gt; {
+          this.isInit = true
+          this.$emit(&apos;init&apos;)
+        })
+      },
+
+      requestAnimationFrame (callback) {
+        // 防止等待太久没有执行回调
+        // 设置最大等待时间
+        setTimeout(() =&gt; {
+          if (this.isInit) return
+          callback()
+        }, this.maxWaitingTime)
+
+        // 兼容不支持requestAnimationFrame 的浏览器
+        return (window.requestAnimationFrame || ((callback) =&gt; setTimeout(callback, 1000 / 60)))(callback)
+      }
+    }
+  }
+&lt;/script&gt;
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/11/Raect-异步加载组件/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3724,364 +4288,11 @@ mymath.add(&quot;TypeScript&quot;)
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/02/20个CSS高级技巧汇总/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/02/20个CSS高级技巧汇总/" itemprop="url">20个 CSS高级技巧汇总</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-02T16:24:04+08:00">
-                2018-05-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>使用技巧会让人变的越来越懒，没错，我就是想让你变懒。下面是我收集的CSS高级技巧，希望你懒出境界。</p>
-<h2 id="1-黑白图像"><a href="#1-黑白图像" class="headerlink" title="1. 黑白图像"></a>1. 黑白图像</h2><p>这段代码会让你的彩色照片显示为黑白照片，是不是很酷？</p>
-<pre><code>img.desaturate {
- filter: grayscale(100%);
--webkit-filter: grayscale(100%);
--moz-filter: grayscale(100%);
--ms-filter: grayscale(100%);
--o-filter: grayscale(100%);
-}
-</code></pre><h2 id="2-使用-not-在菜单上应用-取消应用边框"><a href="#2-使用-not-在菜单上应用-取消应用边框" class="headerlink" title="2. 使用 :not() 在菜单上应用/取消应用边框"></a>2. 使用 <code>:not()</code> 在菜单上应用/取消应用边框</h2><p>先给每一个菜单项添加边框</p>
-<pre><code>/* add border */
-.nav li {
- border-right: 1px solid #666;
-}
-</code></pre><p>然后再除去最后一个元素</p>
-<pre><code>// remove border /
-
-.nav li:last-child {
- border-right: none;
-}
-</code></pre><p>可以直接使用 :not() 伪类来应用元素：</p>
-<pre><code>.nav li:not(:last-child) {
- border-right: 1px solid #666;
-}
-</code></pre><p>这样代码就干净，易读，易于理解了。</p>
-<p>当然，如果你的新元素有兄弟元素的话，也可以使用通用的兄弟选择符（~）：</p>
-<pre><code>.nav li:first-child ~ li {
- border-left: 1px solid #666;
-}
-</code></pre><h2 id="3-页面顶部阴影"><a href="#3-页面顶部阴影" class="headerlink" title="3. 页面顶部阴影"></a>3. 页面顶部阴影</h2><p>下面这个简单的 CSS3 代码片段可以给网页加上漂亮的顶部阴影效果：</p>
-<pre><code>body:before {
- content: &quot;&quot;;
- position: fixed;
- top: -10px;
- left: 0;
- width: 100%;
- height: 10px;
-
--webkit-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
--moz-box-shadow: 0px 0px 10px rgba(0,0,0,.8);
- box-shadow: 0px 0px 10px rgba(0,0,0,.8);
-
- z-index: 100;
-}
-</code></pre><h2 id="4-给-body-添加行高"><a href="#4-给-body-添加行高" class="headerlink" title="4. 给 body 添加行高"></a>4. 给 body 添加行高</h2><p>你不需要分别添加 line-height 到每个p,h标记等。只要添加到 body 即可：</p>
-<pre><code>body {
- line-height: 1;
-}
-</code></pre><p>这样文本元素就可以很容易地从 body 继承。</p>
-<h2 id="5-所有一切都垂直居中"><a href="#5-所有一切都垂直居中" class="headerlink" title="5. 所有一切都垂直居中"></a>5. 所有一切都垂直居中</h2><p>要将所有元素垂直居中，太简单了：</p>
-<pre><code>html, body {
- height: 100%;
- margin: 0;
-}
-
-body {
--webkit-align-items: center; 
--ms-flex-align: center; 
- align-items: center;
- display: -webkit-flex;
- display: flex;
-}
-</code></pre><p>看，是不是很简单。</p>
-<p>注意：在IE11中要小心flexbox</p>
-<h2 id="6-逗号分隔的列表"><a href="#6-逗号分隔的列表" class="headerlink" title="6. 逗号分隔的列表"></a>6. 逗号分隔的列表</h2><p>让HTML列表项看上去像一个真正的，用逗号分隔的列表：</p>
-<pre><code>ul &gt; li:not(:last-child)::after {
- content: &quot;,&quot;;
-}
-</code></pre><p>对最后一个列表项使用 :not() 伪类。</p>
-<h2 id="7-使用负的-nth-child-选择项目"><a href="#7-使用负的-nth-child-选择项目" class="headerlink" title="7. 使用负的 nth-child 选择项目"></a>7. 使用负的 nth-child 选择项目</h2><p>在CSS中使用负的 nth-child 选择项目1到项目n。</p>
-<pre><code>li {
- display: none;
-}
-
-/* select items 1 through 3 and display them */
-li:nth-child(-n+3) {
- display: block;
-}
-</code></pre><h2 id="8-对图标使用-SVG"><a href="#8-对图标使用-SVG" class="headerlink" title="8. 对图标使用 SVG"></a>8. 对图标使用 SVG</h2><p>我们没有理由不对图标使用SVG：</p>
-<pre><code>.logo {
- background: url(&quot;logo.svg&quot;);
-}
-</code></pre><p>SVG对所有的分辨率类型都具有良好的扩展性，并支持所有浏览器都回归到IE9。这样可以避开.png、.jpg或.gif文件了。</p>
-<h2 id="9-优化显示文本"><a href="#9-优化显示文本" class="headerlink" title="9. 优化显示文本"></a>9. 优化显示文本</h2><p>有时，字体并不能在所有设备上都达到最佳的显示，所以可以让设备浏览器来帮助你：</p>
-<pre><code>html {
--moz-osx-font-smoothing: grayscale;
--webkit-font-smoothing: antialiased;
- text-rendering: optimizeLegibility;
-}
-</code></pre><p>注：请负责任地使用 optimizeLegibility。此外，IE /Edge没有 text-rendering 支持。</p>
-<h2 id="10-对纯-CSS-滑块使用-max-height"><a href="#10-对纯-CSS-滑块使用-max-height" class="headerlink" title="10. 对纯 CSS 滑块使用 max-height"></a>10. 对纯 CSS 滑块使用 max-height</h2><p>使用 max-height 和溢出隐藏来实现只有CSS的滑块：</p>
-<pre><code>.slider ul {
- max-height: 0;
- overlow: hidden;
-}
-
-.slider:hover ul {
- max-height: 1000px;
- transition: .3s ease;
-}
-</code></pre><h2 id="11-继承-box-sizing"><a href="#11-继承-box-sizing" class="headerlink" title="11. 继承 box-sizing"></a>11. 继承 box-sizing</h2><p>让 box-sizing 继承 html：</p>
-<pre><code>html {
- box-sizing: border-box;
-}
-
-*, *:before, *:after {
- box-sizing: inherit;
-}
-</code></pre><p>这样在插件或杠杆其他行为的其他组件中就能更容易地改变 box-sizing 了。</p>
-<h2 id="12-表格单元格等宽"><a href="#12-表格单元格等宽" class="headerlink" title="12. 表格单元格等宽"></a>12. 表格单元格等宽</h2><p>表格工作起来很麻烦，所以务必尽量使用 table-layout: fixed 来保持单元格的等宽：</p>
-<pre><code>.calendar {
- table-layout: fixed;
-}
-</code></pre><h2 id="13-用-Flexbox-摆脱外边距的各种-hack"><a href="#13-用-Flexbox-摆脱外边距的各种-hack" class="headerlink" title="13. 用 Flexbox 摆脱外边距的各种 hack"></a>13. 用 Flexbox 摆脱外边距的各种 hack</h2><p>当需要用到列分隔符时，通过flexbox的 space-between 属性，你就可以摆脱nth-，first-，和 last-child 的hack了：</p>
-<pre><code>.list {
- display: flex;
- justify-content: space-between;
-}
-
-.list .person {
- flex-basis: 23%;
-}
-</code></pre><p>现在，列表分隔符就会在均匀间隔的位置出现。</p>
-<h2 id="14-使用属性选择器用于空链接"><a href="#14-使用属性选择器用于空链接" class="headerlink" title="14. 使用属性选择器用于空链接"></a>14. 使用属性选择器用于空链接</h2><p>当a元素没有文本值，但 href 属性有链接的时候显示链接：</p>
-<pre><code>a[href^=&quot;http&quot;]:empty::before {
- content: attr(href);
-}
-</code></pre><p>相当方便。</p>
-<h2 id="15-检测鼠标双击"><a href="#15-检测鼠标双击" class="headerlink" title="15. 检测鼠标双击"></a>15. 检测鼠标双击</h2><p>HTML：</p>
-<pre><code>&lt;div class=&quot;test3&quot;&gt;
-&lt;span&gt;&lt;input type=&quot;text&quot; value=&quot; &quot; readonly=&quot;true&quot; /&gt;
-&lt;a href=&quot;http://renpingjun.com&quot;&gt;Double click me&lt;/a&gt;&lt;/span&gt;
-&lt;/div&gt;
-</code></pre><p>CSS：</p>
-<pre><code>.test3 span {
- position: relative;
-}
-.test3 span a {
- position: relative;
- z-index: 2;
-}
-.test3 span a:hover, .test3 span a:active {
- z-index: 4;
-}
-.test3 span input {
- background: transparent;
- border: 0;
- cursor: pointer;
- position: absolute;
- top: -1px;
- left: 0;
- width: 101%; /* Hacky */
- height: 301%; /* Hacky */
- z-index: 3;
-}
-.test3 span input:focus {
- background: transparent;
- border: 0;
- z-index: 1;
-}
-</code></pre><h2 id="16-CSS-写出三角形"><a href="#16-CSS-写出三角形" class="headerlink" title="16. CSS 写出三角形"></a>16. CSS 写出三角形</h2><pre><code>/* create an arrow that points up */
-div.arrow-up {
- width:0px;
- height:0px;
- border-left:5px solid transparent; /* left arrow slant */
- border-right:5px solid transparent; /* right arrow slant */
- border-bottom:5px solid #2f2f2f; /* bottom, add background color here */
- font-size:0px;
- line-height:0px;
-}
-
-/* create an arrow that points down */
-div.arrow-down {
- width:0px;
- height:0px;
- border-left:5px solid transparent;
- border-right:5px solid transparent;
- border-top:5px solid #2f2f2f;
- font-size:0px;
- line-height:0px;
-}
-
-/* create an arrow that points left */
-div.arrow-left {
- width:0px;
- height:0px;
- border-bottom:5px solid transparent; /* left arrow slant */
- border-top:5px solid transparent; /* right arrow slant */
- border-right:5px solid #2f2f2f; /* bottom, add background color here */
- font-size:0px;
- line-height:0px;
-}
-
-/* create an arrow that points right */
-div.arrow-right {
- width:0px;
- height:0px;
- border-bottom:5px solid transparent; /* left arrow slant */
- border-top:5px solid transparent; /* right arrow slant */
- border-left:5px solid #2f2f2f; /* bottom, add background color here */
- font-size:0px;
- line-height:0px;
-}
-</code></pre><h2 id="17-CSS3-calc-的使用"><a href="#17-CSS3-calc-的使用" class="headerlink" title="17. CSS3 calc() 的使用"></a>17. CSS3 calc() 的使用</h2><p>calc() 用法类似于函数，能够给元素设置动态的值：</p>
-<pre><code>/* basic calc */
-.simpleBlock {
- width: calc(100% - 100px);
-}
-
-/* calc in calc */
-.complexBlock {
- width: calc(100% - 50% / 3);
- padding: 5px calc(3% - 2px);
- margin-left: calc(10% + 10px);
-}
-</code></pre><h2 id="18-文本渐变"><a href="#18-文本渐变" class="headerlink" title="18. 文本渐变"></a>18. 文本渐变</h2><p>文本渐变效果很流行，使用 CSS3 能够很简单就实现：</p>
-<pre><code>h2[data-text] {
- position: relative;
-}
-h2[data-text]::after {
- content: attr(data-text);
- z-index: 10;
- color: #e3e3e3;
- position: absolute;
- top: 0;
- left: 0;
--webkit-mask-image: -webkit-gradient(linear, left top, left bottom, from(rgba(0,0,0,0)), color-stop(50%, rgba(0,0,0,1)), to(rgba(0,0,0,0)));}
-</code></pre><h2 id="19-禁用鼠标事件"><a href="#19-禁用鼠标事件" class="headerlink" title="19. 禁用鼠标事件"></a>19. 禁用鼠标事件</h2><p>CSS3 新增的 pointer-events 让你能够禁用元素的鼠标事件，例如，一个连接如果设置了下面的样式就无法点击了。</p>
-<pre><code>.disabled { pointer-events: none; }
-</code></pre><h2 id="20-模糊文本"><a href="#20-模糊文本" class="headerlink" title="20. 模糊文本"></a>20. 模糊文本</h2><p>简单但很漂亮的文本模糊效果，简单又好看！</p>
-<pre><code>.blur {
-  color: transparent;
-  text-shadow: 0 0 5px rgba(0,0,0,0.5);
-}
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -4129,7 +4340,7 @@ h2[data-text]::after {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">140</span>
+                  <span class="site-state-item-count">141</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
