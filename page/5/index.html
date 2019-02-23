@@ -694,6 +694,466 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/20/Vue批量异步更新与nextTick原理/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="武动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/20/Vue批量异步更新与nextTick原理/" itemprop="url">Vue批量异步更新与nextTick原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-20T13:13:34+08:00">
+                2018-08-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <ol>
+<li>异步更新</li>
+</ol>
+<p>我们在依赖收集原理的响应式化方法 defineReactive 中的 setter 访问器中有派发更新 dep.notify() 方法。</p>
+<p>这个方法会挨个通知在 dep 的 subs 中收集的订阅自己变动的watchers执行update。</p>
+<p>一起来看看 update 方法的实现：</p>
+<pre><code>// src/core/observer/watcher.js
+
+/* Subscriber接口，当依赖发生改变的时候进行回调 */
+update() {
+  if (this.computed) {
+    // 一个computed watcher有两种模式：activated lazy(默认)
+    // 只有当它被至少一个订阅者依赖时才置activated，这通常是另一个计算属性或组件的render function
+    if (this.dep.subs.length === 0) {       // 如果没人订阅这个计算属性的变化
+      // lazy时，我们希望它只在必要时执行计算，所以我们只是简单地将观察者标记为dirty
+      // 当计算属性被访问时，实际的计算在this.evaluate()中执行
+      this.dirty = true
+    } else {
+      // activated模式下，我们希望主动执行计算，但只有当值确实发生变化时才通知我们的订阅者
+      this.getAndInvoke(() =&gt; {
+        this.dep.notify()     // 通知渲染watcher重新渲染，通知依赖自己的所有watcher执行update
+      })
+    }
+  } else if (this.sync) {      // 同步
+    this.run()
+  } else {
+    queueWatcher(this)        // 异步推送到调度者观察者队列中，下一个tick时调用
+  }
+}
+</code></pre><p>如果不是 computed watcher 也非 sync 会把调用update的当前watcher推送到调度者队列中，下一个tick时调用，看看 queueWatcher ：</p>
+<pre><code>// src/core/observer/scheduler.js
+
+/* 将一个观察者对象push进观察者队列，在队列中已经存在相同的id则
+ * 该watcher将被跳过，除非它是在队列正被flush时推送
+ */
+export function queueWatcher (watcher: Watcher) {
+  const id = watcher.id
+  if (has[id] == null) {     // 检验id是否存在，已经存在则直接跳过，不存在则标记哈希表has，用于下次检验
+    has[id] = true
+    queue.push(watcher)      // 如果没有正在flush，直接push到队列中
+    if (!waiting) {          // 标记是否已传给nextTick
+      waiting = true
+      nextTick(flushSchedulerQueue)
+    }
+  }
+}
+
+/* 重置调度者状态 */
+function resetSchedulerState () {
+  queue.length = 0
+  has = {}
+  waiting = false
+}
+</code></pre><p>这里使用了一个 has 的哈希map用来检查是否当前watcher的id是否存在，若已存在则跳过。</p>
+<p>不存在则就push到 queue 队列中并标记哈希表has，用于下次检验，防止重复添加。</p>
+<p>这就是一个去重的过程，比每次查重都要去queue中找要文明，在渲染的时候就不会重复 patch 相同watcher的变化。</p>
+<p>这样就算同步修改了一百次视图中用到的data，异步 patch 的时候也只会更新最后一次修改。</p>
+<p>这里的 waiting 方法是用来标记 flushSchedulerQueue 是否已经传递给 nextTick 的标记位。</p>
+<p>如果已经传递则只push到队列中不传递 flushSchedulerQueue 给 nextTick。</p>
+<p>等到 resetSchedulerState 重置调度者状态的时候 waiting 会被置回 false 允许 flushSchedulerQueue 被传递给下一个tick的回调。</p>
+<p>总之保证了 flushSchedulerQueue 回调在一个tick内只允许被传入一次。</p>
+<p>来看看被传递给 nextTick 的回调 flushSchedulerQueue 做了什么：</p>
+<pre><code>// src/core/observer/scheduler.js
+
+/* nextTick的回调函数，在下一个tick时flush掉两个队列同时运行watchers */
+function flushSchedulerQueue () {
+  flushing = true
+  let watcher, id
+
+  queue.sort((a, b) =&gt; a.id - b.id)                    // 排序
+
+  for (index = 0; index &lt; queue.length; index++) {     // 不要将length进行缓存
+    watcher = queue[index]
+    if (watcher.before) {         // 如果watcher有before则执行
+      watcher.before()
+    }
+    id = watcher.id
+    has[id] = null                // 将has的标记删除
+    watcher.run()                 // 执行watcher
+    if (process.env.NODE_ENV !== &apos;production&apos; &amp;&amp; has[id] != null) {  // 在dev环境下检查是否进入死循环
+      circular[id] = (circular[id] || 0) + 1     // 比如user watcher订阅自己的情况
+      if (circular[id] &gt; MAX_UPDATE_COUNT) {     // 持续执行了一百次watch代表可能存在死循环
+        warn()                                  // 进入死循环的警告
+        break
+      }
+    }
+  }
+  resetSchedulerState()           // 重置调度者状态
+  callActivatedHooks()            // 使子组件状态都置成active同时调用activated钩子
+  callUpdatedHooks()              // 调用updated钩子
+}
+</code></pre><p>在 nextTick 方法中执行 flushSchedulerQueue 方法，这个方法挨个执行 queue 中的watcher的 run 方法。</p>
+<p>我们看到在首先有个 queue.sort() 方法把队列中的watcher按id从小到大排了个序，这样做可以保证：</p>
+<ol>
+<li><p>组件更新的顺序是从父组件到子组件的顺序，因为父组件总是比子组件先创建。</p>
+</li>
+<li><p>一个组件的user watchers(侦听器watcher)比render watcher先运行，因为user watchers往往比render watcher更早创建</p>
+</li>
+<li><p>如果一个组件在父组件watcher运行期间被销毁，它的watcher执行将被跳过</p>
+</li>
+</ol>
+<p>在挨个执行队列中的for循环中，index &lt; queue.length 这里没有将length进行缓存。</p>
+<p>因为在执行处理现有watcher对象期间，更多的watcher对象可能会被push进queue。</p>
+<p>那么数据的修改从model层反映到view的过程：数据更改 -&gt; setter -&gt; Dep -&gt; Watcher -&gt; nextTick -&gt; patch -&gt; 更新视图</p>
+<ol start="2">
+<li>nextTick原理</li>
+</ol>
+<p><strong>2.1 宏任务/微任务</strong></p>
+<p>这里就来看看包含着每个watcher执行的方法被作为回调传入 nextTick 之后，nextTick 对这个方法做了什么。</p>
+<p>不过首先要了解一下浏览器中的 EventLoop、macro task、micro task几个概念。</p>
+<p>不了解可以参考一下 JS与Node.js中的事件循环 这篇文章，这里就用一张图来表明一下后两者在主线程中的执行关系：</p>
+<p><img src="/2018/08/20/Vue批量异步更新与nextTick原理/data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==" alt=""></p>
+<p>解释一下，当主线程执行完同步任务后：</p>
+<ol>
+<li><p>引擎首先从macrotask queue中取出第一个任务，执行完毕后，将microtask queue中的所有任务取出，按顺序全部执行；</p>
+</li>
+<li><p>然后再从macrotask queue中取下一个，执行完毕后，再次将microtask queue中的全部取出；</p>
+</li>
+<li><p>循环往复，直到两个queue中的任务都取完。</p>
+</li>
+</ol>
+<p>浏览器环境中常见的异步任务种类，按照优先级：</p>
+<ul>
+<li>macro task ：</li>
+</ul>
+<p>同步代码、setImmediate、MessageChannel、setTimeout/setInterval</p>
+<ul>
+<li>micro task：</li>
+</ul>
+<p>Promise.then、MutationObserver</p>
+<p>有的文章把 micro task 叫微任务，macro task 叫宏任务，因为这两个单词拼写太像了 -。- ，所以后面的注释多用中文表示~</p>
+<p>先来看看源码中对micro task与macro task 的实现： macroTimerFunc、microTimerFunc</p>
+<pre><code>// src/core/util/next-tick.js
+
+const callbacks = []     // 存放异步执行的回调
+let pending = false      // 一个标记位，如果已经有timerFunc被推送到任务队列中去则不需要重复推送
+
+/* 挨个同步执行callbacks中回调 */
+function flushCallbacks() {
+  pending = false
+  const copies = callbacks.slice(0)
+  callbacks.length = 0
+  for (let i = 0; i &lt; copies.length; i++) {
+    copies[i]()
+  }
+}
+
+let microTimerFunc        // 微任务执行方法
+let macroTimerFunc        // 宏任务执行方法
+let useMacroTask = false  // 是否强制为宏任务，默认使用微任务
+
+// 宏任务
+if (typeof setImmediate !== &apos;undefined&apos; &amp;&amp; isNative(setImmediate)) {
+  macroTimerFunc = () =&gt; {
+    setImmediate(flushCallbacks)
+  }
+} else if (typeof MessageChannel !== &apos;undefined&apos; &amp;&amp; (
+  isNative(MessageChannel) ||
+  MessageChannel.toString() === &apos;[object MessageChannelConstructor]&apos;  // PhantomJS
+)) {
+  const channel = new MessageChannel()
+  const port = channel.port2
+  channel.port1.onmessage = flushCallbacks
+  macroTimerFunc = () =&gt; {
+    port.postMessage(1)
+  }
+} else {
+  macroTimerFunc = () =&gt; {
+    setTimeout(flushCallbacks, 0)
+  }
+}
+
+// 微任务
+if (typeof Promise !== &apos;undefined&apos; &amp;&amp; isNative(Promise)) {
+  const p = Promise.resolve()
+  microTimerFunc = () =&gt; {
+    p.then(flushCallbacks)
+  }
+} else {
+  microTimerFunc = macroTimerFunc      // fallback to macro
+}
+</code></pre><p>flushCallbacks 这个方法就是挨个同步的去执行callbacks中的回调函数们，callbacks中的回调函数是在调用 nextTick 的时候添加进去的；</p>
+<p>那么怎么去使用 micro task 与 macro task 去执行 flushCallbacks 呢。</p>
+<p>这里他们的实现 macroTimerFunc、microTimerFunc 使用浏览器中宏任务/微任务的API对flushCallbacks 方法进行了一层包装。</p>
+<p>比如宏任务方法 macroTimerFunc=()=&gt;{ setImmediate(flushCallbacks) }，这样在触发宏任务执行的时候 macroTimerFunc() 就可以在浏览器中的下一个宏任务loop的时候消费这些保存在callbacks数组中的回调了，微任务同理。</p>
+<p>同时也可以看出传给 nextTick 的异步回调函数是被压成了一个同步任务在一个tick执行完的，而不是开启多个异步任务。</p>
+<p>注意这里有个比较难理解的地方，第一次调用 nextTick 的时候 pending 为false。</p>
+<p>此时已经push到浏览器event loop中一个宏任务或微任务的task，如果在没有flush掉的情况下继续往callbacks里面添加。</p>
+<p>那么在执行这个占位queue的时候会执行之后添加的回调，所以 macroTimerFunc、microTimerFunc 相当于task queue的占位。</p>
+<p>以后 pending 为true则继续往占位queue里面添加，event loop轮到这个task queue的时候将一并执行。</p>
+<p>执行 flushCallbacks 时 pending 置false，允许下一轮执行 nextTick 时往event loop占位。</p>
+<p>可以看到上面 macroTimerFunc 与 microTimerFunc 进行了在不同浏览器兼容性下的平稳退化，或者说降级策略：</p>
+<p>1、macroTimerFunc ：</p>
+<p>setImmediate -&gt; MessageChannel -&gt; setTimeout。</p>
+<p>首先检测是否原生支持 setImmediate，这个方法只在 IE、Edge 浏览器中原生实现。</p>
+<p>然后检测是否支持 MessageChannel，如果对 MessageChannel 不了解可以参考一下这篇文章。还不支持的话最后使用setTimeout；</p>
+<p>为什么优先使用 setImmediate 与 MessageChannel 而不直接使用 setTimeout 呢。</p>
+<p>是因为HTML5规定setTimeout执行的最小延时为4ms，而嵌套的timeout表现为10ms。</p>
+<p>为了尽可能快的让回调执行，没有最小延时限制的前两者显然要优于 setTimeout。</p>
+<p>2、microTimerFunc：</p>
+<p>Promise.then -&gt; macroTimerFunc 。</p>
+<p>首先检查是否支持 Promise，如果支持的话通过 Promise.then 来调用 flushCallbacks 方法。</p>
+<p>否则退化为 macroTimerFunc ；</p>
+<p>vue2.5之后 nextTick 中因为兼容性原因删除了微任务平稳退化的 MutationObserver 的方式。</p>
+<p><strong>2.2 nextTick实现</strong></p>
+<p>最后来看看我们平常用到的 nextTick 方法到底是如何实现的：</p>
+<pre><code>// src/core/util/next-tick.js
+
+export function nextTick(cb?: Function, ctx?: Object) {
+  let _resolve
+  callbacks.push(() =&gt; {
+    if (cb) {
+      try {
+        cb.call(ctx)
+      } catch (e) {
+        handleError(e, ctx, &apos;nextTick&apos;)
+      }
+    } else if (_resolve) {
+      _resolve(ctx)
+    }
+  })
+  if (!pending) {
+    pending = true
+    if (useMacroTask) {
+      macroTimerFunc()
+    } else {
+      microTimerFunc()
+    }
+  }
+  if (!cb &amp;&amp; typeof Promise !== &apos;undefined&apos;) {
+    return new Promise(resolve =&gt; {
+      _resolve = resolve
+    })
+  }
+}
+
+/* 强制使用macrotask的方法 */
+export function withMacroTask(fn: Function): Function {
+  return fn._withTask || (fn._withTask = function() {
+    useMacroTask = true
+    const res = fn.apply(null, arguments)
+    useMacroTask = false
+    return res
+  })
+}
+</code></pre><p>nextTick 在这里分为三个部分，我们一起来看一下；</p>
+<p>1、首先 nextTick 把传入的 cb 回调函数用 try-catch 包裹后放在一个匿名函数中推入callbacks数组中。</p>
+<p>这么做是因为防止单个 cb 如果执行错误不至于让整个JS线程挂掉。</p>
+<p>每个 cb 都包裹是防止这些回调函数如果执行错误不会相互影响，比如前一个抛错了后一个仍然可以执行。</p>
+<p>2、然后检查 pending 状态，这个跟之前介绍的 queueWatcher 中的 waiting 是一个意思。</p>
+<p>它是一个标记位，一开始是 false 在进入</p>
+<p>macroTimerFunc、microTimerFunc方法前被置为 true。</p>
+<p>因此下次调用 nextTick 就不会进入</p>
+<p>macroTimerFunc、microTimerFunc方法。</p>
+<p>这两个方法中会在下一个 macro/micro tick 时候 flushCallbacks 异步的去执行callbacks队列中收集的任务，而 flushCallbacks 方法在执行一开始会把 pending 置 false。</p>
+<p>因此下一次调用 nextTick 时候又能开启新一轮的 macroTimerFunc、microTimerFunc，这样就形成了vue中的 event loop。</p>
+<p>3、最后检查是否传入了 cb。</p>
+<p>因为 nextTick 还支持Promise化的调用：nextTick().then(() =&gt; {})。</p>
+<p>所以如果没有传入 cb 就直接return了一个Promise实例，并且把resolve传递给_resolve。</p>
+<p>这样后者执行的时候就跳到我们调用的时候传递进 then 的方法中。</p>
+<p>Vue源码中 next-tick.js 文件还有一段重要的注释，这里就翻译一下：</p>
+<p>在vue2.5之前的版本中，nextTick基本上基于 micro task 来实现的。</p>
+<p>但是在某些情况下 micro task 具有太高的优先级，并且可能在连续顺序事件之间（例如＃4521，＃6690）或者甚至在同一事件的事件冒泡过程中之间触发（＃6566）。</p>
+<p>但是如果全部都改成 macro task，对一些有重绘和动画的场景也会有性能影响，如 issue #6813。</p>
+<p>vue2.5之后版本提供的解决办法是默认使用 micro task，但在需要时（例如在v-on附加的事件处理程序中）强制使用 macro task。</p>
+<p>为什么默认优先使用 micro task 呢。</p>
+<p>是利用其高优先级的特性，保证队列中的微任务在一次循环全部执行完毕。</p>
+<p>强制 macro task 的方法是在绑定 DOM 事件的时候。</p>
+<p>默认会给回调的 handler 函数调用 withMacroTask 方法做一层包装 handler = withMacroTask(handler)。</p>
+<p>它保证整个回调函数执行过程中，遇到数据状态的改变，这些改变都会被推到 macro task 中。</p>
+<p>以上实现在src/platforms/web/runtime/modules/events.js</p>
+<p>的 add 方法中，可以自己看一看具体代码。</p>
+<p>刚好在写这篇文章的时候思否上有人问了个问题 vue 2.4 和2.5 版本的@input事件不一样。</p>
+<p>这个问题的原因也是因为2.5之前版本的DOM事件采用 micro task ，而之后采用 macro task。</p>
+<p>解决的途径参考 &lt; Vue.js 升级踩坑小记&gt; 中介绍的几个办法。</p>
+<p>这里就提供一个在mounted钩子中用 addEventListener 添加原生事件的方法来实现。</p>
+<p>参见 CodePen</p>
+<p>（<a href="https://codepen.io/SHERlocked93/pen/WKGNKJ）。" target="_blank" rel="noopener">https://codepen.io/SHERlocked93/pen/WKGNKJ）。</a></p>
+<ol start="3">
+<li>一个例子</li>
+</ol>
+<p>说这么多，不如来个例子，执行参见 CodePen</p>
+<pre><code>&lt;div id=&quot;app&quot;&gt;
+  &lt;span id=&apos;name&apos; ref=&apos;name&apos;&gt;{{ name }}&lt;/span&gt;
+  &lt;button @click=&apos;change&apos;&gt;change name&lt;/button&gt;
+  &lt;div id=&apos;content&apos;&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+  new Vue({
+    el: &apos;#app&apos;,
+    data() {
+      return {
+        name: &apos;SHERlocked93&apos;
+      }
+    },
+    methods: {
+      change() {
+        const $name = this.$refs.name
+        this.$nextTick(() =&gt; console.log(&apos;setter前：&apos; + $name.innerHTML))
+        this.name = &apos; name改喽 &apos;
+        console.log(&apos;同步方式：&apos; + this.$refs.name.innerHTML)
+        setTimeout(() =&gt; this.console(&quot;setTimeout方式：&quot; + this.$refs.name.innerHTML))
+        this.$nextTick(() =&gt; console.log(&apos;setter后：&apos; + $name.innerHTML))
+        this.$nextTick().then(() =&gt; console.log(&apos;Promise方式：&apos; + $name.innerHTML))
+      }
+    }
+  })
+&lt;/script&gt;
+</code></pre><p>执行以下看看结果：</p>
+<pre><code>同步方式：SHERlocked93 
+setter前：SHERlocked93 
+setter后：name改喽 
+Promise方式：name改喽 
+setTimeout方式：name改喽
+</code></pre><p>为什么是这样的结果呢，解释一下：</p>
+<ol>
+<li><p>同步方式： 当把data中的name修改之后，此时会触发name的 setter 中的 dep.notify 通知依赖本data的render watcher去 update，update 会把 flushSchedulerQueue 函数传递给 nextTick，render watcher在 flushSchedulerQueue 函数运行时 watcher.run 再走 diff -&gt; patch 那一套重渲染 re-render 视图，这个过程中会重新依赖收集，这个过程是异步的；所以当我们直接修改了name之后打印，这时异步的改动还没有被 patch 到视图上，所以获取视图上的DOM元素还是原来的内容。</p>
+</li>
+<li><p>setter前： setter前为什么还打印原来的是原来内容呢，是因为 nextTick 在被调用的时候把回调挨个push进callbacks数组，之后执行的时候也是 for 循环出来挨个执行，所以是类似于队列这样一个概念，先入先出；在修改name之后，触发把render watcher填入 schedulerQueue 队列并把他的执行函数 flushSchedulerQueue 传递给 nextTick ，此时callbacks队列中已经有了 setter前函数 了，因为这个 cb 是在 setter前函数 之后被push进callbacks队列的，那么先入先出的执行callbacks中回调的时候先执行 setter前函数，这时并未执行render watcher的 watcher.run，所以打印DOM元素仍然是原来的内容。</p>
+</li>
+<li><p>setter后： setter后这时已经执行完 flushSchedulerQueue，这时render watcher已经把改动 patch 到视图上，所以此时获取DOM是改过之后的内容。</p>
+</li>
+<li><p>Promise方式： 相当于 Promise.then 的方式执行这个函数，此时DOM已经更改。</p>
+</li>
+<li><p>setTimeout方式： 最后执行macro task的任务，此时DOM已经更改。</p>
+</li>
+</ol>
+<p>注意，在执行 setter前函数 这个异步任务之前，同步的代码已经执行完毕。</p>
+<p>异步的任务都还未执行，所有的 $nextTick 函数也执行完毕。</p>
+<p>所有回调都被push进了callbacks队列中等待执行，所以在setter前函数执行的时候。</p>
+<p>此时callbacks队列是这样的：</p>
+<p>[setter前函数，</p>
+<p>flushSchedulerQueue，</p>
+<p>setter后函数，</p>
+<p>Promise方式函数]。</p>
+<p>它是一个micro task队列，执行完毕之后执行macro task setTimeout，所以打印出上面的结果。</p>
+<p>另外，如果浏览器的宏任务队列里面有setImmediate、MessageChannel、setTimeout/setInterval 各种类型的任务。</p>
+<p>那么会按照上面的顺序挨个按照添加进event loop中的顺序执行，所以如果浏览器支持MessageChannel。</p>
+<p>nextTick执行的是macroTimerFunc。</p>
+<p>那么如果 macrotask queue 中同时有 nextTick 添加的任务和用户自己添加的 setTimeout 类型的任务。</p>
+<p>会优先执行 nextTick 中的任务，因为MessageChannel 的优先级比 setTimeout的高，setImmediate 同理。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/20/ES6之promise、generator-co、async-await手写promise/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3330,502 +3790,6 @@ console.log(8);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/30/深入理解ES6  Async Functions/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="武动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/30/深入理解ES6  Async Functions/" itemprop="url">深入理解ES6 Async Functions (异步函数)</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-30T18:35:10+08:00">
-                2018-05-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h2 id="async-异步-函数变体"><a href="#async-异步-函数变体" class="headerlink" title="async(异步) 函数变体"></a>async(异步) 函数变体</h2><p>以下是已经存在的异步函数变体。请注意无处不在的 <code>async</code> 关键字。</p>
-<ul>
-<li>异步函数声明： <code>async function foo() {}</code></li>
-<li>异步函数表达式： <code>const foo = async function () {};</code></li>
-<li>异步函数定义：<code>let obj = { async foo() {} }</code></li>
-<li>异步箭头函数： <code>const foo = async () =&gt; {};</code></li>
-</ul>
-<h2 id="async-异步-函数总是返回-Promises"><a href="#async-异步-函数总是返回-Promises" class="headerlink" title="async(异步) 函数总是返回 Promises"></a>async(异步) 函数总是返回 Promises</h2><p>async(异步) 函数的 Promise 完成状态：</p>
-<pre><code>async function asyncFunc() {
-return 123;
-}
-
-asyncFunc()
-.then(x =&gt; console.log(x));
-// 123
-</code></pre><p>async(异步) 函数的 Promise 拒绝状态：</p>
-<pre><code>async function asyncFunc() {
-throw new Error(&apos;Problem!&apos;);
-}
-
-asyncFunc()
-.catch(err =&gt; console.log(err));
-// Error: Problem!
-</code></pre><h2 id="通过-await-处理-async-异步-计算的结果和错误"><a href="#通过-await-处理-async-异步-计算的结果和错误" class="headerlink" title="通过 await 处理 async(异步) 计算的结果和错误"></a>通过 <code>await</code> 处理 async(异步) 计算的结果和错误</h2><p><code>await</code>（只允许在 async(异步) 函数内部使用）等待其操作对象 Promise 返回：</p>
-<ul>
-<li>如果 Promise 是完成状态，<code>await</code> 的结果是完成态的值。</li>
-<li>如果 Promise 是拒绝状态，<code>await</code> 会抛出拒绝值。</li>
-</ul>
-<p>处理单个 async(异步) 返回值：</p>
-<pre><code>async function asyncFunc() {
-const result = await otherAsyncFunc();
-   console.log(result);
-}
-
-// 等价于:
-function asyncFunc() {
-return otherAsyncFunc()
-.then(result =&gt; {
-       console.log(result);
-});
-}
-</code></pre><p>按顺序处理多个 async(异步) 返回值：</p>
-<pre><code>async function asyncFunc() {
-const result1 = await otherAsyncFunc1();
-   console.log(result1);
-const result2 = await otherAsyncFunc2();
-   console.log(result2);
-}
-
-// 等价于:
-function asyncFunc() {
-return otherAsyncFunc1()
-.then(result1 =&gt; {
-       console.log(result1);
-return otherAsyncFunc2();
-})
-.then(result2 =&gt; {
-       console.log(result2);
-});
-}
-</code></pre><p>并行处理多个 async(异步) 返回值：</p>
-<pre><code>async function asyncFunc() {
-const [result1, result2] = await Promise.all([
-       otherAsyncFunc1(),
-       otherAsyncFunc2(),
-]);
-   console.log(result1, result2);
-}
-
-// 等价于:
-function asyncFunc() {
-return Promise.all([
-       otherAsyncFunc1(),
-       otherAsyncFunc2(),
-])
-.then([result1, result2] =&gt; {
-       console.log(result1, result2);
-});
-}
-</code></pre><p>错误处理：</p>
-<pre><code>async function asyncFunc() {
-try {
-await otherAsyncFunc();
-} catch (err) {
-       console.error(err);
-}
-}
-
-// 等价于:
-function asyncFunc() {
-return otherAsyncFunc()
-.catch(err =&gt; {
-       console.error(err);
-});
-}
-</code></pre><h2 id="理解-async-异步-函数"><a href="#理解-async-异步-函数" class="headerlink" title="理解 async(异步) 函数"></a>理解 async(异步) 函数</h2><p>在我解释 async(异步) 函数之前，我需要解释一下如何组合使用 Promises 和 Generator ，通过看起来同步的代码来执行 async(异步) 操作。</p>
-<p>对于能够 async(异步) 计算其一次性结果的函数，作为 ES6 一部分的 Promises 已经变得流行起来。一个例子是 <a href="https://link.zhihu.com/?target=https%3A//fetch.spec.whatwg.org/%23concept-request" target="_blank" rel="noopener">客户端 fetch API</a> ，它是 XMLHttpRequest 获取数据的替代方法。使用示例如下：</p>
-<pre><code>function fetchJson(url) {
-return fetch(url)
-.then(request =&gt; request.text())
-.then(text =&gt; {
-return JSON.parse(text);
-})
-.catch(error =&gt; {
-       console.log(`ERROR: ${error.stack}`);
-});
-}
-fetchJson(&apos;http://example.com/some_file.json&apos;)
-.then(obj =&gt; console.log(obj));
-</code></pre><h2 id="通过-generator-来编写异步代码"><a href="#通过-generator-来编写异步代码" class="headerlink" title="通过 generator 来编写异步代码"></a>通过 generator 来编写异步代码</h2><p>co 是一个使用 Promise 和 generator 来实现看似同步编码的库，但与上一示例中使用的样式相同：</p>
-<pre><code>const fetchJson = co.wrap(function* (url) {
-try {
-let request = yield fetch(url);
-let text = yield request.text();
-return JSON.parse(text);
-}
-catch (error) {
-       console.log(`ERROR: ${error.stack}`);
-}
-});
-</code></pre><p>每次回调函数（ generator 函数）产生一个 Promise 对象给 co ，回调会被暂停，只有当 Promise 执行完成后，co 才会继续执行回调 。 如果 Promise 处于完成状态，<code>yield</code> 返回完成状态的值，如果处于拒绝状态，<code>yield</code> 抛出拒绝状态的错误。此外，co 保证结果是通过回调执行完成才返回的（类似于 <code>then()</code> 所做的工作）。</p>
-<h2 id="通过-async-异步-函数来编写异步代码"><a href="#通过-async-异步-函数来编写异步代码" class="headerlink" title="通过 async(异步) 函数来编写异步代码"></a>通过 async(异步) 函数来编写异步代码</h2><p>async(异步) 函数用的特定语法基本上和 co 类似：</p>
-<pre><code>async function fetchJson(url) {
-try {
-let request = await fetch(url);
-let text = await request.text();
-return JSON.parse(text);
-}
-catch (error) {
-       console.log(`ERROR: ${error.stack}`);
-}
-}
-</code></pre><p>在内部，异步函数写法更类似于 generators 。</p>
-<h2 id="以同步开始，异步处理的-async-异步-函数"><a href="#以同步开始，异步处理的-async-异步-函数" class="headerlink" title="以同步开始，异步处理的 async(异步) 函数"></a>以同步开始，异步处理的 async(异步) 函数</h2><p>以下是 async(异步)函数是如何工作的：</p>
-<ol>
-<li>async(异步) 函数总是返回一个 Promise 对象 <code>p</code> 。Promise 对象在 async(异步) 函数开始执行时被创建。</li>
-<li>函数体执行过程中，可以通过 <code>return</code> 或 <code>throw</code> 终止执行。或者通过 <code>await</code> 暂停执行，在这种情况下，通常会在以后继续执行。</li>
-<li>返回 Promise 对象 <code>p</code>。</li>
-</ol>
-<p>当执行 async(异步) 函数的函数体时，<code>return x</code> 中的 <code>x</code> 是 Promise 对象 <code>p</code> 的完成状态的结果，而 <code>throw err</code> 是 <code>p</code> 的拒绝状态的结果。执行结果是异步返回的。换句话说：<code>then()</code> 和 <code>catch()</code> 的回调总是在当前代码完成后执行。</p>
-<p>以下是代码示例：</p>
-<pre><code>async function asyncFunc() {
-   console.log(&apos;asyncFunc()&apos;); // (A)
-return &apos;abc&apos;;
-}
-asyncFunc().
-then(x =&gt; console.log(`Resolved: ${x}`)); // (B)
-console.log(&apos;main&apos;); // (C)
-
-// Output:
-// asyncFunc()
-// main
-// Resolved: abc
-</code></pre><p>您可以认为是以下的执行顺序：</p>
-<ol>
-<li>行A：async(异步) 函数以同步开始。async(异步) 函数的 Promise 通过 <code>return</code> 来返回完成状态的结果。</li>
-<li>行C：执行继续。</li>
-<li>行B：Promise 完成状态通知是异步发生的。</li>
-</ol>
-<h2 id="返回不被包裹的-Promise-对象"><a href="#返回不被包裹的-Promise-对象" class="headerlink" title="返回不被包裹的 Promise 对象"></a>返回不被包裹的 Promise 对象</h2><p>Promise 的 resolve 是一项标准操作。 <code>return</code> 就是使用它来 resolve async(异步) 函数的 Promise <code>p</code> 的。这意味着：</p>
-<ol>
-<li>返回一个非 Promise 值，该值将被处理成 <code>p</code> 的完成状态值。</li>
-<li>返回一个 Promise 对象，那么 <code>p</code> 此时相当于是该 Promise 的状态。</li>
-</ol>
-<p>因此，您可以返回一个 Promise ，并且这个 Promise 不会包裹在别的 Promise 中：</p>
-<pre><code>async function asyncFunc() {
-return Promise.resolve(123);
-}
-asyncFunc()
-.then(x =&gt; console.log(x)) // 123
-</code></pre><p>有趣的是，返回一个拒绝状态（reject）的 Promise 对象会导致 async(异步) 函数被拒绝（reject）（通常，您可以使用 <code>throw</code> ）：</p>
-<pre><code>async function asyncFunc() {
-return Promise.reject(new Error(&apos;Problem!&apos;));
-}
-asyncFunc()
-.catch(err =&gt; console.error(err)); // Error: Problem!
-</code></pre><p>这与 Promise 解决方案的工作方式是一致的。 使你能够在不使用 <code>await</code> 的情况下，使用其他 async(异步) 计算来执行完成和拒绝处理：</p>
-<pre><code>async function asyncFunc() {
-return anotherAsyncFunc();
-}
-</code></pre><p>上面的代码示例和下面的类似，但是比下面的更高效。（以下代码示例没有包裹 <code>anotherAsyncFunc()</code> 的 Promise ，而是包裹 <code>anotherAsyncFunc()</code> 本身 ）：</p>
-<pre><code>async function asyncFunc() {
-return await anotherAsyncFunc();
-}
-</code></pre><h2 id="使用-await-小贴士"><a href="#使用-await-小贴士" class="headerlink" title="使用 await 小贴士"></a>使用 <code>await</code> 小贴士</h2><h2 id="不要忘记使用-await"><a href="#不要忘记使用-await" class="headerlink" title="不要忘记使用 await"></a>不要忘记使用 <code>await</code></h2><p>在 async(异步) 函数中容易犯的一个错误就是在调用 async(异步) 函数时忘记使用 <code>await</code> ：</p>
-<pre><code>async function asyncFunc() {
-const value = otherAsyncFunc(); // missing `await`!
-···
-}
-</code></pre><p>在这个例子中，方法执行返回的 Promise 对象赋值给了 <code>value</code> ，它通常不是你在 async(异步) 函数中想要的结果。</p>
-<p>await 甚至可以在 async(异步) 函数不返回任何值的情况下起作用。它的 Promise 只是用来告诉调用者完成状态。例如：</p>
-<pre><code>async function foo() {
-await step1(); // (A)
-···
-}
-</code></pre><p>行A中的 <code>await</code> 确保在执行 <code>foo()</code> 剩余部分之前， <code>step1()</code> 已经执行完成。</p>
-<h2 id="不需要使用-await-的情况"><a href="#不需要使用-await-的情况" class="headerlink" title="不需要使用 await 的情况"></a>不需要使用 await 的情况</h2><p>有时，你只想触发异步计算，并且不需要关注它什么时候完成。以下是代码示例：</p>
-<pre><code>async function asyncFunc() {
-const writer = openFile(&apos;someFile.txt&apos;);
-   writer.write(&apos;hello&apos;); // don’t wait
-   writer.write(&apos;world&apos;); // don’t wait
-await writer.close(); // wait for file to close
-}
-</code></pre><p>在这里，我们不关心单个的写入操作是否完成，只需要他们以正确的顺序执行 (API必须保证，但这是由 async(异步) 函数的执行模型所鼓励的，正如我们所见)。</p>
-<p><code>asyncFunc()</code> 函数最后一行的 <code>await</code> 确保该函数仅在文件写入关闭后才会执行。</p>
-<p>由于返回的 Promises 没有被其他 async(异步) 函数包裹，所以你可以用 <code>return</code> 替换 <code>await writer.close()</code> ：</p>
-<pre><code>async function asyncFunc() {
-const writer = openFile(&apos;someFile.txt&apos;);
-   writer.write(&apos;hello&apos;);
-   writer.write(&apos;world&apos;);
-return writer.close();
-}
-</code></pre><p>这两个版本各有利弊，<code>await</code> 版本可能稍微更容易理解。</p>
-<h2 id="await-是顺序执行的，Promise-all-是并行的"><a href="#await-是顺序执行的，Promise-all-是并行的" class="headerlink" title="await 是顺序执行的，Promise.all() 是并行的"></a>await 是顺序执行的，Promise.all() 是并行的</h2><p>下面的代码调用了两个 async(异步) 函数， <code>asyncFunc1()</code> 和 <code>asyncFunc1()</code> 。</p>
-<pre><code>async function foo() {
-const result1 = await asyncFunc1();
-const result2 = await asyncFunc2();
-}
-</code></pre><p>这两个函数调用顺序执行。但是并行执行它们往往会加快速度。您可以使用 Promise.all() ：</p>
-<pre><code>async function foo() {
-const [result1, result2] = await Promise.all([
-       asyncFunc1(),
-       asyncFunc2(),
-]);
-}
-</code></pre><p>我们现在正在等待一个包含两个元素的数组的 Promise ，而不是等待两个 Promise。</p>
-<h2 id="异步函数和回调"><a href="#异步函数和回调" class="headerlink" title="异步函数和回调"></a>异步函数和回调</h2><p>async(异步) 函数的一个限制是 <code>await</code>(等待) 只影响直接相关的 async(异步) 函数。因此，async(异步) 函数无法在回调（但是，回调可以是 async(异步) 函数本身，稍后我们将会看到）中使用 <code>await</code>(等待)。这使得基于回调的实用函数和方法难以使用。例子中我们将使用数组方法 <code>map()</code> 和 <code>forEach()</code>。</p>
-<h2 id="Array-prototype-map"><a href="#Array-prototype-map" class="headerlink" title="Array.prototype.map()"></a>Array.prototype.map()</h2><p>我们从数组方法 <code>map()</code> 开始讲解。在下面的代码示例中，我们想要加载由 URLs 数组指向的文件，并将它们返回到数组中。</p>
-<pre><code>async function downloadContent(urls) {
-return urls.map(url =&gt; {
-// 错误的语法!
-const content = await httpGet(url);
-return content;
-});
-}
-</code></pre><p>这不起作用，因为在正常箭头函数中 <code>await</code> 语法上是非法的(愚人码头注： <code>await</code>(等待) 只影响直接相关的 async(异步) 函数)。那么如何使用异步的箭头函数呢？</p>
-<pre><code>async function downloadContent(urls) {
-return urls.map(async (url) =&gt; { // 注意这一行中的 async ;
-const content = await httpGet(url);
-return content;
-});
-}
-</code></pre><p>这段代码有两个问题：</p>
-<ul>
-<li>现在返回的结果是一个 Promises 对象的数组，而不是一个字符串的数组。</li>
-<li>一旦 <code>map()</code> 执行完成，回调执行的工作并不能同时完成，因为 <code>await</code> 只暂停了包裹它的箭头函数 和 <code>httpGet()</code> 异步执行达到完成状态。这意味着你不能使用 <code>await</code>，来等待 <code>downloadContent()</code> 执行结束。</li>
-</ul>
-<p>我们可以通过 <code>Promise.all()</code> 来解决这两个问题，<code>Promise.all()</code> 可以将一系列的 Promise 转换为一个 Promise 数组（所有值都是经过 Promise 完成并返回）：</p>
-<pre><code>async function downloadContent(urls) {
-const promiseArray = urls.map(async (url) =&gt; {
-const content = await httpGet(url);
-return content;
-});
-return await Promise.all(promiseArray);
-}
-</code></pre><p><code>map()</code> 的回调并不对 <code>httpGet()</code> 的结果起作用，只是起到不断执行的作用。因此，这里我们不需要一个异步的箭头函数，只需要一个普通的箭头函数就能达到相同的结果。</p>
-<pre><code>async function downloadContent(urls) {
-const promiseArray = urls.map(
-       url =&gt; httpGet(url));
-return await Promise.all(promiseArray);
-}
-</code></pre><p>我们仍然可以做一个小的改进：这个异步函数稍微有点低效 – 首先通过 <code>await</code> 来解开 <code>Promise.all()</code> 的结果，然后通过 <code>return</code> 再次包裹它。 假设 <code>return</code> 不包裹 Promises，我们可以直接返回 <code>Promise.all()</code> 的结果：</p>
-<pre><code>async function downloadContent(urls) {
-const promiseArray = urls.map(
-       url =&gt; httpGet(url));
-return Promise.all(promiseArray);
-}
-</code></pre><h2 id="Array-prototype-forEach"><a href="#Array-prototype-forEach" class="headerlink" title="Array.prototype.forEach()"></a>Array.prototype.forEach()</h2><p>我们使用数组的 forEach() 方法在控制台中打印几个通过 URLs 加载的文件的内容：</p>
-<pre><code>async function logContent(urls) {
-   urls.forEach(url =&gt; {
-// Wrong syntax
-const content = await httpGet(url);
-       console.log(content);
-});
-}
-</code></pre><p>同样的，这里的代码会产生一个语法错误，因为你不能在通常的箭头函数内部使用 <code>await</code> 。</p>
-<p>我们换作异步箭头函数：</p>
-<pre><code>async function logContent(urls) {
-   urls.forEach(async url =&gt; {
-const content = await httpGet(url);
-       console.log(content);
-});
-// Not finished here
-}
-</code></pre><p>这段代码起作用了，但是会出现一个警告：<code>httpGet()</code> 返回的 Promise 对象是异步完成的，这也意味着当 <code>forEach()</code> 返回的时候回调可能还没有结束，因此你无法等到 <code>logContent()</code> 只能结束。</p>
-<p>如果你并不想要这个结果，你可以将 <code>forEach()</code> 转换为 <code>for-of</code> 循环。</p>
-<pre><code>async function logContent(urls) {
-for (const url of urls) {
-const content = await httpGet(url);
-       console.log(content);
-}
-}
-</code></pre><p>现在一切都在 <code>for-of</code> 循环完成后完成。但是，处理步骤依次发生：<code>httpGet()</code> 只是在第一次调用完成后再次调用。如果您希望处理步骤并行执行，你必须使用 <code>Promise.all()</code>：</p>
-<pre><code>async function logContent(urls) {
-await Promise.all(urls.map(
-async url =&gt; {
-const content = await httpGet(url);
-           console.log(content);
-}));
-}
-</code></pre><p><code>map()</code> 用于创建一个 Promises 数组。 我们对他们的完成结果并不感兴趣，我们只要 <code>await</code>(等待) 所有方法执行完成。这意味着我们希望的是在 async(异步) 函数完成之后所有的执行都已经完成。我们也可以返回 <code>Promise.all()</code> ，但是该函数的结果是一个数组，其元素都是未完成状态的。</p>
-<h2 id="使用异步函数小贴士"><a href="#使用异步函数小贴士" class="headerlink" title="使用异步函数小贴士"></a>使用异步函数小贴士</h2><h2 id="了解你的-Promises"><a href="#了解你的-Promises" class="headerlink" title="了解你的 Promises"></a>了解你的 Promises</h2><p>async(异步) 函数的基础就是 <a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">Promises</a> 对象，这就是为什么理解 Promises 对于理解 async(异步) 函数至关重要。特别是当遇到不是基于 Promises 的老代码来实现 async(异步) 函数时，你通常别无选择，只能用 Promise 来重构。</p>
-<p>举个例子，这里有个 “promisified” 版本的 <code>XMLHttpRequest</code> ：</p>
-<pre><code>function httpGet(url, responseType=&quot;&quot;) {
-return new Promise(
-function (resolve, reject) {
-const request = new XMLHttpRequest();
-           request.onload = function () {
-if (this.status === 200) {
-// Success
-                   resolve(this.response);
-} else {
-// Something went wrong (404 etc.)
-                   reject(new Error(this.statusText));
-}
-};
-           request.onerror = function () {
-               reject(new Error(
-&apos;XMLHttpRequest Error: &apos;+this.statusText));
-};
-           request.open(&apos;GET&apos;, url);
-           xhr.responseType = responseType;
-           request.send();
-});
-}
-</code></pre><p>XMLHttpRequest 的 API 是基于回调的。通过一个 async(异步) 函数来实现它，意味着你必须在回调中返回 Promise 的完成(fulfill) 或拒绝(reject) 状态。这是不可能的，因为你只能通过 <code>return</code> 或者 <code>throw</code> 来完成这样的操作。你不能从回调函数内部 <code>return</code> 一个函数的结果。<code>throw</code>也有类似的约束。</p>
-<p>因此，异步函数的通用编码风格是：</p>
-<ul>
-<li>直接使用 Promise 对象来构建异步原语。</li>
-<li>用异步函数来使用这些原语。</li>
-</ul>
-<p>扩展阅读：“Exploring ES6” 中的 “<a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">异步编程中的 Promises 对象</a>” 章节</p>
-<h2 id="立即调用异步函数表达式"><a href="#立即调用异步函数表达式" class="headerlink" title="立即调用异步函数表达式"></a>立即调用异步函数表达式</h2><p>有时，如果你可以在模块或脚本的顶层使用 await ，那将是一种很好的选择。当然，它只能在异步函数中使用。您可以创建一个异步函数 <code>main()</code> 并立即调用它：</p>
-<pre><code>async function main() {
-   console.log(await asyncFunction());
-}
-main();
-</code></pre><p>或者您可以使用立即调用异步函数表达式：</p>
-<pre><code>(async function () {
-   console.log(await asyncFunction());
-})();
-</code></pre><p>另一个选择是立即调用异步箭头函数：</p>
-<pre><code>(async () =&gt; {
-   console.log(await asyncFunction());
-})();
-</code></pre><h2 id="用异步函数进行单元测试"><a href="#用异步函数进行单元测试" class="headerlink" title="用异步函数进行单元测试"></a>用异步函数进行单元测试</h2><p>以下代码使用 <a href="https://link.zhihu.com/?target=https%3A//mochajs.org/" target="_blank" rel="noopener">测试框架 mocha</a> 对异步函数 asyncFun1() 和 asyncFun2() 来进行单元测试：</p>
-<pre><code>import assert from &apos;assert&apos;;
-
-// Bug: the following test always succeeds
-test(&apos;Testing async code&apos;, function () {
-   asyncFunc1() // (A)
-.then(result1 =&gt; {
-assert.strictEqual(result1, &apos;a&apos;); // (B)
-return asyncFunc2();
-})
-.then(result2 =&gt; {
-assert.strictEqual(result2, &apos;b&apos;); // (C)
-});
-});
-</code></pre><p>然而，这个测试总是成功的，因为 mocha 不会等待 B 行和 C 行断言执行完成。</p>
-<p>你可以通过返回链式调用的 Promise 来解决这个问题，因为 mocha 会识别一个测试是否返回一个 Promise ，然后等待该 Promise 完成 再进行下一步（除非超时）。</p>
-<pre><code>return asyncFunc1() // (A)
-</code></pre><p>异步函数总是返回 Promises ，这使得它们能方便的、完美的来进行这种单元测试：</p>
-<pre><code>import assert from &apos;assert&apos;;
-test(&apos;Testing async code&apos;, async function () {
-const result1 = await asyncFunc1();
-assert.strictEqual(result1, &apos;a&apos;);
-const result2 = await asyncFunc2();
-assert.strictEqual(result2, &apos;b&apos;);
-});
-</code></pre><p>在 mocha 中使用异步单元测试异步函数有两个优点：代码更简洁，能够准确处理返回的 Promise 对象。</p>
-<h2 id="不要担心没有处理的拒绝拒态"><a href="#不要担心没有处理的拒绝拒态" class="headerlink" title="不要担心没有处理的拒绝拒态"></a>不要担心没有处理的拒绝拒态</h2><p>当前的 JavaScript 引擎可以在拒绝态未处理的情况下提出警告。以下代码在过去会经常执行失败，但是当前的 JavaScript 引擎可以进行警告：</p>
-<pre><code>JavaScript 代码:
-async function foo() {
-throw new Error(&apos;Problem!&apos;);
-}
-foo();
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3878,7 +3842,7 @@ foo();
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">143</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
