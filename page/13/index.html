@@ -694,6 +694,434 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/08/14/JavaScript函数柯里化/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="武动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/08/14/JavaScript函数柯里化/" itemprop="url">JavaScript函数柯里化</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-08-14T20:00:52+08:00">
+                2016-08-14
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="什么是柯里化？"><a href="#什么是柯里化？" class="headerlink" title="什么是柯里化？"></a>什么是柯里化？</h2><h2 id="官方的说法"><a href="#官方的说法" class="headerlink" title="官方的说法"></a>官方的说法</h2><p>在计算机科学中，<a href="http://link.zhihu.com/?target=https%3A//zh.wikipedia.org/wiki/%25E6%259F%25AF%25E9%2587%258C%25E5%258C%2596" target="_blank" rel="noopener">柯里化</a>（英语：<code>Currying</code>），又译为<code>卡瑞化</code>或<code>加里化</code>，是把接受多个参数的函数变换成接受一个单一参数（最初函数的第一个参数）的函数，并且返回接受余下的参数而且返回结果的新函数的技术。这个技术由<code>克里斯托弗·斯特雷奇</code>以逻辑学家<code>哈斯凯尔·加里</code>命名的，尽管它是<code>Moses Schönfinkel</code>和<code>戈特洛布·弗雷格发明的</code>。</p>
+<p>在直觉上，柯里化声称如果你固定某些参数，你将得到接受余下参数的一个函数。</p>
+<p>在理论计算机科学中，柯里化提供了在简单的理论模型中，比如：只接受一个单一参数的<code>lambda</code>演算中，研究带有多个参数的函数的方式。</p>
+<p>函数柯里化的对偶是<code>Uncurrying</code>，一种使用匿名单参数函数来实现多参数函数的方法。</p>
+<h2 id="方便的理解"><a href="#方便的理解" class="headerlink" title="方便的理解"></a>方便的理解</h2><blockquote>
+<p>Currying概念其实很简单，只传递给函数一部分参数来调用它，让它返回一个函数去处理剩下的参数。</p>
+</blockquote>
+<p>如果我们需要实现一个求三个数之和的函数：</p>
+<pre><code>function add(x, y, z) {
+  return x + y + z;
+}
+console.log(add(1, 2, 3)); // 6
+var add = function(x) {
+  return function(y) {
+    return function(z) {
+      return x + y + z;
+    }
+  }
+}
+
+var addOne = add(1);
+var addOneAndTwo = addOne(2);
+var addOneAndTwoAndThree = addOneAndTwo(3);
+
+console.log(addOneAndTwoAndThree);
+</code></pre><p>这里我们定义了一个<code>add</code>函数，它接受一个参数并返回一个新的函数。调用<code>add</code>之后，返回的函数就通过闭包的方式记住了<code>add</code>的第一个参数。一次性地调用它实在是有点繁琐，好在我们可以使用一个特殊的<code>curry</code>帮助函数（<code>helper function</code>）使这类函数的定义和调用更加容易。</p>
+<p>用<code>ES6</code>的箭头函数，我们可以将上面的<code>add</code>实现成这样：</p>
+<pre><code>const add = x =&gt; y =&gt; z =&gt; x + y + z;
+</code></pre><p>好像使用箭头函数更清晰了许多。</p>
+<h2 id="偏函数？"><a href="#偏函数？" class="headerlink" title="偏函数？"></a>偏函数？</h2><p>来看这个函数：</p>
+<pre><code>function ajax(url, data, callback) {
+  // ..
+}
+</code></pre><p>有这样的一个场景：我们需要对多个不同的接口发起<code>HTTP</code>请求，有下列两种做法：</p>
+<ul>
+<li>在调用<code>ajax()</code>函数时，传入全局<code>URL</code>常量。</li>
+<li>创建一个已经预设<code>URL</code>实参的函数引用。</li>
+</ul>
+<p>下面我们创建一个新函数，其内部仍然发起<code>ajax()</code>请求，此外在等待接收另外两个实参的同时，我们手动将<code>ajax()</code>第一个实参设置成你关心的<code>API</code>地址。</p>
+<p>对于第一种做法，我们可能产生如下调用方式：</p>
+<pre><code>function ajaxTest1(data, callback) {
+  ajax(&apos;http://www.test.com/test1&apos;, data, callback);
+}
+
+function ajaxTest2(data, callback) {
+  ajax(&apos;http://www.test.com/test2&apos;, data, callback);
+}
+</code></pre><p>对于这两个类似的函数，我们还可以提取出如下的模式：</p>
+<pre><code>function beginTest(callback) {
+  ajaxTest1({
+    data: GLOBAL_TEST_1,
+  }, callback);
+}
+</code></pre><p>相信您已经看到了这样的模式：我们在函数调用现场（<code>function call-site</code>），将实参应用（<code>apply</code>） 于形参。如你所见，我们一开始仅应用了部分实参 —— 具体是将实参应用到<code>URL</code>形参 —— 剩下的实参稍后再应用。</p>
+<p>上述概念即为偏函数的定义，偏函数一个减少函数参数个数的过程；这里的参数个数指的是希望传入的形参的数量。我们通过<code>ajaxTest1()</code>把原函数<code>ajax()</code>的参数个数从<code>3</code>个减少到了<code>2</code>个。</p>
+<p>我们这样定义一个<code>partial()</code>函数：</p>
+<pre><code>function partial(fn, ...presetArgs) {
+  return function partiallyApplied(...laterArgs) {
+    return fn(...presetArgs, ...laterArgs);
+  }
+}
+</code></pre><p><code>partial()</code>函数接收<code>fn</code>参数，来表示被我们偏应用实参（<code>partially apply</code>）的函数。接着，<code>fn</code>形参之后，<code>presetArgs</code>数组收集了后面传入的实参，保存起来稍后使用。</p>
+<p>我们创建并<code>return</code>了一个新的内部函数（为了清晰明了，我们把它命名为<code>partiallyApplied(..)</code>），该函数中，<code>laterArgs</code>数组收集了全部实参。</p>
+<p>使用箭头函数，则更为简洁：</p>
+<pre><code>var partial =
+  (fn, ...presetArgs) =&gt;
+    (...laterArgs) =&gt;
+      fn(...presetArgs, ...laterArgs);
+</code></pre><p>使用偏函数的这种模式，我们重构之前的代码：</p>
+<pre><code>function ajax(url, data, callback) {
+  // ..
+}
+
+var ajaxTest1 = partial(ajax, &apos;http://www.test.com/test1&apos;);
+var ajaxTest2 = partial(ajax, &apos;http://www.test.com/test1&apos;);
+</code></pre><p>再次思考<code>beginTest()</code>函数，我们使用<code>partial()</code>来重构它应该怎么做呢？</p>
+<pre><code>function ajax(url, data, callback) {
+  // ..
+}
+
+// 版本1
+var beginTest = partial(ajax, &apos;http://www.test.com/test1&apos;, {
+  data: GLOBAL_TEST_1,
+});
+
+// 版本2
+var ajaxTest1 = partial(ajax, &apos;http://www.test.com/test1&apos;);
+var beginTest = partial(ajaxTest1, {
+  data: GLOBAL_TEST_1,
+});
+</code></pre><h2 id="一次传一个"><a href="#一次传一个" class="headerlink" title="一次传一个"></a>一次传一个</h2><p>相信你已经在上述例子中看到了版本2比起版本1的优势所在了，没错，柯里化就是：将一个带有多个参数的函数转换为一次一个的函数的过程。每次调用函数时，它只接受一个参数，并返回一个函数，直到传递所有参数为止。</p>
+<blockquote>
+<p>The process of converting a function that takes multiple arguments into a function that takes them one at a time.</p>
+<p>Each time the function is called it only accepts one argument and returns a function that takes one argument until all arguments are passed.</p>
+</blockquote>
+<p>假设我们已经创建了一个柯里化版本的<code>ajax()</code>函数<code>curriedAjax()</code>：</p>
+<pre><code>curriedAjax(&apos;http://www.test.com/test1&apos;)
+  ({
+    data: GLOBAL_TEST_1,
+  })
+  (function callback(data) {
+    // dosomething
+  });
+</code></pre><p>我们将三次调用分别拆解开来，这也许有助于我们理解整个过程：</p>
+<pre><code>var ajaxTest1 = curriedAjax(&apos;http://www.test.com/test1&apos;);
+
+var beginTest = ajaxTest1({
+  data: GLOBAL_TEST_1,
+});
+
+var ajaxCallback = beginTest(function callback(data) {
+  // dosomething
+});
+</code></pre><h2 id="实现柯里化"><a href="#实现柯里化" class="headerlink" title="实现柯里化"></a>实现柯里化</h2><p>那么，我们如何来实现一个自动的柯里化的函数呢？</p>
+<pre><code>var currying = function(fn) {
+  var args = [];
+
+  return function() {
+    if (arguments.length === 0) {
+      return fn.apply(this, args); // 没传参数时，调用这个函数
+    } else {
+      [].push.apply(args, arguments); // 传入了参数，把参数保存下来
+      return arguments.callee; // 返回这个函数的引用
+    }
+  }
+}
+</code></pre><p>调用上述<code>currying()</code>函数：</p>
+<pre><code>var cost = (function() {
+  var money = 0;
+  return function() {
+    for (var i = 0; i &lt; arguments.length; i++) {
+      money += arguments[i];
+    }
+    return money;
+  }
+})();
+
+var cost = currying(cost);
+
+cost(100); // 传入了参数，不真正求值
+cost(200); // 传入了参数，不真正求值
+cost(300); // 传入了参数，不真正求值
+
+console.log(cost()); // 求值并且输出600
+</code></pre><p>上述函数是我之前的<a href="http://link.zhihu.com/?target=https%3A//github.com/xingbofeng/JavaScript-design-patterns/blob/master/ch3-%25E9%2597%25AD%25E5%258C%2585%25E5%2592%258C%25E9%25AB%2598%25E9%2598%25B6%25E5%2587%25BD%25E6%2595%25B0/ch3-%25E9%2597%25AD%25E5%258C%2585%25E5%2592%258C%25E9%25AB%2598%25E9%2598%25B6%25E5%2587%25BD%25E6%2595%25B0.md%23currying" target="_blank" rel="noopener">JavaScript设计模式与开发实践读书笔记之闭包与高阶函数</a>所写的<code>currying</code>版本，现在仔细思考后发现仍旧有一些问题。</p>
+<blockquote>
+<p>我们在使用柯里化时，要注意同时为函数预传的参数的情况。</p>
+</blockquote>
+<p>因此把上述柯里化函数更改如下：</p>
+<pre><code>var currying = function(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+
+  return function() {
+    if (arguments.length === 0) {
+      return fn.apply(this, args); // 没传参数时，调用这个函数
+    } else {
+      [].push.apply(args, arguments); // 传入了参数，把参数保存下来
+      return arguments.callee; // 返回这个函数的引用
+    }
+  }
+}
+</code></pre><p>使用实例：</p>
+<pre><code>var cost = (function() {
+  var money = 0;
+  return function() {
+    for (var i = 0; i &lt; arguments.length; i++) {
+      money += arguments[i];
+    }
+    return money;
+  }
+})();
+
+var cost = currying(cost, 100);
+cost(200); // 传入了参数，不真正求值
+cost(300); // 传入了参数，不真正求值
+
+console.log(cost()); // 求值并且输出600
+</code></pre><p>你可能会觉得每次都要在最后调用一下不带参数的<code>cost()</code>函数比较麻烦，并且在<code>cost()</code>函数都要使用<code>arguments</code>参数不符合你的预期。我们知道函数都有一个<code>length</code>属性，表明函数期望接受的参数个数。因此我们可以充分利用预传参数的这个特点。</p>
+<p>借鉴自<a href="http://link.zhihu.com/?target=https%3A//github.com/mqyqingfeng/Blog" target="_blank" rel="noopener">mqyqingfeng</a>：</p>
+<pre><code>function sub_curry(fn) {
+  var args = [].slice.call(arguments, 1);
+  return function() {
+    return fn.apply(this, args.concat([].slice.call(arguments)));
+  };
+}
+
+function curry(fn, length) {
+
+  length = length || fn.length;
+
+  var slice = Array.prototype.slice;
+
+  return function() {
+    if (arguments.length &lt; length) {
+      var combined = [fn].concat(slice.call(arguments));
+      return curry(sub_curry.apply(this, combined), length - arguments.length);
+    } else {
+      return fn.apply(this, arguments);
+    }
+  };
+}
+</code></pre><p>在上述函数中，我们在currying的返回函数中，每次把<code>arguments.length</code>和<code>fn.length</code>作比较，一旦<code>arguments.length</code>达到了<code>fn.length</code>的数量，我们就去调用<code>fn</code>(<code>return fn.apply(this, arguments);</code>)</p>
+<p>验证：</p>
+<pre><code>var fn = curry(function(a, b, c) {
+  return [a, b, c];
+});
+
+fn(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
+fn(&quot;a&quot;, &quot;b&quot;)(&quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
+fn(&quot;a&quot;)(&quot;b&quot;)(&quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
+fn(&quot;a&quot;)(&quot;b&quot;, &quot;c&quot;) // [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]
+</code></pre><h2 id="bind方法的实现"><a href="#bind方法的实现" class="headerlink" title="bind方法的实现"></a>bind方法的实现</h2><p>使用柯里化，能够很方便地借用<code>call()</code>或者<code>apply()</code>实现<code>bind()</code>方法的<code>polyfill</code>。</p>
+<pre><code>Function.prototype.bind = Function.prototype.bind || function(context) {
+  var me = this;
+  var args = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var innerArgs = Array.prototype.slice.call(arguments);
+    var finalArgs = args.concat(innerArgs);
+    return me.apply(contenxt, finalArgs);
+  }
+}
+</code></pre><p>上述函数有的问题在于不能兼容构造函数。我们通过判断this指向的对象的原型属性，来判断这个函数是否通过<code>new</code>作为构造函数调用，来使得上述<code>bind</code>方法兼容构造函数。</p>
+<p><a href="http://link.zhihu.com/?target=https%3A//developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind" target="_blank" rel="noopener">Function.prototype.bind() by MDN</a>如下说到：</p>
+<blockquote>
+<p>绑定函数适用于用new操作符 new 去构造一个由目标函数创建的新的实例。当一个绑定函数是用来构建一个值的，原来提供的 this 就会被忽略。然而, 原先提供的那些参数仍然会被前置到构造函数调用的前面。</p>
+</blockquote>
+<p>这是<a href="http://link.zhihu.com/?target=https%3A//book.douban.com/subject/10733304/" target="_blank" rel="noopener">基于MVC的JavaScript Web富应用开发</a>的<code>bind()</code>方法实现：</p>
+<pre><code>Function.prototype.bind = function(oThis) {
+  if (typeof this !== &quot;function&quot;) {
+    throw new TypeError(&quot;Function.prototype.bind - what is trying to be bound is not callable&quot;);
+  }
+
+  var aArgs = Array.prototype.slice.call(arguments, 1),
+    fToBind = this,
+    fNOP = function() {},
+    fBound = function() {
+      return fToBind.apply(
+        this instanceof fNOP &amp;&amp; oThis ? this : oThis || window,
+        aArgs.concat(Array.prototype.slice.call(arguments))
+      );
+    };
+
+  fNOP.prototype = this.prototype;
+  fBound.prototype = new fNOP();
+
+  return fBound;
+};
+</code></pre><h2 id="反柯里化（uncurrying）"><a href="#反柯里化（uncurrying）" class="headerlink" title="反柯里化（uncurrying）"></a>反柯里化（uncurrying）</h2><p>可能遇到这种情况：拿到一个柯里化后的函数，却想要它柯里化之前的版本，这本质上就是想将类似<code>f(1)(2)(3)</code>的函数变回类似<code>g(1,2,3)</code>的函数。</p>
+<p>下面是简单的<code>uncurrying</code>的实现方式：</p>
+<pre><code>function uncurrying(fn) {
+  return function(...args) {
+    var ret = fn;
+
+    for (let i = 0; i &lt; args.length; i++) {
+      ret = ret(args[i]); // 反复调用currying版本的函数
+    }
+
+    return ret; // 返回结果
+  };
+}
+</code></pre><blockquote>
+<p>注意，不要以为uncurrying后的函数和currying之前的函数一模一样，它们只是行为类似！</p>
+</blockquote>
+<pre><code>var currying = function(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+
+  return function() {
+    if (arguments.length === 0) {
+      return fn.apply(this, args); // 没传参数时，调用这个函数
+    } else {
+      [].push.apply(args, arguments); // 传入了参数，把参数保存下来
+      return arguments.callee; // 返回这个函数的引用
+    }
+  }
+}
+
+function uncurrying(fn) {
+  return function(...args) {
+    var ret = fn;
+
+    for (let i = 0; i &lt; args.length; i++) {
+      ret = ret(args[i]); // 反复调用currying版本的函数
+    }
+
+    return ret; // 返回结果
+  };
+}
+
+var cost = (function() {
+  var money = 0;
+  return function() {
+    for (var i = 0; i &lt; arguments.length; i++) {
+      money += arguments[i];
+    }
+    return money;
+  }
+})();
+
+var curryingCost = currying(cost);
+var uncurryingCost = uncurrying(curryingCost);
+console.log(uncurryingCost(100, 200, 300)()); // 600
+</code></pre><h2 id="柯里化或偏函数有什么用？"><a href="#柯里化或偏函数有什么用？" class="headerlink" title="柯里化或偏函数有什么用？"></a>柯里化或偏函数有什么用？</h2><p>无论是柯里化还是偏应用，我们都能进行部分传值，而传统函数调用则需要预先确定所有实参。如果你在代码某一处只获取了部分实参，然后在另一处确定另一部分实参，这个时候柯里化和偏应用就能派上用场。</p>
+<p>另一个最能体现柯里化应用的的是，当函数只有一个形参时，我们能够比较容易地组合它们（<code>单一职责原则（Single responsibility principle）</code>）。因此，如果一个函数最终需要三个实参，那么它被柯里化以后会变成需要三次调用，每次调用需要一个实参的函数。当我们组合函数时，这种单元函数的形式会让我们处理起来更简单。</p>
+<p>归纳下来，主要为以下常见的三个用途：</p>
+<ul>
+<li>延迟计算</li>
+<li>参数复用</li>
+<li>动态生成函数</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/08/08/HTML5的Websocket/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2932,311 +3360,6 @@ while ( iterator.hasNext() ) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2015/09/29/浅说-XSS-和-CSRF/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="武动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2015/09/29/浅说-XSS-和-CSRF/" itemprop="url">浅说 XSS 和 CSRF</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2015-09-29T12:06:38+08:00">
-                2015-09-29
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>在 Web 安全领域中，XSS 和 CSRF 是最常见的攻击方式。本文将会简单介绍 XSS 和 CSRF 的攻防问题。</p>
-<blockquote>
-<p>声明：本文的示例仅用于演示相关的攻击原理</p>
-</blockquote>
-<h2 id="XSS"><a href="#XSS" class="headerlink" title="XSS"></a>XSS</h2><p>XSS，即 Cross Site Script，中译是跨站脚本攻击；其原本缩写是 CSS，但为了和层叠样式表(Cascading Style Sheet)有所区分，因而在安全领域叫做 XSS。</p>
-<p>XSS 攻击是指攻击者在网站上注入恶意的客户端代码，通过恶意脚本对客户端网页进行篡改，从而在用户浏览网页时，对用户浏览器进行控制或者获取用户隐私数据的一种攻击方式。</p>
-<p>攻击者对客户端网页注入的恶意脚本一般包括 JavaScript，有时也会包含 HTML 和 Flash。有很多种方式进行 XSS 攻击，但它们的共同点为：将一些隐私数据像 cookie、session 发送给攻击者，将受害者重定向到一个由攻击者控制的网站，在受害者的机器上进行一些恶意操作。</p>
-<p>XSS攻击可以分为3类：反射型（非持久型）、存储型（持久型）、基于DOM。</p>
-<h4 id="反射型"><a href="#反射型" class="headerlink" title="反射型"></a>反射型</h4><p>反射型 XSS 只是简单地把用户输入的数据 “反射” 给浏览器，这种攻击方式往往需要攻击者诱使用户点击一个恶意链接，或者提交一个表单，或者进入一个恶意网站时，注入脚本进入被攻击者的网站。</p>
-<p>看一个示例。我先准备一个如下的静态页：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720000-30a9b93a-8752-11e8-879b-edd8519f4e3e.png" alt="反射型xss1"></a></p>
-<p>恶意链接的地址指向了 <code>localhost:8001/?q=111&amp;p=222</code>。然后，我再启一个简单的 Node 服务处理恶意链接的请求：</p>
-<pre><code>consthttp=require(&apos;http&apos;);
-functionhandleReequest(req, res) {
-    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
-    res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
-    res.write(&apos;&lt;script&gt;alert(&quot;反射型 XSS 攻击&quot;)&lt;/script&gt;&apos;);
-    res.end();
-}
-
-constserver=newhttp.Server();
-server.listen(8001, &apos;127.0.0.1&apos;);
-server.on(&apos;request&apos;, handleReequest);
-</code></pre><p>当用户点击恶意链接时，页面跳转到攻击者预先准备的页面，会发现在攻击者的页面执行了 js 脚本：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720046-ee5a3f40-8752-11e8-8cc5-8b464414864a.png" alt="执行脚本"></a></p>
-<p>这样就产生了反射型 XSS 攻击。攻击者可以注入任意的恶意脚本进行攻击，可能注入恶作剧脚本，或者注入能获取用户隐私数据(如cookie)的脚本，这取决于攻击者的目的。</p>
-<h4 id="存储型"><a href="#存储型" class="headerlink" title="存储型"></a>存储型</h4><p>存储型 XSS 会把用户输入的数据 “存储” 在服务器端，当浏览器请求数据时，脚本从服务器上传回并执行。这种 XSS 攻击具有很强的稳定性。</p>
-<p>比较常见的一个场景是攻击者在社区或论坛上写下一篇包含恶意 JavaScript 代码的文章或评论，文章或评论发表后，所有访问该文章或评论的用户，都会在他们的浏览器中执行这段恶意的 JavaScript 代码。</p>
-<p>举一个示例。</p>
-<p>先准备一个输入页面：</p>
-<pre><code>&lt;input type=&quot;text&quot; id=&quot;input&quot;&gt;
-&lt;button id=&quot;btn&quot;&gt;Submit&lt;/button&gt;   
-
-&lt;script&gt;
-    const input = document.getElementById(&apos;input&apos;);
-    const btn = document.getElementById(&apos;btn&apos;);
-
-    let val;
-
-    input.addEventListener(&apos;change&apos;, (e) =&gt; {
-        val = e.target.value;
-    }, false);
-
-    btn.addEventListener(&apos;click&apos;, (e) =&gt; {
-        fetch(&apos;http://localhost:8001/save&apos;, {
-            method: &apos;POST&apos;,
-            body: val
-        });
-    }, false);
-&lt;/script&gt;     
-</code></pre><p>启动一个 Node 服务监听 <code>save</code> 请求。为了简化，用一个变量来保存用户的输入：</p>
-<pre><code>consthttp=require(&apos;http&apos;);
-
-let userInput =&apos;&apos;;
-
-functionhandleReequest(req, res) {
-    constmethod=req.method;
-    res.setHeader(&apos;Access-Control-Allow-Origin&apos;, &apos;*&apos;);
-    res.setHeader(&apos;Access-Control-Allow-Headers&apos;, &apos;Content-Type&apos;)
-
-    if (method ===&apos;POST&apos;&amp;&amp;req.url===&apos;/save&apos;) {
-        let body =&apos;&apos;;
-        req.on(&apos;data&apos;, chunk=&gt; {
-            body += chunk;
-        });
-
-        req.on(&apos;end&apos;, () =&gt; {
-            if (body) {
-                userInput = body;
-            }
-            res.end();
-        });
-    } else {
-        res.writeHead(200, {&apos;Content-Type&apos;:&apos;text/html; charset=UTF-8&apos;});
-        res.write(userInput);
-        res.end();
-    }
-}
-
-constserver=newhttp.Server();
-server.listen(8001, &apos;127.0.0.1&apos;);
-
-server.on(&apos;request&apos;, handleReequest);
-</code></pre><p>当用户点击提交按钮将输入信息提交到服务端时，服务端通过 <code>userInput</code> 变量保存了输入内容。当用户通过 <code>http://localhost:8001/${id}</code> 访问时，服务端会返回与 <code>id</code> 对应的内容(本示例简化了处理)。如果用户输入了恶意脚本内容，则其他用户访问该内容时，恶意脚本就会在浏览器端执行：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42720476-eb71a5c8-8759-11e8-8763-eb08b3480201.gif" alt="存储型xss"></a></p>
-<h4 id="基于DOM"><a href="#基于DOM" class="headerlink" title="基于DOM"></a>基于DOM</h4><p>基于 DOM 的 XSS 攻击是指通过恶意脚本修改页面的 DOM 结构，是纯粹发生在客户端的攻击。</p>
-<p>看如下代码：</p>
-<pre><code>&lt;h2&gt;XSS: &lt;/h2&gt;
-&lt;inputtype=&quot;text&quot;id=&quot;input&quot;&gt;
-&lt;buttonid=&quot;btn&quot;&gt;Submit&lt;/button&gt;
-&lt;divid=&quot;div&quot;&gt;&lt;/div&gt;
-&lt;script&gt;constinput=document.getElementById(&apos;input&apos;);constbtn=document.getElementById(&apos;btn&apos;);constdiv=document.getElementById(&apos;div&apos;);let val;input.addEventListener(&apos;change&apos;, (e) =&gt; {        val =e.target.value;    }, false);btn.addEventListener(&apos;click&apos;, () =&gt; {div.innerHTML=`&lt;ahref=${val}&gt;testLink&lt;/a&gt;`    }, false);&lt;/script&gt;
-</code></pre><p>点击 <code>Submit</code> 按钮后，会在当前页面插入一个链接，其地址为用户的输入内容。如果用户在输入时构造了如下内容：</p>
-<pre><code>&apos;&apos; onclick=alert(/xss/)
-</code></pre><p>用户提交之后，页面代码就变成了：</p>
-<pre><code>&lt;ahrefonlick=&quot;alert(/xss/)&quot;&gt;testLink&lt;/a&gt;
-</code></pre><p>此时，用户点击生成的链接，就会执行对应的脚本：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42721109-cb7ce572-8766-11e8-96d9-9ada8a787827.gif" alt="dom-xss"></a></p>
-<h3 id="XSS-攻击的防范"><a href="#XSS-攻击的防范" class="headerlink" title="XSS 攻击的防范"></a>XSS 攻击的防范</h3><p>现在主流的浏览器内置了防范 XSS 的措施，例如 <a href="https://developer.mozilla.org/zh-CN/docs/Web/HTTP/CSP" target="_blank" rel="noopener">CSP</a>。但对于开发者来说，也应该寻找可靠的解决方案来防止 XSS 攻击。</p>
-<h4 id="HttpOnly-防止劫取-Cookie"><a href="#HttpOnly-防止劫取-Cookie" class="headerlink" title="HttpOnly 防止劫取 Cookie"></a>HttpOnly 防止劫取 Cookie</h4><p>HttpOnly 最早由微软提出，至今已经成为一个标准。浏览器将禁止页面的Javascript 访问带有 HttpOnly 属性的Cookie。</p>
-<p>上文有说到，攻击者可以通过注入恶意脚本获取用户的 Cookie 信息。通常 Cookie 中都包含了用户的登录凭证信息，攻击者在获取到 Cookie 之后，则可以发起 Cookie 劫持攻击。所以，严格来说，HttpOnly 并非阻止 XSS 攻击，而是能阻止 XSS 攻击后的 Cookie 劫持攻击。</p>
-<h4 id="输入检查"><a href="#输入检查" class="headerlink" title="输入检查"></a>输入检查</h4><p><strong>不要相信用户的任何输入。</strong> 对于用户的任何输入要进行检查、过滤和转义。建立可信任的字符和 HTML 标签白名单，对于不在白名单之列的字符或者标签进行过滤或编码。</p>
-<p>在 XSS 防御中，输入检查一般是检查用户输入的数据中是否包含 <code>&lt;</code>，<code>&gt;</code> 等特殊字符，如果存在，则对特殊字符进行过滤或编码，这种方式也称为 XSS Filter。</p>
-<p>而在一些前端框架中，都会有一份 <code>decodingMap</code>， 用于对用户输入所包含的特殊字符或标签进行编码或过滤，如 <code>&lt;</code>，<code>&gt;</code>，<code>script</code>，防止 XSS 攻击：</p>
-<pre><code>// vuejs 中的 decodingMap
-// 在 vuejs 中，如果输入带 script 标签的内容，会直接过滤掉
-const decodingMap = {
-  &apos;&amp;lt;&apos;: &apos;&lt;&apos;,
-  &apos;&amp;gt;&apos;: &apos;&gt;&apos;,
-  &apos;&amp;quot;&apos;: &apos;&quot;&apos;,
-  &apos;&amp;amp;&apos;: &apos;&amp;&apos;,
-  &apos;&amp;#10;&apos;: &apos;\n&apos;
-}
-</code></pre><h4 id="输出检查"><a href="#输出检查" class="headerlink" title="输出检查"></a>输出检查</h4><p>用户的输入会存在问题，服务端的输出也会存在问题。一般来说，除富文本的输出外，在变量输出到 HTML 页面时，可以使用编码或转义的方式来防御 XSS 攻击。例如利用 <a href="https://github.com/punkave/sanitize-html" target="_blank" rel="noopener">sanitize-html</a> 对输出内容进行有规则的过滤之后再输出到页面中。</p>
-<h2 id="CSRF"><a href="#CSRF" class="headerlink" title="CSRF"></a>CSRF</h2><p>CSRF，即 Cross Site Request Forgery，中译是跨站请求伪造，是一种劫持受信任用户向服务器发送非预期请求的攻击方式。</p>
-<p>通常情况下，CSRF 攻击是攻击者借助受害者的 Cookie 骗取服务器的信任，可以在受害者毫不知情的情况下以受害者名义伪造请求发送给受攻击服务器，从而在并未授权的情况下执行在权限保护之下的操作。</p>
-<p>在举例子之前，先说说浏览器的 Cookie 策略。</p>
-<h3 id="浏览器的-Cookie-策略"><a href="#浏览器的-Cookie-策略" class="headerlink" title="浏览器的 Cookie 策略"></a>浏览器的 Cookie 策略</h3><p>Cookie 是服务器发送到用户浏览器并保存在本地的一小块数据，它会在浏览器下次向同一服务器再发起请求时被携带并发送到服务器上。Cookie 主要用于以下三个方面：</p>
-<ul>
-<li>会话状态管理（如用户登录状态、购物车、游戏分数或其它需要记录的信息）</li>
-<li>个性化设置（如用户自定义设置、主题等）</li>
-<li>个性化设置（如用户自定义设置、主题等）</li>
-</ul>
-<p>而浏览器所持有的 Cookie 分为两种：</p>
-<ul>
-<li>Session Cookie(会话期 Cookie)：会话期 Cookie 是最简单的Cookie，它不需要指定过期时间（Expires）或者有效期（Max-Age），它仅在会话期内有效，浏览器关闭之后它会被自动删除。</li>
-<li><p>Permanent Cookie(持久性 Cookie)：与会话期 Cookie 不同的是，持久性 Cookie 可以指定一个特定的过期时间（Expires）或有效期（Max-Age）。</p>
-<p>  res.setHeader(‘Set-Cookie’, [‘mycookie=222’, ‘test=3333; expires=Sat, 21 Jul 2018 00:00:00 GMT;’]);</p>
-</li>
-</ul>
-<p>上述代码创建了两个 Cookie：<code>mycookie</code> 和 <code>test</code>，前者属于会话期 Cookie，后者则属于持久性 Cookie。当我们去查看 Cookie 相关的属性时，不同的浏览器对会话期 Cookie 的 <code>Expires</code> 属性值会不一样：</p>
-<p>Firefox：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733717-fe5c16fe-8868-11e8-979b-37aaf8311375.png" alt="firefox cookie"></a></p>
-<p>Chrome:</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733724-1e22c6ae-8869-11e8-9f84-0fbc2d2fdeb7.png" alt="chrome cookie"></a></p>
-<p>此外，每个 Cookie 都会有与之关联的域，这个域的范围一般通过 <code>donmain</code> 属性指定。如果 Cookie 的域和页面的域相同，那么我们称这个 Cookie 为第一方 Cookie（first-party cookie），如果 Cookie 的域和页面的域不同，则称之为第三方 Cookie（third-party cookie）。一个页面包含图片或存放在其他域上的资源（如图片）时，第一方的 Cookie 也只会发送给设置它们的服务器。</p>
-<h3 id="通过-Cookie-进行-CSRF-攻击"><a href="#通过-Cookie-进行-CSRF-攻击" class="headerlink" title="通过 Cookie 进行 CSRF 攻击"></a>通过 Cookie 进行 CSRF 攻击</h3><p>假设有一个 bbs 站点：<code>http://www.c.com</code>，当登录后的用户发起如下 GET 请求时，会删除 ID 指定的帖子：</p>
-<pre><code>http://www.c.com:8002/content/delete/:id
-</code></pre><p>如发起 <code>http://www.c.com:8002/content/delete/87343</code> 请求时，会删除 id 为 87343 的帖子。当用户登录之后，会设置如下 cookie：</p>
-<pre><code>res.setHeader(&apos;Set-Cookie&apos;, [&apos;user=22333; expires=Sat, 21 Jul 2018 00:00:00 GMT;&apos;]);
-</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42733982-62308f16-886e-11e8-9c59-c3b0352b0002.png" alt="user"></a></p>
-<p><code>user</code> 对应的值是用户 ID。然后构造一个页面 A：</p>
-<pre><code>&lt;p&gt;CSRF 攻击者准备的网站：&lt;/p&gt;
-&lt;img src=&quot;http://www.c.com:8002/content/delete/87343&quot;&gt;
-</code></pre><p>页面 A 使用了一个 <code>img</code> 标签，其地址指向了删除用户帖子的链接：</p>
-<p><a href="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734074-38bc206c-8870-11e8-8f93-2aa5c39d245e.png" alt="A"></a></p>
-<p>可以看到，当登录用户访问攻击者的网站时，会向 <code>www.c.com</code> 发起一个删除用户帖子的请求。此时若用户在切换到 <code>www.c.com</code> 的帖子页面刷新，会发现ID 为 87343 的帖子已经被删除。</p>
-<p>由于 Cookie 中包含了用户的认证信息，当用户访问攻击者准备的攻击环境时，攻击者就可以对服务器发起 CSRF 攻击。在这个攻击过程中，攻击者借助受害者的 Cookie 骗取服务器的信任，但并不能拿到 Cookie，也看不到 Cookie 的内容。而对于服务器返回的结果，由于浏览器同源策略的限制，攻击者也无法进行解析。因此，攻击者无法从返回的结果中得到任何东西，他所能做的就是给服务器发送请求，以执行请求中所描述的命令，在服务器端直接改变数据的值，而非窃取服务器中的数据。</p>
-<p>但若 CSRF 攻击的目标并不需要使用 Cookie，则也不必顾虑浏览器的 Cookie 策略了。</p>
-<h3 id="CSRF-攻击的防范"><a href="#CSRF-攻击的防范" class="headerlink" title="CSRF 攻击的防范"></a>CSRF 攻击的防范</h3><p>当前，对 CSRF 攻击的防范措施主要有如下几种方式。</p>
-<h4 id="验证码"><a href="#验证码" class="headerlink" title="验证码"></a>验证码</h4><p>验证码被认为是对抗 CSRF 攻击最简洁而有效的防御方法。</p>
-<p>从上述示例中可以看出，CSRF 攻击往往是在用户不知情的情况下构造了网络请求。而验证码会强制用户必须与应用进行交互，才能完成最终请求。因为通常情况下，验证码能够很好地遏制 CSRF 攻击。</p>
-<p>但验证码并不是万能的，因为出于用户考虑，不能给网站所有的操作都加上验证码。因此，验证码只能作为防御 CSRF 的一种辅助手段，而不能作为最主要的解决方案。</p>
-<h4 id="Referer-Check"><a href="#Referer-Check" class="headerlink" title="Referer Check"></a>Referer Check</h4><p>根据 HTTP 协议，在 HTTP 头中有一个字段叫 Referer，它记录了该 HTTP 请求的来源地址。通过 Referer Check，可以检查请求是否来自合法的”源”。</p>
-<p>比如，如果用户要删除自己的帖子，那么先要登录 <code>www.c.com</code>，然后找到对应的页面，发起删除帖子的请求。此时，Referer 的值是 <code>http://www.c.com</code>；当请求是从 <code>www.a.com</code> 发起时，Referer 的值是 <code>http://www.a.com</code> 了。因此，要防御 CSRF 攻击，只需要对于每一个删帖请求验证其 Referer 值，如果是以 <code>www.c.com</code> 开头的域名，则说明该请求是来自网站自己的请求，是合法的。如果 Referer 是其他网站的话，则有可能是 CSRF 攻击，可以拒绝该请求。</p>
-<p>针对上文的例子，可以在服务端增加如下代码：</p>
-<pre><code>if (req.headers.referer!==&apos;http://www.c.com:8002/&apos;) {
-    res.write(&apos;csrf 攻击&apos;);
-    return;
-}
-</code></pre><p><a href="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" target="_blank" rel="noopener"><img src="https://user-images.githubusercontent.com/7871813/42734407-0f4c0728-8876-11e8-8565-21f89b01f6f0.png" alt="referer check"></a></p>
-<p>Referer Check 不仅能防范 CSRF 攻击，另一个应用场景是 “防止图片盗链”。</p>
-<h4 id="添加-token-验证"><a href="#添加-token-验证" class="headerlink" title="添加 token 验证"></a>添加 token 验证</h4><p>CSRF 攻击之所以能够成功，是因为攻击者可以完全伪造用户的请求，该请求中所有的用户验证信息都是存在于 Cookie 中，因此攻击者可以在不知道这些验证信息的情况下直接利用用户自己的 Cookie 来通过安全验证。要抵御 CSRF，关键在于在请求中放入攻击者所不能伪造的信息，并且该信息不存在于 Cookie 之中。可以在 HTTP 请求中以参数的形式加入一个随机产生的 token，并在服务器端建立一个拦截器来验证这个 token，如果请求中没有 token 或者 token 内容不正确，则认为可能是 CSRF 攻击而拒绝该请求。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文主要介绍了 XSS 和 CSRF 的攻击原理和防御措施。当然，在 Web 安全领域，除了这两种常见的攻击方式，也存在这 SQL 注入等其它攻击方式，这不在本文的讨论范围之内，如果你对其感兴趣，可以阅读<a href="https://zhuanlan.zhihu.com/p/23569276" target="_blank" rel="noopener">SQL注入技术专题</a>的专栏详细了解相关信息。最后，总结一下 XSS 攻击和 CSRF 攻击的常见防御措施：</p>
-<ol>
-<li>防御 XSS 攻击</li>
-</ol>
-<ul>
-<li>HttpOnly 防止劫取 Cookie</li>
-<li>用户的输入检查</li>
-<li>服务端的输出检查</li>
-</ul>
-<ol start="2">
-<li>防御 CSRF 攻击</li>
-</ol>
-<ul>
-<li>验证码</li>
-<li>Referer Check</li>
-<li>Token 验证</li>
-</ul>
-<p>&lt;完&gt;</p>
-<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
-<li><a href="https://developer.mozilla.org/zh-CN/docs/Glossary/Cross-site_scripting" target="_blank" rel="noopener">Cross-site scripting</a></li>
-<li><a href="https://www.ibm.com/developerworks/cn/web/1102_niugang_csrf/index.html" target="_blank" rel="noopener">CSRF 攻击的应对之道</a></li>
-<li>《白帽子讲 Web 安全》</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3289,7 +3412,7 @@ const decodingMap = {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">144</span>
+                  <span class="site-state-item-count">145</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

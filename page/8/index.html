@@ -694,6 +694,145 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/30/深入理解window-onload/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="武动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/12/30/深入理解window-onload/" itemprop="url">深入理解window.onload</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-12-30T20:30:36+08:00">
+                2017-12-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><strong>现象：</strong>在一个 Hybrid 应用中，用户反馈弱网条件下页面的进度条总是不消失，最后发现是页面接口先于其他资源返回，而接口中包含大量图片导致了 <code>onload</code> 会推迟，从而客户端控制的进度条不会消失，页面调用客户端的方法不会执行。</p>
+<h4 id="先放结论"><a href="#先放结论" class="headerlink" title="先放结论"></a>先放结论</h4><p><strong>onload的触发时机：</strong> JS 加载并执行完毕且页面中所有外链资源加载完成之后大约 3 - 4ms（这个值跟机型和浏览器有关）</p>
+<p><strong>最佳实践：</strong> JS代码的执行要放到onload里。如果是服务端渲染带图片的列表，图片最好由JS异步加载，避免阻塞onload。</p>
+<h4 id="onload不是立即触发的"><a href="#onload不是立即触发的" class="headerlink" title="onload不是立即触发的"></a>onload不是立即触发的</h4><p>请问下面哪个alert先触发？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br><span class="line">setTimeout(function()&#123;</span><br><span class="line">    alert(&apos;timeout&apos;);</span><br><span class="line">&#125;, 2)</span><br></pre></td></tr></table></figure></p>
+<p>答案是 <code>timeout</code> 先触发。而在我的电脑上，把 <code>timeout</code> 的值调成100 或 100 以上，就是 <code>onload</code> 先触发了。</p>
+<h4 id="JS的执行对onload有影响"><a href="#JS的执行对onload有影响" class="headerlink" title="JS的执行对onload有影响"></a>JS的执行对onload有影响</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br><span class="line">var a</span><br><span class="line">for (var i = 0; i &lt; 100000000; i++) &#123;</span><br><span class="line">    a = a + i;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>你会发现 onload 会等很久才触发，因此JS的执行最好放在onload之后。</p>
+<h4 id="动态加载的资源可能对onload产生影响"><a href="#动态加载的资源可能对onload产生影响" class="headerlink" title="动态加载的资源可能对onload产生影响"></a>动态加载的资源可能对onload产生影响</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;body&gt;&lt;/body&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">  &#125;</span><br><span class="line">  document.body.innerHTML = &apos;&lt;img src=&quot;a.png&quot;&gt; .... &lt;img src=&quot;z.png&quot;&gt;&apos;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
+<p>我们把网速调的慢一点，我们会很清晰的发现这种 JS 动态加进去的图片也会阻塞 <code>onload</code>，只有 a-z 图片都加载完成，onload 才会触发。而我们改成下面：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">window.onload = function() &#123;</span><br><span class="line">    setTimeout(function() &#123;</span><br><span class="line">       document.body.innerHTML = &apos;&lt;img src=&quot;a.png&quot;&gt; .... &lt;img src=&quot;z.png&quot;&gt;&apos;;</span><br><span class="line">    &#125;, 10)</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这时就会发现，onload 马上就触发了，不必等待图片加载完成。</p>
+<p>再讲一个更实际的例子：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&lt;img src=&quot;aaa.png&quot;&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">window.onload = function() &#123;</span><br><span class="line">    alert(&apos;onload&apos;);</span><br><span class="line">&#125;</span><br><span class="line">$.ajax(&#123;</span><br><span class="line">    url: imgList,</span><br><span class="line">  	success: function(arr) &#123;</span><br><span class="line">        arr.forEach(function() &#123;</span><br><span class="line">            $(&apos;body&apos;).append(&apos;&lt;img src=&quot;&apos; + arr.imgUrl + &apos;&quot;&gt;&apos;)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
+<p>假设 aaa.png 加载时间为 100ms，ajax 接口返回时间为 50ms，那么假设 imgList 中有 100 张图片，那么 onload 的时间就会被推迟到这 100 张图片都加载完成之后。</p>
+<p>而如果 aaa.png 加载时间为 50ms，接口请求为 100ms 的时候，就不会有这个问题。但是我们没法保证接口请求一定慢于图片请求。</p>
+<p>因此<strong>带图片的列表请求需要放在 window.onload 之后执行</strong>。</p>
+<h4 id="onload和客户端方法的对应"><a href="#onload和客户端方法的对应" class="headerlink" title="onload和客户端方法的对应"></a>onload和客户端方法的对应</h4><p>iOS 中判断 webview 加载完成的 <strong>webViewDidFinishLoad</strong> 方法，Android 中判断 <code>webview</code> 加载完成的 <strong>onPageFinished</strong> 方法本质触发时机上都对应页面上的 <code>window.onload</code>，一般来说会稍晚于 <code>window.onload</code>（某些特殊情况会早于 <code>window.onload</code>，比如页面里有 <code>iframe</code> 等情况）。</p>
+<p>也就是说 <strong>对 onload 有影响的因素也同样会影响这些 Native 方法</strong>。而在 Hybrid 开发中，一些 Native 和 Web 之间的交互和调用往往要在<code>webViewDidFinishLoad / onPageFinished</code> 之后。因此如果 <code>onload</code> 的触发被推迟了，那么这些 <code>Native</code> 相关的调用也都会被推迟。</p>
+<p><strong>因此如果是Hybrid应用，尤其要注意让onload尽快触发。</strong></p>
+<h4 id="百度统计对onload的影响"><a href="#百度统计对onload的影响" class="headerlink" title="百度统计对onload的影响"></a>百度统计对onload的影响</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var _hmt = _hmt || [];</span><br><span class="line">    (function() &#123;</span><br><span class="line">      var hm = document.createElement(&quot;script&quot;);</span><br><span class="line">      hm.src = &quot;https://hm.baidu.com/hm.js?2fdsasa8f9f2f0e59e7db6c398edfbfcb1f&quot;;</span><br><span class="line">      var s = document.getElementsByTagName(&quot;script&quot;)[0];</span><br><span class="line">      s.parentNode.insertBefore(hm, s);</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+<p>上面是百度统计的代码，我们可以看到它动态加载了一个 <code>script</code>，而这个 <code>script</code> 会马上以一个小 gif 的形式发送一个上报请求，经过测试，如果页面上没有其它元素，这个 <strong>小 gif 加载完成后才会触发 onload</strong>，那么总加载时间就是 script 加载时间 + gif 加载时间。</p>
+<p>因此应该尽量把百度统计代码提前，避免百度统计拖慢 onload 时间。百度统计官方也是<strong>建议将统计代码放在 head 中</strong>。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/12/20/Promise的模拟实现/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2881,262 +3020,6 @@ document.dispatchEvent(myEvent);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/04/H5如何唤起APP/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="武动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/04/H5如何唤起APP/" itemprop="url">H5如何唤起APP</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-04T19:29:36+08:00">
-                2017-11-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>前一段时间在做电流App H5页面，需求中落地页占比较大，落地页承担的职责就是引流。引流有两种形式，同时也是我们对唤端的定义：引导已下载用户打开APP，引导未下载用户下载APP。</p>
-<p>引导已下载用户打开APP，从数据上说用户停留在APP中的时间更多了，是在提高用户粘性；从体验上说，APP体验是要比H5好的。引导未下载用户下载APP，可以增加我们的用户量。</p>
-<p>上面其实分别解释了 <strong>什么是唤端</strong> 以及 <strong>为什么要唤端</strong>，也就是  <em>3W法则</em> 中的 What 和 Why，那么接下来我们就要聊一聊 How 了，也就是 <strong>如何唤端</strong> 。</p>
-<p>我们先来看看常见的唤端方式以及他们适用的场景：</p>
-<h2 id="唤端媒介"><a href="#唤端媒介" class="headerlink" title="唤端媒介"></a>唤端媒介</h2><h3 id="URL-Scheme"><a href="#URL-Scheme" class="headerlink" title="URL Scheme"></a>URL Scheme</h3><h4 id="来源"><a href="#来源" class="headerlink" title="来源"></a>来源</h4><p>我们的手机上有许多私密信息，联系方式、照片、银行卡信息…我们不希望这些信息可以被手机应用随意获取到，信息泄露的危害甚大。所以，如何保证个人信息在设备所有者知情并允许的情况下被使用，是智能设备的核心安全问题。</p>
-<p>对此，苹果使用了名为 <em>沙盒</em> 的机制：应用只能访问它声明可能访问的资源。但沙盒也阻碍了应用间合理的信息共享，某种程度上限制了应用的能力。</p>
-<p>因此，我们急需要一个辅助工具来帮助我们实现应用通信， URL Scheme 就是这个工具。</p>
-<h4 id="URL-Scheme-是什么"><a href="#URL-Scheme-是什么" class="headerlink" title="URL Scheme 是什么"></a>URL Scheme 是什么</h4><p>我们来看一下 URL 的组成：</p>
-<pre><code>[scheme:][//authority][path][?query][#fragment]
-</code></pre><p>我们拿 <code>https://www.baidu.com</code> 来举例，scheme 自然就是 <code>https</code> 了。</p>
-<p>就像给服务器资源分配一个 URL，以便我们去访问它一样，我们同样也可以给手机APP分配一个特殊格式的 URL，用来访问这个APP或者这个APP中的某个功能(来实现通信)。APP得有一个标识，好让我们可以定位到它，它就是 URL 的 Scheme 部分。</p>
-<h4 id="常用APP的-URL-Scheme"><a href="#常用APP的-URL-Scheme" class="headerlink" title="常用APP的 URL Scheme"></a>常用APP的 URL Scheme</h4><table>
-<thead>
-<tr>
-<th>APP</th>
-<th style="text-align:center">微信</th>
-<th style="text-align:center">支付宝</th>
-<th style="text-align:center">淘宝</th>
-<th style="text-align:center">微博</th>
-<th style="text-align:center">QQ</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>URL Scheme</td>
-<td style="text-align:center">weixin://</td>
-<td style="text-align:center">alipay://</td>
-<td style="text-align:center">taobao://</td>
-<td style="text-align:center">sinaweibo://</td>
-<td style="text-align:center">mqq://</td>
-</tr>
-</tbody>
-</table>
-<h4 id="URL-Scheme-语法"><a href="#URL-Scheme-语法" class="headerlink" title="URL Scheme 语法"></a>URL Scheme 语法</h4><p>上面表格中都是最简单的用于打开 APP 的 URL Scheme，下面才是我们常用的 URL Scheme 格式：</p>
-<pre><code>     行为(应用的某个功能)    
-            |
-scheme://[path][?query]
-   |               |
-应用标识       功能需要的参数
-</code></pre><h3 id="Intent"><a href="#Intent" class="headerlink" title="Intent"></a>Intent</h3><p>安卓的原生谷歌浏览器自从 chrome25 版本开始对于唤端功能做了一些变化，URL Scheme 无法再启动Android应用。 例如，通过 iframe 指向 <code>weixin://</code>，即使用户安装了微信也无法打开。所以，APP需要实现谷歌官方提供的 <code>intent:</code> 语法，或者实现让用户通过自定义手势来打开APP，当然这就是题外话了。</p>
-<h4 id="Intent-语法"><a href="#Intent-语法" class="headerlink" title="Intent 语法"></a>Intent 语法</h4><pre><code>intent:
-   HOST/URI-path // Optional host 
-   #Intent; 
-      package=[string]; 
-      action=[string]; 
-      category=[string]; 
-      component=[string]; 
-      scheme=[string]; 
-   end;
-</code></pre><p>如果用户未安装 APP，则会跳转到系统默认商店。当然，如果你想要指定一个唤起失败的跳转地址，添加下面的字符串在 <code>end;</code> 前就可以了:</p>
-<pre><code>S.browser_fallback_url=[encoded_full_url]
-</code></pre><h4 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h4><p>下面是打开 Zxing 二维码扫描 APP 的 intent。</p>
-<pre><code>intent:
-   //scan/
-   #Intent; 
-      package=com.google.zxing.client.android; 
-      scheme=zxing; 
-   end; 
-</code></pre><p>打开这个 APP ，可以通过如下的方式：</p>
-<pre><code>&lt;ahref=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;S.browser_fallback_url=http%3A%2F%2Fzxing.org;end&quot;&gt; Take a QR code &lt;/a&gt;
-</code></pre><h3 id="Universal-Link"><a href="#Universal-Link" class="headerlink" title="Universal Link"></a>Universal Link</h3><h4 id="Universal-Link-是什么"><a href="#Universal-Link-是什么" class="headerlink" title="Universal Link 是什么"></a>Universal Link 是什么</h4><p>Universal Link 是苹果在 WWDC2015 上为 iOS9 引入的新功能，通过传统的 HTTP 链接即可打开 APP。如果用户未安装 APP，则会跳转到该链接所对应的页面。</p>
-<h4 id="为什么要使用-Universal-Link"><a href="#为什么要使用-Universal-Link" class="headerlink" title="为什么要使用 Universal Link"></a>为什么要使用 Universal Link</h4><p>传统的 Scheme 链接有以下几个痛点：</p>
-<ul>
-<li>在 ios 上会有确认弹窗提示用户是否打开，对于用户来说唤端，多出了一步操作。若用户未安装 APP ，也会有一个提示窗，告知我们 “打不开该网页，因为网址无效”</li>
-<li>传统 Scheme 跳转无法得知唤端是否成功，Universal Link 唤端失败可以直接打开此链接对应的页面</li>
-<li>Scheme 在微信、微博、QQ浏览器、手百中都已经被禁止使用，使用 Universal Link 可以避开它们的屏蔽（ 截止到 18年8月21日，微信和QQ浏览器已经禁止了 Universal Link，其他主流APP未发现有禁止 ）</li>
-</ul>
-<h4 id="如何让-APP-支持-Universal-Link"><a href="#如何让-APP-支持-Universal-Link" class="headerlink" title="如何让 APP 支持 Universal Link"></a>如何让 APP 支持 Universal Link</h4><p>有大量的文章会详细的告诉我们如何配置，你也可以去看<a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.apple.com%2Flibrary%2Farchive%2Fdocumentation%2FGeneral%2FConceptual%2FAppSearch%2FUniversalLinks.html%23%2F%2Fapple_ref%2Fdoc%2Fuid%2FTP40016308-CH12-SW2" target="_blank" rel="noopener">官方文档</a>，我这里简单的写一个12345。</p>
-<ol>
-<li>拥有一个支持 <strong>https</strong> 的域名</li>
-<li>在 <a href="https://link.juejin.im?target=https%3A%2F%2Fdeveloper.apple.com%2F" target="_blank" rel="noopener">开发者中心</a> ，Identifiers 下 AppIDs 找到自己的 App ID，编辑打开 Associated Domains 服务。</li>
-<li>打开工程配置中的 Associated Domains ，在其中的 Domains 中填入你想支持的域名，必须以 <code>applinks:</code> 为前缀</li>
-<li>配置 <code>apple-app-site-association</code> 文件，文件名必须为 <code>apple-app-site-association</code> ，<strong>不带任何后缀</strong></li>
-<li>上传该文件到你的 HTTPS 服务器的 <strong>根目录</strong> 或者 <code>.well-known</code> 目录下</li>
-</ol>
-<h4 id="Universal-Link-配置中的坑"><a href="#Universal-Link-配置中的坑" class="headerlink" title="Universal Link 配置中的坑"></a>Universal Link 配置中的坑</h4><p>这里放一下我们在配置过程中遇到的坑，当然首先你在配置过程中必须得严格按照上面的要求去做，尤其是加粗的地方。</p>
-<ol>
-<li>域名问题</li>
-</ol>
-<p>Universal Link 支持的域名最多只能支持到二级域名，如果你用到了三级域名，Universal Link 唤端是不会生效的。</p>
-<ol start="2">
-<li>跨域问题</li>
-</ol>
-<p>IOS 9.2 以后，必须要触发跨域才能支持 Universal Link 唤端。</p>
-<p>IOS 那边有这样一个判断，如果你要打开的 Universal Link 和 当前页面是同一域名，ios 尊重用户最可能的意图，直接打开链接所对应的页面。如果不在同一域名下，则在你的 APP 中打开链接，也就是执行具体的唤端操作。</p>
-<ol start="3">
-<li>Universal Link 是空页面</li>
-</ol>
-<p>Universal Link 本质上是个空页面，如果未安装 APP，Universal Link 被当做普通的页面链接，自然会跳到 404 页面，所以我们需要将它绑定到我们的中转页或者下载页。</p>
-<h2 id="如何调用三种唤端媒介"><a href="#如何调用三种唤端媒介" class="headerlink" title="如何调用三种唤端媒介"></a>如何调用三种唤端媒介</h2><p>通过前面的介绍，我们可以发现，无论是 URL Scheme 还是 Intent 或者 Universal Link ，他们都算是 URL ，只是 URL Scheme 和 Intent 算是特殊的 URL。所以我们可以拿使用 URL 的方法来使用它们。</p>
-<h3 id="iframe"><a href="#iframe" class="headerlink" title="iframe"></a>iframe</h3><pre><code>&lt;iframesrc=&quot;sinaweibo://qrcode&quot;&gt;
-</code></pre><p>在只有 URL Scheme 的日子里，iframe 是使用最多的了。因为在未安装 app 的情况下，不会去跳转错误页面。但是 iframe 在各个系统以及各个应用中的兼容问题还是挺多的，不能全部使用 URL Scheme。</p>
-<h3 id="a-标签"><a href="#a-标签" class="headerlink" title="a 标签"></a>a 标签</h3><pre><code>&lt;ahref=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end&quot;&quot;&gt;扫一扫&lt;/a&gt;
-</code></pre><p>前面我们提到 Intent 协议，官方给出的用例使用的就是使用的 a 标签，所以我们跟着一起用就可以了。</p>
-<p>使用过程中，对于动态生成的 a 标签，使用 <code>dispatch</code> 来模拟触发点击事件，发现很多种 event 传递过去都无效；使用 <code>click()</code> 来模拟触发，部分场景下存在这样的情况，第一次点击过后，回到原先页面，再次点击，点击位置和页面所识别位置有不小的偏移，所以 Intent 协议从 a 标签换成了 window.location。</p>
-<h3 id="window-location"><a href="#window-location" class="headerlink" title="window.location"></a>window.location</h3><p>URL Scheme 在 ios 9+ 上诸如 safari、UC、QQ浏览器中， iframe 均无法成功唤起 APP，只能通过 window.location 才能成功唤端。</p>
-<p>当然，如果我们的 app 支持 Universal Link，ios 9+ 就用不到 URL Scheme 了。而 Universal Link 在使用过程中，我发现在 qq 中，无论是 iframe 导航 还是 a 标签打开 又或者 window.location 都无法成功唤端，一开始我以为是 qq 和微信一样禁止了 Universal Link 唤端的功能，其实不然，百般试验下，通过 top.location 唤端成功了。</p>
-<h2 id="判断唤端是否成功"><a href="#判断唤端是否成功" class="headerlink" title="判断唤端是否成功"></a>判断唤端是否成功</h2><p>如果唤端失败（APP 未安装），我们总是要做一些处理的，可以是跳转下载页，可以是 ios 下跳转 App Store… 但是Js 并不能提供给我们获取 APP 唤起状态的能力，Android Intent 以及 Universal Link 倒是不用担心，它们俩的自身机制允许它们唤端失败后直接导航至相应的页面，但是 URL Scheme 并不具备这样的能力，所以我们只能通过一些很 hack 的方式来实现 APP 唤起检测功能。</p>
-<pre><code>const initialTime = newDate();
-let counter = 0;
-let waitTime = 0;
-
-const checkOpen = setInterval(() =&gt; {
-   count++;
-   waitTime = newDate() - initialTime;
-
-   if (waitTime &gt; 2500) {
-      clearInterval(checkOpen);
-      cb();
-   }
-
-   if (counter &lt; 100) return;
-
-   clearInterval(checkOpen);
-
-   const hide = document.hidden || document.webkitHidden;
-
-   if (!hide) {
-      cb(); // 唤端失败的回调函数
-   }
-}, 20);
-</code></pre><p>APP 如果被唤起的话，页面就会进入后台运行，setInterval 在 ios 中不会停止运行，在 android 中停止运行。</p>
-<p>每 20ms 执行一次，执行 100次 在页面中实际耗费与 2000 ms 不会相差多少。</p>
-<p>我们的判断条件比预期时间多设置了 500ms，所以如果安卓中 setInterval 内的函数执行 100 次以内所费时间超过 2500ms，则说明 APP 唤起成功，反之则代表失败。</p>
-<p>我们通过 document.hidden 和 document.webkitHidden 属性来判断 APP 在 ios 中是否被正常唤起，2000ms 内，页面转入后台运行，document.hidden 会返回 true，代表唤端成功，反之则代表失败。</p>
-<h2 id="没有完美的方案"><a href="#没有完美的方案" class="headerlink" title="没有完美的方案"></a>没有完美的方案</h2><p>透过上面的几个点，我们可以发现，无论是 <em>唤端媒介</em> 、 <em>调用唤端媒介</em> 还是 <em>判断唤端结果</em> 都没有一个十全十美的方法，我们在代码层上能做的只是在确保最常用的场景（比如 微信、微博、手百 等）唤端无误的情况下，最大化的兼容剩余的场景。</p>
-<p>好的，我们接下来扯一些代码以外的，让我们的 APP 能够在更多的平台唤起。</p>
-<ul>
-<li>微信、微博、手百、QQ浏览器等。</li>
-</ul>
-<p>这些应用能阻止唤端是因为它们直接屏蔽掉了 URL Scheme 。接下来可能就有看官疑惑了，微信中是可以打开大众点评的呀，微博里面可以打开优酷呀，那是如何实现的呢？</p>
-<p>它们都各自维护着一个白名单，如果你的域名在白名单内，那这个域名下所有的页面发起的 URL Scheme 就都会被允许。就像微信，如果你是腾讯的“家属”，你就可以加入白名单了，微信的白名单一般只包含着“家属”，除此外很难申请到白名单资质。但是微博之类的都是可以联系他们的渠道童鞋进行申请的，只是条件各不相同，比如微博的就是在你的 APP 中添加打开微博的入口，三个月内唤起超过 100w 次，就可以加入白名单了。</p>
-<ul>
-<li>腾讯应用宝直接打开 APP 的某个功能</li>
-</ul>
-<p>刚刚我们说到，如果你不是微信的家属，那你是很难进入白名单的，所以在安卓中我们一般都是直接打开腾讯应用宝，ios 中 直接打开 App Store。点击腾讯应用宝中的“打开”按钮，可以直接唤起我们的 APP，但是无法打开 APP 中的某个功能（就是无法打开指定页面）。</p>
-<p>腾讯应用宝对外开放了一个叫做 APP Link 的申请，只要你申请了 APP Link，就可以通过在打开应用宝的时候在应用宝地址后面添加上 <code>&amp;android_schema={your_scheme}</code> ，来打开指定的页面了。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3189,7 +3072,7 @@ const checkOpen = setInterval(() =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">144</span>
+                  <span class="site-state-item-count">145</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

@@ -694,6 +694,474 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/06/React-Hooks/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="武动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/11/06/React-Hooks/" itemprop="url">React Hooks</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-06T10:01:03+08:00">
+                2018-11-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>一句话总结 React Hooks 就是在 react 函数组件中，也可以使用类组件（classes components）的 state 和 组件生命周期，而不需要在 mixin、 函数组件、HOC组件和 render props 之间来回切换，使得函数组件的功能更加实在，更加方便我们在业务中实现业务逻辑代码的分离和组件的复用。</p>
+<p>React 一直在解决一个问题，如何实现分离业务逻辑代码，实现组件内部相关业务逻辑的复用。<br>一般情况下，我们都是通过组件和自上而下传递的数据流将我们页面上的大型UI组织成为独立的小型UI，实现组件的重用。但是我们经常遇到很难侵入一个复杂的组件中实现重用，因为组件的逻辑是有状态的，无法提取到函数组件当中。这在处理动画和表单的时候，尤其常见，当我们在组件中连接外部的数据源，然后希望在组件中执行更多其他的操作的时候，我们就会把组件搞得特别糟糕：</p>
+<ul>
+<li>难以重用和共享组件中的与状态相关的逻辑，造成产生很多巨大的组件</li>
+<li>逻辑复杂的组件难以开发与维护，当我们的组件需要处理多个互不相关的 localstate 时，每个生命周期函数中可能会包含着各种互不相关的逻辑在里面。</li>
+<li>复杂的模式，如渲染道具和高阶组件。</li>
+<li>由于业务变动，函数组件不得不改为类组件。</li>
+</ul>
+<p>这时候，Hooks就派上用场了。 Hooks 允许我们将组件内部的逻辑，组织成为一个可复用的隔离模块。</p>
+<h4 id="粗暴点总结React-Hooks-就是在函数组件-HOC组件和静态组件找到一种平衡的组件实现方式"><a href="#粗暴点总结React-Hooks-就是在函数组件-HOC组件和静态组件找到一种平衡的组件实现方式" class="headerlink" title=" 粗暴点总结React Hooks:就是在函数组件,HOC组件和静态组件找到一种平衡的组件实现方式 "></a><font color="#ff0000"><strong> 粗暴点总结React Hooks:就是在函数组件,HOC组件和静态组件找到一种平衡的组件实现方式 </strong></font></h4><h2 id="一个最简单的Hooks"><a href="#一个最简单的Hooks" class="headerlink" title="一个最简单的Hooks"></a>一个最简单的Hooks</h2><p>首先让我们看一下一个简单的有状态组件：</p>
+<pre><code>class Example extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      count: 0
+    };
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;p&gt;You clicked {this.state.count} times&lt;/p&gt;
+        &lt;button onClick={() =&gt; this.setState({ count: this.state.count + 1 })}&gt;
+          Click me
+        &lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+</code></pre><p>我们再来看一下使用hooks后的版本：</p>
+<pre><code>import { useState } from &apos;react&apos;;
+
+function Example() {
+  const [count, setCount] = useState(0);
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;You clicked {count} times&lt;/p&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        Click me
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre><p>是不是简单多了！可以看到，<code>Example</code>变成了一个函数，但这个函数却有自己的状态（count），同时它还可以更新自己的状态（setCount）。这个函数之所以这么了不得，就是因为它注入了一个hook–<code>useState</code>，就是这个hook让我们的函数变成了一个有状态的函数。</p>
+<p>除了<code>useState</code>这个hook外，还有很多别的hook，比如<code>useEffect</code>提供了类似于<code>componentDidMount</code>等生命周期钩子的功能，<code>useContext</code>提供了上下文（context）的功能等等。</p>
+<p>Hooks本质上就是一类特殊的函数，它们可以为你的函数型组件（function component）注入一些特殊的功能。咦？这听起来有点像被诟病的Mixins啊？难道是Mixins要在react中死灰复燃了吗？当然不会了，等会我们再来谈两者的区别。总而言之，这些hooks的目标就是让你不再写class，让function一统江湖。</p>
+<h2 id="React为什么要搞一个Hooks？"><a href="#React为什么要搞一个Hooks？" class="headerlink" title="React为什么要搞一个Hooks？"></a>React为什么要搞一个Hooks？</h2><h3 id="想要复用一个有状态的组件太麻烦了！"><a href="#想要复用一个有状态的组件太麻烦了！" class="headerlink" title="想要复用一个有状态的组件太麻烦了！"></a>想要复用一个有状态的组件太麻烦了！</h3><p>我们都知道react都核心思想就是，将一个页面拆成一堆独立的，可复用的组件，并且用自上而下的单向数据流的形式将这些组件串联起来。但假如你在大型的工作项目中用react，你会发现你的项目中实际上很多react组件冗长且难以复用。尤其是那些写成class的组件，它们本身包含了状态（state），所以复用这类组件就变得很麻烦。</p>
+<p>那之前，官方推荐怎么解决这个问题呢？答案是：<font color="#ff0000">渲染属性（Render Props）</font>和 <font color="#ff0000">高阶组件（Higher-Order Components）</font> 。我们可以稍微跑下题简单看一下这两种模式。</p>
+<p>渲染属性指的是使用一个值为函数的prop来传递需要动态渲染的nodes或组件。如下面的代码可以看到我们的<code>DataProvider</code>组件包含了所有跟状态相关的代码，而<code>Cat</code>组件则可以是一个单纯的展示型组件，这样一来<code>DataProvider</code>就可以单独复用了。</p>
+<pre><code>import Cat from &apos;components/cat&apos;
+class DataProvider extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { target: &apos;Zac&apos; };
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        {this.props.render(this.state)}
+      &lt;/div&gt;
+    )
+  }
+}
+
+&lt;DataProvider render={data =&gt; (
+  &lt;Cat target={data.target} /&gt;
+)}/&gt;
+</code></pre><p>虽然这个模式叫Render Props，但不是说非用一个叫render的props不可，习惯上大家更常写成下面这种：</p>
+<pre><code>...
+&lt;DataProvider&gt;
+  {data =&gt; (
+    &lt;Cat target={data.target} /&gt;
+  )}
+&lt;/DataProvider&gt;
+</code></pre><p>高阶组件这个概念就更好理解了，说白了就是一个函数接受一个组件作为参数，经过一系列加工后，最后返回一个新的组件。看下面的代码示例，<code>withUser</code>函数就是一个高阶组件，它返回了一个新的组件，这个组件具有了它提供的获取用户信息的功能。</p>
+<pre><code>const withUser = WrappedComponent =&gt; {
+  const user = sessionStorage.getItem(&quot;user&quot;);
+  return props =&gt; &lt;WrappedComponent user={user} {...props} /&gt;;
+};
+
+const UserPage = props =&gt; (
+  &lt;div class=&quot;user-container&quot;&gt;
+    &lt;p&gt;My name is {props.user}!&lt;/p&gt;
+  &lt;/div&gt;
+);
+
+export default withUser(UserPage);
+</code></pre><p>以上这两种模式看上去都挺不错的，很多库也运用了这种模式，比如我们常用的React Router。但我们仔细看这两种模式，会发现它们会增加我们代码的层级关系。最直观的体现，打开devtool看看你的组件层级嵌套是不是很夸张吧。这时候再回过头看我们上一节给出的hooks例子，是不是简洁多了，没有多余的层级嵌套。把各种想要的功能写成一个一个可复用的自定义hook，当你的组件想用什么功能时，直接在组件里调用这个hook即可。</p>
+<h3 id="生命周期钩子函数里的逻辑太乱了吧！"><a href="#生命周期钩子函数里的逻辑太乱了吧！" class="headerlink" title="生命周期钩子函数里的逻辑太乱了吧！"></a>生命周期钩子函数里的逻辑太乱了吧！</h3><p>我们通常希望一个函数只做一件事情，但我们的生命周期钩子函数里通常同时做了很多事情。比如我们需要在<code>componentDidMount</code>中发起ajax请求获取数据，绑定一些事件监听等等。同时，有时候我们还需要在<code>componentDidUpdate</code>做一遍同样的事情。当项目变复杂后，这一块的代码也变得不那么直观。</p>
+<h3 id="classes真的太让人困惑了！"><a href="#classes真的太让人困惑了！" class="headerlink" title="classes真的太让人困惑了！"></a>classes真的太让人困惑了！</h3><p>我们用class来创建react组件时，还有一件很麻烦的事情，就是this的指向问题。为了保证this的指向正确，我们要经常写这样的代码：<code>this.handleClick = this.handleClick.bind(this)</code>，或者是这样的代码：<code>&lt;button onClick={() =&gt; this.handleClick(e)}&gt;</code>。一旦我们不小心忘了绑定this，各种bug就随之而来，很麻烦。</p>
+<p>还有一件让我很苦恼的事情。我在之前的react系列文章当中曾经说过，尽可能把你的组件写成无状态组件的形式，因为它们更方便复用，可独立测试。然而很多时候，我们用function写了一个简洁完美的无状态组件，后来因为需求变动这个组件必须得有自己的state，我们又得很麻烦的把function改成class。</p>
+<p>在这样的背景下，Hooks便横空出世了！</p>
+<h2 id="什么是State-Hooks？"><a href="#什么是State-Hooks？" class="headerlink" title="什么是State Hooks？"></a>什么是State Hooks？</h2><p>回到一开始我们用的例子，我们分解来看到底state hooks做了什么：</p>
+<pre><code>import { useState } from &apos;react&apos;;
+
+function Example() {
+  const [count, setCount] = useState(0);
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;You clicked {count} times&lt;/p&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        Click me
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre><h3 id="声明一个状态变量"><a href="#声明一个状态变量" class="headerlink" title="声明一个状态变量"></a>声明一个状态变量</h3><pre><code>import { useState } from &apos;react&apos;;
+
+function Example() {
+  const [count, setCount] = useState(0);
+</code></pre><p><code>useState</code>是react自带的一个hook函数，它的作用就是用来声明状态变量。<code>useState</code>这个函数接收的参数是我们的状态初始值（initial state），它返回了一个数组，这个数组的第<code>[0]</code>项是当前当前的状态值，第<code>[1]</code>项是可以改变状态值的方法函数。</p>
+<p>所以我们做的事情其实就是，声明了一个状态变量count，把它的初始值设为0，同时提供了一个可以更改count的函数setCount。</p>
+<p>上面这种表达形式，是借用了<code>es6的数组解构</code> ，它可以让我们的代码看起来更简洁。</p>
+<p>如果不用数组解构的话，可以写成下面这样。实际上数组解构是一件开销很大的事情，用下面这种写法，或者改用对象解构，性能会有很大的提升。具体可以去这篇文章的分析<a href="https://link.juejin.im?target=https%3A%2F%2Fdocs.google.com%2Fdocument%2Fd%2F1hWb-lQW4NSG9yRpyyiAA_9Ktytd5lypLnVLhPX9vamE%2Fedit%23" target="_blank" rel="noopener">Array destructuring for multi-value returns (in light of React hooks)</a>，这里不详细展开，我们就按照官方推荐使用数组解构就好。</p>
+<pre><code>let _useState = useState(0);
+let count = _useState[0];
+let setCount = _useState[1];
+</code></pre><h3 id="读取状态值"><a href="#读取状态值" class="headerlink" title="读取状态值"></a>读取状态值</h3><pre><code>&lt;p&gt;You clicked {count} times&lt;/p&gt;
+</code></pre><p>是不是超简单？因为我们的状态count就是一个单纯的变量而已，我们再也不需要写成<code>{this.state.count}</code>这样了。</p>
+<h3 id="更新状态"><a href="#更新状态" class="headerlink" title="更新状态"></a>更新状态</h3><pre><code>&lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+  Click me
+&lt;/button&gt;
+</code></pre><p>当用户点击按钮时，我们调用setCount函数，这个函数接收的参数是修改过的新状态值。接下来的事情就交给react了，react将会重新渲染我们的Example组件，并且使用的是更新后的新的状态，即count=1。这里我们要停下来思考一下，Example本质上也是一个普通的函数，为什么它可以记住之前的状态？</p>
+<h3 id="一个至关重要的问题"><a href="#一个至关重要的问题" class="headerlink" title="一个至关重要的问题"></a>一个至关重要的问题</h3><p>这里我们就发现了问题，通常来说我们在一个函数中声明的变量，当函数运行完成后，这个变量也就销毁了（这里我们先不考虑闭包等情况），比如考虑下面的例子：</p>
+<pre><code>function add(n) {
+    const result = 0;
+    return result + 1;
+}
+
+add(1); //1
+add(1); //1
+</code></pre><p>不管我们反复调用add函数多少次，结果都是1。因为每一次我们调用add时，result变量都是从初始值0开始的。那为什么上面的Example函数每次执行的时候，都是拿的上一次执行完的状态值作为初始值？答案是：是react帮我们记住的。至于react是用什么机制记住的，我们可以再思考一下。</p>
+<h3 id="假如一个组件有多个状态值怎么办？"><a href="#假如一个组件有多个状态值怎么办？" class="headerlink" title="假如一个组件有多个状态值怎么办？"></a>假如一个组件有多个状态值怎么办？</h3><p>首先，useState是可以多次调用的，所以我们完全可以这样写：</p>
+<pre><code>function ExampleWithManyStates() {
+  const [age, setAge] = useState(42);
+  const [fruit, setFruit] = useState(&apos;banana&apos;);
+  const [todos, setTodos] = useState([{ text: &apos;Learn Hooks&apos; }]);
+</code></pre><p>其次，useState接收的初始值没有规定一定要是string/number/boolean这种简单数据类型，它完全可以接收对象或者数组作为参数。唯一需要注意的点是，之前我们的<code>this.setState</code>做的是合并状态后返回一个新状态，而<code>useState</code>是直接替换老状态后返回新状态。最后，react也给我们提供了一个useReducer的hook，如果你更喜欢redux式的状态管理方案的话。</p>
+<p>从ExampleWithManyStates函数我们可以看到，useState无论调用多少次，相互之间是独立的。这一点至关重要。为什么这么说呢？</p>
+<p>其实我们看hook的“形态”，有点类似之前被官方否定掉的Mixins这种方案，都是提供一种“插拔式的功能注入”的能力。而mixins之所以被否定，是因为Mixins机制是让多个Mixins共享一个对象的数据空间，这样就很难确保不同Mixins依赖的状态不发生冲突。</p>
+<p>而现在我们的hook，一方面它是直接用在function当中，而不是class；另一方面每一个hook都是相互独立的，不同组件调用同一个hook也能保证各自状态的独立性。这就是两者的本质区别了。</p>
+<h3 id="react是怎么保证多个useState的相互独立的？"><a href="#react是怎么保证多个useState的相互独立的？" class="headerlink" title="react是怎么保证多个useState的相互独立的？"></a>react是怎么保证多个useState的相互独立的？</h3><p>还是看上面给出的ExampleWithManyStates例子，我们调用了三次useState，每次我们传的参数只是一个值（如42，‘banana’），我们根本没有告诉react这些值对应的key是哪个，那react是怎么保证这三个useState找到它对应的state呢？</p>
+<p>答案是，react是根据useState出现的顺序来定的。我们具体来看一下：</p>
+<pre><code>//第一次渲染
+useState(42);  //将age初始化为42
+useState(&apos;banana&apos;);  //将fruit初始化为banana
+useState([{ text: &apos;Learn Hooks&apos; }]); //...
+
+//第二次渲染
+useState(42);  //读取状态变量age的值（这时候传的参数42直接被忽略）
+useState(&apos;banana&apos;);  //读取状态变量fruit的值（这时候传的参数banana直接被忽略）
+useState([{ text: &apos;Learn Hooks&apos; }]); //...
+</code></pre><p>假如我们改一下代码：</p>
+<pre><code>let showFruit = true;
+function ExampleWithManyStates() {
+  const [age, setAge] = useState(42);
+
+  if(showFruit) {
+    const [fruit, setFruit] = useState(&apos;banana&apos;);
+    showFruit = false;
+  }
+
+  const [todos, setTodos] = useState([{ text: &apos;Learn Hooks&apos; }]);
+</code></pre><p>这样一来，</p>
+<pre><code>//第一次渲染
+useState(42);  //将age初始化为42
+useState(&apos;banana&apos;);  //将fruit初始化为banana
+useState([{ text: &apos;Learn Hooks&apos; }]); //...
+
+//第二次渲染
+useState(42);  //读取状态变量age的值（这时候传的参数42直接被忽略）
+// useState(&apos;banana&apos;);  
+useState([{ text: &apos;Learn Hooks&apos; }]); //读取到的却是状态变量fruit的值，导致报错
+</code></pre><p>鉴于此，react规定我们必须把hooks写在函数的最外层，不能写在ifelse等条件语句当中，来确保hooks的执行顺序一致。</p>
+<h2 id="什么是Effect-Hooks"><a href="#什么是Effect-Hooks" class="headerlink" title="什么是Effect Hooks?"></a>什么是Effect Hooks?</h2><p>我们在上一节的例子中增加一个新功能：</p>
+<pre><code>import { useState, useEffect } from &apos;react&apos;;
+
+function Example() {
+  const [count, setCount] = useState(0);
+
+  // 类似于componentDidMount 和 componentDidUpdate:
+  useEffect(() =&gt; {
+    // 更新文档的标题
+    document.title = `You clicked ${count}times`;
+  });
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;You clicked {count} times&lt;/p&gt;
+      &lt;button onClick={() =&gt; setCount(count + 1)}&gt;
+        Click me
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre><p>我们对比着看一下，如果没有hooks，我们会怎么写？</p>
+<pre><code>class Example extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      count: 0
+    };
+  }
+
+  componentDidMount() {
+    document.title = `You clicked ${this.state.count}times`;
+  }
+
+  componentDidUpdate() {
+    document.title = `You clicked ${this.state.count}times`;
+  }
+
+  render() {
+    return (
+      &lt;div&gt;
+        &lt;p&gt;You clicked {this.state.count} times&lt;/p&gt;
+        &lt;button onClick={() =&gt; this.setState({ count: this.state.count + 1 })}&gt;
+          Click me
+        &lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+}
+</code></pre><p>我们写的有状态组件，通常会产生很多的副作用（side effect），比如发起ajax请求获取数据，添加一些监听的注册和取消注册，手动修改dom等等。我们之前都把这些副作用的函数写在生命周期函数钩子里，比如componentDidMount，componentDidUpdate和componentWillUnmount。而现在的useEffect就相当与这些声明周期函数钩子的集合体。它以一抵三。</p>
+<p>同时，由于前文所说hooks可以反复多次使用，相互独立。所以我们合理的做法是，给每一个副作用一个单独的useEffect钩子。这样一来，这些副作用不再一股脑堆在生命周期钩子里，代码变得更加清晰。</p>
+<h3 id="useEffect做了什么？"><a href="#useEffect做了什么？" class="headerlink" title="useEffect做了什么？"></a>useEffect做了什么？</h3><p>我们再梳理一遍下面代码的逻辑：</p>
+<pre><code>function Example() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() =&gt; {
+    document.title = `You clicked ${count}times`;
+  });
+</code></pre><p>首先，我们声明了一个状态变量<code>count</code>，将它的初始值设为0。然后我们告诉react，我们的这个组件有一个副作用。我们给<code>useEffect</code>hook传了一个匿名函数，这个匿名函数就是我们的副作用。在这个例子里，我们的副作用是调用browser API来修改文档标题。当react要渲染我们的组件时，它会先记住我们用到的副作用。等react更新了DOM之后，它再依次执行我们定义的副作用函数。</p>
+<p>这里要注意几点：<br>第一，react首次渲染和之后的每次渲染都会调用一遍传给useEffect的函数。而之前我们要用两个声明周期函数来分别表示首次渲染（componentDidMount），和之后的更新导致的重新渲染（componentDidUpdate）。</p>
+<p>第二，useEffect中定义的副作用函数的执行不会阻碍浏览器更新视图，也就是说这些函数是异步执行的，而之前的componentDidMount或componentDidUpdate中的代码则是同步执行的。这种安排对大多数副作用说都是合理的，但有的情况除外，比如我们有时候需要先根据DOM计算出某个元素的尺寸再重新渲染，这时候我们希望这次重新渲染是同步发生的，也就是说它会在浏览器真的去绘制这个页面前发生。</p>
+<h3 id="useEffect怎么解绑一些副作用"><a href="#useEffect怎么解绑一些副作用" class="headerlink" title="useEffect怎么解绑一些副作用"></a>useEffect怎么解绑一些副作用</h3><p>这种场景很常见，当我们在componentDidMount里添加了一个注册，我们得马上在componentWillUnmount中，也就是组件被注销之前清除掉我们添加的注册，否则内存泄漏的问题就出现了。</p>
+<p>怎么清除呢？让我们传给useEffect的副作用函数返回一个新的函数即可。这个新的函数将会在组件下一次重新渲染之后执行。这种模式在一些pubsub模式的实现中很常见。看下面的例子：</p>
+<pre><code>import { useState, useEffect } from &apos;react&apos;;
+
+function FriendStatus(props) {
+  const [isOnline, setIsOnline] = useState(null);
+
+  function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+  }
+
+  useEffect(() =&gt; {
+    ChatAPI.subscribeToFriendStatus(props.friend.id, handleStatusChange);
+    // 一定注意下这个顺序：告诉react在下次重新渲染组件之后，同时是下次调用ChatAPI.subscribeToFriendStatus之前执行cleanup
+    returnfunctioncleanup() {
+      ChatAPI.unsubscribeFromFriendStatus(props.friend.id, handleStatusChange);
+    };
+  });
+
+  if (isOnline === null) {
+    return&apos;Loading...&apos;;
+  }
+  return isOnline ? &apos;Online&apos; : &apos;Offline&apos;;
+}
+</code></pre><p>这里有一个点需要重视！这种解绑的模式跟componentWillUnmount不一样。componentWillUnmount只会在组件被销毁前执行一次而已，而useEffect里的函数，每次组件渲染后都会执行一遍，包括副作用函数返回的这个清理函数也会重新执行一遍。所以我们一起来看一下下面这个问题。</p>
+<h3 id="为什么要让副作用函数每次组件更新都执行一遍？"><a href="#为什么要让副作用函数每次组件更新都执行一遍？" class="headerlink" title="为什么要让副作用函数每次组件更新都执行一遍？"></a>为什么要让副作用函数每次组件更新都执行一遍？</h3><p>我们先看以前的模式：</p>
+<pre><code>componentDidMount() {
+    ChatAPI.subscribeToFriendStatus(
+      this.props.friend.id,
+      this.handleStatusChange
+    );
+  }
+
+  componentWillUnmount() {
+    ChatAPI.unsubscribeFromFriendStatus(
+      this.props.friend.id,
+      this.handleStatusChange
+    );
+  }
+</code></pre><p>很清除，我们在componentDidMount注册，再在componentWillUnmount清除注册。但假如这时候<code>props.friend.id</code>变了怎么办？我们不得不再添加一个componentDidUpdate来处理这种情况：</p>
+<pre><code>...
+  componentDidUpdate(prevProps) {
+    // 先把上一个friend.id解绑
+    ChatAPI.unsubscribeFromFriendStatus(
+      prevProps.friend.id,
+      this.handleStatusChange
+    );
+    // 再重新注册新但friend.id
+    ChatAPI.subscribeToFriendStatus(
+      this.props.friend.id,
+      this.handleStatusChange
+    );
+  }
+...
+</code></pre><p>看到了吗？很繁琐，而我们但useEffect则没这个问题，因为它在每次组件更新后都会重新执行一遍。所以代码的执行顺序是这样的：</p>
+<pre><code>1.页面首次渲染
+2.替friend.id=1的朋友注册
+
+3.突然friend.id变成了2
+4.页面重新渲染
+5.清除friend.id=1的绑定
+6.替friend.id=2的朋友注册
+...
+</code></pre><h3 id="怎么跳过一些不必要的副作用函数"><a href="#怎么跳过一些不必要的副作用函数" class="headerlink" title="怎么跳过一些不必要的副作用函数"></a>怎么跳过一些不必要的副作用函数</h3><p>按照上一节的思路，每次重新渲染都要执行一遍这些副作用函数，显然是不经济的。怎么跳过一些不必要的计算呢？我们只需要给useEffect传第二个参数即可。用第二个参数来告诉react只有当这个参数的值发生改变时，才执行我们传的副作用函数（第一个参数）。</p>
+<pre><code>useEffect(() =&gt; {
+  document.title = `You clicked ${count}times`;
+}, [count]);     // 只有当count的值发生变化时，才会重新执行`document.title`这一句
+</code></pre><p>当我们第二个参数传一个空数组[]时，其实就相当于只在首次渲染的时候执行。也就是componentDidMount加componentWillUnmount的模式。不过这种用法可能带来bug，少用。</p>
+<h2 id="还有哪些自带的Effect-Hooks"><a href="#还有哪些自带的Effect-Hooks" class="headerlink" title="还有哪些自带的Effect Hooks?"></a>还有哪些自带的Effect Hooks?</h2><p>除了上文重点介绍的useState和useEffect，react还给我们提供来很多有用的hooks：</p>
+<p>useContext<br>useReducer<br>useCallback<br>useMemo<br>useRef<br>useImperativeMethods<br>useMutationEffect<br>useLayoutEffect</p>
+<p>我不再一一介绍，大家自行去查阅官方文档。</p>
+<h2 id="怎么写自定义的Effect-Hooks"><a href="#怎么写自定义的Effect-Hooks" class="headerlink" title="怎么写自定义的Effect Hooks?"></a>怎么写自定义的Effect Hooks?</h2><p>为什么要自己去写一个Effect Hooks? 这样我们才能把可以复用的逻辑抽离出来，变成一个个可以随意插拔的“插销”，哪个组件要用来，我就插进哪个组件里，so easy！看一个完整的例子，你就明白了。</p>
+<p>比如我们可以把上面写的FriendStatus组件中判断朋友是否在线的功能抽出来，新建一个useFriendStatus的hook专门用来判断某个id是否在线。</p>
+<pre><code>import { useState, useEffect } from &apos;react&apos;;
+
+function useFriendStatus(friendID) {
+  const [isOnline, setIsOnline] = useState(null);
+
+  function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+  }
+
+  useEffect(() =&gt; {
+    ChatAPI.subscribeToFriendStatus(friendID, handleStatusChange);
+    return () =&gt; {
+      ChatAPI.unsubscribeFromFriendStatus(friendID, handleStatusChange);
+    };
+  });
+
+  return isOnline;
+}
+</code></pre><p>这时候FriendStatus组件就可以简写为：</p>
+<pre><code>function FriendStatus(props) {
+  const isOnline = useFriendStatus(props.friend.id);
+
+  if (isOnline === null) {
+    return &apos;Loading...&apos;;
+  }
+  return isOnline ? &apos;Online&apos; : &apos;Offline&apos;;
+}
+</code></pre><p>简直Perfect！假如这个时候我们又有一个朋友列表也需要显示是否在线的信息：</p>
+<pre><code>function FriendListItem(props) {
+  const isOnline = useFriendStatus(props.friend.id);
+
+  return (
+    &lt;li style={{ color: isOnline ? 'green' : 'black' }}&gt;
+      {props.friend.name}
+    &lt;/li&gt;
+  );
+}
+</code></pre><h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a><a href="https://github.com/libin1991/webpack4-vue-more-page-cli/tree/master/React-Hooks" target="_blank" rel="noopener">DEMO</a></h2><p><img src="/2018/11/06/React-Hooks/1.png" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br></pre></td><td class="code"><pre><span class="line">// import React from &apos;react&apos;;</span><br><span class="line">import logo from &apos;./logo.svg&apos;;</span><br><span class="line">import &apos;./App.css&apos;;</span><br><span class="line">import React, &#123;</span><br><span class="line">	// useHooks,</span><br><span class="line">	useState,</span><br><span class="line">	useEffect,</span><br><span class="line">	useContext,</span><br><span class="line">	useReducer,</span><br><span class="line">	useRef</span><br><span class="line">&#125; from &apos;react&apos;</span><br><span class="line"></span><br><span class="line">const ThemeContext = React.createContext(&#123;</span><br><span class="line">	background: &apos;#282c34&apos;,</span><br><span class="line">	color: &apos;#61dafb&apos;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * 监控浏览器变化</span><br><span class="line"> * @return &#123;number&#125; innerWidth 返回当前窗口宽度</span><br><span class="line"> * **/</span><br><span class="line">const useWindowWith = () =&gt; &#123;</span><br><span class="line"></span><br><span class="line">	const [innerWidth, setInnerWidth] = useState(window.innerWidth);</span><br><span class="line"></span><br><span class="line">	const handleResize = () =&gt; setInnerWidth(window.innerWidth)</span><br><span class="line"></span><br><span class="line">	useEffect(() =&gt; &#123;</span><br><span class="line">		window.addEventListener(&apos;resize&apos;, handleResize)</span><br><span class="line">		return() =&gt; &#123;</span><br><span class="line">			window.removeEventListener(&apos;resize&apos;, handleResize)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;)</span><br><span class="line">	return innerWidth</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * 计数</span><br><span class="line"> * @param  &#123;number&#125; initialState 初始值</span><br><span class="line"> * @return &#123;number&#125; count 值</span><br><span class="line"> * @return &#123;function&#125; setCount 改变值的方法</span><br><span class="line"> * */</span><br><span class="line">const useCount = (initialState) =&gt; &#123;</span><br><span class="line">	const [count, setCount] = useState(initialState);</span><br><span class="line">	useEffect(() =&gt; &#123;</span><br><span class="line">		console.log(&apos;change&apos;)</span><br><span class="line">	&#125;, [count])</span><br><span class="line">	return [count, setCount]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * count-reducer</span><br><span class="line"> * * */</span><br><span class="line"></span><br><span class="line">const initialState = &#123;</span><br><span class="line">	count: 0</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">function reducer(state, action) &#123;</span><br><span class="line">	switch(action.type) &#123;</span><br><span class="line">		case &apos;reset&apos;:</span><br><span class="line">			return initialState;</span><br><span class="line">		case &apos;increment&apos;:</span><br><span class="line">			return &#123;</span><br><span class="line">				count: state.count + 1</span><br><span class="line">			&#125;;</span><br><span class="line">		case &apos;decrement&apos;:</span><br><span class="line">			return &#123;</span><br><span class="line">				count: state.count - 1</span><br><span class="line">			&#125;;</span><br><span class="line">		default:</span><br><span class="line">			return state</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">/**</span><br><span class="line"> * 点击获取焦点</span><br><span class="line"> * @param  &#123;number&#125; initial 初始值</span><br><span class="line"> * @return &#123;object&#125; ref 当前的ref对象</span><br><span class="line"> * @return &#123;function&#125; focusHandle 使用该ref对象的函数</span><br><span class="line"> * */</span><br><span class="line">function useRefHandle(initial) &#123;</span><br><span class="line">	let ref = useRef(initial)</span><br><span class="line">	let focusHandle = () =&gt; ref.current.focus();</span><br><span class="line">	return [ref, focusHandle]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">const App = (props) =&gt; &#123;</span><br><span class="line">	const innerWidth = useWindowWith()</span><br><span class="line">	const [count, setCount] = useCount(0);</span><br><span class="line">	const &#123;</span><br><span class="line">		color,</span><br><span class="line">		background</span><br><span class="line">	&#125; = useContext(ThemeContext);</span><br><span class="line">	const [state, dispatch] = useReducer(reducer, initialState)</span><br><span class="line">	let [inputEl, focusHandle] = useRefHandle(null);</span><br><span class="line">	console.log(&apos;render number&apos;)</span><br><span class="line">	return(</span><br><span class="line">		&lt;div className=&quot;App&quot;&gt;</span><br><span class="line">        &#123;/* useContext demo */&#125;</span><br><span class="line">        &lt;header className=&quot;App-header&quot; style=&#123;&#123;backgroundColor:background&#125;&#125;&gt;</span><br><span class="line">          &lt;img src=&#123;logo&#125; className=&quot;App-logo&quot; alt=&quot;logo&quot; /&gt;</span><br><span class="line">          &lt;p&gt;  react hook demo &lt;/p&gt;</span><br><span class="line"></span><br><span class="line">          &#123;/* useState demo */&#125;</span><br><span class="line">          &lt;p&gt;count:&#123;count&#125;&lt;/p&gt;</span><br><span class="line">          &lt;button onClick=&#123;()=&gt;setCount(count+1)&#125; className=&quot;App-button&quot;  &gt;点击&lt;/button&gt;</span><br><span class="line"></span><br><span class="line">          &#123;/* useReducer demo */&#125;</span><br><span class="line">          &lt;p&gt;reducer count:&#123;state.count&#125;&lt;/p&gt;</span><br><span class="line">          &lt;div  className=&quot;App-button-group&quot; &gt;</span><br><span class="line">            &lt;button  onClick=&#123;()=&gt;dispatch(&#123;type: &apos;increment&apos;&#125;)&#125; &gt;increment&lt;/button&gt;</span><br><span class="line">            &lt;button  onClick=&#123;()=&gt;dispatch(&#123;type: &apos;decrement&apos;&#125;)&#125; &gt;decrement&lt;/button&gt;</span><br><span class="line">            &lt;button  onClick=&#123;()=&gt;dispatch(&#123;type: &apos;reset&apos;&#125;)&#125; &gt;reset&lt;/button&gt;</span><br><span class="line">          &lt;/div&gt;</span><br><span class="line"></span><br><span class="line">          &#123;/* useEffect demo */&#125;</span><br><span class="line">          &lt;p&gt;当前屏幕宽度：&#123;innerWidth&#125;&lt;/p&gt;</span><br><span class="line"></span><br><span class="line">          &#123;/* useRef demo */&#125;</span><br><span class="line">          &lt;p&gt;</span><br><span class="line">          useRef: &lt;input type=&apos;text&apos; ref=&#123;inputEl&#125;/&gt;&lt;button onClick=&#123;focusHandle&#125;&gt;搜索&lt;/button&gt;</span><br><span class="line">          &lt;/p&gt;</span><br><span class="line">          </span><br><span class="line">          &#123;/* useContext demo */&#125;</span><br><span class="line">          &lt;a</span><br><span class="line">            className=&quot;App-link&quot;</span><br><span class="line">            href=&quot;https://reactjs.org&quot;</span><br><span class="line">            target=&quot;_blank&quot;</span><br><span class="line">            rel=&quot;noopener noreferrer&quot;</span><br><span class="line">            style=&#123;&#123;color:color&#125;&#125;</span><br><span class="line">          &gt;</span><br><span class="line">            Learn React</span><br><span class="line">          &lt;/a&gt;</span><br><span class="line">        &lt;/header&gt;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">	);</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">export default App</span><br></pre></td></tr></table></figure></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/05/Redux源码分析/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3627,147 +4095,6 @@ console.log(hw.next());
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/简单理解async、await语法实现原理/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="武动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/10/04/简单理解async、await语法实现原理/" itemprop="url">简单理解async、await语法实现原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-04T23:57:27+08:00">
-                2018-10-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>现在最新的前端框架生态都开始用上了Generator和yield，<br>有的甚至已经开始使用最新的async、await语法了，<br><strong>这两样都是基于Generator自动执行的原理。</strong></p>
-<h2 id="阮一峰-async-函数的实现原理"><a href="#阮一峰-async-函数的实现原理" class="headerlink" title="阮一峰 async-函数的实现原理"></a>阮一峰 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fasync%23async-%25E5%2587%25BD%25E6%2595%25B0%25E7%259A%2584%25E5%25AE%259E%25E7%258E%25B0%25E5%258E%259F%25E7%2590%2586" target="_blank" rel="noopener">async-函数的实现原理</a></h2><h4 id="async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。"><a href="#async-函数的实现原理，就是将-Generator-函数和自动执行器，包装在一个函数里。" class="headerlink" title="async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。"></a>async 函数的实现原理，就是将 Generator 函数和自动执行器，包装在一个函数里。</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">async function fn(args) &#123;</span><br><span class="line">  // ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 等同于</span><br><span class="line">function fn(args) &#123;</span><br><span class="line">  return spawn(function* () &#123;</span><br><span class="line">    // ...</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>所有的async函数都可以写成上面的第二种形式，其中的spawn函数就是自动执行器。</p>
-<p>下面给出spawn函数的实现，基本就是前文自动执行器的翻版。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">function spawn(genF) &#123;</span><br><span class="line">  return new Promise(function(resolve, reject) &#123;</span><br><span class="line">    const gen = genF();</span><br><span class="line">    function step(nextF) &#123;</span><br><span class="line">      let next;</span><br><span class="line">      try &#123;</span><br><span class="line">        next = nextF();</span><br><span class="line">      &#125; catch(e) &#123;</span><br><span class="line">        return reject(e);</span><br><span class="line">      &#125;</span><br><span class="line">      if(next.done) &#123;</span><br><span class="line">        return resolve(next.value);</span><br><span class="line">      &#125;</span><br><span class="line">      Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">        step(function() &#123; return gen.next(v); &#125;);</span><br><span class="line">      &#125;, function(e) &#123;</span><br><span class="line">        step(function() &#123; return gen.throw(e); &#125;);</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    step(function() &#123; return gen.next(undefined); &#125;);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2 id="DEMO"><a href="#DEMO" class="headerlink" title="DEMO"></a>DEMO</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			function timeout(ms) &#123;</span><br><span class="line">				return &#123;</span><br><span class="line">					text: &apos;done&apos;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function* start() &#123;</span><br><span class="line">				const res = yield timeout(1000);</span><br><span class="line">				return res;</span><br><span class="line">			&#125;;</span><br><span class="line"></span><br><span class="line">		 </span><br><span class="line">             </span><br><span class="line"></span><br><span class="line">			function fn(args) &#123;</span><br><span class="line">				return spawn(start);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			function spawn(genF) &#123;</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					const gen = genF();</span><br><span class="line">					function step(nextF) &#123;</span><br><span class="line">						let next;</span><br><span class="line">						try &#123;</span><br><span class="line">							next = nextF();</span><br><span class="line">						&#125; catch(e) &#123;</span><br><span class="line">							return reject(e);</span><br><span class="line">						&#125;</span><br><span class="line">						if(next.done) &#123;</span><br><span class="line">							return resolve(next.value);</span><br><span class="line">						&#125;</span><br><span class="line">						</span><br><span class="line">					</span><br><span class="line">						Promise.resolve(next.value).then(function(v) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.next(v);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;, function(e) &#123;</span><br><span class="line">							step(function() &#123;</span><br><span class="line">								return gen.throw(e);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;);</span><br><span class="line">					&#125;</span><br><span class="line">					step(function() &#123;</span><br><span class="line">						return gen.next();</span><br><span class="line">					&#125;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			 fn().then((data)=&gt;&#123;</span><br><span class="line">				console.log(data)</span><br><span class="line">			&#125;)</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<h3 id="看下babel转换后的"><a href="#看下babel转换后的" class="headerlink" title="看下babel转换后的"></a>看下babel转换后的</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">async function fns(args) &#123;</span><br><span class="line">				const res = await fetch(&apos;google.com&apos;);</span><br><span class="line">				return res.text();</span><br><span class="line">			&#125;</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">&apos;use strict&apos;;</span><br><span class="line">    </span><br><span class="line">		var fns = function() &#123;</span><br><span class="line">			var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(args) &#123;</span><br><span class="line">				var res;</span><br><span class="line">				return regeneratorRuntime.wrap(function _callee$(_context) &#123;</span><br><span class="line">					while(1) &#123;</span><br><span class="line">						switch(_context.prev = _context.next) &#123;</span><br><span class="line">							case 0:</span><br><span class="line">								_context.next = 2;</span><br><span class="line">								return fetch(&apos;google.com&apos;);</span><br><span class="line">    </span><br><span class="line">							case 2:</span><br><span class="line">								res = _context.sent;</span><br><span class="line">								return _context.abrupt(&apos;return&apos;, res.text());</span><br><span class="line">    </span><br><span class="line">							case 4:</span><br><span class="line">							case&apos;end&apos;:</span><br><span class="line">								return _context.stop();</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;, _callee, this);</span><br><span class="line">			&#125;));</span><br><span class="line">    </span><br><span class="line">			returnfunction fns(_x) &#123;</span><br><span class="line">				return _ref.apply(this, arguments);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;();</span><br><span class="line">    </span><br><span class="line">		function _asyncToGenerator(fn) &#123;  //Generator函数自动执行</span><br><span class="line">			returnfunction() &#123;</span><br><span class="line">				var gen = fn.apply(this, arguments);</span><br><span class="line">				return new Promise(function(resolve, reject) &#123;</span><br><span class="line">					function step(key, arg) &#123;</span><br><span class="line">						try &#123;</span><br><span class="line">							var info = gen[key](arg);</span><br><span class="line">							var value = info.value;</span><br><span class="line">						&#125; catch(error) &#123;</span><br><span class="line">							reject(error);</span><br><span class="line">							return;</span><br><span class="line">						&#125;</span><br><span class="line">						if(info.done) &#123;</span><br><span class="line">							resolve(value);</span><br><span class="line">						&#125; else &#123;</span><br><span class="line">							return Promise.resolve(value).then(function(value) &#123;</span><br><span class="line">								step(&quot;next&quot;, value);</span><br><span class="line">							&#125;, function(err) &#123;</span><br><span class="line">								step(&quot;throw&quot;, err);</span><br><span class="line">							&#125;);</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">					return step(&quot;next&quot;);</span><br><span class="line">				&#125;);</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;</span><br></pre></td></tr></table></figure>
-<p>一、thunk函数<br>thunk函数指的是能将执行结果传入回调函数，并将该回调函数返回的函数。<br>是不是有点抽象，举个例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var readFile = function (fileName) &#123;</span><br><span class="line">    returnfunction (callback) &#123;</span><br><span class="line">        return fs.readFile(fileName, callback)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>下面我们来看下thunk函数怎样执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readFile(&apos;./package.json&apos;)((err, str) =&gt; &#123;</span><br><span class="line">    console.log(str.toString())</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
-<p>问: thunk的执行比普通函数要麻烦不少，那么它有什么优势呢？</p>
-<h3 id="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"><a href="#thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，" class="headerlink" title="thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，"></a>thunk函数的优势在于它能将异步操作返回结果的获取权交给thunk函数的返回值，</h3><p>而不是将异步操作结果传入thunk函数本身的作用域内，这点很重要，<br>因为它能结合Generator语法让Generator函数自动执行</p>
-<p>二、Generator<br>es6的Generator函数，具体语法这里就不介绍了，</p>
-<p>我们来编写一个基于thunk函数的Generator：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>我们来手动执行一下这个Generator:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">let g = gen()</span><br><span class="line">let r1 = g.next()</span><br><span class="line">r1.value(function (err, data) &#123;</span><br><span class="line">    if (err) &#123;</span><br><span class="line">        throw err</span><br><span class="line">    &#125;</span><br><span class="line">    let r2 = g.next(data)</span><br><span class="line">    r2.value(function (err, data) &#123;</span><br><span class="line">        if (err) &#123;</span><br><span class="line">            throw err</span><br><span class="line">        &#125;</span><br><span class="line">        g.next(data)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
-<p>可以注意到，在我们手动执行基于thunk函数的Generator时，<br>有很多代码是可以复用的，<br>没错，所谓的Generator自动执行就是把这些可复用的部分封装成函数，<br>然后让它们递归执行，直到执行完所有的yield。</p>
-<p>三、Generator自动执行器<br>下面就是Generator自动执行的核心代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">function run(fn) &#123;</span><br><span class="line">    let gen = fn()</span><br><span class="line">    function next(err, data) &#123;</span><br><span class="line">        let result = gen.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return</span><br><span class="line">        &#125;</span><br><span class="line">        result.value(next)</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>可以看到无非就是把可复用的部分封装成next函数，然后让其<strong>递归</strong>执行，<br>直到执行完所有的yield</p>
-<p>其调用代码为:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
-<p>这样就将原本繁杂的异步操作封装的十分简单了</p>
-<p>基于Promise的Generator的自动执行<br>上面的例子是基于thunk函数的，而即将出现的es7的async、await语法是基于Promise的</p>
-<p>这里再上一个基于Promise的Generator的自动执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">//包装返回Promise对象的函数</span><br><span class="line">functionreadFile(fileName) &#123;</span><br><span class="line">    return new Promise((resolve, reject) =&gt; &#123;</span><br><span class="line">        fs.readFile(fileName, (error, data) =&gt; &#123;</span><br><span class="line">            if (error) &#123;</span><br><span class="line">                reject(error)</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                resolve(data)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line">// 编写Generator</span><br><span class="line">let gen = function* () &#123;</span><br><span class="line">    let r1 = yield readFile(&apos;./package.json&apos;)</span><br><span class="line">    console.log(r1.toString())</span><br><span class="line">    let r2 = yield readFile(&apos;./index.js&apos;)</span><br><span class="line">    console.log(r2.toString())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 编写Generator执行器</span><br><span class="line">function run(gen) &#123;</span><br><span class="line">    let g = gen()</span><br><span class="line">    function next(data) &#123;</span><br><span class="line">        let result = g.next(data)</span><br><span class="line">        if (result.done) &#123;</span><br><span class="line">            return result.value</span><br><span class="line">        &#125;</span><br><span class="line">        result.value.then((data) =&gt; next(data))</span><br><span class="line">    &#125;</span><br><span class="line">    next()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">//用Generator执行器自动执行</span><br><span class="line">run(gen)</span><br></pre></td></tr></table></figure></p>
-<p>这个和基于thunk函数的大同小异，只是把函数返回值的获取权以Promise的方式交出</p>
-<h4 id="参考-简单理解Generator自执行及async、await语法原理"><a href="#参考-简单理解Generator自执行及async、await语法原理" class="headerlink" title="参考 简单理解Generator自执行及async、await语法原理"></a>参考 <a href="https://link.juejin.im?target=https%3A%2F%2Fsegmentfault.com%2Fa%2F1190000008254704" target="_blank" rel="noopener">简单理解Generator自执行及async、await语法原理</a></h4>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3820,7 +4147,7 @@ console.log(hw.next());
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">144</span>
+                  <span class="site-state-item-count">145</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
