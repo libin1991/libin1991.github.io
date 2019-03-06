@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="Promise面试题1有这样一道关于promise的面试题，描述如下：  页面上有一个输入框，两个按钮，A按钮和B按钮，点击A或者B分别会发送一个异步请求，请求完成后，结果会显示在输入框中。  题目要求，用户随机点击A和B多次，要求输入框显示结果时，按照用户点击的顺序显示，举例： 用户点击了一次A，然后点击一次B，又点击一次A，输入框显示结果的顺序为先显示A异步请求结果，再次显示B的请求结果，最后">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一道赋值面试题引发的思考3【并发数控制】">
+<meta property="og:url" content="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/index.html">
+<meta property="og:site_name" content="武动乾坤">
+<meta property="og:description" content="Promise面试题1有这样一道关于promise的面试题，描述如下：  页面上有一个输入框，两个按钮，A按钮和B按钮，点击A或者B分别会发送一个异步请求，请求完成后，结果会显示在输入框中。  题目要求，用户随机点击A和B多次，要求输入框显示结果时，按照用户点击的顺序显示，举例： 用户点击了一次A，然后点击一次B，又点击一次A，输入框显示结果的顺序为先显示A异步请求结果，再次显示B的请求结果，最后">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/1.webp">
+<meta property="og:image" content="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/2.webp">
+<meta property="og:image" content="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/3.webp">
+<meta property="og:image" content="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/4.webp">
+<meta property="og:updated_time" content="2019-03-06T13:52:19.621Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="一道赋值面试题引发的思考3【并发数控制】">
+<meta name="twitter:description" content="Promise面试题1有这样一道关于promise的面试题，描述如下：  页面上有一个输入框，两个按钮，A按钮和B按钮，点击A或者B分别会发送一个异步请求，请求完成后，结果会显示在输入框中。  题目要求，用户随机点击A和B多次，要求输入框显示结果时，按照用户点击的顺序显示，举例： 用户点击了一次A，然后点击一次B，又点击一次A，输入框显示结果的顺序为先显示A异步请求结果，再次显示B的请求结果，最后">
+<meta name="twitter:image" content="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/1.webp">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/">
+
+
+
+
+
+  <title>一道赋值面试题引发的思考3【并发数控制】 | 武动乾坤</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">武动乾坤</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">星光不问赶路人 岁月不负有心人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="武动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">一道赋值面试题引发的思考3【并发数控制】</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-06T21:25:02+08:00">
+                2019-02-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="Promise面试题1"><a href="#Promise面试题1" class="headerlink" title="Promise面试题1"></a>Promise面试题1</h2><p>有这样一道关于promise的面试题，描述如下：</p>
+<blockquote>
+<p>页面上有一个输入框，两个按钮，A按钮和B按钮，点击A或者B分别会发送一个异步请求，请求完成后，结果会显示在输入框中。</p>
+</blockquote>
+<p>题目要求，用户随机点击A和B多次，要求输入框显示结果时，按照用户点击的顺序显示，举例：</p>
+<p>用户点击了一次A，然后点击一次B，又点击一次A，输入框显示结果的顺序为先显示A异步请求结果，再次显示B的请求结果，最后再次显示A的请求结果。</p>
+<p>UI界面如图：</p>
+<p><img src="/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/1.webp" alt=""></p>
+<p>这个需求该如何用promise来实现呢？代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//dom元素</span></span><br><span class="line"><span class="keyword">var</span> a = <span class="built_in">document</span>.querySelector(<span class="string">"#a"</span>)</span><br><span class="line"><span class="keyword">var</span> b = <span class="built_in">document</span>.querySelector(<span class="string">"#b"</span>)</span><br><span class="line"><span class="keyword">var</span> i = <span class="built_in">document</span>.querySelector(<span class="string">"#ipt"</span>);</span><br><span class="line"><span class="comment">//全局变量p保存promie实例</span></span><br><span class="line"><span class="keyword">var</span> P = <span class="built_in">Promise</span>.resolve();</span><br><span class="line">a.onclick  = <span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    <span class="comment">//将事件过程包装成一个promise并通过then链连接到</span></span><br><span class="line">    <span class="comment">//全局的Promise实例上，并更新全局变量，这样其他点击</span></span><br><span class="line">    <span class="comment">//就可以拿到最新的Promies执行链</span></span><br><span class="line">    P = P.then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">        <span class="comment">//then链里面的函数返回一个新的promise实例</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve,reject</span>)</span>&#123;</span><br><span class="line">            setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">                resolve()</span><br><span class="line">                i.value = <span class="string">"a"</span>;</span><br><span class="line">            &#125;,<span class="number">1000</span>)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line">b.onclick  = <span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    P = P.then(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span>(<span class="params">resolve,reject</span>)</span>&#123;</span><br><span class="line">            setTimeout(<span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">                resolve()</span><br><span class="line">                <span class="built_in">console</span>.log(<span class="string">"b"</span>)</span><br><span class="line">                i.value = <span class="string">"b"</span></span><br><span class="line">            &#125;,<span class="number">2000</span>)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们用定时器来模拟异步请求，仔细于阅读代码我们发现，在全局我们定义了一个全局P，P保存了一个promise的实例。</p>
+<p>然后再观察点击事件的代码，用户每次点击按钮时，我们在事件中访问全局Promise实例，将异步操作包装到成新的Promise实例，然后通过全局Promise实例的then方法来连接这些行为。</p>
+<p>连接的时候需要注意，then链的函数中必须将新的promise实例进行返回，不然就会执行顺序就不正确了。</p>
+<p>需要注意的是，then链连接完成后，我们需要更新全局的P变量，只有这样，其它点击事件才能得到最新的Promise的执行链。</p>
+<p>这样每次用户点击按钮就不需要关心回调执行时机了，因为promise的then链会按照其连接顺序依次执行。</p>
+<p>这样就能保证用户的点击顺序和promise的执行顺序一致了。</p>
+<h2 id="Promise面试题2"><a href="#Promise面试题2" class="headerlink" title="Promise面试题2"></a>Promise面试题2</h2><p>按照要求：</p>
+<blockquote>
+<p>实现 mergePromise 函数，把传进去的函数数组按顺序先后执行，并且把返回的数据先后放到数组 data 中。</p>
+</blockquote>
+<p>代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> timeout = <span class="function"><span class="params">ms</span> =&gt;</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">    setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">        resolve();</span><br><span class="line">    &#125;, ms);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> ajax1 = <span class="function"><span class="params">()</span> =&gt;</span> timeout(<span class="number">2000</span>).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'1'</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> ajax2 = <span class="function"><span class="params">()</span> =&gt;</span> timeout(<span class="number">1000</span>).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'2'</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">2</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> ajax3 = <span class="function"><span class="params">()</span> =&gt;</span> timeout(<span class="number">2000</span>).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'3'</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">3</span>;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> mergePromise = <span class="function"><span class="params">ajaxArray</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="comment">// 在这里实现你的代码</span></span><br><span class="line"></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">mergePromise([ajax1, ajax2, ajax3]).then(<span class="function"><span class="params">data</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'done'</span>);</span><br><span class="line">    <span class="built_in">console</span>.log(data); <span class="comment">// data 为 [1, 2, 3]</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 要求分别输出</span></span><br><span class="line"><span class="comment">// 1</span></span><br><span class="line"><span class="comment">// 2</span></span><br><span class="line"><span class="comment">// 3</span></span><br><span class="line"><span class="comment">// done</span></span><br><span class="line"><span class="comment">// [1, 2, 3]</span></span><br></pre></td></tr></table></figure></p>
+<p>分析： </p>
+<p>timeout是一个函数，这个函数执行后返回一个promise实例。</p>
+<blockquote>
+<p>ajax1 、ajax2、ajax3 都是函数，不过这些函数有一些特点，执行后都会会返回一个 新的promise实例。</p>
+</blockquote>
+<p>按题目的要求我们只要顺序执行这三个函数就好了，然后把结果放到 data 中，但是这些函数里都是异步操作，想要按顺序执行，然后输出 1，2，3并没有那么简单，看个例子。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">A</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  setTimeout(<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">      <span class="built_in">console</span>.log(<span class="string">'a'</span>);</span><br><span class="line">  &#125;, <span class="number">3000</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">B</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  setTimeout(<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">      <span class="built_in">console</span>.log(<span class="string">'b'</span>);</span><br><span class="line">  &#125;, <span class="number">1000</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">A();</span><br><span class="line">B();</span><br><span class="line"></span><br><span class="line"><span class="comment">// b</span></span><br><span class="line"><span class="comment">// a</span></span><br></pre></td></tr></table></figure></p>
+<p>例子中我们是按顺序执行的 A，B 但是输出的结果却是 b，a 对于这些异步函数来说，并不会按顺序执行完一个，再执行后一个。 </p>
+<p>这道题主要考察的是Promise 控制异步流程，我们要想办法，让这些函数，一个执行完之后，再执行下一个，代码如何实现呢？<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 保存数组中的函数执行后的结果</span></span><br><span class="line"><span class="keyword">var</span> data = [];</span><br><span class="line"></span><br><span class="line"><span class="comment">// Promise.resolve方法调用时不带参数，直接返回一个resolved状态的 Promise 对象。</span></span><br><span class="line"><span class="keyword">var</span> sequence = <span class="built_in">Promise</span>.resolve();</span><br><span class="line"></span><br><span class="line">ajaxArray.forEach(<span class="function"><span class="keyword">function</span> (<span class="params">item</span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 第一次的 then 方法用来执行数组中的每个函数，</span></span><br><span class="line">    <span class="comment">// 第二次的 then 方法接受数组中的函数执行后返回的结果，</span></span><br><span class="line">    <span class="comment">// 并把结果添加到 data 中，然后把 data 返回。</span></span><br><span class="line">    sequence = sequence.then(item).then(<span class="function"><span class="keyword">function</span> (<span class="params">res</span>) </span>&#123;</span><br><span class="line">        data.push(res);</span><br><span class="line">        <span class="keyword">return</span> data;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 遍历结束后，返回一个 Promise，也就是 sequence， 他的 [[PromiseValue]] 值就是 data，</span></span><br><span class="line"><span class="comment">// 而 data（保存数组中的函数执行后的结果） 也会作为参数，传入下次调用的 then 方法中。</span></span><br><span class="line"><span class="keyword">return</span> sequence;</span><br></pre></td></tr></table></figure></p>
+<p>大概思路如下：全局定义一个promise实例sequence，循环遍历函数数组，每次循环更新sequence，将要执行的函数item通过sequence的then方法进行串联，并且将执行结果推入data数组，最后将更新的data返回，这样保证后面sequence调用then方法，如何后面的函数需要使用data只需要将函数改为带参数的函数。</p>
+<h2 id="Promise面试题3"><a href="#Promise面试题3" class="headerlink" title="Promise面试题3"></a>Promise面试题3</h2><p>题目是这样的：</p>
+<blockquote>
+<p>有 8 个图片资源的 url，已经存储在数组 urls 中（即urls = [‘<a href="http://example.com/1.jpg&#39;" target="_blank" rel="noopener">http://example.com/1.jpg&#39;</a>, …., ‘<a href="http://example.com/8.jpg&#39;]），而且已经有一个函数" target="_blank" rel="noopener">http://example.com/8.jpg&#39;]），而且已经有一个函数</a> function loadImg，输入一个 url 链接，返回一个 Promise，该 Promise 在图片下载完成的时候 resolve，下载失败则 reject。</p>
+</blockquote>
+<p>但是我们要求，任意时刻，<strong>同时下载的链接数量不可以超过 3 个</strong>。</p>
+<p>请写一段代码实现这个需求，要求尽可能快速地将所有图片下载完成。</p>
+<p>已有代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> urls = [</span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/gray.gif'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/Particle.gif'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/arithmetic.png'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/arithmetic2.gif'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/getImgData/arithmetic.gif'</span>, </span><br><span class="line">    <span class="string">'https://www.kkkk1000.com/images/wxQrCode2.png'</span></span><br><span class="line">];</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">loadImg</span>(<span class="params">url</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> img = <span class="keyword">new</span> Image()</span><br><span class="line">        img.onload = <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">'一张图片加载完成'</span>);</span><br><span class="line">            resolve();</span><br><span class="line">        &#125;</span><br><span class="line">        img.onerror = reject</span><br><span class="line">        img.src = url</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>看到这个题目的时候，脑袋里瞬间想到了高效率排队买地铁票的情景，那个情景类似下图：</p>
+<p><img src="/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/2.webp" alt=""></p>
+<p>上图这样的排队和并发请求的场景基本类似，窗口只有三个，人超过三个之后，后面的人只能排队了。</p>
+<p>首先想到的便是利用递归来做，就如这篇文章采取的措施一样，代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//省略代码</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> count = <span class="number">0</span>;</span><br><span class="line"><span class="comment">//对加载图片的函数做处理，计数器叠加计数</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">bao</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    count++;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">"并发数:"</span>,count)</span><br><span class="line">    <span class="comment">//条件判断，urls长度大于0继续，小于等于零说明图片加载完成</span></span><br><span class="line">    <span class="keyword">if</span>(urls.length&gt;<span class="number">0</span>&amp;&amp;count&lt;=<span class="number">3</span>)&#123;</span><br><span class="line">    <span class="comment">//shift从数组中取出连接</span></span><br><span class="line">        loadImg(urls.shift()).then(<span class="function"><span class="params">()</span>=&gt;</span>&#123;</span><br><span class="line">        <span class="comment">//计数器递减</span></span><br><span class="line">            count--</span><br><span class="line">            <span class="comment">//递归调用</span></span><br><span class="line">            &#125;).then(bao)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">async1</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line"><span class="comment">//循环开启三次</span></span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">var</span> i=<span class="number">0</span>;i&lt;<span class="number">3</span>;i++)&#123;</span><br><span class="line">        bao();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">async1()</span><br></pre></td></tr></table></figure></p>
+<p>以上是最常规的思路，我将加载图片的函数loadImg封装在bao函数内，根据条件判断，是否发送请求，请求完成后继续递归调用。</p>
+<p>以上代码所有逻辑都写在了同一个函数中然后递归调用，可以优化一下，代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> count = <span class="number">0</span>;   <span class="comment">//当前正在进行数</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 封装请求的异步函数,增加计数器功能</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">request</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    count++;</span><br><span class="line">    loadImg(urls.shift()).then(<span class="function"><span class="params">()</span>=&gt;</span>&#123;</span><br><span class="line">            count--</span><br><span class="line">            &#125;).then(diaodu)</span><br><span class="line"></span><br><span class="line">    </span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 负责调度的函数</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">diaodu</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    <span class="keyword">if</span>(urls.length&gt;<span class="number">0</span>&amp;&amp;count&lt;=<span class="number">3</span>)&#123;</span><br><span class="line">        request();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">async1</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">var</span> i=<span class="number">0</span>;i&lt;<span class="number">3</span>;i++)&#123;</span><br><span class="line">        request();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">async1()</span><br></pre></td></tr></table></figure></p>
+<p>上面代码将一个递归函数拆分成两个，一个函数只负责计数和发送请求，另外一个负责调度。</p>
+<p>这里的请求既然已经被封装成了Promise，那么我们用Promise和saync、await来完成一下，代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//省略代码</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 计数器</span></span><br><span class="line"><span class="keyword">var</span> count = <span class="number">0</span>;</span><br><span class="line"><span class="comment">// 全局锁</span></span><br><span class="line"><span class="keyword">var</span> lock = [];</span><br><span class="line"><span class="keyword">var</span> l = urls.length;</span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">bao</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    <span class="keyword">if</span>(count&gt;=<span class="number">3</span>)&#123;</span><br><span class="line">        <span class="comment">//超过限制利用await和promise进行阻塞;</span></span><br><span class="line">        <span class="keyword">let</span> _resolve;</span><br><span class="line">        <span class="keyword">await</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve,reject</span>)=&gt;</span>&#123;</span><br><span class="line">            _resolve=resolve;</span><br><span class="line">            <span class="comment">// resolve不执行,将其推入lock数组;</span></span><br><span class="line">            lock.push(_resolve);</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span>(urls.length&gt;<span class="number">0</span>)&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(count);</span><br><span class="line">        count++</span><br><span class="line">        <span class="keyword">await</span> loadImg(urls.shift());</span><br><span class="line">        count--;</span><br><span class="line">        lock.length&amp;&amp;lock.shift()()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; l; i++) &#123;</span><br><span class="line">    bao();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>大致思路是，遍历执行urls.length长度的请求，但是当请求并发数大于限制时，超过的请求用await结合promise将其阻塞，并且将resolve填充到lock数组中，继续执行，并发过程中有图片加载完成后，从lock中推出一项resolve执行，lock相当于一个叫号机；</p>
+<p>以上代码可以优化为：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">//省略代码</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 计数器</span></span><br><span class="line"><span class="keyword">var</span> count = <span class="number">0</span>;</span><br><span class="line"><span class="comment">// 全局锁</span></span><br><span class="line"><span class="keyword">var</span> lock = [];</span><br><span class="line"><span class="keyword">var</span> l = urls.length;</span><br><span class="line"><span class="comment">// 阻塞函数</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">block</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    <span class="keyword">let</span> _resolve;</span><br><span class="line">    <span class="keyword">return</span>  <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve,reject</span>)=&gt;</span>&#123;</span><br><span class="line">        _resolve=resolve;</span><br><span class="line">        <span class="comment">// resolve不执行,将其推入lock数组;</span></span><br><span class="line">        lock.push(_resolve);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 叫号机</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">next</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    lock.length&amp;&amp;lock.shift()()</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">bao</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">    <span class="keyword">if</span>(count&gt;=<span class="number">3</span>)&#123;</span><br><span class="line">        <span class="comment">//超过限制利用await和promise进行阻塞;</span></span><br><span class="line">        <span class="keyword">await</span> block();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span>(urls.length&gt;<span class="number">0</span>)&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(count);</span><br><span class="line">        count++</span><br><span class="line">        <span class="keyword">await</span> loadImg(urls.shift());</span><br><span class="line">        count--;</span><br><span class="line">        next()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; l; i++) &#123;</span><br><span class="line">    bao();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>最后一种方案，也是我十分喜欢的，思考好久才明白，大概思路如下：</p>
+<p>用 Promise.race来实现，先并发请求3个图片资源，这样可以得到 3 个 Promise实例，组成一个数组promises ，然后不断的调用 Promise.race 来返回最快改变状态的 Promise，然后从数组（promises ）中删掉这个 Promise 对象实例，再加入一个新的 Promise实例，直到全部的 url 被取完。</p>
+<p>代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//省略代码</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">limitLoad</span>(<span class="params">urls, handler, limit</span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 对数组做一个拷贝</span></span><br><span class="line">    <span class="keyword">const</span> sequence = [].concat(urls)</span><br><span class="line">    <span class="keyword">let</span> promises = [];</span><br><span class="line"></span><br><span class="line">    <span class="comment">//并发请求到最大数</span></span><br><span class="line">    promises = sequence.splice(<span class="number">0</span>, limit).map(<span class="function">(<span class="params">url, index</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="comment">// 这里返回的 index 是任务在 promises 的脚标，</span></span><br><span class="line">        <span class="comment">//用于在 Promise.race 之后找到完成的任务脚标</span></span><br><span class="line">        <span class="keyword">return</span> handler(url).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> index</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    (<span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">loop</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="keyword">let</span> p = <span class="built_in">Promise</span>.race(promises);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; sequence.length; i++) &#123;</span><br><span class="line">            p = p.then(<span class="function">(<span class="params">res</span>) =&gt;</span> &#123;</span><br><span class="line">                promises[res] = handler(sequence[i]).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">                    <span class="keyword">return</span> res</span><br><span class="line">                &#125;);</span><br><span class="line">                <span class="keyword">return</span> <span class="built_in">Promise</span>.race(promises)</span><br><span class="line">            &#125;)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)()</span><br><span class="line">&#125;</span><br><span class="line">limitLoad(urls, loadImg, <span class="number">3</span>)</span><br></pre></td></tr></table></figure></p>
+<p>第三种方案的巧妙之处，在于使用了Promise.race。并且在循环时用then链串起了执行顺序。</p>
+<h3 id="15-行代码实现并发控制（javascript）"><a href="#15-行代码实现并发控制（javascript）" class="headerlink" title="15 行代码实现并发控制（javascript）"></a>15 行代码实现并发控制（javascript）</h3><p>做过爬虫的都知道，要控制爬虫的请求并发量，其实也就是控制其爬取频率，以免被封IP，还有的就是以此来控制爬虫应用运行内存，否则一下子处理N个请求，内存分分钟会爆。 </p>
+<p>而 <code>python</code>爬虫一般用多线程来控制并发，</p>
+<p>然而如果是<code>node.js</code>爬虫，由于其<strong>单线程无阻塞</strong>性质以及事件循环机制，一般不用多线程来控制并发（当然<code>node.js</code>也可以实现多线程，此处非重点不再多讲），而是更加简便地直接在代码层级上实现并发。</p>
+<p>为图方便，开发者在开发<code>node</code>爬虫一般会找一个并发控制的<code>npm包</code>，然而第三方的模块有时候也并不能完全满足我们的特殊需求，这时候我们可能就需要一个自己定制版的并发控制函数。</p>
+<p>下面我们用15行代码实现一个并发控制的函数。</p>
+<p>首先，一个基本的并发控制函数，基本要有以下3个参数：</p>
+<ul>
+<li><code>list</code> {Array} - 要迭代的数组</li>
+<li><code>limit</code> {number} - 控制的并发数量</li>
+<li><code>asyncHandle</code> {function} - 对<code>list</code>的每一个项的处理函数</li>
+</ul>
+<h4 id="设计"><a href="#设计" class="headerlink" title="设计"></a>设计</h4><p>以下以爬虫为实例进行讲解</p>
+<p>设计思路其实很简单，假如并发量控制是 5</p>
+<p>1.首先，瞬发 5 个异步请求，我们就得到了并发的 5 个异步请求</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// limit = 5</span></span><br><span class="line"><span class="keyword">while</span>(limit--) &#123;</span><br><span class="line">    handleFunction(list)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li>然后，这 5 个异步请求中无论哪一个先执行完，都会继续执行下一个<code>list</code>项</li>
+</ol>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> recursion = <span class="function">(<span class="params">arr</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> asyncHandle(arr.shift())</span><br><span class="line">        .then(<span class="function"><span class="params">()</span>=&gt;</span>&#123;</span><br><span class="line">            <span class="comment">// 迭代数组长度不为0， 递归执行自身if (arr.length!==0) return recursion(arr) </span></span><br><span class="line">            <span class="comment">// 迭代数组长度为0，结束 elsereturn'finish';</span></span><br><span class="line">        &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="3">
+<li>等<code>list</code>所有的项迭代完之后的回调</li>
+</ol>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">return</span> <span class="built_in">Promise</span>.all(allHandle)</span><br></pre></td></tr></table></figure>
+<h3 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h3><p>上述步骤组合起来，就是<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * @params list &#123;Array&#125; - 要迭代的数组</span></span><br><span class="line"><span class="comment"> * @params limit &#123;Number&#125; - 并发数量控制数</span></span><br><span class="line"><span class="comment"> * @params asyncHandle &#123;Function&#125; - 对`list`的每一个项的处理函数，参数为当前处理项，必须 return 一个Promise来确定是否继续进行迭代</span></span><br><span class="line"><span class="comment"> * @return &#123;Promise&#125; - 返回一个 Promise 值来确认所有数据是否迭代完成</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"> </span><br><span class="line"><span class="keyword">let</span> mapLimit = <span class="function">(<span class="params">list, limit, asyncHandle</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> recursion = <span class="function">(<span class="params">arr</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> asyncHandle(arr.shift())</span><br><span class="line">            .then(<span class="function"><span class="params">()</span>=&gt;</span>&#123;</span><br><span class="line">                <span class="keyword">if</span> (arr.length!==<span class="number">0</span>) <span class="keyword">return</span> recursion(arr)   <span class="comment">// 数组还未迭代完，递归继续进行迭代</span></span><br><span class="line">                <span class="keyword">else</span> <span class="keyword">return</span> <span class="string">'finish'</span>;</span><br><span class="line">            &#125;)</span><br><span class="line">    &#125;;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">let</span> listCopy = [].concat(list);</span><br><span class="line">    <span class="keyword">let</span> asyncList = []; <span class="comment">// 正在进行的所有并发异步操作</span></span><br><span class="line">    <span class="keyword">while</span>(limit--) &#123;</span><br><span class="line">        asyncList.push( recursion(listCopy) ); </span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">Promise</span>.all(asyncList);  <span class="comment">// 所有并发异步操作都完成后，本次并发控制迭代完成</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="测试demo"><a href="#测试demo" class="headerlink" title="测试demo"></a>测试demo</h3><p>模拟一下异步的并发情况<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> dataLists = [<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>,<span class="number">7</span>,<span class="number">8</span>,<span class="number">9</span>,<span class="number">11</span>,<span class="number">100</span>,<span class="number">123</span>];</span><br><span class="line"><span class="keyword">var</span> count = <span class="number">0</span>;</span><br><span class="line">mapLimit(dataLists, <span class="number">3</span>, (curItem)=&gt;&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="params">resolve</span> =&gt;</span> &#123;</span><br><span class="line">        count++</span><br><span class="line">        setTimeout(<span class="function"><span class="params">()</span>=&gt;</span>&#123;</span><br><span class="line">            <span class="built_in">console</span>.log(curItem, <span class="string">'当前并发量:'</span>, count--)</span><br><span class="line">            resolve();</span><br><span class="line">        &#125;, <span class="built_in">Math</span>.random() * <span class="number">5000</span>)  </span><br><span class="line">    &#125;);</span><br><span class="line">&#125;).then(<span class="function"><span class="params">response</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'finish'</span>, response)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>结果如下：</p>
+<p><img src="/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/3.webp" alt=""></p>
+<p>手动抛出异常中断并发函数测试：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> dataLists = [<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>,<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>,<span class="number">7</span>,<span class="number">8</span>,<span class="number">9</span>,<span class="number">11</span>,<span class="number">100</span>,<span class="number">123</span>];</span><br><span class="line"><span class="keyword">var</span> count = <span class="number">0</span>;</span><br><span class="line">mapLimit(dataLists, <span class="number">3</span>, (curItem)=&gt;&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        count++</span><br><span class="line">        setTimeout(<span class="function"><span class="params">()</span>=&gt;</span>&#123;</span><br><span class="line">            <span class="built_in">console</span>.log(curItem, <span class="string">'当前并发量:'</span>, count--)</span><br><span class="line">            <span class="keyword">if</span>(curItem &gt; <span class="number">4</span>) reject(<span class="string">'error happen'</span>)</span><br><span class="line">            resolve();</span><br><span class="line">        &#125;, <span class="built_in">Math</span>.random() * <span class="number">5000</span>)  </span><br><span class="line">    &#125;);</span><br><span class="line">&#125;).then(<span class="function"><span class="params">response</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'finish'</span>, response)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p>并发控制情况下，迭代到5,6,7 手动抛出异常，停止后续迭代：</p>
+<p><img src="/2019/02/06/一道赋值面试题引发的思考3【并发数控制】/4.webp" alt=""> </p>
+<h2 id="JS数组拍平-扁平化-的3种方法"><a href="#JS数组拍平-扁平化-的3种方法" class="headerlink" title="JS数组拍平[扁平化]的3种方法"></a>JS数组拍平[扁平化]的3种方法</h2><p>在开发过程中有得时候总是碰一些共性的问题，比如将一个二维数组拍平成一维数组，或者三维数组拍平成一维数组。这些问题在遇到的时候总会重新思考，不如将其提炼出来，总结一下。</p>
+<p>下面笔者将为大家演示一下，将一个多维数组拍平成一个一维数组的两种方法，算是抛砖引玉，大家有更好的方法可以在留言区发表。</p>
+<p>首先是第一种方法，闭包+递归处理，代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> arr = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, [<span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, [<span class="number">5</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>]],[<span class="number">333</span>, <span class="number">4444</span>]];</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">product</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 1、创建一个空数组,</span></span><br><span class="line">    <span class="keyword">var</span> newarr = [];</span><br><span class="line">    <span class="comment">///2、并且返回一个函数,函数参数为要拍平的数组</span></span><br><span class="line">    <span class="keyword">return</span> <span class="function"><span class="keyword">function</span> <span class="title">flatten</span>(<span class="params">arr</span>) </span>&#123;</span><br><span class="line">        <span class="comment">// 3、循环数组，判断每一项,不为输的话将其塞入newarr</span></span><br><span class="line">        <span class="comment">// 若为数组,递归调用 faltten,并将结果与newarr合并</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">var</span> t <span class="keyword">of</span> arr) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">Array</span>.isArray(t)) &#123;</span><br><span class="line">                newarr.push(t);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                newarr.concat(flatten(t))</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> newarr</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> flatten = product();</span><br><span class="line"><span class="built_in">console</span>.log(flatten(arr))</span><br></pre></td></tr></table></figure></p>
+<p>执行结果为：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">333</span>, <span class="number">4444</span>]</span><br></pre></td></tr></table></figure></p>
+<p>上面这这种方法比较中规中矩，代码详解见注释，下面这种方法运用到了javascript语言的一些新特性，代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> arr = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, [<span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, [<span class="number">5</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>]], [<span class="number">333</span>, <span class="number">4444</span>] ];</span><br><span class="line">functionflatten(arr)&#123;</span><br><span class="line">  <span class="keyword">return</span>  arr.reduce(<span class="function"><span class="keyword">function</span>(<span class="params">pre,cur</span>)</span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(!<span class="built_in">Array</span>.isArray(cur))&#123;</span><br><span class="line">            <span class="keyword">return</span> [...pre,cur];</span><br><span class="line">        &#125;<span class="keyword">else</span>&#123;</span><br><span class="line">            <span class="keyword">return</span> [...pre,...flatten(cur)]</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;,[])</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">console</span>.log(flatten(arr))</span><br></pre></td></tr></table></figure></p>
+<p>上面代码中用了ES6的一个新特性扩展云算法 “…”，“[…abc,…fff]”其作用相当于abc.concat(fff),这种用法更加直观明了，还有就是运用了reduce方法。reduce是javascript语言中数组的一个方法。</p>
+<p>数组调用recduce方法时，可以传递两个参数，第一个参数为回调函数，第二个参数为一个初始值。回调函数中需要传递两个参数，第一个参数为每次执行函数的返回值，第二个参数为当前索引对应数组的值。reduce的第二个参数是可以省略的，省略的话，回调函数第一次调用的参数为数组的第一项和第二项的值，如果没有省略，回调函数的第一个参数就是这个初始值。上面的例子，reduce的第二个参数设置了一个空数组。</p>
+<p>相比来说第一种比较好理解，第二种的难点在于对reduce函数的运用和理解。</p>
+<p>第三种比较粗暴<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> arr = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, [<span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, [<span class="number">5</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>]],[<span class="number">333</span>, <span class="number">4444</span>]];</span><br><span class="line"> </span><br><span class="line">arr.join(<span class="string">","</span>).split(<span class="string">","</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">//["1", "2", "3", "3", "3", "3", "5", "4", "5", "6", "6", "7", "8", "333", "4444"]</span></span><br></pre></td></tr></table></figure></p>
+<h2 id="页面返回要刷新"><a href="#页面返回要刷新" class="headerlink" title="页面返回要刷新"></a>页面返回要刷新</h2><p><strong> 之前在项目中使用pageshow，发现页面返回的时候persisted依然为false，这时候只好找其他方案解决。</strong><br>这时候发现有一个window.performance对象，performance.navigation.type是一个无符号短整型</p>
+<ul>
+<li>TYPE_NAVIGATE (0)：<br>当前页面是通过点击链接，书签和表单提交，或者脚本操作，或者在url中直接输入地址，type值为0</li>
+<li>TYPE_RELOAD (1)<br>点击刷新页面按钮或者通过Location.reload()方法显示的页面，type值为1</li>
+<li>TYPE_BACK_FORWARD (2)<br>页面通过历史记录和前进后退访问时。type值为2</li>
+<li>TYPE_RESERVED (255)<br>任何其他方式，type值为255</li>
+</ul>
+<p>这真是我们需要的部分，于是可以预见，解决方案如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.addEventListener(<span class="string">'pageshow'</span>, () =&gt; &#123;</span><br><span class="line">  <span class="keyword">if</span> (e.persisted || (<span class="built_in">window</span>.performance &amp;&amp; </span><br><span class="line">    <span class="built_in">window</span>.performance.navigation.type == <span class="number">2</span>)) &#123;</span><br><span class="line">    location.reload()</span><br><span class="line">  &#125;</span><br><span class="line">&#125;, <span class="literal">false</span>)</span><br></pre></td></tr></table></figure></p>
+<h2 id="两个鲜有人知的-Vuex-技巧"><a href="#两个鲜有人知的-Vuex-技巧" class="headerlink" title="两个鲜有人知的 Vuex 技巧"></a>两个鲜有人知的 Vuex 技巧</h2><p>当在我们 Vue.js 的组件中使用了 Vuex，除了映射功能的函数之外，我们好像忘记了它所暴露出来的其他有用的 API。</p>
+<p>我们一起来看看可以利用它来干些什么。首先，还是先来创建一个基本的 store：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> store = <span class="keyword">new</span> Vuex.Store(&#123;</span><br><span class="line">  state: &#123;</span><br><span class="line">    count: <span class="number">0</span></span><br><span class="line">  &#125;,</span><br><span class="line">  getters: &#123;</span><br><span class="line">    getCountPlusOne: <span class="function"><span class="params">state</span> =&gt;</span> state.count + <span class="number">1</span></span><br><span class="line">  &#125;,</span><br><span class="line">  mutations: &#123;</span><br><span class="line">    increment(state) &#123;</span><br><span class="line">      state.count++;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
+<h3 id="Watch-方法"><a href="#Watch-方法" class="headerlink" title="Watch 方法"></a>Watch 方法</h3><p><code>watch</code> 是将 Vuex 与其他外部代码整合的最有用的方法，可以在你的 <code>awesomeService</code> 或者是在 <code>catchAllAuthUtils</code> 等等类似的服务中使用。</p>
+<p>使用示例：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> unsubscribe = store.watch(</span><br><span class="line">  (state, getters) =&gt; &#123;</span><br><span class="line">    <span class="keyword">return</span> [state.count, getters.getCountPlusOne];</span><br><span class="line">  &#125;,</span><br><span class="line">  watched =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">"Count is:"</span>, watched[<span class="number">0</span>]);</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">"Count plus one is:"</span>, watched[<span class="number">1</span>]);</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;&#125;</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">// To unsubscribe:</span></span><br><span class="line">unsubscribe();</span><br></pre></td></tr></table></figure></p>
+<p>我们所做的就是在调用 vuex 的实例方法 <code>watch</code> 时，传入两个函数作为实参，第一个函数实参返回我们想要在 state 与/或 getters 上监听的属性；第二个函数实参是当属性值 <code>state.count</code> 或 <code>getters.getCountPlusOne</code> 有改变时，调用的回调函数。</p>
+<p>这是用来结合 Vuex 与 react 或者 angular 甚至是 JQuery 代码时，非常有用的技巧。</p>
+<p>可以在这个 <a href="https://codesandbox.io/s/vm6r05qjq0" target="_blank" rel="noopener">CodeSandbox</a> 上查看例子。</p>
+<h3 id="SubscribeAction-方法"><a href="#SubscribeAction-方法" class="headerlink" title="SubscribeAction 方法"></a>SubscribeAction 方法</h3><p>有时候，与其监听 store 中的一个属性改变，不如使用 <code>subscribeAction</code> 方法订阅一个特定的 action，比如像 <code>login</code> 和 <code>logout</code> 之类的异步请求，这也是更有用的方案。</p>
+<p>调用监听函数，在每一个 action 分发的时候调用指定的回调函数，并在其中调用自定义代码。</p>
+<p>我们在每一个 action 的分发前以及完成后，来分别开始和停止全局的 spinner。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> unsubscribe = store.subscribeAction(&#123;</span><br><span class="line">  before: <span class="function">(<span class="params">action, state</span>) =&gt;</span> &#123;</span><br><span class="line">    startBigLoadingSpinner();</span><br><span class="line">  &#125;,</span><br><span class="line">  after: <span class="function">(<span class="params">action, state</span>) =&gt;</span> &#123;</span><br><span class="line">    stoptBigLoadingSpinner();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// To unsubscribe:</span></span><br><span class="line">unsubscribe();</span><br></pre></td></tr></table></figure></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/02/03/Vue组件通信方式全面详解/" rel="next" title="Vue组件通信方式全面详解">
+                <i class="fa fa-chevron-left"></i> Vue组件通信方式全面详解
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/02/14/React用PureComponent和React-memo优化性能/" rel="prev" title="React用PureComponent和React.memo优化性能">
+                React用PureComponent和React.memo优化性能 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">146</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">106</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Promise面试题1"><span class="nav-number">1.</span> <span class="nav-text">Promise面试题1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Promise面试题2"><span class="nav-number">2.</span> <span class="nav-text">Promise面试题2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Promise面试题3"><span class="nav-number">3.</span> <span class="nav-text">Promise面试题3</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#15-行代码实现并发控制（javascript）"><span class="nav-number">3.1.</span> <span class="nav-text">15 行代码实现并发控制（javascript）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#设计"><span class="nav-number">3.1.1.</span> <span class="nav-text">设计</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代码"><span class="nav-number">3.2.</span> <span class="nav-text">代码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#测试demo"><span class="nav-number">3.3.</span> <span class="nav-text">测试demo</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#JS数组拍平-扁平化-的3种方法"><span class="nav-number">4.</span> <span class="nav-text">JS数组拍平[扁平化]的3种方法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#页面返回要刷新"><span class="nav-number">5.</span> <span class="nav-text">页面返回要刷新</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#两个鲜有人知的-Vuex-技巧"><span class="nav-number">6.</span> <span class="nav-text">两个鲜有人知的 Vuex 技巧</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Watch-方法"><span class="nav-number">6.1.</span> <span class="nav-text">Watch 方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SubscribeAction-方法"><span class="nav-number">6.2.</span> <span class="nav-text">SubscribeAction 方法</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
+<script type="text/javascript" src="/js/src/clicklove.js"></script>
+

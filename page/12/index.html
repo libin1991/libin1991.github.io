@@ -694,6 +694,488 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/03/02/ES6-实现自己的-Promise/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="武动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/03/02/ES6-实现自己的-Promise/" itemprop="url">ES6实现自己的 Promise</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-03-02T22:15:53+08:00">
+                2017-03-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="一、JavaScript异步编程背景"><a href="#一、JavaScript异步编程背景" class="headerlink" title="一、JavaScript异步编程背景"></a>一、JavaScript异步编程背景</h2><p>从去年ES2015发布至今，已经过去了一年多，ES2015发布的新的语言特性中最为流行的也就莫过于Promise了，Promise使得如今JavaScript异步编程如此轻松惬意，甚至慢慢遗忘了曾经那不堪回首的痛楚。其实从JavaScript诞生，JavaScript中的异步编程就已经出现，例如点击鼠标、敲击键盘这些事件的处理函数都是异步的，时间到了2009年，Node.js横空出世，在整个Node.js的实现中，将回调模式的异步编程机制发挥的淋漓尽致，Node的流行也是的越来越多的JavaScripter开始了异步编程，但是回调模式的副作用也慢慢展现在人们眼前，错误处理不够优雅以及嵌套回调带来的“回调地狱”。这些副作用使得人们从回调模式的温柔乡中慢慢清醒过来，开始寻找更为优雅的异步编程模式，路漫漫其修远兮、吾将上下而求索。时间到了2015年，Promise拯救那些苦苦探索的先驱。行使它历史使命的时代似乎已经到来。</p>
+<p>每个事物的诞生有他的历史使命，更有其历史成因，促进其被那些探索的先驱们所发现。了解nodejs或者熟悉浏览器的人都知道，JavaScript引擎是基于事件循环或单线程这两个特性的。更为甚者在浏览器中，更新UI(也就是浏览器重绘、重拍页面布局)和执行JavaScript代码也在一个单线程中，可想而知，一个线程就相当于只有一条马路，如果一辆马车抛锚在路上了阻塞了马路，那么别的马车也就拥堵在了那儿，这个单线程容易被阻塞是一个道理，单线程也只能允许某一时间点只能够执行一段代码。同时，JavaScript没有想它的哥哥姐姐们那么财大气粗，像Java或者C++，一个线程不够，那么再加一个线程，这样就能够同时执行多段代码了，但是这样就会带来的隐患就是状态不容易维护，JavaScript选择了单线程非阻塞式的方式，也就是异步编程的方式，就像上面的马车抛锚在了路上，那么把马车推到路边的维修站，让其他马车先过去，等马车修好了再回到马路上继续行驶，这就是单线程非阻塞方式。正如Promise的工作方式一样，通过Promise去向服务器发起一个请求，毕竟请求有网络开销，不可能马上就返回请求结果的，这个时候Promise就处于pending状态，但是其并不会阻塞其他代码的执行，当请求返回时，修改Promise状态为fulfilled或者rejected（失败请求）。同时执行绑定到这两个状态上面的“处理函数”。这就是异步编程的模式，也就是Promise兢兢业业的工作方式，在下面一个部分将详细讨论Promise。</p>
+<h2 id="二、Promise基础"><a href="#二、Promise基础" class="headerlink" title="二、Promise基础"></a>二、Promise基础</h2><p>怎么一句话解释Promise呢？Promise可以代指那些尚未完成的一些操作，但是其在未来的某个时间会返回某一特定的结果。</p>
+<p>当创建一个Promise实例后，其代表一个未知的值，在将来的某个时间会返回一个成功的返回值，或者失败的返回值，我们可以为这些返回值添加处理函数，当值返回时，处理函数被调用。Promise总是处于下面三种状态之一：</p>
+<ul>
+<li>pending： Promise的初始状态，也就是未被fulfilled或者rejected的状态。</li>
+<li>fulfilled： 意味着promise代指的操作已经成功完成。</li>
+<li>rejected：意味着promise代指的操作由于某些原因失败。</li>
+</ul>
+<p>一个处于pending状态的promise可能由于某个成功返回值而发展为fulfilled状态，也有可能因为某些错误而进入rejected状态，无论是进入fulfilled状态或者rejected状态，绑定到这两种状态上面的处理函数就会被执行。并且进入fulfilled或者rejected状态也就不能再返回pending状态了。<br><img src="https://pic4.zhimg.com/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-cf3e4ae1a35caad7c2d8d7bdd8c763d2_hd.jpg" alt=""></p>
+<h2 id="三、边学边写"><a href="#三、边学边写" class="headerlink" title="三、边学边写"></a>三、边学边写</h2><p>上面说了那么多，其实都是铺垫。接下来我们就开始实现自己的Promise对象。go go go！！！</p>
+<h2 id="第一步：Promise构造函数"><a href="#第一步：Promise构造函数" class="headerlink" title="第一步：Promise构造函数"></a>第一步：Promise构造函数</h2><p>Promise有三种状态，pending、fulfilled、rejected。</p>
+<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+</code></pre><p>有了三种状态后，那么我们怎么创建一个Promise实例呢？</p>
+<blockquote>
+<p>const promise = new Promise(executor) // 创建Promise的语法</p>
+</blockquote>
+<p>通过上面生成promise语法我们知道，Promise实例是调用Promise构造函数通过new操作符生成的。这个构造函数我们可以先这样写：</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING // 创建一个promise时，首先进行状态初始化。pending
+        this.result = undefined // result属性用来缓存promise的返回结果，可以是成功的返回结果，或失败的返回结果
+    }
+}
+</code></pre><p>我们可以看到上面构造函数接受的参数executor。它是一个函数，并且接受其他两个函数（resolve和reject）作为参数，当resolve函数调用后，promise的状态转化为fulfilled，并且执行成功返回的处理函数（不用着急后面会说到怎么添加处理函数）。当reject函数调用后，promise状态转化为rejected，并且执行失败返回的处理函数。</p>
+<p>现在我们的代码大概是这样的：</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING 
+        this.result = undefined
+        executor(data =&gt; resolveProvider(this, data), err =&gt; rejectProvider(this, err))
+    }
+}
+
+function resolveProvider(promise, data) {
+    if (promise.status !== PENDING) return false
+    promise.status = FULFILLED
+}
+function rejectProvider(promise, data) {
+    if (promise.status !== PENDING) return false
+    promise.status = FULFILLED
+}
+</code></pre><p>Dont Repeat Yourselt！！！我们可以看到上面代码后面两个函数基本相同，其实我们可以把它整合成一个函数，在结合高阶函数的使用。</p>
+<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+}
+class Promise {
+    constructor(executor) {
+        this.status = PENDING 
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+}
+</code></pre><p>现在我们的代码就看上去简洁多了。</p>
+<h2 id="第二步：为Promise添加处理函数"><a href="#第二步：为Promise添加处理函数" class="headerlink" title="第二步：为Promise添加处理函数"></a>第二步：为Promise添加处理函数</h2><p>其实通过 <code>new Promise(executor)</code>已经可以生成一个Promise实例了，甚至我们可以通过传递到executor中的resolve和reject方法来改变promise状态，但是！现在的promise依然没啥卵用！！！因为我们并没有给它添加成功和失败返回的处理函数。</p>
+<p>首先我们需要给我们的promise增加两个属性，successListener和failureListener用来分别缓存成功处理函数和失败处理函数。</p>
+<pre><code>class Promise {
+    constructor(executor) {
+        this.status = PENDING
+         this.successListener = []
+         this.failureListener = []
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+}
+</code></pre><p>怎么添加处理函数呢？ECMASCRIPT标准中说到，我们可以通过promise原型上面的then方法为promise添加成功处理函数和失败处理函数，可以通过catch方法为promise添加失败处理函数。</p>
+<pre><code>const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    switch(status) {
+        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
+        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
+    }
+}
+class Promise {
+    constructor(executor) {
+        this.status = PENDING
+        this.successListener = []
+        this.failurelistener = []
+        this.result = undefined
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+    /**
+     * Promise原型上面的方法
+     */
+    then(...args) {
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(args[0])
+                this.failurelistener.push(args[1])
+                break
+            }
+            case FULFILLED: {
+                args[0](this.result)
+                break
+            }
+            case REJECTED: {
+                args[1](this.result)
+            }
+        }
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><p>我们现在的Promise基本初具雏形了。甚至可以运用到一些简单的场景中了。举个例子。</p>
+<pre><code>/*创建一个延时resolve的pormise*/
+new Promise((resolve, reject) =&gt; {setTimeout(() =&gt; resolve(5), 2000)}).then(data =&gt; console.log(data)) // 5
+/*创建一个及时resolve的promise*/
+new Promise((resolve, reject) =&gt; resolve(5)).then(data =&gt; console.log(data)) // 5
+/*链式调用then方法还不能够使用！*/
+new Promise(resolve=&gt; resolve(5)).then(data =&gt; data).then(data =&gt; console.log(data))
+// Uncaught TypeError: Cannot read property &apos;then&apos; of undefined
+</code></pre><h2 id="第三步：Promise的链式调用"><a href="#第三步：Promise的链式调用" class="headerlink" title="第三步：Promise的链式调用"></a>第三步：Promise的链式调用</h2><p>Promise需要实现链式调用，我们需要再次回顾下then方法的定义：</p>
+<blockquote>
+<p>then方法为pormise添加成功和失败的处理函数，同时then方法返回一个新的promise对象，这个新的promise对象resolve处理函数的返回值，或者当没有提供处理函数时直接resolve原始的值。</p>
+</blockquote>
+<p>可以看出，promise能够链式调用归功于then方法返回一个全新的promise，并且resolve处理函数的返回值，当然，如果then方法的处理函数本身就返回一个promise，那么久不用我们自己手动生成一个promise了。了解了这些，就开始动手写代码了。</p>
+<pre><code>const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
+const noop = () =&gt; {}
+
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    // 同上面代码
+}
+
+class Promise {
+    constructor(executor) {
+        // 同上面代码
+    }
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                const result = fn(data)
+                if (isPromise(result)) {
+                    Object.assign(child, result)
+                } else {
+                    statusProvider(child, FULFILLED)(result)
+                }   
+            } else if(!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(handler(args[0]))
+                this.failurelistener.push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><p>首先我们写了一个isPromise方法，用于判断一个对象是否是promise。就是判断对象是否有一个<code>then</code>方法，免责声明为了实现上的简单，我们不区分thenable和promise的区别，但是我们应该是知道。所有的promise都是thenable的，而并不是所有的thenable对象都是promise。（thenable对象是指带有一个then方法的对象，该then方法其实就是一个executor。）isPromise的作用就是用于判断then方法返回值是否是一个promise，如果是promise，就直接返回该promise，如果不是，就新生成一个promise并返回该promise。</p>
+<p>由于需要链式调用，我们对successListener和failureListener中处理函数进行了重写，并不是直接push进去then方法接受的参数函数了，因为then方法需要返回一个promise，所以当then方法里面的处理函数被执行的同时，我们也需要对then方法返回的这个promise进行处理，要么resolve，要么reject掉。当然，大部分情况都是需要resolve掉的，只有当then方法没有添加第二个参数函数，同时调用then方法的promise就是rejected的时候，才需要把then方法返回的pormise进行reject处理，也就是调用<code>statusProvider(child, REJECTED)(data)</code>.</p>
+<p>toy Promise实现的完整代码：</p>
+<pre><code>const PENDING = &apos;PENDING&apos; // Promise 的 初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+
+const isPromise = object =&gt; object &amp;&amp; object.then &amp;&amp; typeof object.then === &apos;function&apos;
+const noop = () =&gt; {}
+
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    switch(status) {
+        case FULFILLED: return promise.successListener.forEach(fn =&gt; fn(data))
+        case REJECTED: return promise.failurelistener.forEach(fn =&gt; fn(data))
+    }
+}
+
+class Promise {
+    constructor(executor) {
+        this.status = PENDING
+        this.successListener = []
+        this.failurelistener = []
+        this.result = undefined 
+        executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+    }
+    /**
+     * Promise原型上面的方法
+     */
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                const result = fn(data)
+                if (isPromise(result)) {
+                    Object.assign(child, result)
+                } else {
+                    statusProvider(child, FULFILLED)(result)
+                }   
+            } else if(!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.successListener.push(handler(args[0]))
+                this.failurelistener.push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+</code></pre><h2 id="四、怎么让我们的toy-Promise变强健"><a href="#四、怎么让我们的toy-Promise变强健" class="headerlink" title="四、怎么让我们的toy Promise变强健"></a>四、怎么让我们的toy Promise变强健</h2><ol>
+<li>在ECMAScript标准中，Promise构造函数上面还提供了一些静态方法，比如<code>Promise.resolve</code>、<code>Promise.reject</code>、<code>Promsie.all</code>、<code>Promise.race</code>。当我们有了上面的基础实现后，为我们的toy Promise添加上面这些新的功能一定能让其更加实用。</li>
+<li>在我们的基本实现中，我们并没有区分thenable对象，其实<code>Promise.resolve</code>和<code>then</code>方法都可以接受一个thenable对象，并把该thenable对象转化为一个promise对象，如果想让我们的toy Promise用于生产的话，这也是要考虑的。</li>
+<li>为了让我们的toy Promise变得更强壮，我们需要拥有强健的错误处理机制，比如验证executor必须是一个函数、then方法的参数只能是函数或者undefined或null，又比如executor和then方法中抛出的错误并不能够被window.onerror监测到，而只能够通过错误处理函数来处理，这也是需要考虑的因素。</li>
+<li>如果我们的Promise polyfill是考虑支持多平台，那么首要考虑的就是浏览器环境或Node.js环境，其实在这两个平台，原生Promise都是支持两个事件的。就拿浏览器端举例：</li>
+</ol>
+<ul>
+<li><code>unhandledrejection</code>: 在一个事件循环中，如果我们没有对promise返回的错误进行处理，那么就会在window对象上面触发该事件。</li>
+<li><code>rejectionhandled</code>:如果在一个事件循环后，我们才去对promise返回的错误进行处理，那么就会在window对象上面监听到此事件。</li>
+</ul>
+<p>关于这两个事件以及node.js平台上面类似的事件请参考Nicholas C. Zakas新书</p>
+<p>Promise能够很棒的处理异步编程，要想学好它我认为最好的方法就是亲自动手去实现一个自己的Promise。</p>
+<p>完整code：</p>
+<pre><code>/**
+ * 2016.09.19
+ */
+const PENDING = &apos;PENDING&apos; // Promise 的初始状态
+const FULFILLED = &apos;FULFILLED&apos; // Promise 成功返回后的状态
+const REJECTED = &apos;REJECTED&apos; // Promise 失败后的状态
+
+const isThenable = data =&gt; data &amp;&amp; data.then &amp;&amp; typeof data.then === &apos;function&apos;
+const isPromise = object =&gt; isThenable(object) &amp;&amp; (&apos;catch&apos; in object) &amp;&amp; typeof object.catch === &apos;function&apos;
+const noop = () =&gt; {}
+const range = n =&gt; n === 0 ? [] : [n, ...range(n - 1)]
+
+// resolve function
+const statusProvider = (promise, status) =&gt; data =&gt; {
+    if (promise.status !== PENDING) return false
+    promise.status = status
+    promise.result = data
+    promise.listeners[status].forEach(fn =&gt; fn(data))
+}
+
+class APromise {
+    constructor(executor) {
+        if (typeof executor !== &apos;function&apos;) {
+            throw new TypeError(`Promise resolver ${executor.toString()} is not a function`)
+        }
+        this.status = PENDING
+        this.listeners = {
+            FULFILLED: [],
+            REJECTED: []
+        }
+        this.result = undefined
+
+        try {
+            executor(statusProvider(this, FULFILLED), statusProvider(this, REJECTED))
+        } catch (e) {
+            statusProvider(this, REJECTED)(e)
+        }
+    }
+    // prototype method
+    then(...args) {
+        const child = new this.constructor(noop)
+
+        const handler = fn =&gt; data =&gt; {
+            if (typeof fn === &apos;function&apos;) {
+                try {
+                    const result = fn(data)
+                    if (isThenable(result)) {
+                        isPromise(result) ? Object.assign(child, result) : Object.assign(child, new this.constructor(result.then))
+                    } else {
+                        statusProvider(child, FULFILLED)(result)
+                    }
+                } catch (e) {
+                    statusProvider(child, REJECTED)(e)
+                }
+            } else if (!fn) {
+                statusProvider(child, this.status)(data)
+            }
+        }
+        switch (this.status) {
+            case PENDING: {
+                this.listeners[FULFILLED].push(handler(args[0]))
+                this.listeners[REJECTED].push(handler(args[1]))
+                break
+            }
+            case FULFILLED: {
+                handler(args[0])(this.result)
+                break
+            }
+            case REJECTED: {
+                handler(args[1])(this.result)
+                break
+            }
+        }
+        return child
+    }
+
+    catch(arg) {
+        return this.then(undefined, arg)
+    }
+}
+
+APromise.resolve = data =&gt; {
+    if (isPromise(data)) return data
+    return isThenable(data) ? new APromise(data.then) : new APromise((resolve, reject) =&gt; resolve(data))
+}
+
+APromise.reject = err =&gt; new APromise((resolve, reject) =&gt; reject(err))
+
+APromise.all = promises =&gt; {
+    const length = promises.length
+    const result = new APromise(noop)
+    let count = 0
+    const values = range(length)
+
+    promises.forEach((p, i) =&gt; {
+        p.then(data =&gt; {
+            values[i] = data
+            count++
+            if (count === length) statusProvider(result, FULFILLED)(values)
+        }, statusProvider(result, REJECTED))
+    })
+    return result
+}
+
+APromise.race = promises =&gt; {
+    const result = new APromise(noop)
+    promises.forEach((p, i) =&gt; {
+        p.then(statusProvider(result, FULFILLED), statusProvider(result, REJECTED))
+    })
+    return result
+}
+
+export default APromise
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/02/03/JS类型判断/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3727,479 +4209,6 @@ console.log(check); // 18男
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/09/16/前端代码异常监控实战/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="武动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2016/09/16/前端代码异常监控实战/" itemprop="url">前端代码异常监控实战</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-09-16T11:22:33+08:00">
-                2016-09-16
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="把前端监控做到极致-掘金"><a href="#把前端监控做到极致-掘金" class="headerlink" title="把前端监控做到极致 - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a52f138f265da3e5b32a41b" target="_blank" rel="noopener">把前端监控做到极致 - 掘金</a></h2><h2 id="线上压缩代码-定位错误-掘金"><a href="#线上压缩代码-定位错误-掘金" class="headerlink" title="线上压缩代码-定位错误 - 掘金"></a><a href="https://link.zhihu.com/?target=https%3A//juejin.im/post/5a4f6886518825734216b352" target="_blank" rel="noopener">线上压缩代码-定位错误 - 掘金</a></h2><p>生产环境没有source-map文件，上报的错误都不好定位，这里实现一个简单的错误定位脚本</p>
-<p>1、获取压缩代码错误信息（行数、列数、错误信息，错误文件）</p>
-<h2 id="这里通过控制台看错误信息"><a href="#这里通过控制台看错误信息" class="headerlink" title="这里通过控制台看错误信息"></a>这里通过控制台看错误信息</h2><pre><code>window.addEventListener(&apos;error&apos;, function (e) {
-    console.debug(&apos;lineno: &apos;, e.lineno, &apos; colno: &apos;, e.colno)
-    console.debug(&apos;errorMessage:&apos;, e.message)
-    console.debug(&apos;errorFile:&apos;, e.filename)
-}, true)
-</code></pre><p>我们写一段错误的代码（single.vue的片段）</p>
-<pre><code>method: {
-   test (option) {
-        const data = option.test
-        const dataTest = option.data.test
-        return data + dataTest
-    }
-}, 
-created () {
-    // 设置异步错误的原因是，同步的错误会被vue捕获
-    setTimeout(() =&gt; {
-        this.test({
-          testOption: 1
-        })
-    }, 300)
-}
-</code></pre><p>在浏览器中运行，报错结果如下<br><img src="https://pic4.zhimg.com/v2-c3b8a3d91b6ee6040dbf18e06ec3431a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-c3b8a3d91b6ee6040dbf18e06ec3431a_hd.jpg" alt=""></p>
-<p>得到错误信息：</p>
-<ul>
-<li>错误行数：1</li>
-<li>错误列数：59236</li>
-<li>错误信息：cannot read property ‘test’ of undefined</li>
-<li>错误文件：0.0a77f.js</li>
-</ul>
-<p>2、定位错误的node脚本<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">## 安装依赖source-map</span><br><span class="line"></span><br><span class="line"> npm install source-map</span><br><span class="line"> </span><br><span class="line"></span><br><span class="line">    node脚本如下（map/index.js）</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> // 读取文件</span><br><span class="line">var fs = require(&apos;fs&apos;)</span><br><span class="line">// souceMap处理文件</span><br><span class="line">var SourceMapConsumer = require(&apos;source-map&apos;).SourceMapConsumer</span><br><span class="line">// 启动构建进程（已构建则不需要）</span><br><span class="line">var exec = require(&apos;child_process&apos;).exec</span><br><span class="line"></span><br><span class="line">var lineno = process.argv[2] || 0   // 第一个参数为行数</span><br><span class="line">var columnno = process.argv[3] || 0 // 第二个参数为列数</span><br><span class="line">var fileName = process.argv[4] || &apos;&apos; // 第三个参数为错误文件（错误文件名就好）</span><br><span class="line"></span><br><span class="line">// 构建有map的线上代码</span><br><span class="line">// node build onlineMap为构建命令</span><br><span class="line">exec(&apos;node build onlineMap&apos;, function () &#123;</span><br><span class="line"> // 读取错误文件的map文件</span><br><span class="line"> var consumer = new SourceMapConsumer(fs.readFileSync(&apos;./dist/&apos; + fileName + &apos;.map&apos;, &apos;utf8&apos;))</span><br><span class="line">  // 输出map的错误信息</span><br><span class="line">  console.log(consumer.originalPositionFor(&#123;</span><br><span class="line">    line: +lineno,      // +是为了转化为数字</span><br><span class="line">    column: +columnno</span><br><span class="line">  &#125;))</span><br><span class="line">&#125;)</span><br><span class="line">`</span><br><span class="line"></span><br><span class="line">    运行node脚本</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line"> node map 1 59236 0.0a77f.js</span><br></pre></td></tr></table></figure></p>
-<blockquote>
-<p>效果如下：</p>
-</blockquote>
-<p><img src="https://pic1.zhimg.com/v2-cf68e7b673405c90fe024bf48dfb42c7_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-cf68e7b673405c90fe024bf48dfb42c7_hd.jpg" alt=""></p>
-<p>结合控制台输出的信息，就可以定位到错误代码了</p>
-<p>我们再来看一下，给代码开启source-map，看错误信息是否一致</p>
-<p><img src="https://pic3.zhimg.com/v2-5319b431cef161a0a07ba46f8b0e6a02_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-5319b431cef161a0a07ba46f8b0e6a02_hd.jpg" alt=""><br>错误代码的位置定位是准确的，证明可行。</p>
-<p>3、后续扩展思路</p>
-<h2 id="目前实现的是比较简单的脚本，所以存在一些问题："><a href="#目前实现的是比较简单的脚本，所以存在一些问题：" class="headerlink" title="目前实现的是比较简单的脚本，所以存在一些问题："></a>目前实现的是比较简单的脚本，所以存在一些问题：</h2><ul>
-<li>需要当前构建内容和线上是一致的</li>
-<li>操作比较繁琐</li>
-</ul>
-<p>优化思路如下：</p>
-<p><img src="https://pic4.zhimg.com/v2-a8b63ecc364c66c8bf4bbec9880f8c23_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-a8b63ecc364c66c8bf4bbec9880f8c23_hd.jpg" alt=""></p>
-<p>后续优化慢慢补充~</p>
-<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>之前在对公司的前端代码脚本错误进行排查，试图降低 JS Error 的错误量，结合自己之前的经验对这方面内容进行了实践并总结，下面就此谈谈我对前端代码异常监控的一些见解。</p>
-<p>本文大致围绕下面几点展开讨论：</p>
-<ol>
-<li>JS 处理异常的方式</li>
-<li>上报方式</li>
-<li>异常监控上报常见问题</li>
-</ol>
-<h2 id="JS-异常处理"><a href="#JS-异常处理" class="headerlink" title="JS 异常处理"></a>JS 异常处理</h2><p>对于 Javascript 而言，我们面对的仅仅只是异常，异常的出现不会直接导致 JS 引擎崩溃，最多只会使当前执行的任务终止。</p>
-<ol>
-<li>当前代码块将作为一个任务压入任务队列中，JS 线程会不断地从任务队列中提取任务执行。</li>
-<li>当任务执行过程中出现异常，且异常没有捕获处理，则会一直沿着调用栈一层层向外抛出，最终终止当前任务的执行。</li>
-<li><p>JS 线程会继续从任务队列中提取下一个任务继续执行。</p>
- <script>
-   error
-   console.log('永远不会执行');
- </script>
- <script>
-   console.log('我继续执行')
- </script>
-
-
-</li>
-</ol>
-<p><img src="https://pic2.zhimg.com/v2-7a136ce7674914bcd7b7f42986d0c5bc_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-7a136ce7674914bcd7b7f42986d0c5bc_hd.jpg" alt=""></p>
-<p>在对脚本错误进行上报之前，我们需要对异常进行处理，程序需要先感知到脚本错误的发生，然后再谈异常上报。</p>
-<p>脚本错误一般分为两种：语法错误，运行时错误。</p>
-<p>下面就谈谈几种异常监控的处理方式：</p>
-<h2 id="try-catch-异常处理"><a href="#try-catch-异常处理" class="headerlink" title="try-catch 异常处理"></a>try-catch 异常处理</h2><p>try-catch 在我们的代码中经常见到，通过给代码块进行 try-catch 进行包装后，当代码块发生出错时 catch 将能捕捉到错误的信息，页面也将可以继续执行。</p>
-<p>但是 try-catch 处理异常的能力有限，只能捕获捉到运行时非异步错误，对于语法错误和异步错误就显得无能为力，捕捉不到。</p>
-<h2 id="示例：运行时错误"><a href="#示例：运行时错误" class="headerlink" title="示例：运行时错误"></a>示例：运行时错误</h2><pre><code>try {
-  error    // 未定义变量 
-} catch(e) {
-  console.log(&apos;我知道错误了&apos;);
-  console.log(e);
-}
-</code></pre><p><img src="https://pic3.zhimg.com/v2-dc8ba7e4b9e56127799c11b46cf7068d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-dc8ba7e4b9e56127799c11b46cf7068d_hd.jpg" alt=""></p>
-<p>然而对于语法错误和异步错误就捕捉不到了。</p>
-<h2 id="示例：语法错误"><a href="#示例：语法错误" class="headerlink" title="示例：语法错误"></a>示例：语法错误</h2><pre><code>try {
-  var error = &apos;error&apos;；   // 大写分号
-} catch(e) {
-  console.log(&apos;我感知不到错误&apos;);
-  console.log(e);
-}
-</code></pre><p><img src="https://pic3.zhimg.com/v2-8ddf6acf0f42c4b08ba8b73798b863a0_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8ddf6acf0f42c4b08ba8b73798b863a0_hd.jpg" alt=""></p>
-<p>一般语法错误在编辑器就会体现出来，常表现的错误信息为： Uncaught SyntaxError: Invalid or unexpected token xxx 这样。但是这种错误会直接抛出异常，常使程序崩溃，一般在编码时候容易观察得到。</p>
-<h2 id="示例：异步错误"><a href="#示例：异步错误" class="headerlink" title="示例：异步错误"></a>示例：异步错误</h2><pre><code>try {
-  setTimeout(() =&gt; {
-    error        // 异步错误
-  })
-} catch(e) {
-  console.log(&apos;我感知不到错误&apos;);
-  console.log(e);
-}
-</code></pre><p><img src="https://pic4.zhimg.com/v2-0ed67a00e3c7762e74975bebbbc88274_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-0ed67a00e3c7762e74975bebbbc88274_hd.jpg" alt=""></p>
-<p>除非你在 setTimeout 函数中再套上一层 try-catch，否则就无法感知到其错误，但这样代码写起来比较啰嗦。</p>
-<h2 id="window-onerror-异常处理"><a href="#window-onerror-异常处理" class="headerlink" title="window.onerror 异常处理"></a>window.onerror 异常处理</h2><p>window.onerror 捕获异常能力比 try-catch 稍微强点，无论是异步还是非异步错误，onerror 都能捕获到运行时错误。</p>
-<p>示例：运行时同步错误</p>
-<pre><code>/**
- * @param {String}  msg    错误信息
- * @param {String}  url    出错文件
- * @param {Number}  row    行号
- * @param {Number}  col    列号
- * @param {Object}  error  错误详细信息
- */
- window.onerror = function (msg, url, row, col, error) {
-  console.log(&apos;我知道错误了&apos;);
-  console.log({
-    msg,  url,  row, col, error
-  })
-  return true;
-};
-error;
-</code></pre><p>示例：异步错误</p>
-<pre><code>window.onerror = function (msg, url, row, col, error) {
-  console.log(&apos;我知道异步错误了&apos;);
-  console.log({
-    msg,  url,  row, col, error
-  })
-  return true;
-};
-setTimeout(() =&gt; {
-  error;
-});
-</code></pre><p><img src="https://pic3.zhimg.com/v2-8bfdbb4ef72e1fe0ee29f42708d1184d_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-8bfdbb4ef72e1fe0ee29f42708d1184d_hd.jpg" alt=""></p>
-<p>然而 window.onerror 对于语法错误还是无能为力，所以我们在写代码的时候要尽可能避免语法错误的，不过一般这样的错误会使得整个页面崩溃，还是比较容易能够察觉到的。</p>
-<p>在实际的使用过程中，onerror 主要是来捕获预料之外的错误，而 try-catch 则是用来在可预见情况下监控特定的错误，两者结合使用更加高效。</p>
-<p>需要注意的是，window.onerror 函数只有在返回 true 的时候，异常才不会向上抛出，否则即使是知道异常的发生控制台还是会显示 Uncaught Error: xxxxx。</p>
-<p><img src="https://pic3.zhimg.com/v2-875235a4876ea8429f12e7aaf2f19588_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-875235a4876ea8429f12e7aaf2f19588_hd.jpg" alt=""></p>
-<p>关于 window.onerror 还有两点需要值得注意</p>
-<ol>
-<li>对于 onerror 这种全局捕获，最好写在所有 JS 脚本的前面，因为你无法保证你写的代码是否出错，如果写在后面，一旦发生错误的话是不会被 onerror 捕获到的。</li>
-<li>另外 onerror 是无法捕获到网络异常的错误。</li>
-</ol>
-<p>当我们遇到 <code>&lt;img src=&quot;./404.png&quot;&gt;</code> 报 404 网络请求异常的时候，onerror 是无法帮助我们捕获到异常的。</p>
-<pre><code>&lt;script&gt;
-  window.onerror = function (msg, url, row, col, error) {
-    console.log(&apos;我知道异步错误了&apos;);
-    console.log({
-      msg,  url,  row, col, error
-    })
-    return true;
-  };
-&lt;/script&gt;
-&lt;img src=&quot;./404.png&quot;&gt;
-</code></pre><p><img src="https://pic3.zhimg.com/v2-81341c443f078b6526e0c6031dd40953_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-81341c443f078b6526e0c6031dd40953_hd.jpg" alt=""></p>
-<p>由于网络请求异常不会事件冒泡，因此必须在捕获阶段将其捕捉到才行，但是这种方式虽然可以捕捉到网络请求的异常，但是无法判断 HTTP 的状态是 404 还是其他比如 500 等等，所以还需要配合服务端日志才进行排查分析才可以。</p>
-<pre><code>&lt;script&gt;
-window.addEventListener(&apos;error&apos;, (msg, url, row, col, error) =&gt; {
-  console.log(&apos;我知道 404 错误了&apos;);
-  console.log(
-    msg, url, row, col, error
-  );
-  return true;
-}, true);
-&lt;/script&gt;
-&lt;img src=&quot;./404.png&quot; alt=&quot;&quot;&gt;
-</code></pre><p><img src="https://pic4.zhimg.com/v2-6d1c1196acd800a4a4475ee6847ee82a_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-6d1c1196acd800a4a4475ee6847ee82a_hd.jpg" alt=""></p>
-<p>这点知识还是需要知道，要不然用户访问网站，图片 CDN 无法服务，图片加载不出来而开发人员没有察觉就尴尬了。</p>
-<h2 id="Promise-错误"><a href="#Promise-错误" class="headerlink" title="Promise 错误"></a>Promise 错误</h2><p>通过 Promise 可以帮助我们解决异步回调地狱的问题，但是一旦 Promise 实例抛出异常而你没有用 catch 去捕获的话，onerror 或 try-catch 也无能为力，无法捕捉到错误。</p>
-<pre><code>window.addEventListener(&apos;error&apos;, (msg, url, row, col, error) =&gt; {
-  console.log(&apos;我感知不到 promise 错误&apos;);
-  console.log(
-    msg, url, row, col, error
-  );
-}, true);
-Promise.reject(&apos;promise error&apos;);
-new Promise((resolve, reject) =&gt; {
-  reject(&apos;promise error&apos;);
-});
-new Promise((resolve) =&gt; {
-  resolve();
-}).then(() =&gt; {
-  throw &apos;promise error&apos;
-});
-</code></pre><p><img src="https://pic4.zhimg.com/v2-1ce580bb2344474b1df1517f2d11aa40_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-1ce580bb2344474b1df1517f2d11aa40_hd.jpg" alt=""></p>
-<p>虽然在写 Promise 实例的时候养成最后写上 catch 函数是个好习惯，但是代码写多了就容易糊涂，忘记写 catch。</p>
-<p>所以如果你的应用用到很多的 Promise 实例的话，特别是你在一些基于 promise 的异步库比如 axios 等一定要小心，因为你不知道什么时候这些异步请求会抛出异常而你并没有处理它，所以你最好添加一个 Promise 全局异常捕获事件 <strong>unhandledrejection</strong>。</p>
-<pre><code>window.addEventListener(&quot;unhandledrejection&quot;, function(e){
-  e.preventDefault()
-  console.log(&apos;我知道 promise 的错误了&apos;);
-  console.log(e.reason);
-  return true;
-});
-Promise.reject(&apos;promise error&apos;);
-new Promise((resolve, reject) =&gt; {
-  reject(&apos;promise error&apos;);
-});
-new Promise((resolve) =&gt; {
-  resolve();
-}).then(() =&gt; {
-  throw &apos;promise error&apos;
-});
-</code></pre><p><img src="https://pic2.zhimg.com/v2-115d494f26e4f8e2172e1f3b4cb6094f_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-115d494f26e4f8e2172e1f3b4cb6094f_hd.jpg" alt=""></p>
-<p>当然，如果你的应用没有做 Promise 全局异常处理的话，那很可能就像某乎首页这样：</p>
-<p><img src="https://pic2.zhimg.com/v2-37c6bc3763c147a4c97bdde688a59a5c_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-37c6bc3763c147a4c97bdde688a59a5c_hd.jpg" alt=""></p>
-<h2 id="异常上报方式"><a href="#异常上报方式" class="headerlink" title="异常上报方式"></a>异常上报方式</h2><p>监控拿到报错信息之后，接下来就需要将捕捉到的错误信息发送到信息收集平台上，常用的发送形式主要有两种:</p>
-<ol>
-<li>通过 Ajax 发送数据</li>
-<li>动态创建 img 标签的形式</li>
-</ol>
-<p>实例 - 动态创建 img 标签进行上报</p>
-<pre><code>function report(error) {
-  var reportUrl = &apos;http://xxxx/report&apos;;
-  new Image().src = reportUrl + &apos;error=&apos; + error;
-}
-</code></pre><h2 id="监控上报常见问题"><a href="#监控上报常见问题" class="headerlink" title="监控上报常见问题"></a>监控上报常见问题</h2><p>下述例子我全部放在我的 github 上，读者可以自行查阅，后面不再赘述。</p>
-<pre><code>git clone https://github.com/happylindz/blog.git
-cd blog/code/jserror/
-npm install
-</code></pre><h2 id="Script-error-脚本错误是什么"><a href="#Script-error-脚本错误是什么" class="headerlink" title="Script error 脚本错误是什么"></a>Script error 脚本错误是什么</h2><p>因为我们在线上的版本，经常做静态资源 CDN 化，这就会导致我们常访问的页面跟脚本文件来自不同的域名，这时候如果没有进行额外的配置，就会容易产生 Script error。</p>
-<p><img src="https://pic3.zhimg.com/v2-840f71bf7014767132b47ad2c6a37238_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-840f71bf7014767132b47ad2c6a37238_hd.jpg" alt=""></p>
-<p>可通过 <code>npm run nocors</code> 查看效果。</p>
-<p>Script error 是浏览器在同源策略限制下产生的，浏览器处于对安全性上的考虑，当页面引用非同域名外部脚本文件时中抛出异常的话，此时本页面是没有权利知道这个报错信息的，取而代之的是输出 Script error 这样的信息。</p>
-<p><img src="https://pic2.zhimg.com/v2-fc3941d89716f96374576d0426ff4ccb_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-fc3941d89716f96374576d0426ff4ccb_hd.jpg" alt=""></p>
-<p>这样做的目的是避免数据泄露到不安全的域中，举个简单的例子，</p>
-<pre><code>&lt;script src=&quot;xxxx.com/login.html&quot;&gt;&lt;/script&gt;
-</code></pre><p>上面我们并没有引入一个 js 文件，而是一个 html，这个 html 是银行的登录页面，如果你已经登录了，那 login 页面就会自动跳转到 <code>Welcome xxx...</code>，如果未登录则跳转到 <code>Please Login...</code>，那么报错也会是 <code>Welcome xxx... is not defined，Please Login... is not defined</code>，通过这些信息可以判断一个用户是否登录他的帐号，给入侵者提供了十分便利的判断渠道，这是相当不安全的。</p>
-<p>介绍完背景后，那么我们应该去解决这个问题？</p>
-<p>首先可以想到的方案肯定是同源化策略，将 JS 文件内联到 html 或者放到同域下，虽然能简单有效地解决 script error 问题，但是这样无法利用好文件缓存和 CDN 的优势，不推荐使用。正确的方法应该是从根本上解决 script error 的错误。</p>
-<h2 id="跨源资源共享机制-CORS"><a href="#跨源资源共享机制-CORS" class="headerlink" title="跨源资源共享机制( CORS )"></a>跨源资源共享机制( CORS )</h2><p>首先为页面上的 script 标签添加 crossOrigin 属性</p>
-<pre><code>// http://localhost:8080/index.html
-&lt;script&gt;
-  window.onerror = function (msg, url, row, col, error) {
-    console.log(&apos;我知道错误了，也知道错误信息&apos;);
-    console.log({
-      msg,  url,  row, col, error
-    })
-    return true;
-  };
-&lt;/script&gt;
-&lt;script src=&quot;http://localhost:8081/test.js&quot; crossorigin&gt;&lt;/script&gt;
-
-// http://localhost:8081/test.js
-setTimeout(() =&gt; {
-  console.log(error);
-});
-</code></pre><p>当你修改完前端代码后，你还需要额外给后端在响应头里加上 <code>Access-Control-Allow-Origin: localhost:8080</code>，这里我以 Koa 为例。</p>
-<pre><code>const Koa = require(&apos;koa&apos;);
-const path = require(&apos;path&apos;);
-const cors = require(&apos;koa-cors&apos;);
-const app = new Koa();
-
-app.use(cors());
-app.use(require(&apos;koa-static&apos;)(path.resolve(__dirname, &apos;./public&apos;)));
-
-app.listen(8081, () =&gt; {
-  console.log(&apos;koa app listening at 8081&apos;)
-});
-</code></pre><p><img src="https://pic1.zhimg.com/v2-9717062e56340cef40ee67b438b2ba95_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-9717062e56340cef40ee67b438b2ba95_hd.jpg" alt=""></p>
-<p>读者可通过 <code>npm run cors</code> 详细的跨域知识我就不展开了，有兴趣可以看看我之前写的文章：<a href="https://link.zhihu.com/?target=https%3A//github.com/happylindz/blog/issues/3" target="_blank" rel="noopener">跨域，你需要知道的全在这里</a></p>
-<p>你以为这样就完了吗？并没有，下面就说一些 Script error 你不常遇见的点：</p>
-<p>我们都知道 JSONP 是用来跨域获取数据的，并且兼容性良好，在一些应用中仍然会使用到，所以你的项目中可能会用这样的代码：</p>
-<pre><code>// http://localhost:8080/index.html
-window.onerror = function (msg, url, row, col, error) {
-  console.log(&apos;我知道错误了，但不知道错误信息&apos;);
-  console.log({
-    msg,  url,  row, col, error
-  })
-  return true;
-};
-function jsonpCallback(data) {
-  console.log(data);
-}
-const url = &apos;http://localhost:8081/data?callback=jsonpCallback&apos;;
-const script = document.createElement(&apos;script&apos;);
-script.src = url;
-document.body.appendChild(script);
-</code></pre><p>因为返回的信息会当做脚本文件来执行，一旦返回的脚本内容出错了，也是无法捕捉到错误的信息。</p>
-<p><img src="https://pic4.zhimg.com/v2-01afbf8a4ba1fc4fdd9a22b884f9a8d8_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-01afbf8a4ba1fc4fdd9a22b884f9a8d8_hd.jpg" alt=""></p>
-<p>解决办法也不难，跟之前一样，在添加动态添加脚本的时候加上 crossOrigin，并且在后端配上相应的 CORS 字段即可.</p>
-<pre><code>const script = document.createElement(&apos;script&apos;);
-script.crossOrigin = &apos;anonymous&apos;;
-script.src = url;
-document.body.appendChild(script);
-</code></pre><p>读者可以通过 <code>npm run jsonp</code> 查看效果</p>
-<p><img src="https://pic4.zhimg.com/v2-ab0b67a7e6b5afabf281b792ca2d6bd2_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-ab0b67a7e6b5afabf281b792ca2d6bd2_hd.jpg" alt=""></p>
-<p>知道原理之后你可能会觉得没什么，不就是给每个动态生成的脚本添加 crossOrigin 字段嘛，但是在实际工程中，你可能是面向很多库来编程，比如使用 jQuery，Seajs 或者 webpack 来异步加载脚本，许多库封装了异步加载脚本的能力，以 jQeury 为例你可能是这样来触发异步脚本。</p>
-<pre><code>$.ajax({
-  url: &apos;http://localhost:8081/data&apos;,
-  dataType: &apos;jsonp&apos;,
-  success: (data) =&gt; {
-    console.log(data);
-  }
-})
-</code></pre><p>假如这些库中没有提供 crossOrigin 的能力的话(jQuery jsonp 可能有，假装你不知道)，那你只能去修改人家写的源代码了，所以我这里提供一个思路，就是去劫持 document.createElement，从根源上去为每个动态生成的脚本添加 crossOrigin 字段。</p>
-<pre><code>document.createElement = (function() {
-  const fn = document.createElement.bind(document);
-  return function(type) {
-    const result = fn(type);
-    if(type === &apos;script&apos;) {
-      result.crossOrigin = &apos;anonymous&apos;;
-    }
-    return result;
-  }
-})();
-window.onerror = function (msg, url, row, col, error) {
-  console.log(&apos;我知道错误了，也知道错误信息&apos;);
-  console.log({
-    msg,  url,  row, col, error
-  })
-  return true;
-};
-$.ajax({
-  url: &apos;http://localhost:8081/data&apos;,
-  dataType: &apos;jsonp&apos;,
-  success: (data) =&gt; {
-    console.log(data);
-  }
-})
-</code></pre><p>效果也是一样的，读者可以通过 <code>npm run jsonpjq</code> 来查看效果：</p>
-<p><img src="https://pic4.zhimg.com/v2-30d51a96cdb3286edd1e5a88e9f794bb_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-30d51a96cdb3286edd1e5a88e9f794bb_hd.jpg" alt=""></p>
-<p>这样重写 createElement 理论上没什么问题，但是入侵了原本的代码，不保证一定不会出错，在工程上还是需要多尝试下看看再使用，可能存在兼容性上问题，如果你觉得会出现什么问题的话也欢迎留言讨论下。</p>
-<p>关于 Script error 的问题就写到这里，如果你理解了上面的内容，基本上绝大部分的 Script error 都能迎刃而解。</p>
-<h2 id="window-onerror-能否捕获-iframe-的错误"><a href="#window-onerror-能否捕获-iframe-的错误" class="headerlink" title="window.onerror 能否捕获 iframe 的错误"></a>window.onerror 能否捕获 iframe 的错误</h2><p>当你的页面有使用 iframe 的时候，你需要对你引入的 iframe 做异常监控的处理，否则一旦你引入的 iframe 页面出现了问题，你的主站显示不出来，而你却浑然不知。</p>
-<p>首先需要强调，父窗口直接使用 window.onerror 是无法直接捕获，如果你想要捕获 iframe 的异常的话，有分好几种情况。</p>
-<p>如果你的 iframe 页面和你的主站是同域名的话，直接给 iframe 添加 onerror 事件即可。</p>
-<pre><code>&lt;iframe src=&quot;./iframe.html&quot; frameborder=&quot;0&quot;&gt;&lt;/iframe&gt;
-&lt;script&gt;
-  window.frames[0].onerror = function (msg, url, row, col, error) {
-    console.log(&apos;我知道 iframe 的错误了，也知道错误信息&apos;);
-    console.log({
-      msg,  url,  row, col, error
-    })
-    return true;
-  };
-&lt;/script&gt;
-</code></pre><p>读者可以通过 <code>npm run iframe</code> 查看效果：</p>
-<p><img src="https://pic2.zhimg.com/v2-3edcb5686e27ab11f5f3c9c1644986d0_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-3edcb5686e27ab11f5f3c9c1644986d0_hd.jpg" alt=""></p>
-<p>如果你嵌入的 iframe 页面和你的主站不是同个域名的，但是 iframe 内容不属于第三方，是你可以控制的，那么可以通过与 iframe 通信的方式将异常信息抛给主站接收。与 iframe 通信的方式有很多，常用的如：postMessage，hash 或者 name 字段跨域等等，这里就不展开了，感兴趣的话可以看：<a href="https://link.zhihu.com/?target=https%3A//github.com/happylindz/blog/issues/3" target="_blank" rel="noopener">跨域，你需要知道的全在这里</a></p>
-<p>如果是非同域且网站不受自己控制的话，除了通过控制台看到详细的错误信息外，没办法捕获，这是出于安全性的考虑，你引入了一个百度首页，人家页面报出的错误凭啥让你去监控呢，这会引出很多安全性的问题。</p>
-<h2 id="压缩代码如何定位到脚本异常位置"><a href="#压缩代码如何定位到脚本异常位置" class="headerlink" title="压缩代码如何定位到脚本异常位置"></a>压缩代码如何定位到脚本异常位置</h2><p>线上的代码几乎都经过了压缩处理，几十个文件打包成了一个并丑化代码，当我们收到 <code>a is not defined</code> 的时候，我们根本不知道这个变量 a 究竟是什么含义，此时报错的错误日志显然是无效的。</p>
-<p>第一想到的办法是利用 sourcemap 定位到错误代码的具体位置，详细内容可以参考：<a href="https://link.zhihu.com/?target=https%3A//github.com/joeyguo/blog/issues/14" target="_blank" rel="noopener">Sourcemap 定位脚本错误</a></p>
-<p>另外也可以通过在打包的时候，在每个合并的文件之间添加几行空格，并相应加上一些注释，这样在定位问题的时候很容易可以知道是哪个文件报的错误，然后再通过一些关键词的搜索，可以快速地定位到问题的所在位置。</p>
-<h2 id="收集异常信息量太多，怎么办"><a href="#收集异常信息量太多，怎么办" class="headerlink" title="收集异常信息量太多，怎么办"></a>收集异常信息量太多，怎么办</h2><p>如果你的网站访问量很大，假如网页的 PV 有 1kw，那么一个必然的错误发送的信息就有 1kw 条，我们可以给网站设置一个采集率：</p>
-<pre><code>Reporter.send = function(data) {
-  // 只采集 30%
-  if(Math.random() &lt; 0.3) {
-    send(data)      // 上报错误信息
-  }
-}
-</code></pre><p>这个采集率可以通过具体实际的情况来设定，方法多样化，可以使用一个随机数，也可以具体根据用户的某些特征来进行判定。</p>
-<h3 id="错误上报的方法："><a href="#错误上报的方法：" class="headerlink" title="错误上报的方法："></a>错误上报的方法：</h3><ul>
-<li>一：Ajax上传，Ajax上报就是在上文注释错误捕获的地方发起Ajax请求，来向服务器发送错误信息。</li>
-<li>二：利用Image对象发送信息(new Image()).src=”<a href="http://post.error.com?data=xxx&quot;" target="_blank" rel="noopener">http://post.error.com?data=xxx&quot;</a></li>
-<li>跨域js文件错误是否可以捕获：<br>   答案是可以，错误提示是   script error<br>解决办法，跨域js文件获取是有限制的，如果想获取其他域下的js错误需要在script标签里添加crossorigin属性，然后服务器端要设置header(‘Access-Control-Allow-Origin: *’),或者 指定域名。</li>
-</ul>
-<p>上面差不多是我对前端代码监控的一些理解，说起来容易，但是一旦在工程化运用，难免需要考虑到兼容性等种种问题，读者可以通过自己的具体情况进行调整，前端代码异常监控对于我们的网站的稳定性起着至关重要的作用。如若文中所有不对的地方，还望指正。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4252,7 +4261,7 @@ $.ajax({
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">145</span>
+                  <span class="site-state-item-count">146</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
