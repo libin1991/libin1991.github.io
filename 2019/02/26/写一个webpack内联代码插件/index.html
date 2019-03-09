@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="webpack,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="单页开发很多时候index.html只有些html,外链一些css和js,通常导致一些打包后的代码非常大,造成头轻脚重。导致index.html很小，打包的js和css很臃肿，我们可以将一些常用的例如reset.css,jquery,vue等内联到index.html,合理分配文件大小，毕竟index.html一个http请求就拿那么点东西，太浪费了。 我们尝试写一个webpack plugin,">
+<meta name="keywords" content="webpack">
+<meta property="og:type" content="article">
+<meta property="og:title" content="写一个webpack内联代码插件">
+<meta property="og:url" content="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/index.html">
+<meta property="og:site_name" content="舞动乾坤">
+<meta property="og:description" content="单页开发很多时候index.html只有些html,外链一些css和js,通常导致一些打包后的代码非常大,造成头轻脚重。导致index.html很小，打包的js和css很臃肿，我们可以将一些常用的例如reset.css,jquery,vue等内联到index.html,合理分配文件大小，毕竟index.html一个http请求就拿那么点东西，太浪费了。 我们尝试写一个webpack plugin,">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/1.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/2.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/3.jpg">
+<meta property="og:updated_time" content="2019-03-09T11:59:45.380Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="写一个webpack内联代码插件">
+<meta name="twitter:description" content="单页开发很多时候index.html只有些html,外链一些css和js,通常导致一些打包后的代码非常大,造成头轻脚重。导致index.html很小，打包的js和css很臃肿，我们可以将一些常用的例如reset.css,jquery,vue等内联到index.html,合理分配文件大小，毕竟index.html一个http请求就拿那么点东西，太浪费了。 我们尝试写一个webpack plugin,">
+<meta name="twitter:image" content="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/1.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/">
+
+
+
+
+
+  <title>写一个webpack内联代码插件 | 舞动乾坤</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">舞动乾坤</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">星光不问赶路人 岁月不负有心人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/02/26/写一个webpack内联代码插件/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">写一个webpack内联代码插件</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-26T17:44:40+08:00">
+                2019-02-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>单页开发很多时候index.html只有些html,外链一些css和js,通常导致一些打包后的代码非常大,造成头轻脚重。导致index.html很小，打包的js和css很臃肿，我们可以将一些常用的例如reset.css,jquery,vue等内联到index.html,合理分配文件大小，毕竟index.html一个http请求就拿那么点东西，太浪费了。</p>
+<p>我们尝试写一个webpack plugin,通过配置实现内联代码！</p>
+<h2 id="要求："><a href="#要求：" class="headerlink" title="要求："></a>要求：</h2><ul>
+<li>传一个数组，第一个表示要内联的js路径列表，第二个是css路径列表</li>
+<li>css插入<code>&lt;head&gt;</code>标签中，js插入<code>&lt;body&gt;</code>标签中</li>
+<li>按数组顺序插入</li>
+</ul>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">new</span> WebpackInlineSourcePlugin([&#123;</span><br><span class="line">	path:[<span class="string">'./src/lib/jquery-3.2.1.min.js'</span>,<span class="string">'./src/lib/vue.min.js'</span>]</span><br><span class="line">&#125;,&#123;</span><br><span class="line">	path:[<span class="string">'./src/lib/reset.min.css'</span>,<span class="string">'./src/lib/A.css'</span>]</span><br><span class="line">&#125;]),</span><br></pre></td></tr></table></figure>
+<h3 id="WebPackInlineSourcePlugin插件代码-webpack内联code插件"><a href="#WebPackInlineSourcePlugin插件代码-webpack内联code插件" class="headerlink" title="WebPackInlineSourcePlugin插件代码               webpack内联code插件  "></a>WebPackInlineSourcePlugin插件代码              <a href="https://github.com/libin1991/webpack4-vue-more-page-cli/tree/master/webpack%E5%86%85%E8%81%94code%E6%8F%92%E4%BB%B6" target="_blank" rel="noopener"><font color="#dd0000"> webpack内联code插件  </font></a></h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> assert = <span class="built_in">require</span>(<span class="string">'assert'</span>); <span class="comment">//断言库</span></span><br><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">'fs'</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">typeOf</span>(<span class="params">value, type</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="built_in">Object</span>.prototype.toString.call(value).slice(<span class="number">8</span>, <span class="number">-1</span>).toLowerCase() === type.toLowerCase();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">normalizeAssets</span>(<span class="params">assets, normalized = &#123;</span></span></span><br><span class="line"><span class="function"><span class="params">	js: [], </span></span></span><br><span class="line"><span class="function"><span class="params">	css: []</span></span></span><br><span class="line"><span class="function"><span class="params">&#125;</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">if</span>(typeOf(assets, <span class="string">'array'</span>)) &#123;</span><br><span class="line">		assets.forEach(<span class="function">(<span class="params">item, index</span>) =&gt;</span> &#123;</span><br><span class="line">			<span class="keyword">if</span>(!index) &#123;</span><br><span class="line">				normalized.js.push(...item.path)</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				normalized.css.push(...item.path)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> normalized;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">extractSource</span>(<span class="params">path</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">return</span> fs.readFileSync(path, &#123;</span><br><span class="line">		encoding: <span class="string">'utf8'</span></span><br><span class="line">	&#125;).toString();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">processAsset</span>(<span class="params">asset</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">if</span>(asset.type === <span class="string">'css'</span>) &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="string">`&lt;style type="text/css"&gt;<span class="subst">$&#123;extractSource(asset.path)&#125;</span>&lt;/style&gt;`</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="string">`&lt;script type="text/javascript"&gt;<span class="subst">$&#123;extractSource(asset.path)&#125;</span>&lt;/script&gt;`</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">WebpackInlineSourcePlugin</span>(<span class="params">assets, filter</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">this</span>.assets = normalizeAssets(assets);</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">WebpackInlineSourcePlugin.prototype.apply = <span class="function"><span class="keyword">function</span>(<span class="params">compiler</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">const</span> self = <span class="keyword">this</span>;</span><br><span class="line">	compiler.plugin(<span class="string">'compilation'</span>, (compilation) =&gt; &#123;</span><br><span class="line">		compilation.plugin(<span class="string">'html-webpack-plugin-before-html-processing'</span>, (htmlPluginData) =&gt; &#123;</span><br><span class="line"></span><br><span class="line">			<span class="keyword">const</span> bodyAssets = self.assets.js.map(<span class="function">(<span class="params">item</span>)=&gt;</span>&#123;</span><br><span class="line">				<span class="keyword">return</span> &#123;</span><br><span class="line">					path:item,</span><br><span class="line">					type:<span class="string">'js'</span></span><br><span class="line">				&#125;</span><br><span class="line">			&#125;).map(processAsset);</span><br><span class="line">			 </span><br><span class="line">			<span class="keyword">const</span> headAssets = self.assets.css.map(<span class="function">(<span class="params">item</span>)=&gt;</span>&#123;</span><br><span class="line">				<span class="keyword">return</span> &#123;</span><br><span class="line">					path:item,</span><br><span class="line">					type:<span class="string">'css'</span></span><br><span class="line">				&#125;</span><br><span class="line">			&#125;).map(processAsset);</span><br><span class="line">          </span><br><span class="line">			htmlPluginData.html = htmlPluginData.html.replace(<span class="regexp">/(&lt;\/head&gt;)/i</span>, (match, head) =&gt; headAssets.join(<span class="string">'\n'</span>) + head);</span><br><span class="line">			htmlPluginData.html = htmlPluginData.html.replace(<span class="regexp">/(&lt;\/body&gt;)/i</span>, (match, body) =&gt; bodyAssets.join(<span class="string">'\n'</span>) + body);</span><br><span class="line">		&#125;);</span><br><span class="line"></span><br><span class="line">	&#125;);</span><br><span class="line">	compiler.plugin(<span class="string">'done'</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">		<span class="built_in">console</span>.log(<span class="string">'Hello World!'</span>);</span><br><span class="line">	&#125;);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = WebpackInlineSourcePlugin;</span><br></pre></td></tr></table></figure>
+<p>我们以Vue-cli为例,vue.config.js配置：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> webpack = <span class="built_in">require</span>(<span class="string">'webpack'</span>)</span><br><span class="line"><span class="keyword">const</span> path = <span class="built_in">require</span>(<span class="string">'path'</span>);</span><br><span class="line"><span class="keyword">const</span> WebpackInlineSourcePlugin = <span class="built_in">require</span>(<span class="string">'./plugin/plugin2'</span>);</span><br><span class="line"><span class="keyword">const</span> WebpackfilelistPlugin = <span class="built_in">require</span>(<span class="string">'./plugin/filelist.js'</span>);</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">resolve</span>(<span class="params">dir</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> path.join(__dirname, dir)</span><br><span class="line">&#125;</span><br><span class="line"><span class="built_in">module</span>.exports = &#123;</span><br><span class="line">    <span class="comment">// 基本路径</span></span><br><span class="line">    baseUrl: <span class="string">'./'</span>,</span><br><span class="line">    devServer: &#123;</span><br><span class="line">        port: <span class="number">8888</span>,</span><br><span class="line">        open: <span class="literal">true</span></span><br><span class="line">    &#125;,</span><br><span class="line">    configureWebpack: &#123;</span><br><span class="line">        plugins: [</span><br><span class="line">            <span class="keyword">new</span> webpack.ProvidePlugin(&#123;</span><br><span class="line">                jQuery: <span class="string">'jquery'</span>,</span><br><span class="line">                $: <span class="string">'jquery'</span></span><br><span class="line">            &#125;),</span><br><span class="line">            <span class="keyword">new</span> WebpackInlineSourcePlugin([&#123;</span><br><span class="line">            	path:[<span class="string">'./src/lib/jquery-3.2.1.min.js'</span>,<span class="string">'./src/lib/vue.min.js'</span>]</span><br><span class="line">            &#125;,&#123;</span><br><span class="line">            	path:[<span class="string">'./src/lib/reset.min.css'</span>,<span class="string">'./src/lib/A.css'</span>]</span><br><span class="line">            &#125;]),</span><br><span class="line">            <span class="keyword">new</span> WebpackfilelistPlugin()</span><br><span class="line">        ]</span><br><span class="line">    &#125;,</span><br><span class="line">    productionSourceMap: <span class="literal">false</span>,</span><br><span class="line">    lintOnSave: <span class="literal">false</span>,</span><br><span class="line">    chainWebpack: <span class="function"><span class="params">config</span> =&gt;</span> &#123;</span><br><span class="line">        config.entry.app = [<span class="string">"babel-polyfill"</span>, resolve(<span class="string">'src/main.js'</span>)]</span><br><span class="line">        <span class="comment">//config.resolve.alias.set('@', resolve('src'))</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="走起"><a href="#走起" class="headerlink" title="走起"></a>走起</h3><p><img src="/2019/02/26/写一个webpack内联代码插件/1.jpg" alt=""><br><img src="/2019/02/26/写一个webpack内联代码插件/2.jpg" alt=""></p>
+<h3 id="plugin和loader的区别是什么"><a href="#plugin和loader的区别是什么" class="headerlink" title="plugin和loader的区别是什么"></a>plugin和loader的区别是什么</h3><p>在 Webpack 运行的生命周期中会广播出许多事件，Plugin 可以监听这些事件，在合适的时机通过 Webpack 提供的 API 【事件钩子】改变输出结果。</p>
+<blockquote>
+<p><font color="#ff0000">对于loader，它就是一个转换器【文件解析器】，将A文件进行编译形成B文件，这里操作的是文件，比如将A.scss或A.less转变为B.css，单纯的文件转换过程 </font><br> </p>
+</blockquote>
+<blockquote>
+<font color="#ff0000">plugin是一个扩展器，它丰富了wepack本身，针对是loader结束后，webpack打包的整个过程，它并不直接操作文件，而是基于事件机制工作，会监听webpack打包过程中的某些节点，执行广泛的任务。 </font> 
+</blockquote>
+<p>webpack整个构建流程有许多钩子，开发者可以在指定的阶段加入自己的行为到webpack构建流程中。插件由以下构成:</p>
+<ul>
+<li>一个 JavaScript 命名函数。</li>
+<li>在插件函数的 prototype 上定义一个 apply 方法。</li>
+<li>指定一个绑定到 webpack 自身的事件钩子。</li>
+<li>处理 webpack 内部实例的特定数据。</li>
+<li>功能完成后调用 webpack 提供的回调。</li>
+</ul>
+<p>整个webpack流程由compiler和compilation构成,compiler只会创建一次，compilation如果开起了watch文件变化，那么会多次生成compilation.  </p>
+<hr>
+<h2 id="Webpack-Plugin原理"><a href="#Webpack-Plugin原理" class="headerlink" title="Webpack Plugin原理"></a>Webpack Plugin原理</h2><p>Webpack 通过 Plugin 机制让其更加灵活，以适应各种应用场景。<br>在 Webpack 运行的生命周期中会广播出许多事件，Plugin 可以监听这些事件，在合适的时机通过 Webpack 提供的 API 改变输出结果。</p>
+<p>一个最基础的 Plugin 的代码是这样的：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BasicPlugin</span></span>&#123;</span><br><span class="line">  <span class="comment">// 在构造函数中获取用户给该插件传入的配置</span></span><br><span class="line">  <span class="keyword">constructor</span>(options)&#123;</span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// Webpack 会调用 BasicPlugin 实例的 apply 方法给插件实例传入 compiler 对象</span></span><br><span class="line">  apply(compiler)&#123;</span><br><span class="line">    compiler.plugin(<span class="string">'compilation'</span>,<span class="function"><span class="keyword">function</span>(<span class="params">compilation</span>) </span>&#123;</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 导出 Plugin</span></span><br><span class="line"><span class="built_in">module</span>.exports = BasicPlugin;</span><br></pre></td></tr></table></figure></p>
+<p>在使用这个 Plugin 时，相关配置代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> BasicPlugin = <span class="built_in">require</span>(<span class="string">'./BasicPlugin.js'</span>);</span><br><span class="line"><span class="built_in">module</span>.export = &#123;</span><br><span class="line">  plugins:[</span><br><span class="line">    <span class="keyword">new</span> BasicPlugin(options),</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Webpack 启动后，在读取配置的过程中会先执行 <code>new BasicPlugin(options)</code> 初始化一个 BasicPlugin 获得其实例。<br>在初始化 compiler 对象后，再调用 <code>basicPlugin.apply(compiler)</code> 给插件实例传入 compiler 对象。<br>插件实例在获取到 compiler 对象后，就可以通过 <code>compiler.plugin(事件名称, 回调函数)</code> 监听到 Webpack 广播出来的事件。<br>并且可以通过 compiler 对象去操作 Webpack。</p>
+<p>通过以上最简单的 Plugin 相信你大概明白了 Plugin 的工作原理，但实际开发中还有很多细节需要注意，下面来详细介绍。</p>
+<h2 id="Compiler-和-Compilation"><a href="#Compiler-和-Compilation" class="headerlink" title="Compiler 和 Compilation"></a>Compiler 和 Compilation</h2><p>在开发 Plugin 时最常用的两个对象就是 Compiler 和 Compilation，它们是 Plugin 和 Webpack 之间的桥梁。<br>Compiler 和 Compilation 的含义如下：</p>
+<ul>
+<li>Compiler 对象包含了 Webpack 环境所有的的配置信息，包含 options，loaders，plugins 这些信息，这个对象在 Webpack 启动时候被实例化，它是全局唯一的，可以简单地把它理解为 Webpack 实例；</li>
+<li>Compilation 对象包含了当前的模块资源、编译生成资源、变化的文件等。当 Webpack 以开发模式运行时，每当检测到一个文件变化，一次新的 Compilation 将被创建。Compilation 对象也提供了很多事件回调供插件做扩展。通过 Compilation 也能读取到 Compiler 对象。</li>
+</ul>
+<p>Compiler 和 Compilation 的区别在于：Compiler 代表了整个 Webpack 从启动到关闭的生命周期，而 Compilation 只是代表了一次新的编译。</p>
+<h2 id="事件流"><a href="#事件流" class="headerlink" title="事件流"></a>事件流</h2><p>Webpack 就像一条生产线，要经过一系列处理流程后才能将源文件转换成输出结果。<br>这条生产线上的每个处理流程的职责都是单一的，多个流程之间有存在依赖关系，只有完成当前处理后才能交给下一个流程去处理。<br>插件就像是一个插入到生产线中的一个功能，在特定的时机对生产线上的资源做处理。</p>
+<p>Webpack 通过 <a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2Fwebpack%2Ftapable" target="_blank" rel="noopener">Tapable</a> 来组织这条复杂的生产线。<br>Webpack 在运行过程中会广播事件，插件只需要监听它所关心的事件，就能加入到这条生产线中，去改变生产线的运作。<br>Webpack 的事件流机制保证了插件的有序性，使得整个系统扩展性很好。</p>
+<p>Webpack 的事件流机制应用了观察者模式，和 Node.js 中的 EventEmitter 非常相似。<br>Compiler 和 Compilation 都继承自 Tapable，可以直接在 Compiler 和 Compilation 对象上广播和监听事件，方法如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">* 广播出事件</span></span><br><span class="line"><span class="comment">* event-name 为事件名称，注意不要和现有的事件重名</span></span><br><span class="line"><span class="comment">* params 为附带的参数</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line">compiler.apply(<span class="string">'event-name'</span>,params);</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">* 监听名称为 event-name 的事件，当 event-name 事件发生时，函数就会被执行。</span></span><br><span class="line"><span class="comment">* 同时函数中的 params 参数为广播事件时附带的参数。</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line">compiler.plugin(<span class="string">'event-name'</span>,<span class="function"><span class="keyword">function</span>(<span class="params">params</span>) </span>&#123;</span><br><span class="line">  </span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>同理，compilation.apply 和 compilation.plugin 使用方法和上面一致。</p>
+<p>在开发插件时，你可能会不知道该如何下手，因为你不知道该监听哪个事件才能完成任务。</p>
+<p>在开发插件时，还需要注意以下两点：</p>
+<ul>
+<li>只要能拿到 Compiler 或 Compilation 对象，就能广播出新的事件，所以在新开发的插件中也能广播出事件，给其它插件监听使用。</li>
+<li>传给每个插件的 Compiler 和 Compilation 对象都是同一个引用。也就是说在一个插件中修改了 Compiler 或 Compilation 对象上的属性，会影响到后面的插件。</li>
+<li>有些事件是异步的，这些异步的事件会附带两个参数，第二个参数为回调函数，在插件处理完任务时需要调用回调函数通知 Webpack，才会进入下一处理流程。例如： <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">  compiler.plugin(<span class="string">'emit'</span>,<span class="function"><span class="keyword">function</span>(<span class="params">compilation, callback</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 支持处理逻辑</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 处理完毕后执行 callback 以通知 Webpack </span></span><br><span class="line">  <span class="comment">// 如果不执行 callback，运行流程将会一直卡在这不往下执行 </span></span><br><span class="line">  callback();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2 id="常用-API"><a href="#常用-API" class="headerlink" title="常用 API"></a>常用 API</h2><p>插件可以用来修改输出文件、增加输出文件、甚至可以提升 Webpack 性能、等等，总之插件通过调用 Webpack 提供的 API 能完成很多事情。<br>由于 Webpack 提供的 API 非常多，有很多 API 很少用的上，又加上篇幅有限，下面来介绍一些常用的 API。</p>
+<h3 id="读取输出资源、代码块、模块及其依赖"><a href="#读取输出资源、代码块、模块及其依赖" class="headerlink" title="读取输出资源、代码块、模块及其依赖"></a>读取输出资源、代码块、模块及其依赖</h3><p>有些插件可能需要读取 Webpack 的处理结果，例如输出资源、代码块、模块及其依赖，以便做下一步处理。</p>
+<p>在 <code>emit</code> 事件发生时，代表源文件的转换和组装已经完成，在这里可以读取到最终将输出的资源、代码块、模块及其依赖，并且可以修改输出资源的内容。<br>插件代码如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Plugin</span> </span>&#123;</span><br><span class="line">  apply(compiler) &#123;</span><br><span class="line">    compiler.plugin(<span class="string">'emit'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">compilation, callback</span>) </span>&#123;</span><br><span class="line">      <span class="comment">// compilation.chunks 存放所有代码块，是一个数组</span></span><br><span class="line">      compilation.chunks.forEach(<span class="function"><span class="keyword">function</span> (<span class="params">chunk</span>) </span>&#123;</span><br><span class="line">        <span class="comment">// chunk 代表一个代码块</span></span><br><span class="line">        <span class="comment">// 代码块由多个模块组成，通过 chunk.forEachModule 能读取组成代码块的每个模块</span></span><br><span class="line">        chunk.forEachModule(<span class="function"><span class="keyword">function</span> (<span class="params">module</span>) </span>&#123;</span><br><span class="line">          <span class="comment">// module 代表一个模块</span></span><br><span class="line">          <span class="comment">// module.fileDependencies 存放当前模块的所有依赖的文件路径，是一个数组</span></span><br><span class="line">          <span class="built_in">module</span>.fileDependencies.forEach(<span class="function"><span class="keyword">function</span> (<span class="params">filepath</span>) </span>&#123;</span><br><span class="line">          &#125;);</span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Webpack 会根据 Chunk 去生成输出的文件资源，每个 Chunk 都对应一个及其以上的输出文件</span></span><br><span class="line">        <span class="comment">// 例如在 Chunk 中包含了 CSS 模块并且使用了 ExtractTextPlugin 时，</span></span><br><span class="line">        <span class="comment">// 该 Chunk 就会生成 .js 和 .css 两个文件</span></span><br><span class="line">        chunk.files.forEach(<span class="function"><span class="keyword">function</span> (<span class="params">filename</span>) </span>&#123;</span><br><span class="line">          <span class="comment">// compilation.assets 存放当前所有即将输出的资源</span></span><br><span class="line">          <span class="comment">// 调用一个输出资源的 source() 方法能获取到输出资源的内容</span></span><br><span class="line">          <span class="keyword">let</span> source = compilation.assets[filename].source();</span><br><span class="line">        &#125;);</span><br><span class="line">      &#125;);</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 这是一个异步事件，要记得调用 callback 通知 Webpack 本次事件监听处理结束。</span></span><br><span class="line">      <span class="comment">// 如果忘记了调用 callback，Webpack 将一直卡在这里而不会往后执行。</span></span><br><span class="line">      callback();</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="监听文件变化"><a href="#监听文件变化" class="headerlink" title="监听文件变化"></a>监听文件变化</h3><p>在<a href="https://link.juejin.im?target=..%2F4%25E4%25BC%2598%25E5%258C%2596%2F4-5%25E4%25BD%25BF%25E7%2594%25A8%25E8%2587%25AA%25E5%258A%25A8%25E5%2588%25B7%25E6%2596%25B0.md" target="_blank" rel="noopener">4-5使用自动刷新</a> 中介绍过 Webpack 会从配置的入口模块出发，依次找出所有的依赖模块，当入口模块或者其依赖的模块发生变化时，<br>就会触发一次新的 Compilation。</p>
+<p>在开发插件时经常需要知道是哪个文件发生变化导致了新的 Compilation，为此可以使用如下代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 当依赖的文件发生变化时会触发 watch-run 事件</span></span><br><span class="line">compiler.plugin(<span class="string">'watch-run'</span>, (watching, callback) =&gt; &#123;</span><br><span class="line">	<span class="comment">// 获取发生变化的文件列表</span></span><br><span class="line">	<span class="keyword">const</span> changedFiles = watching.compiler.watchFileSystem.watcher.mtimes;</span><br><span class="line">	<span class="comment">// changedFiles 格式为键值对，键为发生变化的文件路径。</span></span><br><span class="line">	<span class="keyword">if</span> (changedFiles[filePath] !== <span class="literal">undefined</span>) &#123;</span><br><span class="line">	  <span class="comment">// filePath 对应的文件发生了变化</span></span><br><span class="line">	&#125;</span><br><span class="line">	callback();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>默认情况下 Webpack 只会监视入口和其依赖的模块是否发生变化，在有些情况下项目可能需要引入新的文件，例如引入一个 HTML 文件。<br>由于 JavaScript 文件不会去导入 HTML 文件，Webpack 就不会监听 HTML 文件的变化，编辑 HTML 文件时就不会重新触发新的 Compilation。<br>为了监听 HTML 文件的变化，我们需要把 HTML 文件加入到依赖列表中，为此可以使用如下代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">compiler.plugin(<span class="string">'after-compile'</span>, (compilation, callback) =&gt; &#123;</span><br><span class="line">  <span class="comment">// 把 HTML 文件添加到文件依赖列表，好让 Webpack 去监听 HTML 模块文件，在 HTML 模版文件发生变化时重新启动一次编译</span></span><br><span class="line">	compilation.fileDependencies.push(filePath);</span><br><span class="line">	callback();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<h3 id="修改输出资源"><a href="#修改输出资源" class="headerlink" title="修改输出资源"></a>修改输出资源</h3><p>有些场景下插件需要修改、增加、删除输出的资源，要做到这点需要监听 <code>emit</code> 事件，因为发生 <code>emit</code> 事件时所有模块的转换和代码块对应的文件已经生成好，<br>需要输出的资源即将输出，因此 <code>emit</code> 事件是修改 Webpack 输出资源的最后时机。</p>
+<p>所有需要输出的资源会存放在 <code>compilation.assets</code> 中，<code>compilation.assets</code> 是一个键值对，键为需要输出的文件名称，值为文件对应的内容。</p>
+<p>设置 <code>compilation.assets</code> 的代码如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">compiler.plugin(<span class="string">'emit'</span>, (compilation, callback) =&gt; &#123;</span><br><span class="line">  <span class="comment">// 设置名称为 fileName 的输出资源</span></span><br><span class="line">  compilation.assets[fileName] = &#123;</span><br><span class="line">    <span class="comment">// 返回文件内容</span></span><br><span class="line">    source: <span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="comment">// fileContent 既可以是代表文本文件的字符串，也可以是代表二进制文件的 Buffer</span></span><br><span class="line">      <span class="keyword">return</span> fileContent;</span><br><span class="line">  	&#125;,</span><br><span class="line">    <span class="comment">// 返回文件大小</span></span><br><span class="line">  	size: <span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Buffer.byteLength(fileContent, <span class="string">'utf8'</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">  callback();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>读取 <code>compilation.assets</code> 的代码如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">compiler.plugin(<span class="string">'emit'</span>, (compilation, callback) =&gt; &#123;</span><br><span class="line">  <span class="comment">// 读取名称为 fileName 的输出资源</span></span><br><span class="line">  <span class="keyword">const</span> asset = compilation.assets[fileName];</span><br><span class="line">  <span class="comment">// 获取输出资源的内容</span></span><br><span class="line">  asset.source();</span><br><span class="line">  <span class="comment">// 获取输出资源的文件大小</span></span><br><span class="line">  asset.size();</span><br><span class="line">  callback();</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
+<h3 id="判断-Webpack-使用了哪些插件"><a href="#判断-Webpack-使用了哪些插件" class="headerlink" title="判断 Webpack 使用了哪些插件"></a>判断 Webpack 使用了哪些插件</h3><p>在开发一个插件时可能需要根据当前配置是否使用了其它某个插件而做下一步决定，因此需要读取 Webpack 当前的插件配置情况。<br>以判断当前是否使用了 ExtractTextPlugin 为例，可以使用如下代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 判断当前配置使用使用了 ExtractTextPlugin，</span></span><br><span class="line"><span class="comment">// compiler 参数即为 Webpack 在 apply(compiler) 中传入的参数</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">hasExtractTextPlugin</span>(<span class="params">compiler</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 当前配置所有使用的插件列表</span></span><br><span class="line">  <span class="keyword">const</span> plugins = compiler.options.plugins;</span><br><span class="line">  <span class="comment">// 去 plugins 中寻找有没有 ExtractTextPlugin 的实例</span></span><br><span class="line">  <span class="keyword">return</span> plugins.find(<span class="function"><span class="params">plugin</span>=&gt;</span>plugin.__proto__.constructor === ExtractTextPlugin) != <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="实战"><a href="#实战" class="headerlink" title="实战"></a>实战</h2><p>下面我们举一个实际的例子，带你一步步去实现一个插件。</p>
+<p>该插件的名称取名叫 EndWebpackPlugin，作用是在 Webpack 即将退出时再附加一些额外的操作，例如在 Webpack 成功编译和输出了文件后执行发布操作把输出的文件上传到服务器。<br>同时该插件还能区分 Webpack 构建是否执行成功。使用该插件时方法如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">module</span>.exports = &#123;</span><br><span class="line">  plugins:[</span><br><span class="line">    <span class="comment">// 在初始化 EndWebpackPlugin 时传入了两个参数，分别是在成功时的回调函数和失败时的回调函数；</span></span><br><span class="line">    <span class="keyword">new</span> EndWebpackPlugin(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="comment">// Webpack 构建成功，并且文件输出了后会执行到这里，在这里可以做发布文件操作</span></span><br><span class="line">    &#125;, (err) =&gt; &#123;</span><br><span class="line">      <span class="comment">// Webpack 构建失败，err 是导致错误的原因</span></span><br><span class="line">      <span class="built_in">console</span>.error(err);        </span><br><span class="line">    &#125;)</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>要实现该插件，需要借助两个事件：</p>
+<ul>
+<li><strong>done</strong>：在成功构建并且输出了文件后，Webpack 即将退出时发生；</li>
+<li><strong>failed</strong>：在构建出现异常导致构建失败，Webpack 即将退出时发生；</li>
+</ul>
+<p>实现该插件非常简单，完整代码如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">EndWebpackPlugin</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">constructor</span>(doneCallback, failCallback) &#123;</span><br><span class="line">    <span class="comment">// 存下在构造函数中传入的回调函数</span></span><br><span class="line">    <span class="keyword">this</span>.doneCallback = doneCallback;</span><br><span class="line">    <span class="keyword">this</span>.failCallback = failCallback;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  apply(compiler) &#123;</span><br><span class="line">    compiler.plugin(<span class="string">'done'</span>, (stats) =&gt; &#123;</span><br><span class="line">        <span class="comment">// 在 done 事件中回调 doneCallback</span></span><br><span class="line">        <span class="keyword">this</span>.doneCallback(stats);</span><br><span class="line">    &#125;);</span><br><span class="line">    compiler.plugin(<span class="string">'failed'</span>, (err) =&gt; &#123;</span><br><span class="line">        <span class="comment">// 在 failed 事件中回调 failCallback</span></span><br><span class="line">        <span class="keyword">this</span>.failCallback(err);</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 导出插件 </span></span><br><span class="line"><span class="built_in">module</span>.exports = EndWebpackPlugin;</span><br></pre></td></tr></table></figure>
+<p>从开发这个插件可以看出，找到合适的事件点去完成功能在开发插件时显得尤为重要。</p>
+<h2 id="输出打包文件列表"><a href="#输出打包文件列表" class="headerlink" title="输出打包文件列表"></a>输出打包文件列表</h2><p><img src="/2019/02/26/写一个webpack内联代码插件/3.jpg" alt=""><br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> gzipSize = <span class="built_in">require</span>(<span class="string">'gzip-size'</span>);</span><br><span class="line"><span class="keyword">const</span> filesize = <span class="built_in">require</span>(<span class="string">'filesize'</span>);</span><br><span class="line"><span class="keyword">const</span> herb = <span class="built_in">require</span>(<span class="string">'herb'</span>);   <span class="comment">//表格输出</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = <span class="class"><span class="keyword">class</span> <span class="title">TablePlugin</span> </span>&#123;</span><br><span class="line">  <span class="keyword">constructor</span>(</span><br><span class="line">    options = &#123;</span><br><span class="line">      errorSize: <span class="number">1024</span> * <span class="number">1024</span> * <span class="number">500</span></span><br><span class="line">    &#125;</span><br><span class="line">  ) &#123;</span><br><span class="line">    <span class="keyword">this</span>.options = options;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  apply(compiler) &#123;</span><br><span class="line">    <span class="keyword">const</span> errorSize = <span class="keyword">this</span>.options.errorSize;</span><br><span class="line">    <span class="keyword">const</span> beforeMsg = <span class="keyword">this</span>.options.beforeMsg;</span><br><span class="line">    <span class="keyword">const</span> afterMsg = <span class="keyword">this</span>.options.afterMsg;</span><br><span class="line">    compiler.hooks.done.tapPromise(<span class="string">'table-plugin'</span>, <span class="keyword">async</span> (stats) =&gt; &#123;</span><br><span class="line">      <span class="keyword">if</span> (stats.hasErrors()) <span class="keyword">return</span>;</span><br><span class="line">      <span class="keyword">const</span> assets = stats.compilation.assets;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">const</span> gzipedSizes = <span class="keyword">await</span> <span class="built_in">Promise</span>.all(</span><br><span class="line">        <span class="built_in">Object</span>.keys(assets).map(<span class="keyword">async</span> (name) =&gt; &#123;</span><br><span class="line">        	<span class="built_in">console</span>.log(<span class="string">'--------------------------'</span>)</span><br><span class="line">          <span class="built_in">console</span>.log(name)</span><br><span class="line">          <span class="keyword">const</span> size = <span class="keyword">await</span> gzipSize(assets[name].source());</span><br><span class="line">          <span class="keyword">return</span> size;</span><br><span class="line">        &#125;)</span><br><span class="line">      );</span><br><span class="line">      <span class="keyword">const</span> headers = [<span class="string">'asset'</span>, <span class="string">'size'</span>, <span class="string">'gziped'</span>];</span><br><span class="line">      <span class="keyword">const</span> rows = <span class="built_in">Object</span>.keys(assets).map(<span class="function">(<span class="params">name, i</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> row = [name, filesize(assets[name].size()), filesize(gzipedSizes[i])];</span><br><span class="line">        <span class="keyword">if</span> (assets[name].size() &gt;= errorSize) &#123;</span><br><span class="line">          row = row.map(herb.red);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> row;</span><br><span class="line">      &#125;);</span><br><span class="line">      <span class="keyword">if</span> (beforeMsg) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(beforeMsg, <span class="string">'\n'</span>);</span><br><span class="line">      &#125;</span><br><span class="line">      herb.table(&#123;</span><br><span class="line">        headers,</span><br><span class="line">        rows,</span><br><span class="line">        borders: <span class="literal">false</span></span><br><span class="line">      &#125;);</span><br><span class="line">      <span class="keyword">if</span> (afterMsg) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'\n'</span>, afterMsg);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="built_in">Promise</span>.resolve();</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<hr>
+<h2 id="webpack原理"><a href="#webpack原理" class="headerlink" title="webpack原理"></a><a href="https://segmentfault.com/a/1190000015088834#articleHeader28" target="_blank" rel="noopener">webpack原理</a></h2><h2 id="webpack-loader和plugin编写"><a href="#webpack-loader和plugin编写" class="headerlink" title="webpack loader和plugin编写"></a><a href="https://juejin.im/post/5bbf190de51d450ea52fffd3#heading-1" target="_blank" rel="noopener">webpack loader和plugin编写</a></h2><h2 id="webpack-源码探索之插件机制"><a href="#webpack-源码探索之插件机制" class="headerlink" title="webpack 源码探索之插件机制"></a><a href="https://juejin.im/post/5a80e7fe6fb9a0633a70fe62" target="_blank" rel="noopener">webpack 源码探索之插件机制</a></h2>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/webpack/" rel="tag"># webpack</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/02/24/Puppeteer学习/" rel="next" title="Puppeteer学习">
+                <i class="fa fa-chevron-left"></i> Puppeteer学习
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">147</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">106</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#要求："><span class="nav-number">1.</span> <span class="nav-text">要求：</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#WebPackInlineSourcePlugin插件代码-webpack内联code插件"><span class="nav-number">1.1.</span> <span class="nav-text">WebPackInlineSourcePlugin插件代码               webpack内联code插件  </span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#走起"><span class="nav-number">1.2.</span> <span class="nav-text">走起</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#plugin和loader的区别是什么"><span class="nav-number">1.3.</span> <span class="nav-text">plugin和loader的区别是什么</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Webpack-Plugin原理"><span class="nav-number">2.</span> <span class="nav-text">Webpack Plugin原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Compiler-和-Compilation"><span class="nav-number">3.</span> <span class="nav-text">Compiler 和 Compilation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#事件流"><span class="nav-number">4.</span> <span class="nav-text">事件流</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#常用-API"><span class="nav-number">5.</span> <span class="nav-text">常用 API</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#读取输出资源、代码块、模块及其依赖"><span class="nav-number">5.1.</span> <span class="nav-text">读取输出资源、代码块、模块及其依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#监听文件变化"><span class="nav-number">5.2.</span> <span class="nav-text">监听文件变化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#修改输出资源"><span class="nav-number">5.3.</span> <span class="nav-text">修改输出资源</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#判断-Webpack-使用了哪些插件"><span class="nav-number">5.4.</span> <span class="nav-text">判断 Webpack 使用了哪些插件</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实战"><span class="nav-number">6.</span> <span class="nav-text">实战</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#输出打包文件列表"><span class="nav-number">7.</span> <span class="nav-text">输出打包文件列表</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#webpack原理"><span class="nav-number">8.</span> <span class="nav-text">webpack原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#webpack-loader和plugin编写"><span class="nav-number">9.</span> <span class="nav-text">webpack loader和plugin编写</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#webpack-源码探索之插件机制"><span class="nav-number">10.</span> <span class="nav-text">webpack 源码探索之插件机制</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
+<script type="text/javascript" src="/js/src/clicklove.js"></script>
+
