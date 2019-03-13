@@ -694,6 +694,237 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/01/01/浅谈-instanceof-和-typeof-的实现原理/" itemprop="url">浅谈 instanceof 和 typeof 的实现原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-01-01T13:17:32+08:00">
+                2018-01-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="typeof-实现原理"><a href="#typeof-实现原理" class="headerlink" title="typeof 实现原理"></a>typeof 实现原理</h3><p><code>typeof</code> 一般被用于判断一个变量的类型，我们可以利用 <code>typeof</code> 来判断<code>number</code>, <code>string</code>, <code>object</code>, <code>boolean</code>, <code>function</code>, <code>undefined</code>,<code>symbol</code> 这七种类型，这种判断能帮助我们搞定一些问题，比如在判断不是 object 类型的数据的时候，<code>typeof</code>能比较清楚的告诉我们具体是哪一类的类型。但是，很遗憾的一点是，<code>typeof</code> 在判断一个 object的数据的时候只能告诉我们这个数据是 object, 而不能细致的具体到是哪一种 object, 比如👉</p>
+<pre><code>let s =newString(&apos;abc&apos;);
+typeof s ===&apos;object&apos;// true
+s instanceofString// true
+</code></pre><p>要想判断一个数据具体是哪一种 object 的时候，我们需要利用 <code>instanceof</code> 这个操作符来判断，这个我们后面会说到。</p>
+<p>来谈谈关于 <code>typeof</code> 的原理吧，我们可以先想一个很有意思的问题，js 在底层是怎么存储数据的类型信息呢？或者说，一个 js 的变量，在它的底层实现中，它的类型信息是怎么实现的呢？</p>
+<p>其实，js 在底层存储变量的时候，会在变量的机器码的低位1-3位存储其类型信息👉<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">000：对象</span><br><span class="line"></span><br><span class="line">010：浮点数</span><br><span class="line"></span><br><span class="line">100：字符串</span><br><span class="line"></span><br><span class="line">110：布尔</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>1：整数</li>
+</ul>
+<p>but, 对于 <code>undefined</code> 和 <code>null</code> 来说，这两个值的信息存储是有点特殊的。</p>
+<p><code>null</code>：所有机器码均为0</p>
+<p><code>undefined</code>：用 −2^30 整数来表示</p>
+<p>所以，<code>typeof</code> 在判断 <code>null</code> 的时候就出现问题了，由于 <code>null</code> 的所有机器码均为0，因此直接被当做了对象来看待。</p>
+<p>然而用 <code>instanceof</code> 来判断的话👉</p>
+<pre><code>nullinstanceofnull// TypeError: Right-hand side of &apos;instanceof&apos; is not an object
+</code></pre><p><code>null</code> 直接被判断为不是 object，这也是 JavaScript 的历史遗留bug，可以参考typeof。</p>
+<p>因此在用 <code>typeof</code> 来判断变量类型的时候，我们需要注意，最好是用 <code>typeof</code> 来判断基本数据类型（包括<code>symbol</code>），避免对 null 的判断。</p>
+<p>还有一个不错的判断类型的方法，就是<strong><font color="#dd0000">Object.prototype.toString</font></strong>，我们可以利用这个方法来对一个变量的类型来进行比较准确的判断</p>
+<pre><code>Object.prototype.toString.call(1)// &quot;[object Number]&quot;
+Object.prototype.toString.call(&apos;hi&apos;)// &quot;[object String]&quot;
+Object.prototype.toString.call({a:&apos;hi&apos;})// &quot;[object Object]&quot;
+Object.prototype.toString.call([1,&apos;a&apos;])// &quot;[object Array]&quot;
+Object.prototype.toString.call(true)// &quot;[object Boolean]&quot;
+Object.prototype.toString.call(()=&gt;{})// &quot;[object Function]&quot;
+Object.prototype.toString.call(null)// &quot;[object Null]&quot;
+Object.prototype.toString.call(undefined)// &quot;[object Undefined]&quot;
+Object.prototype.toString.call(Symbol(1))// &quot;[object Symbol]&quot;
+</code></pre><h3 id="instanceof-操作符的实现原理"><a href="#instanceof-操作符的实现原理" class="headerlink" title="instanceof 操作符的实现原理"></a>instanceof 操作符的实现原理</h3><p>之前我们提到了 <code>instanceof</code> 来判断对象的具体类型，其实 <code>instanceof</code> 主要的作用就是判断一个实例是否属于某种类型</p>
+<pre><code>let person =function(){
+}
+let nicole =new person()
+nicole instanceof person // true
+</code></pre><p>当然，<code>instanceof</code> 也可以判断一个实例是否是其父类型或者祖先类型的实例。</p>
+<pre><code>let person =function(){
+}
+let programmer =function(){
+}
+programmer.prototype =new person()
+let nicole =new programmer()
+nicole instanceof person // true
+nicole instanceof programmer // true
+</code></pre><p>这是 <code>instanceof</code> 的用法，但是 <code>instanceof</code> 的原理是什么呢？根据 ECMAScript 语言规范，我梳理了一下大概的思路，然后整理了一段代码如下</p>
+<pre><code>function new_instance_of(leftVaule, rightVaule){
+    let rightProto = rightVaule.prototype;// 取右表达式的 prototype 值
+    leftVaule = leftVaule.__proto__;// 取左表达式的__proto__值
+    while(true){
+        if(leftVaule ===null){
+            returnfalse;    
+        }
+        if(leftVaule === rightProto){
+            returntrue;    
+        }
+        leftVaule = leftVaule.__proto__ 
+    }
+}
+</code></pre><p><font color="#dd0000">其实 <code>instanceof</code> 主要的实现原理就是只要右边变量的 <code>prototype</code> 在左边变量的原型链上即可。因此，<code>instanceof</code> 在查找的过程中会遍历左边变量的原型链，直到找到右边变量的 <code>prototype</code>，如果查找失败，则会返回 false，告诉我们左边变量并非是右边变量的实例。<br></font><br><br>看几个很有趣的例子</p>
+<pre><code>functionFoo(){
+}
+Object instanceof Object// true
+Function instanceof Function// true
+Function instanceof Object// true
+Foo instanceof Foo// false
+Foo instanceof Object// true
+Foo instanceof Function// true
+</code></pre><p>要想全部理解 <code>instanceof</code> 的原理，除了我们刚刚提到的实现原理，我们还需要知道 JavaScript 的原型继承原理。</p>
+<p>关于原型继承的原理，我简单用一张图来表示</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/meG6Vo0MevjCzDE6dwt2qtltaDsSluC9M8KmmeZsLSJnFTgdTtcCRToR3zWJFYicViaUlvyAGdfwEzADj8Jk8kzQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""><br>我们知道每个 JavaScript 对象均有一个隐式的 <code>__proto__</code> 原型属性，而显式的原型属性是 <code>prototype</code>，只有 <code>Object.prototype.__proto__</code> 属性在未修改的情况下为 null 值。根据图上的原理，我们来梳理上面提到的几个有趣的 <code>instanceof</code> 使用的例子。</p>
+<p><code>Object instanceof Object</code></p>
+<p>由图可知，Object 的 <code>prototype</code> 属性是 <code>Object.prototype</code>, 而由于 Object 本身是一个函数，由 Function 所创建，所以 <code>Object.__proto__</code> 的值是 <code>Function.prototype</code>，而 <code>Function.prototype</code> 的 <code>__proto__</code> 属性是 <code>Object.prototype</code>，所以我们可以判断出，<code>Object instanceof Object</code> 的结果是 true 。用代码简单的表示一下</p>
+<pre><code>leftValue =Object.__proto__ =Function.prototype;
+rightValue =Object.prototype;
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true
+</code></pre><p><code>Function instanceof Function</code> 和 <code>Function instanceof Object</code> 的运行过程与 <code>Object instanceof Object</code> 类似，故不再详说。</p>
+<p><code>Foo instanceof Foo</code></p>
+<p>Foo 函数的 <code>prototype</code> 属性是 <code>Foo.prototype</code>，而 Foo 的 <code>__proto__</code> 属性是 <code>Function.prototype</code>，由图可知，Foo 的原型链上并没有 <code>Foo.prototype</code> ，因此 <code>Foo instanceof Foo</code> 也就返回 false 。</p>
+<p>我们用代码简单的表示一下</p>
+<pre><code>leftValue =Foo, rightValue =Foo
+leftValue =Foo.__proto =Function.prototype
+rightValue =Foo.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue != rightValue
+leftValue =Object.prototype =null
+// 第三次判断
+leftValue ===null
+// 返回 false
+</code></pre><p><code>Foo instanceof Object</code></p>
+<pre><code>leftValue =Foo, rightValue =Object
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Object.prototype
+// 第一次判断
+leftValue != rightValue
+leftValue =Function.prototype.__proto__ =Object.prototype
+// 第二次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><p><code>Foo instanceof Function</code></p>
+<pre><code>leftValue =Foo, rightValue =Function
+leftValue =Foo.__proto__ =Function.prototype
+rightValue =Function.prototype
+// 第一次判断
+leftValue === rightValue
+// 返回 true 
+</code></pre><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简单来说，我们使用 <code>typeof</code> 来判断基本数据类型是 ok 的，不过需要注意当用 <code>typeof</code> 来判断 <code>null</code> 类型时的问题，如果想要判断一个对象的具体类型可以考虑用 <code>instanceof</code>，但是 <code>instanceof</code> 也可能判断不准确，比如一个数组，他可以被 <code>instanceof</code> 判断为 Object。所以我们要想比较准确的判断对象实例的类型时，可以采取 <code>Object.prototype.toString.call</code> 方法。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/01/01/跨域之由Request-Method-OPTIONS初窥CORS/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2848,186 +3079,6 @@ if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/16/实现一个回到顶部/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/11/16/实现一个回到顶部/" itemprop="url">实现一个回到顶部</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-16T20:12:29+08:00">
-                2017-11-16
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>在实际应用中，经常用到滚动到页面顶部或某个位置，一般简单用锚点处理或用js将<code>document.body.scrollTop</code>设置为0，结果是页面一闪而过滚到指定位置，不是特别友好。我们想要的效果是要有点缓冲效果。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$(&apos;html,body&apos;).animate(&#123;</span><br><span class="line">   scrollTop: 0</span><br><span class="line">&#125;, 700);</span><br></pre></td></tr></table></figure></p>
-<p>现代浏览器陆续意识到了这种需求，<code>scrollIntoView</code>意思是滚动到可视，css中提供了<code>scroll-behavior</code>属性，js有<code>Element.scrollIntoView()</code>方法。</p>
-<blockquote>
-<p>纯css实现tab切换</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;utf-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;纯css实现tab切换&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			* &#123;</span><br><span class="line">				margin: 0;</span><br><span class="line">				padding: 0;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab &#123;</span><br><span class="line">				width: 300px;</span><br><span class="line">				height: 150px;</span><br><span class="line">				margin-left: 30px;</span><br><span class="line">				margin-top: 30px;</span><br><span class="line">				border: 1px solid #eee;</span><br><span class="line">				position: relative;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			input[type=&apos;radio&apos;] &#123;</span><br><span class="line">				display: none;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab label &#123;</span><br><span class="line">				display: block;</span><br><span class="line">				cursor: pointer;</span><br><span class="line">				position: absolute;</span><br><span class="line">				width: 60px;</span><br><span class="line">				height: 30px;</span><br><span class="line">				line-height: 30px;</span><br><span class="line">				text-align: center;</span><br><span class="line">				border: 1px solid #eee;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.label-1 &#123;</span><br><span class="line">				left: 0;</span><br><span class="line">				top: 0;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.label-2 &#123;</span><br><span class="line">				left: 60px;</span><br><span class="line">				top: 0;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			input[type=&apos;radio&apos;]:checked~div[class^=&apos;mod&apos;] &#123;</span><br><span class="line">				display: block;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			input[type=&apos;radio&apos;]:checked~label &#123;</span><br><span class="line">				background: orange;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			[class^=&apos;mod&apos;] &#123;</span><br><span class="line">				position: absolute;</span><br><span class="line">				top: 40px;</span><br><span class="line">				left: 20px;</span><br><span class="line">				display: none;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div class=&quot;tab&quot;&gt;</span><br><span class="line">			&lt;div&gt;</span><br><span class="line">				&lt;input type=&quot;radio&quot; id=&quot;r-1&quot; name=&quot;tab&quot; checked&gt;</span><br><span class="line">				&lt;label for=&quot;r-1&quot; class=&quot;label-1&quot;&gt;第一张&lt;/label&gt;</span><br><span class="line">				&lt;div class=&quot;mod-1&quot;&gt;</span><br><span class="line">					&lt;ul&gt;</span><br><span class="line">						&lt;li&gt;275万购昌平邻铁三居&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;总价20万买一居&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;200万内购五环三居&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;北京首现零首付楼盘&lt;/li&gt;</span><br><span class="line">					&lt;/ul&gt;</span><br><span class="line">				&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div&gt;</span><br><span class="line">				&lt;input type=&quot;radio&quot; id=&quot;r-2&quot; name=&quot;tab&quot;&gt;</span><br><span class="line">				&lt;label for=&quot;r-2&quot; class=&quot;label-2&quot;&gt;第二张&lt;/label&gt;</span><br><span class="line">				&lt;div class=&quot;mod-2&quot;&gt;</span><br><span class="line">					&lt;ul&gt;</span><br><span class="line">						&lt;li&gt;新中式的酷色温情&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;深圳房价大跌,每平8W&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;800万买沙井三房&lt;/li&gt;</span><br><span class="line">						&lt;li&gt;宝安房价平均900W&lt;/li&gt;</span><br><span class="line">					&lt;/ul&gt;</span><br><span class="line">				&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>纯css实现tab切换2</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;utf-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;cssTab切换2&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			* &#123;</span><br><span class="line">				margin: 0;</span><br><span class="line">				padding: 0;</span><br><span class="line">				text-decoration: none;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab &#123;</span><br><span class="line">				width: 300px;</span><br><span class="line">				height: 300px;</span><br><span class="line">				margin: 30px auto;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.nav &#123;</span><br><span class="line">				height: 30px</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.content &#123;</span><br><span class="line">				height: 270px;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.cont &#123;</span><br><span class="line">				height: 270px;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			#the1 &#123;</span><br><span class="line">				background: green;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			#the2 &#123;</span><br><span class="line">				background: blue;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div class=&quot;tab&quot;&gt;</span><br><span class="line">			&lt;div class=&quot;nav&quot;&gt;</span><br><span class="line">				&lt;a href=&quot;#the1&quot;&gt;ONE&lt;/a&gt;</span><br><span class="line">				&lt;a href=&quot;#the2&quot;&gt;TWO&lt;/a&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;content&quot;&gt;</span><br><span class="line">				&lt;div id=&quot;the1&quot; class=&quot;cont&quot;&gt;第一张&lt;/div&gt;</span><br><span class="line">				&lt;div id=&quot;the2&quot; class=&quot;cont&quot;&gt;第二张&lt;/div&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<h1 id="scroll-behavior"><a href="#scroll-behavior" class="headerlink" title="scroll-behavior"></a>scroll-behavior</h1><p><code>scroll-behavior</code>属性可取值 <code>auto</code> | <code>smooth</code> | <code>inherit</code> | <code>unset</code></p>
-<p><code>scroll-behavior: smooth;</code>是我们想要的缓冲效果。在PC浏览器中，页面默认滚动是在<code>&lt;html&gt;</code>标签上，移动端大多数在<code>&lt;body&gt;</code>标签上，在我们想要实现平滑“回到顶部”，只需在这两个标签上都加上：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">html, body &#123;</span><br><span class="line">  scroll-behavior: smooth;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>准确的说，写在容器元素上，可以让容器（非鼠标手势触发）的滚动变得平滑，而不局限于<code>&lt;html&gt;</code>，<code>&lt;body&gt;</code>标签。</p>
-<p>利用这个css属性可以一步将原来纯css标签直接切换，变成平滑过渡切换效果。</p>
-<blockquote>
-<p>纯css实现tab切换3</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			html,</span><br><span class="line">			body &#123;</span><br><span class="line">				scroll-behavior: smooth;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab label &#123;</span><br><span class="line">				padding: 10px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				margin-right: -1px;</span><br><span class="line">				text-align: center;</span><br><span class="line">				float: left;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.tab::after &#123;</span><br><span class="line">				content: &quot;&quot;;</span><br><span class="line">				display: table;</span><br><span class="line">				clear: both;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.box &#123;</span><br><span class="line">				height: 200px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				scroll-behavior: smooth;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">				margin-top: 10px;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.item &#123;</span><br><span class="line">				height: 100%;</span><br><span class="line">				position: relative;</span><br><span class="line">				overflow: hidden;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.item input &#123;</span><br><span class="line">				position: absolute;</span><br><span class="line">				top: 0;</span><br><span class="line">				height: 100%;</span><br><span class="line">				width: 1px;</span><br><span class="line">				border: 0;</span><br><span class="line">				padding: 0;</span><br><span class="line">				margin: 0;</span><br><span class="line">				clip: rect(0 0 0 0);</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;h1&gt;纯CSS选项卡&lt;/h1&gt;</span><br><span class="line">		&lt;div class=&quot;tab&quot;&gt;</span><br><span class="line">			&lt;label for=&quot;tab1&quot;&gt;选项卡1&lt;/label&gt;</span><br><span class="line">			&lt;label for=&quot;tab2&quot;&gt;选项卡2&lt;/label&gt;</span><br><span class="line">			&lt;label for=&quot;tab3&quot;&gt;选项卡3&lt;/label&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">		&lt;div class=&quot;box&quot;&gt;</span><br><span class="line">			&lt;div class=&quot;item&quot;&gt;</span><br><span class="line">				&lt;input type=&quot;text&quot; id=&quot;tab1&quot;&gt;</span><br><span class="line">				&lt;p&gt;选项卡1内容&lt;/p&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;item&quot;&gt;</span><br><span class="line">				&lt;input type=&quot;text&quot; id=&quot;tab2&quot;&gt;</span><br><span class="line">				&lt;p&gt;选项卡2内容&lt;/p&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">			&lt;div class=&quot;item&quot;&gt;</span><br><span class="line">				&lt;input type=&quot;text&quot; id=&quot;tab3&quot;&gt;</span><br><span class="line">				&lt;p&gt;选项卡3内容&lt;/p&gt;</span><br><span class="line">			&lt;/div&gt;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-<p><img src="/2017/11/16/实现一个回到顶部/1.gif" alt="css-tab"></p>
-<p>再来看一下这个css属性<a href="https://www.caniuse.com/#search=scroll-behavior" target="_blank" rel="noopener">scroll-behavior</a>在各大浏览器中的支持情况</p>
-<p><img src="/2017/11/16/实现一个回到顶部/2.png" alt="scroll-behavior-compatibility"></p>
-<p>呃~支持度不是很好，这样一行css代码能应用上当然是最好的，不行就退化成一闪而过的效果咯。下面再看下js提供的api。</p>
-<h1 id="Element-scrollIntoView"><a href="#Element-scrollIntoView" class="headerlink" title="Element.scrollIntoView()"></a>Element.scrollIntoView()</h1><p><code>Element.scrollIntoView()</code> 方法让当前的元素滚动到浏览器窗口的可视区域内。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">element.scrollIntoView();    // 等同于element.scrollIntoView(true)</span><br><span class="line">element.scrollIntoView(alignToTop);      // Boolean型参数</span><br><span class="line">element.scrollIntoView(scrollIntoViewOptions);     // Object型参数</span><br></pre></td></tr></table></figure></p>
-<blockquote>
-<p>一个很实用的用法【解决键盘弹出后挡表单的问题】</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">// 解决键盘弹出后挡表单的问题</span><br><span class="line">    window.addEventListener(&apos;resize&apos;, function() &#123;</span><br><span class="line">      if(</span><br><span class="line">        document.activeElement.tagName === &apos;INPUT&apos; ||</span><br><span class="line">        document.activeElement.tagName === &apos;TEXTAREA&apos;</span><br><span class="line">      ) &#123;</span><br><span class="line">        window.setTimeout(function() &#123;</span><br><span class="line">          if(&apos;scrollIntoView&apos; in document.activeElement) &#123;</span><br><span class="line">            document.activeElement.scrollIntoView();</span><br><span class="line">          &#125; else &#123;</span><br><span class="line">            document.activeElement.scrollIntoViewIfNeeded();</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;, 0);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure>
-<h2 id="参数alignToTop"><a href="#参数alignToTop" class="headerlink" title="参数alignToTop"></a>参数alignToTop</h2><p>一个<code>Boolean</code>值：</p>
-<ul>
-<li>如果为<code>true</code>，元素的顶端将和其所在滚动区的可视区域的顶端对齐。相应的<code>scrollIntoViewOptions: {block: &quot;start&quot;, inline: &quot;nearest&quot;}</code>。这是这个参数的默认值。</li>
-<li>如果为<code>false</code>，元素的底端将和其所在滚动区的可视区域的底端对齐。相应的<code>scrollIntoViewOptions: {block: &quot;end&quot;, inline: &quot;nearest&quot;}</code>。</li>
-</ul>
-<h2 id="参数scrollIntoViewOptions"><a href="#参数scrollIntoViewOptions" class="headerlink" title="参数scrollIntoViewOptions"></a>参数scrollIntoViewOptions</h2><p>一个带有选项的 <code>object</code>：</p>
-<pre><code>{
-  behavior: &quot;auto&quot;  | &quot;instant&quot; | &quot;smooth&quot;,
-  block:    &quot;start&quot; | &quot;end&quot;,
-}
-</code></pre><ul>
-<li><code>behavior</code> 可选<br>定义缓动动画， “auto”, “instant”, 或 “smooth” 之一。默认为 “auto”。</li>
-<li><code>block</code> 可选<br><code>&quot;start&quot;</code>, <code>&quot;center&quot;</code>, <code>&quot;end&quot;</code>, 或 <code>&quot;nearest&quot;</code>之一。默认为 <code>&quot;center&quot;</code>。</li>
-<li><code>inline</code> 可选<br><code>&quot;start&quot;</code>, <code>&quot;center&quot;</code>, <code>&quot;end&quot;</code>, 或 <code>&quot;nearest&quot;</code>之一。默认为 <code>&quot;nearest&quot;</code>。</li>
-</ul>
-<p>浏览器支持</p>
-<p><img src="/2017/11/16/实现一个回到顶部/3.png" alt=""></p>
-<p>可以看到对于无参数的情况支持还是很好的，有参数的该API在浏览器中支持不是很好，我们可以同时结合CSS设置<code>scroll-behavior: smooth;</code>滚动效果，在执行滚动使用<code>target.scrollIntoView()</code>，即可达到“完美滚动”（不太完美）效果。</p>
-<h1 id="向下兼容"><a href="#向下兼容" class="headerlink" title="向下兼容"></a>向下兼容</h1><p>要达到所有浏览器都有相同（类似）效果，那就要把剩余不支持<code>scroll-behavior</code>属性的浏览器揪出来，用js去完成使命了。</p>
-<h2 id="判断是否支持scroll-behavior属性"><a href="#判断是否支持scroll-behavior属性" class="headerlink" title="判断是否支持scroll-behavior属性"></a>判断是否支持<code>scroll-behavior</code>属性</h2><p>很简单，用以下这一行代码<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">if(typeofwindow.getComputedStyle(document.body).scrollBehavior === &apos;undefined&apos;) &#123;</span><br><span class="line">  // 兼容js代码</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  // 原生滚动api</span><br><span class="line">  // Element.scrollIntoView()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>判断是否支持<code>scroll-behavior</code>属性，直接利用原生<code>Element.scrollIntoView()</code>滚动，否则向下兼容处理。</p>
-<h2 id="缓冲算法"><a href="#缓冲算法" class="headerlink" title="缓冲算法"></a>缓冲算法</h2><p>缓冲的直观效果是越来越慢，直到停止，也就是在相同时间内运动的距离越来越短。这样可以设置一个定时器，移动到当前点到目标点距离的缓冲率（比如1/2，1/3，…）处，比如，缓冲率设为2，当前距离目标点64px，下一秒就是32px，然后16px，8px…，到达某个阈值结束，也就是：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">var position = position + (destination - position) / n;</span><br></pre></td></tr></table></figure></p>
-<p>下面来简单实现一个点击右下方的”回到顶部“按钮，页面缓动滚动到顶部的demo。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">			.content &#123;</span><br><span class="line">				height: 3000px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				box-shadow: 0 0 2px solid;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.back-to-top &#123;</span><br><span class="line">				width: 18px;</span><br><span class="line">				padding: 10px;</span><br><span class="line">				border: 1px solid #ccc;</span><br><span class="line">				box-shadow: 0 0 2px #333;</span><br><span class="line">				position: fixed;</span><br><span class="line">				right: 20px;</span><br><span class="line">				bottom: 40px;</span><br><span class="line">			&#125;</span><br><span class="line">			</span><br><span class="line">			.back-to-top:hover &#123;</span><br><span class="line">				cursor: pointer;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line"></span><br><span class="line">		&lt;div class=&quot;content&quot;&gt;</span><br><span class="line">			&lt;p&gt;很多内容。。。&lt;/p&gt;</span><br><span class="line">			...</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">		&lt;section class=&quot;back-to-top&quot;&gt;</span><br><span class="line">			回到顶部</span><br><span class="line">		&lt;/section&gt;</span><br><span class="line"></span><br><span class="line">		&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">			var scrollTopSmooth = function(position) &#123;</span><br><span class="line">				// 不存在原生`requestAnimationFrame`，用`setTimeout`模拟替代</span><br><span class="line">				if(!window.requestAnimationFrame) &#123;</span><br><span class="line">					window.requestAnimationFrame = function(cb) &#123;</span><br><span class="line">						return setTimeout(cb, 17);</span><br><span class="line">					&#125;;</span><br><span class="line">				&#125;</span><br><span class="line">				// 当前滚动高度</span><br><span class="line">				var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;</span><br><span class="line">				// step</span><br><span class="line">				var step = function() &#123;</span><br><span class="line">					var distance = position - scrollTop;</span><br><span class="line">					scrollTop = scrollTop + distance / 5;</span><br><span class="line">					if(Math.abs(distance) &lt; 1) &#123;</span><br><span class="line">						window.scrollTo(0, position);</span><br><span class="line">					&#125; else &#123;</span><br><span class="line">						window.scrollTo(0, scrollTop);</span><br><span class="line">						requestAnimationFrame(step);</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;;</span><br><span class="line">				step();</span><br><span class="line">			&#125;</span><br><span class="line">			$backToTop = document.querySelector(&apos;.back-to-top&apos;)</span><br><span class="line">			$backToTop.addEventListener(&apos;click&apos;, function() &#123;</span><br><span class="line">				scrollTopSmooth(0);</span><br><span class="line">			&#125;, false);</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2017/11/16/实现一个回到顶部/4.gif" alt=""></p>
-<h2 id="简单封装"><a href="#简单封装" class="headerlink" title="简单封装"></a>简单封装</h2><p>上面的小demo中，缓冲算法和当前滚动业务代码耦合在一起了，下面单独拆解出单独一个函数。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"> /**</span><br><span class="line"> * 缓冲函数</span><br><span class="line"> * @param &#123;Number&#125; position 当前滚动位置</span><br><span class="line"> * @param &#123;Number&#125; destination 目标位置</span><br><span class="line"> * @param &#123;Number&#125; rate 缓动率</span><br><span class="line"> * @param &#123;Function&#125; callback 缓动结束回调函数 两个参数分别是当前位置和是否结束</span><br><span class="line"> */</span><br><span class="line">var easeout = function (position, destination, rate, callback) &#123;</span><br><span class="line">   if (position === destination || typeof destination !== &apos;number&apos;) &#123;</span><br><span class="line">     returnfalse;</span><br><span class="line">   &#125;</span><br><span class="line">   destination = destination || 0;</span><br><span class="line">   rate = rate || 2;</span><br><span class="line"> </span><br><span class="line">   // 不存在原生`requestAnimationFrame`，用`setTimeout`模拟替代</span><br><span class="line">   if (!window.requestAnimationFrame) &#123;</span><br><span class="line">     window.requestAnimationFrame = function (fn) &#123;</span><br><span class="line">       return setTimeout(fn, 17);</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line"> </span><br><span class="line">   var step = function () &#123;</span><br><span class="line">     position = position + (destination - position) / rate;</span><br><span class="line">     if (Math.abs(destination - position) &lt; 1) &#123;</span><br><span class="line">       callback(destination, true);</span><br><span class="line">       return;</span><br><span class="line">     &#125;</span><br><span class="line">     callback(position, false);</span><br><span class="line">     requestAnimationFrame(step);</span><br><span class="line">   &#125;;</span><br><span class="line">   step();</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
-<p>拆分后，这个小缓冲算法就可以被重复调用啦，而且，适用于滚动到指定位置（不仅仅是到顶部）和缓冲率（控制滚动快慢），当前小demo调用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">var scrollTopSmooth = function (position) &#123;</span><br><span class="line">  // 当前滚动高度</span><br><span class="line">  var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;</span><br><span class="line">  easeout(scrollTop, position, 5, function (val) &#123;</span><br><span class="line">    window.scrollTo(0, val);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">$backToTop = document.querySelector(&apos;.back-to-top&apos;)</span><br><span class="line">$backToTop.addEventListener(&apos;click&apos;, function () &#123;</span><br><span class="line">  scrollTopSmooth(200);</span><br><span class="line">&#125;, false);</span><br></pre></td></tr></table></figure></p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>综合来看，简单实现一个完美滚动注意以下即可</p>
-<ol>
-<li><code>&lt;html&gt;</code>，<code>&lt;body&gt;</code>标签加上<code>scroll-behavior: smooth;</code>属性；</li>
-<li>判断当前浏览器是否支持<code>scrollBehavior</code>属性；</li>
-<li>如果支持直接用原生滚动api<code>Element.scrollIntoView()</code>；</li>
-<li>如果不支持则用js小缓冲算法兼容处理。</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line">/* 滚动条动画：</span><br><span class="line"> * 移动端:document.body.scrollTop</span><br><span class="line">   PC端：document.documentElement.scrollTop</span><br><span class="line">   </span><br><span class="line">   //使用:gotoTop(400,callBack)</span><br><span class="line">   gotoTop(durations,  callback = undefined) &#123;</span><br><span class="line">      const doc = document.documentElement</span><br><span class="line">      const scrollTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0)</span><br><span class="line">      for (var i = 60; i &gt;= 0; i--) &#123;</span><br><span class="line">        setTimeout((i =&gt; &#123;</span><br><span class="line">          return () =&gt; &#123;</span><br><span class="line">            doc.scrollTop = scrollTop * i / 60</span><br><span class="line">            if (i === 0 &amp;&amp; typeof callback === &apos;function&apos;) &#123;</span><br><span class="line">              callback()</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;)(i), durations * (1 - i / 60))</span><br><span class="line">      &#125;</span><br><span class="line">   &#125;</span><br><span class="line"> * */</span><br><span class="line"></span><br><span class="line">------------------------------------------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line">var requestAnimFrame = (function() &#123;</span><br><span class="line">	return window.requestAnimationFrame ||</span><br><span class="line">		window.webkitRequestAnimationFrame ||</span><br><span class="line">		window.mozRequestAnimationFrame ||</span><br><span class="line">		function(callback) &#123;</span><br><span class="line">			window.setTimeout(callback, 1000 / 60);</span><br><span class="line">		&#125;;</span><br><span class="line">&#125;)();</span><br><span class="line">var cancelAnimationFrame = (function() &#123;</span><br><span class="line">	return window.cancelAnimationFrame ||</span><br><span class="line">		window.webkitCancelAnimationFrame ||</span><br><span class="line">		window.mozCancelAnimationFrame ||</span><br><span class="line">		window.oCancelAnimationFrame ||</span><br><span class="line">		function(id) &#123;</span><br><span class="line">			window.clearTimeout(id)</span><br><span class="line">		&#125;</span><br><span class="line">&#125;)()</span><br><span class="line"></span><br><span class="line">// Tween中的方法接受4个参数t,b,c,d 。t为初始时间 b、c、d三个参数（即初始值，变化量，持续时间）。返回值为当前位置</span><br><span class="line">// t =&gt; time(初始记步次数)  b =&gt; begin(初始位置)   c =&gt; change(变化量)   d =&gt; duration(持续次数)</span><br><span class="line"></span><br><span class="line">var tween = &#123;</span><br><span class="line">	linear: function(t, b, c, d) &#123;</span><br><span class="line">		return c * t / d + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	easeIn: function(t, b, c, d) &#123;</span><br><span class="line">		return c * (t /= d) * t + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	strongEaseIn: function(t, b, c, d) &#123;</span><br><span class="line">		return c * (t /= d) * t * t * t * t + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	strongEaseOut: function(t, b, c, d) &#123;</span><br><span class="line">		return c * ((t = t / d - 1) * t * t * t * t + 1) + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	sineaseIn: function(t, b, c, d) &#123;</span><br><span class="line">		return c * (t /= d) * t * t + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	sineaseOut: function(t, b, c, d) &#123;</span><br><span class="line">		return c * ((t = t / d - 1) * t * t + 1) + b;</span><br><span class="line">	&#125;,</span><br><span class="line">	easeInOutQuad: function(t, b, c, d) &#123;</span><br><span class="line">		t /= d / 2;</span><br><span class="line">		if(t &lt; 1) return c / 2 * t * t + b;</span><br><span class="line">		t--;</span><br><span class="line">		return -c / 2 * (t * (t - 2) - 1) + b;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;;</span><br><span class="line">var myReq; </span><br><span class="line">//回到顶部元素元素，结束位置，耗时，回调，滚动函数</span><br><span class="line">export var animatedScrollTo = function(element, to, duration, callback, Bzr = &apos;linear&apos;) &#123;</span><br><span class="line">	var start = element.scrollTop,</span><br><span class="line">		change = to - start,</span><br><span class="line">		animationStart = +new Date();</span><br><span class="line">	var animating = true;</span><br><span class="line">	var lastpos = null;</span><br><span class="line"></span><br><span class="line">	var animateScroll = function() &#123;</span><br><span class="line">		if(!animating) &#123;</span><br><span class="line">			return;</span><br><span class="line">		&#125;</span><br><span class="line">		myReq=requestAnimFrame(animateScroll);</span><br><span class="line">		var now = +new Date();</span><br><span class="line">		var val = Math.floor(tween[Bzr](now - animationStart, start, change, duration));</span><br><span class="line"></span><br><span class="line">		if(lastpos) &#123;</span><br><span class="line">			if(lastpos === element.scrollTop) &#123;</span><br><span class="line">				lastpos = val;</span><br><span class="line">				element.scrollTop = val;</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				animating = false;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			lastpos = val;</span><br><span class="line">			element.scrollTop = val;</span><br><span class="line">		&#125;</span><br><span class="line">		if(now &gt; animationStart + duration) &#123;</span><br><span class="line">			element.scrollTop = to;</span><br><span class="line">			animating = false;</span><br><span class="line">			cancelAnimationFrame(myReq);   //清除定时器动画</span><br><span class="line">			callback&amp;&amp;callback();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;;</span><br><span class="line">	myReq=requestAnimFrame(animateScroll);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3080,7 +3131,7 @@ if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">147</span>
+                  <span class="site-state-item-count">148</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

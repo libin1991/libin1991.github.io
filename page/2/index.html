@@ -694,6 +694,154 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/06/一道赋值面试题引发的思考/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/01/06/一道赋值面试题引发的思考/" itemprop="url">一道赋值面试题引发的思考</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-06T17:53:16+08:00">
+                2019-01-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="开头先来做一道面试题"><a href="#开头先来做一道面试题" class="headerlink" title="开头先来做一道面试题"></a>开头先来做一道面试题</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> a=&#123;<span class="attr">n</span>:<span class="number">1</span>&#125;;</span><br><span class="line"><span class="keyword">var</span> b=a;</span><br><span class="line">a.x=a=&#123;<span class="attr">n</span>:<span class="number">2</span>&#125;;</span><br><span class="line"><span class="built_in">console</span>.log(a.x);</span><br><span class="line"><span class="built_in">console</span>.log(b.x);</span><br></pre></td></tr></table></figure>
+<p>最后输出的是什么？ 先不说答案，我们来分析一下</p>
+<p>(第二行) 我们把a赋值给b， 由于a是对象类型，这就意味着b和a指向同一个内存地址<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a.x = a = &#123; <span class="attr">n</span>: <span class="number">2</span>&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里我们有个疑惑，这句语句执行顺序是 <code>a = {n: 2} &amp;&amp; a.x = {n:2}</code> 还是 <code>a.x = {n:2} &amp;&amp; a= {n:2}</code> 还是这种 <code>a = {n: 2} &amp;&amp; a.x = a</code></p>
+<p>我们这里可以借助 <code>Object.defineProperty</code> 或 ES6的 <code>Proxy</code>来验证多项赋值的顺序是怎样的<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> obj = newProxy(&#123;&#125;, &#123;</span><br><span class="line">  set(target, key, value, r) &#123;</span><br><span class="line">	<span class="built_in">console</span>.log(key, value)</span><br><span class="line">	<span class="keyword">if</span> (key === <span class="string">'a'</span>) <span class="built_in">Reflect</span>.set(target, key, <span class="string">'isA'</span>, r);</span><br><span class="line">	<span class="keyword">else</span> <span class="built_in">Reflect</span>.set(target, key, value, r);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">obj.b = obj.a= &#123;<span class="attr">n</span>: <span class="number">1</span>&#125;;</span><br><span class="line"><span class="comment">// 输出:</span></span><br><span class="line"><span class="comment">// "a" &#123;n: 1&#125;</span></span><br><span class="line"><span class="comment">// "b" &#123;n: 1&#125;</span></span><br><span class="line"></span><br><span class="line">obj.a; <span class="comment">// isA</span></span><br><span class="line">obj.b; <span class="comment">// &#123;n: 1&#125;</span></span><br></pre></td></tr></table></figure></p>
+<p>所以我们可以得出 赋值的顺序是从右边开始到左边的。而且是直接 <code>a = {n: 1}, a.x = {n:1 }</code>，而不是 <code>a.x = a</code> 这样去赋值</p>
+<p>现在我们再借助 Proxy 来分析一开始part1这道题，用obj.a, obj.b 来代替原题目的 a和b。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> obj = newProxy(&#123;&#125;, &#123;</span><br><span class="line">  get: <span class="function"><span class="keyword">function</span> (<span class="params">target, key, receiver</span>) </span>&#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">`getting <span class="subst">$&#123;key&#125;</span>!`</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">Reflect</span>.get(target, key, receiver);</span><br><span class="line">  &#125;,</span><br><span class="line">  set: <span class="function"><span class="keyword">function</span> (<span class="params">target, key, value, receiver</span>) </span>&#123;</span><br><span class="line">	<span class="built_in">console</span>.log(<span class="string">`setting <span class="subst">$&#123;key&#125;</span>!`</span>);</span><br><span class="line">	<span class="keyword">return</span> <span class="built_in">Reflect</span>.set(target, key, value, receiver);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">obj.a = &#123;<span class="attr">n</span>: <span class="number">1</span> &#125;;<span class="comment">// getting a;</span></span><br><span class="line">obj.b = obj.a; <span class="comment">// getting a; setting b;</span></span><br><span class="line">obj.a.x = obj.a = &#123;<span class="attr">n</span>:<span class="number">2</span> &#125;; <span class="comment">// getting a; setting a;</span></span><br></pre></td></tr></table></figure></p>
+<p>可以看到 <code>obj.a.x = obj.a = {n: 2}</code>这段语句执行时，会先输出一个 <strong>getting a</strong> 再输出 <strong>setting a</strong>。<br>这就意味着在对 <code>obj.a.x</code> 赋值时，程序是先获取 <code>obj.a</code>指向的对象的内存地址，此时触发了 <strong>getting a</strong>，然后再对右边 <code>obj.a</code> 进行赋值，触发了 <strong>setting a</strong>， 赋值完最后一步才是对 <code>obj.a.x</code>赋值 <code>{n:2 }</code>。</p>
+<p><font color="#ff0000"> <strong> 重点: 在对obj.a.x赋值的时刻已经获取了obj.a该对象指向的内存地址【也就是obj.a.x在obj.a赋值前就已经确定了】，所以后面a就算指向其他地址，也和这里的obj.a.x无关。此时指向该地址的还有obj.b </strong> </font> <br> </p>
+<p>我们再用三张图来捋一捋整理的思路</p>
+<p>执行 <code>obj.a = {n: 1}; obj.b = obj.a</code>后obj对应的引用是这样的</p>
+<p><img src="/2019/01/06/一道赋值面试题引发的思考/init.png" alt=""></p>
+<p>执行 <code>obj.a.x = xxx</code> 时</p>
+<p><img src="/2019/01/06/一道赋值面试题引发的思考/obj.a.x.png" alt=""></p>
+<p>执行<code>obj.a.x = obj.a = {n:2}</code> 后</p>
+<p><img src="/2019/01/06/一道赋值面试题引发的思考/result.png" alt=""></p>
+<p>至此，这道面试题相信大家都有答案了，可以自己去控制台验证一下。 假如这时候再执行 <code>obj.a.n = 3</code>， 打印<code>obj.b</code>会输出什么呢？</p>
+<p><img src="/2019/01/06/一道赋值面试题引发的思考/1.png" alt=""></p>
+<h2 id="对象循环引用"><a href="#对象循环引用" class="headerlink" title="对象循环引用"></a>对象循环引用</h2><p>接下来我们来看另一道题，关于对象循环引用的<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> a = &#123; <span class="attr">n</span>: <span class="number">1</span>&#125;</span><br><span class="line">a.b = a;</span><br></pre></td></tr></table></figure></p>
+<p>这里的a明显是循环引用，那么我们要怎样才能判断一个对象是否是循环引用呢？<br><img src="/2019/01/06/一道赋值面试题引发的思考/2.png" alt=""></p>
+<p>其实这道题我一开始除了递归判断外没有很好的解决方案，后面是群里一个大佬说(这道题也是他出的)直接用 <code>JSON.stringify</code>，微信小游戏的源码里面就是这么去判断。</p>
+<p><code>JSON.stringify</code> 如果遇到参数里有循环引用的，就会抛出一个循环调用的错误 <strong>Uncaught TypeError: Converting circular structure to JSON</strong><br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Uncaught <span class="built_in">TypeError</span>: Converting circular structure to <span class="built_in">JSON</span></span><br><span class="line">    at <span class="built_in">JSON</span>.stringify (<span class="xml"><span class="tag">&lt;<span class="name">anonymous</span>&gt;</span>)</span></span><br><span class="line"><span class="xml">    at mainctrl.js:234</span></span><br><span class="line"><span class="xml">    at Object.getUser (api.js:247)</span></span><br><span class="line"><span class="xml">    at mainctrl.js:228</span></span><br></pre></td></tr></table></figure></p>
+<p>那如果不用JSON.stringify或者想要自己实现一个去检测循环调用，该怎么写呢？（面试官和部门前端leader最喜欢这么问）</p>
+<p>一般遇到这种，最简单的方法就是去找这个方法的 polyfill， <a href="https://github.com/bestiejs/json3" target="_blank" rel="noopener">json3</a>。我找的是 json3的 polyfill 里面大概是遍历对象存到stack数组，再在解析的时候去判断是否有循环引用的情况。 <a href="https://github.com/bestiejs/json3/blob/master/lib/json3.js#L482" target="_blank" rel="noopener">json3.js#L482</a></p>
+<p>照着他的思路大概写了一个，其实就是前面说到的简单递归判断</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> stack = [];</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fn</span>(<span class="params">obj</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">var</span> len;</span><br><span class="line">    <span class="keyword">for</span> (len = stack.length; len--;) &#123;</span><br><span class="line">        <span class="keyword">if</span> (stack[len] === obj) <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">"循环引用"</span>)     <span class="comment">//循环引用</span></span><br><span class="line">    &#125;</span><br><span class="line">    stack.push(obj);</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> k <span class="keyword">in</span> obj) &#123;</span><br><span class="line">        <span class="keyword">const</span> value = obj[k]</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">typeof</span> value === <span class="string">'object'</span>) fn(value);     <span class="comment">//递归判断</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/01/06/一道赋值面试题引发的思考/3.png" alt=""> </p>
+<h2 id="对象循环引用破解办法"><a href="#对象循环引用破解办法" class="headerlink" title="对象循环引用破解办法"></a>对象循环引用破解办法</h2><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Demo: Circular reference</span></span><br><span class="line"><span class="keyword">var</span> o = &#123;&#125;;</span><br><span class="line">o.o = o;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Note: cache should not be re-used by repeated calls to JSON.stringify.</span></span><br><span class="line"><span class="keyword">var</span> cache = [];</span><br><span class="line"><span class="built_in">JSON</span>.stringify(o, <span class="function"><span class="keyword">function</span>(<span class="params">key, value</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">typeof</span> value === <span class="string">'object'</span> &amp;&amp; value !== <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cache.indexOf(value) !== <span class="number">-1</span>) &#123;</span><br><span class="line">            <span class="comment">// Circular reference found, discard key</span></span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// Store value in our collection</span></span><br><span class="line">        cache.push(value);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> value;</span><br><span class="line">&#125;);</span><br><span class="line">cache = <span class="literal">null</span>;</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/01/06/一道赋值面试题引发的思考/4.png" alt=""> </p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/03/JS设计模式/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2316,191 +2464,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/24/二分查找-二分边界查找算法/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/11/24/二分查找-二分边界查找算法/" itemprop="url">二分查找,二分边界查找算法，indexOf方法模拟</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-24T21:39:13+08:00">
-                2018-11-24
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>二分查找作为程序员的一项基本技能，是面试官最常使用来考察程序员基本素质的算法之一，也是解决很多查找类题目的常用方法，它可以达到 <font color="#ff0000"><strong> O(log n) </strong></font>的时间复杂度。  </p>
-<p>一般而言，当一个题目出现以下特性时，你就应该立即联想到它可能需要使用二分查找：</p>
-<ol>
-<li>待查找的数组有序或者部分有序</li>
-<li>要求时间复杂度低于O(n)，或者直接要求时间复杂度为O(log n)</li>
-</ol>
-<p>二分查找有很多种变体，使用时需要注意查找条件，判断条件和左右边界的更新方式，三者配合不好就很容易出现死循环或者遗漏区域，本篇中我们将介绍常见的几种查找方式的模板代码，包括：</p>
-<ol>
-<li>标准的二分查找</li>
-<li>二分查找左边界</li>
-<li>二分查找右边界</li>
-</ol>
-<p>本文的内容来自于笔者个人的总结，事实上二分查找有很多种等价的写法，本文只是列出了笔者认为的最容易理解和记忆的方法。</p>
-<h2 id="标准二分查找"><a href="#标准二分查找" class="headerlink" title="标准二分查找"></a>标准二分查找</h2><p>首先给出标准二分查找的模板：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">function search(arr, target) &#123;</span><br><span class="line">	var left = 0;</span><br><span class="line">	var right = arr.length - 1;</span><br><span class="line">	while(left &lt;= right) &#123;</span><br><span class="line">		var mid = left + ((right - left) &gt;&gt; 1);</span><br><span class="line">		if(arr[mid] == target) &#123;</span><br><span class="line">			return mid;</span><br><span class="line">		&#125; else if(arr[mid] &gt; target) &#123;</span><br><span class="line">			right = mid - 1;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			left = mid + 1;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	return -1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var index=search([1, 2, 3, 4, 5,6], 5);</span><br><span class="line">console.log(index)</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>循环条件： <code>left &lt;= right</code></li>
-<li>中间位置计算： <code>mid = left + ((right -left) &gt;&gt; 1)</code></li>
-<li>左边界更新：<code>left = mid + 1</code></li>
-<li>右边界更新： <code>right = mid - 1</code></li>
-<li>返回值： <code>mid / -1</code></li>
-</ul>
-<p>这里有几点需要注意：</p>
-<ol>
-<li>我们的循环条件中包含了 <code>left == right</code>的情况，则我们必须在每次循环中改变 <code>left</code> 和 <code>right</code>的指向，以防止进入死循环</li>
-<li><p>循环终止的条件包括：</p>
-<ul>
-<li>找到了目标值</li>
-<li><code>left &gt; right</code> （这种情况发生于当left, mid, right指向同一个数时，这个数还不是目标值，则整个查找结束。）</li>
-</ul>
-</li>
-</ol>
-<p>3.<code>left + ((right -left) &gt;&gt; 1)</code> 其实和 <code>(left + right) / 2</code>是等价的，这样写的目的一个是为了防止 <code>(left + right)</code>出现溢出，一个是用右移操作替代除法提升性能。<br>4.<code>left + ((right -left) &gt;&gt; 1)</code> 对于目标区域长度为奇数而言，是处于正中间的，对于长度为偶数而言，是中间偏左的。因此左右边界相遇时，只会是以下两种情况：</p>
-<ul>
-<li><code>left/mid</code> , <code>right</code> (left, mid 指向同一个数，right指向它的下一个数)</li>
-<li><code>left/mid/right</code> （left, mid, right 指向同一个数）   </li>
-</ul>
-<p>即因为<code>mid</code>对于长度为偶数的区间总是偏左的，所以当区间长度小于等于2时，<code>mid</code> 总是和 <code>left</code>在同一侧。</p>
-<h2 id="二分查找左边界"><a href="#二分查找左边界" class="headerlink" title="二分查找左边界"></a>二分查找左边界</h2><p>既然要寻找左边界，搜索范围就需要从右边开始，不断往左边收缩，也就是说即使我们找到了<code>nums[mid] == target</code>, 这个<code>mid</code>的位置也不一定就是最左侧的那个边界，我们还是要向左侧查找，所以我们在<code>nums[mid]</code>偏大或<code>者nums[mid]</code>就等于目标值的时候，继续收缩右边界，算法模板如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">function search(arr, target) &#123;</span><br><span class="line">	var left = 0;</span><br><span class="line">	var right = arr.length - 1;</span><br><span class="line">	while(left &lt; right) &#123;</span><br><span class="line">		var mid = left + ((right - left) &gt;&gt; 1);</span><br><span class="line">		if(arr[mid] &lt; target) &#123;</span><br><span class="line">			left = mid + 1;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			right = mid;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	console.log(left,right,mid)</span><br><span class="line">	return arr[left] == target ? left : -1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var index = search([1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 6], 5);</span><br><span class="line">console.log(index)</span><br></pre></td></tr></table></figure>
-<ul>
-<li>循环条件： <code>left &lt; right</code></li>
-<li>中间位置计算： <code>mid = left + ((right -left) &gt;&gt; 1)</code></li>
-<li>左边界更新：<code>left = mid + 1</code></li>
-<li>右边界更新： <code>right = mid</code></li>
-<li>返回值： <code>nums[left] == target ? left : -1</code></li>
-</ul>
-<p>与标准的二分查找不同：</p>
-<p>首先，这里的右边界的更新是<code>right = mid</code>，因为我们需要在找到目标值后，继续向左寻找左边界。</p>
-<p>其次，这里的循环条件是<code>left &lt; right</code>。<br>因为在最后<code>left</code>与<code>right</code>相邻的时候，<code>mid</code>和<code>left</code>处于相同的位置(前面说过，<code>mid</code>偏左)，则下一步，无论怎样，<code>left</code>, <code>mid</code>, <code>right</code>都将指向同一个位置，如果此时循环的条件是<code>left &lt;= right</code>，则我们需要再进入一遍循环，此时，如果<code>nums[mid] &lt; target</code>还好说，循环正常终止；否则，我们会令<code>right = mid</code>，这样并没有改变<code>left</code>,<code>mid</code>,<code>right</code>的位置，将进入死循环。</p>
-<p>事实上，我们只需要遍历到<code>left</code>和<code>right</code>相邻的情况就行了，因为这一轮循环后，无论怎样，<code>left</code>,<code>mid</code>,<code>right</code>都会指向同一个位置，而如果这个位置的值等于目标值，则它就一定是最左侧的目标值；如果不等于目标值，则说明没有找到目标值，这也就是为什么返回值是<code>nums[left] == target ? left : -1</code>。</p>
-<h2 id="二分查找右边界"><a href="#二分查找右边界" class="headerlink" title="二分查找右边界"></a>二分查找右边界</h2><p>有了寻找左边界的分析之后，再来看寻找右边界就容易很多了，毕竟左右两种情况是对称的嘛，关于使用场景这里就不再赘述了，大家对称着理解就好。我们直接给出模板代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">function search(arr, target) &#123;</span><br><span class="line">	var left = 0;</span><br><span class="line">	var right = arr.length - 1;</span><br><span class="line">	while(left &lt; right) &#123;</span><br><span class="line">		var mid = left + ((right - left) &gt;&gt; 1) + 1;</span><br><span class="line">		if(arr[mid] &gt; target) &#123;</span><br><span class="line">			right = mid - 1;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			left = mid;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	console.log(left, right, mid)</span><br><span class="line">	return arr[right] == target ? right : -1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var index = search([1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 6], 5);</span><br><span class="line">console.log(index)</span><br></pre></td></tr></table></figure>
-<ul>
-<li>循环条件： <code>left &lt; right</code></li>
-<li>中间位置计算： <code>mid = left + ((right -left) &gt;&gt; 1) + 1</code></li>
-<li>左边界更新：<code>left = mid</code></li>
-<li>右边界更新： <code>right = mid - 1</code></li>
-<li>返回值： <code>nums[left] == target ? left : -1</code></li>
-</ul>
-<p>这里大部分和寻找左边界是对称着来写的，唯独有一点需要尤其注意——中间位置的计算变了，我们在末尾多加了1。这样，<strong>无论对于奇数还是偶数，这个中间的位置都是偏右的。</strong></p>
-<p>对于这个操作的理解，从对称的角度看，寻找左边界的时候，中间位置是偏左的，那寻找右边界的时候，中间位置就应该偏右呗，但是这显然不是根本原因。根本原因是，在最后<code>left</code>和<code>right</code>相邻时，如果<code>mid</code>偏左，则<code>left</code>, <code>mid</code>指向同一个位置，<code>right</code>指向它们的下一个位置，在<code>nums[left]</code>已经等于目标值的情况下，这三个位置的值都不会更新，从而进入了死循环。所以我们应该让<code>mid</code>偏右，这样<code>left</code>就能向右移动。这也就是为什么我们之前一直强调查找条件，判断条件和左右边界的更新方式三者之间需要配合使用。</p>
-<p>右边界的查找一般来说不会单独使用，如有需要，一般是需要同时查找左右边界。</p>
-<h2 id="二分查找左右边界"><a href="#二分查找左右边界" class="headerlink" title="二分查找左右边界"></a>二分查找左右边界</h2><p>前面我们介绍了左边界和右边界的查找，那么查找左右边界就容易很多了——只要分别查找左边界和右边界就行了。</p>
-<h2 id="二分查找极值"><a href="#二分查找极值" class="headerlink" title="二分查找极值"></a>二分查找极值</h2><p>二分查找还有一种有趣的变体是二分查找极值点，之前我们使用<code>nums[mid]</code>去比较的时候，常常是和给定的目标值<code>target</code>比，或者和左右边界比较，在二分查找极值点的应用中，我们是和相邻元素去比，以完成某种单调性的检测。</p>
-<h2 id="二分查找、二分边界查找算法的模板代码总结"><a href="#二分查找、二分边界查找算法的模板代码总结" class="headerlink" title="二分查找、二分边界查找算法的模板代码总结"></a><a href="https://segmentfault.com/a/1190000016825704" target="_blank" rel="noopener">二分查找、二分边界查找算法的模板代码总结</a></h2><h2 id="idnexOf模拟"><a href="#idnexOf模拟" class="headerlink" title="idnexOf模拟"></a>idnexOf模拟</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">var a=&apos;abcdefghijkl&apos;</span><br><span class="line">var b=&apos;ghi&apos;</span><br><span class="line">var aL=a.length;</span><br><span class="line">var bL=b.length;</span><br><span class="line"></span><br><span class="line">function indexOf(str,item)&#123;</span><br><span class="line">	for(var i=0;i&lt;=aL-bL;i++)&#123;</span><br><span class="line">		if(str.slice(i,bL+i)==item)&#123;</span><br><span class="line">			return i</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">console.log(indexOf(a,b))</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">var a = &apos;abcdefghijkl&apos;</span><br><span class="line">var b = &apos;ghi&apos;</span><br><span class="line"></span><br><span class="line">function indexOf(s,sub) &#123;</span><br><span class="line">	var sIndex=0,subIndex=0,sLength=s.length,subLength=sub.length;</span><br><span class="line">	while(sIndex &lt; sLength &amp;&amp; subIndex &lt; subLength) &#123;</span><br><span class="line">		if(s[sIndex] == sub[subIndex]) &#123;</span><br><span class="line">			subIndex++;</span><br><span class="line">			sIndex++;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			sIndex = sIndex - subIndex + 1;</span><br><span class="line">			subIndex = 0;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	var index = subIndex == subLength ? (subLength &gt; 1 ? sIndex - subLength : sIndex - 1) : -1;</span><br><span class="line">	return index;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">console.log(indexOf(a,b))</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">function idnexOf(a,b)&#123;</span><br><span class="line">	var reg=new RegExp(`$&#123;b&#125;`,&apos;gi&apos;);</span><br><span class="line">	var c=reg.exec(a);</span><br><span class="line">	console.log(c ? c.index : -1)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var a = &apos;abcdefghijkl&apos;</span><br><span class="line">var b = &apos;jkl&apos;</span><br><span class="line">idnexOf(a,b)</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2553,7 +2516,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">147</span>
+                  <span class="site-state-item-count">148</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
