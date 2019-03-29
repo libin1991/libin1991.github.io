@@ -694,6 +694,309 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/25/解密webpack-tree-starking/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/25/解密webpack-tree-starking/" itemprop="url">解密webpack tree-starking</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-25T19:42:07+08:00">
+                2018-10-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="Tree-Shaking-简介"><a href="#Tree-Shaking-简介" class="headerlink" title="Tree-Shaking 简介"></a>Tree-Shaking 简介</h2><p>最近看了一篇 <strong> <a href="https://juejin.im/post/5a5652d8f265da3e497ff3de" target="_blank" rel="noopener">你的Tree-Shaking并没什么卵用</a> </strong>吓得我赶紧好好研究Tree-Shaking。</p>
+<p><code>tree-sharking</code> 是 <code>Webpack 2</code> 后续版本的优化功能，顾名思义，就是将多余的代码给 “摇晃” 掉，在开发中我们经常使用一些第三方库，而这些第三方库只使用了这个库的一部门功能或代码，未使用的代码也要被打包进来，这样出口文件会非常大，<code>tree-sharking</code> 帮我们解决了这个问题，它可以将各个模块中没有使用的方法过滤掉，只对有效代码进行打包。</p>
+<p>Tree-Shaking在前端界由rollup首先提出并实现，后续webpack在2.x版本也借助于UglifyJS实现了。自那以后，在各类讨论优化打包的文章中，都能看到Tree-Shaking的身影。</p>
+<h4 id="Tree-Shaking的原理"><a href="#Tree-Shaking的原理" class="headerlink" title="Tree-Shaking的原理"></a>Tree-Shaking的原理</h4><p>这里我不多冗余阐述，直接贴百度外卖前端的一篇文章：<strong> <a href="https://juejin.im/post/5a4dc842518825698e7279a9" target="_blank" rel="noopener">Tree-Shaking性能优化实践 - 原理篇</a> </strong>。</p>
+<hr>
+<h3 id="AST-语法树分析"><a href="#AST-语法树分析" class="headerlink" title="AST 语法树分析"></a>AST 语法树分析</h3><blockquote>
+<p>AST 抽象语法树简介</p>
+</blockquote>
+<p>AST（Abstract Syntax Tree）是源代码的抽象语法结构树状表现形式，Webpack、ESLint、JSX、TypeScript 的编译和模块化规则之间的转化都是通过 AST 来实现对代码的检查、分析以及编译等操作。</p>
+<h3 id="JavaScript-语法的-AST-语法树"><a href="#JavaScript-语法的-AST-语法树" class="headerlink" title="JavaScript 语法的 AST 语法树"></a>JavaScript 语法的 AST 语法树</h3><blockquote>
+<p>JavaScript 中想要使用 AST 进行开发，要知道抽象成语法树之后的结构是什么，里面的字段名称都代表什么含义以及遍历的规则，<br>我们可以通过在线转换网站<strong><a href="http://esprima.org/demo/parse.html" target="_blank" rel="noopener">http://esprima.org/demo/parse.html</a></strong>将 JS 代码装换成 AST 语法树。</p>
+</blockquote>
+<p>通过在线编译工具，可以将 <code>function fn(a, b) {}</code>编译为下面的结构。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;type&quot;: &quot;Program&quot;,</span><br><span class="line">    &quot;body&quot;: [</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;type&quot;: &quot;FunctionDeclaration&quot;,</span><br><span class="line">            &quot;id&quot;: &#123;</span><br><span class="line">                &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                &quot;name&quot;: &quot;fn&quot;</span><br><span class="line">            &#125;,</span><br><span class="line">            &quot;params&quot;: [</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                    &quot;name&quot;: &quot;a&quot;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                    &quot;name&quot;: &quot;b&quot;</span><br><span class="line">                &#125;</span><br><span class="line">            ],</span><br><span class="line">            &quot;body&quot;: &#123;</span><br><span class="line">                &quot;type&quot;: &quot;BlockStatement&quot;,</span><br><span class="line">                &quot;body&quot;: []</span><br><span class="line">            &#125;,</span><br><span class="line">            &quot;generator&quot;: false,</span><br><span class="line">            &quot;expression&quot;: false,</span><br><span class="line">            &quot;async&quot;: false</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;sourceType&quot;: &quot;script&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>将 JavaScript 语法编译成抽象语法树后，需要对它进行遍历、修该并重新编译，遍历树结构的过程为 “先序深度优先”。</p>
+</blockquote>
+<h2 id="esprima、estraverse-和-escodegen"><a href="#esprima、estraverse-和-escodegen" class="headerlink" title="esprima、estraverse 和 escodegen"></a>esprima、estraverse 和 escodegen</h2><p><code>esprima</code>、<code>estraverse</code> 和 <code>escodegen</code> 模块是操作 AST 的三个重要模块，也是实现 <code>babel</code> 的核心依赖，下面是分别介绍三个模块的作用。</p>
+<h3 id="1、esprima-将-JS-转换成-AST"><a href="#1、esprima-将-JS-转换成-AST" class="headerlink" title="1、esprima 将 JS 转换成 AST"></a>1、esprima 将 JS 转换成 AST</h3><p><strong>esprima 模块的用法如下：</strong></p>
+<blockquote>
+<p>文件：esprima-test.js</p>
+</blockquote>
+<pre><code>const esprima = require(&quot;esprima&quot;);
+
+let code = &quot;function fn() {}&quot;;
+
+// 生成语法树
+let tree = esprima.parseScript(code);
+
+console.log(tree);
+
+// Script {
+//   type: &apos;Program&apos;,
+//   body:
+//    [ FunctionDeclaration {
+//        type: &apos;FunctionDeclaration&apos;,
+//        id: [Identifier],
+//        params: [],
+//        body: [BlockStatement],
+//        generator: false,
+//        expression: false,
+//        async: false } ],
+//   sourceType: &apos;script&apos; }
+</code></pre><p>通过上面的案例可以看出，通过 <code>esprima</code> 模块的 <code>parseScript</code> 方法将 JS 代码块转换成语法树，代码块需要转换成字符串，也可以通过 <code>parseModule</code> 方法转换一个模块。</p>
+<h3 id="2、estraverse-遍历和修改-AST"><a href="#2、estraverse-遍历和修改-AST" class="headerlink" title="2、estraverse 遍历和修改 AST"></a>2、estraverse 遍历和修改 AST</h3><p><strong>查看遍历过程：</strong></p>
+<blockquote>
+<p>文件：estraverse-test.js</p>
+</blockquote>
+<pre><code>const esprima = require(&quot;esprima&quot;);
+const estraverse = require(&quot;estraverse&quot;);
+
+let code = &quot;function fn() {}&quot;;
+
+// 遍历语法树
+estraverse.traverse(esprima.parseScript(code), {
+    enter(node) {
+console.log(&quot;enter&quot;, node.type);
+    },
+    leave() {
+console.log(&quot;leave&quot;, node.type);
+    }
+});
+
+// enter Program
+// enter FunctionDeclaration
+// enter Identifier
+// leave Identifier
+// enter BlockStatement
+// leave BlockStatement
+// leave FunctionDeclaration
+// leave Program
+</code></pre><p>上面代码通过 <code>estraverse</code> 模块的 <code>traverse</code> 方法将 <code>esprima</code> 模块转换的 AST 进行了遍历，并打印了所有的 <code>type</code> 属性并打印，每含有一个 <code>type</code> 属性的对象被叫做一个节点，修改是获取对应的类型并修改该节点中的属性即可。</p>
+<p>其实深度遍历 AST 就是在遍历每一层的 <code>type</code> 属性，所以遍历会分为两个阶段，进入阶段和离开阶段，在 <code>estraverse</code> 的 <code>traverse</code> 方法中分别用参数指定的 <code>entry</code> 和 <code>leave</code> 两个函数监听，但是我们一般只使用 <code>entry</code>。</p>
+<h3 id="3、escodegen-将-AST-转换成-JS"><a href="#3、escodegen-将-AST-转换成-JS" class="headerlink" title="3、escodegen 将 AST 转换成 JS"></a>3、escodegen 将 AST 转换成 JS</h3><p>下面的案例是一个段 JS 代码块被转换成 AST，并将遍历、修改后的 AST 重新转换成 JS 的全过程。</p>
+<blockquote>
+<p>文件：escodegen-test.js</p>
+</blockquote>
+<pre><code>const esprima = require(&quot;esprima&quot;);
+const estraverse = require(&quot;estraverse&quot;);
+const escodegen = require(&quot;escodegen&quot;);
+
+let code = &quot;function fn() {}&quot;;
+
+// 生成语法树
+let tree = esprima.parseScript(code);
+
+// 遍历语法树
+estraverse.traverse(tree, {
+    enter(node) {
+// 修改函数名
+if (node.type === &quot;FunctionDeclaration&quot;) {
+            node.id.name = &quot;ast&quot;;
+        }
+    }
+});
+
+// 编译语法树
+let result = escodegen.generate(tree);
+
+console.log(result);
+
+// function ast() {
+// }
+</code></pre><p><strong><em>在遍历 AST 的过程中 <code>params</code> 值为数组，没有 <code>type</code> 属性。</em></strong></p>
+<hr>
+<h2 id="实现-Babel-语法转换插件"><a href="#实现-Babel-语法转换插件" class="headerlink" title="实现 Babel 语法转换插件"></a>实现 Babel 语法转换插件</h2><p>实现语法转换插件需要借助 <code>babel-core</code> 和 <code>babel-types</code> 两个模块，其实这两个模块就是依赖 <code>esprima</code>、<code>estraverse</code> 和 <code>escodegen</code> 的。</p>
+<p><strong>使用这两个模块需要安装，命令如下：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install babel-core babel-types</span><br></pre></td></tr></table></figure>
+<h3 id="1、plugin-transform-arrow-functions"><a href="#1、plugin-transform-arrow-functions" class="headerlink" title="1、plugin-transform-arrow-functions"></a>1、plugin-transform-arrow-functions</h3><p><code>plugin-transform-arrow-functions</code> 是 Babel 家族成员之一，用于将箭头函数转换 ES5 语法的函数表达式。</p>
+<blockquote>
+<p>文件：plugin-transform-arrow-functions.js</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">const babel = require(&quot;babel-core&quot;);</span><br><span class="line">const types = require(&quot;babel-types&quot;);</span><br><span class="line"></span><br><span class="line">// 箭头函数代码块</span><br><span class="line">let sumCode = `</span><br><span class="line">const sum = (a, b) =&gt; &#123;</span><br><span class="line">    return a + b;</span><br><span class="line">&#125;`;</span><br><span class="line">let minusCode = `const minus = (a, b) =&gt; a - b;`;</span><br><span class="line"></span><br><span class="line">// 转化 ES5 插件</span><br><span class="line">let ArrowPlugin = &#123;</span><br><span class="line">// 访问者（访问者模式）</span><br><span class="line">    visitor: &#123;</span><br><span class="line">// path 是树的路径</span><br><span class="line">        ArrowFunctionExpression(path) &#123;</span><br><span class="line">// 获取树节点</span><br><span class="line">let node = path.node;</span><br><span class="line"></span><br><span class="line">// 获取参数和函数体</span><br><span class="line">let params = node.params;</span><br><span class="line">let body = node.body;</span><br><span class="line"></span><br><span class="line">// 判断函数体是否是代码块，不是代码块则添加 return 和 &#123;&#125;</span><br><span class="line">if (!types.isBlockStatement(body)) &#123;</span><br><span class="line">let returnStatement = types.returnStatement(body);</span><br><span class="line">                body = types.blockStatement([returnStatement]);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">// 生成一个函数表达式树结构</span><br><span class="line">let func = types.functionExpression(null, params, body, false, false);</span><br><span class="line"></span><br><span class="line">// 用新的树结构替换掉旧的树结构</span><br><span class="line">            types.replaceWith(func);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">// 生成转换后的代码块</span><br><span class="line">let sumResult = babel.transform(sumCode, &#123;</span><br><span class="line">    plugins: [ArrowPlugin]</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">let minusResult = babel.transform(minusCode, &#123;</span><br><span class="line">    plugins: [ArrowPlugin]</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">console.log(sumResult.code);</span><br><span class="line">console.log(minusResult.code);</span><br><span class="line"></span><br><span class="line">// let sum = function (a, b) &#123;</span><br><span class="line">//   return a + b;</span><br><span class="line">// &#125;;</span><br><span class="line">// let minus = function (a, b) &#123;</span><br><span class="line">//   return a - b;</span><br><span class="line">// &#125;;</span><br></pre></td></tr></table></figure>
+<p>我们主要使用 <code>babel-core</code> 的 <code>transform</code> 方法将 AST 转化成代码块，第一个参数为转换前的代码块（字符串），第二个参数为配置项，其中 <code>plugins</code> 值为数组，存储修改 <code>babal-core</code> 转换的 AST 的插件（对象），使用 <code>transform</code> 方法将旧的 AST 处理成新的代码块后，返回值为一个对象，对象的 <code>code</code> 属性为转换后的代码块（字符串）。</p>
+<p>内部修改通过 <code>babel-types</code> 模块提供的方法实现，API 可以到 <a href="https://github.com/babel/babel/tree/6.x/packages/babel-types" target="_blank" rel="noopener">https://github.com/babel/babel/tree/6.x/packages/babel-types</a> 中查看。</p>
+<p><code>ArrowPlugin</code> 就是传入 <code>transform</code> 方法的插件，必须含有 <code>visitor</code> 属性（固定），值同为对象，用于存储修改语法树的方法，方法名要严格按照 API，对应的方法会修改 AST 对应的节点。</p>
+<p>在 <code>types.functionExpression</code> 方法中参数分别代表，函数名（匿名函数为 <code>null</code>）、函数参数（必填）、函数体（必填）、是否为 <code>generator</code> 函数（默认 <code>false</code>）、是否为 <code>async</code> 函数（默认 <code>false</code>），返回值为修改后的 AST，<code>types.replaceWith</code> 方法用于替换 AST，参数为新的 AST。</p>
+<h3 id="2、plugin-transform-classes"><a href="#2、plugin-transform-classes" class="headerlink" title="2、plugin-transform-classes"></a>2、plugin-transform-classes</h3><p><code>plugin-transform-classes</code> 也是 Babel 家族中的成员之一，用于将 ES6 的 <code>class</code> 类转换成 ES5 的构造函数。</p>
+<blockquote>
+<p>文件：plugin-transform-classes.js</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line">const babel = require(&quot;babel-core&quot;);</span><br><span class="line">const types = require(&quot;babel-types&quot;);</span><br><span class="line"></span><br><span class="line">// 类</span><br><span class="line">let code = `</span><br><span class="line">class Person &#123;</span><br><span class="line">    constructor(name) &#123;</span><br><span class="line">        this.name = name;</span><br><span class="line">    &#125;</span><br><span class="line">    getName () &#123;</span><br><span class="line">        return this.name;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;`;</span><br><span class="line"></span><br><span class="line">// 将类转化 ES5 构造函数插件</span><br><span class="line">let ClassPlugin = &#123;</span><br><span class="line">    visitor: &#123;</span><br><span class="line">        ClassDeclaration(path) &#123;</span><br><span class="line">let node = path.node;</span><br><span class="line">let classList = node.body.body;</span><br><span class="line"></span><br><span class="line">// 将取到的类名转换成标识符 &#123; type: &apos;Identifier&apos;, name: &apos;Person&apos; &#125;</span><br><span class="line">let className = types.identifier(node.id.name);</span><br><span class="line">let body = types.blockStatement([]);</span><br><span class="line">let func = types.functionDeclaration(className, [], body, false, false);</span><br><span class="line">            path.replaceWith(func);</span><br><span class="line"></span><br><span class="line">// 用于存储多个原型方法</span><br><span class="line">let es5Func = [];</span><br><span class="line"></span><br><span class="line">// 获取 class 中的代码体</span><br><span class="line">            classList.forEach((item, index) =&gt; &#123;</span><br><span class="line">// 函数的代码体</span><br><span class="line">let body = classList[index].body;</span><br><span class="line"></span><br><span class="line">// 获取参数</span><br><span class="line">let params = item.params.length ? item.params.map(val =&gt; val.name) : [];</span><br><span class="line"></span><br><span class="line">// 转化参数为标识符</span><br><span class="line">                params = types.identifier(params);</span><br><span class="line"></span><br><span class="line">// 判断是否是 constructor，如果构造函数那就生成新的函数替换</span><br><span class="line">if (item.kind === &quot;constructor&quot;) &#123;</span><br><span class="line">// 生成一个构造函数树结构</span><br><span class="line">                    func = types.functionDeclaration(className, [params], body, false, false);</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">// 其他情况是原型方法</span><br><span class="line">let proto = types.memberExpression(className, types.identifier(&quot;prototype&quot;));</span><br><span class="line"></span><br><span class="line">// 左侧层层定义标识符 Person.prototype.getName</span><br><span class="line">let left = types.memberExpression(proto, types.identifier(item.key.name));</span><br><span class="line"></span><br><span class="line">// 右侧定义匿名函数</span><br><span class="line">let right = types.functionExpression(null, [params], body, false, false);</span><br><span class="line"></span><br><span class="line">// 将左侧和右侧进行合并并存入数组</span><br><span class="line">                    es5Func.push(types.assignmentExpression(&quot;=&quot;, left, right));</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line"></span><br><span class="line">// 如果没有原型方法，直接替换</span><br><span class="line">if (es5Func.length === 0) &#123;</span><br><span class="line">                path.replaceWith(func);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                es5Func.push(func);</span><br><span class="line">// 替换 n 个节点</span><br><span class="line">                path.replaceWithMultiple(es5Func);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">// 生成转换后的代码块</span><br><span class="line">result = babel.transform(code, &#123;</span><br><span class="line">    plugins: [ClassPlugin]</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">console.log(result.code);</span><br><span class="line"></span><br><span class="line">// Person.prototype.getName = function () &#123;</span><br><span class="line">//     return this.name;</span><br><span class="line">// &#125;</span><br><span class="line">// function Person(name) &#123;</span><br><span class="line">//     this.name = name;</span><br><span class="line">// &#125;</span><br></pre></td></tr></table></figure>
+<p>上面这个插件的实现要比 <code>plugin-transform-arrow-functions</code> 复杂一些，归根结底还是将要互相转换的 ES6 和 ES5 语法树做对比，找到他们的不同，并使用 <code>babel-types</code> 提供的 API 对语法树对应的节点属性进行修改并替换语法树，值得注意的是 <code>path.replaceWithMultiple</code> 与 <code>path.replaceWith</code> 不同，参数为一个数组，数组支持多个语法树结构，可根据具体修改语法树的场景选择使用，也可根据不同情况使用不同的替换方法。</p>
+<blockquote>
+<p>通过本节我们了解了什么是 AST 抽象语法树、抽象语法树在 JavaScript 中的体现以及在 NodeJS 中用于生成、遍历和修改 AST 抽象语法树的核心依赖，并通过使用 <code>babel-core</code> 和 <code>babel-types</code> 两个模块简易模拟了 ES6 新特性转换为 ES5 语法的过程，希望可以为后面自己实现一些编译插件提供了思路。</p>
+</blockquote>
+<hr>
+<p>假设我们现在使用了 ElementUI 库的两个组件，通常会使用解构赋值来引入。</p>
+<blockquote>
+<p>优化前</p>
+</blockquote>
+<pre><code>import { Button, Alert } from&quot;element-ui&quot;;
+</code></pre><p>这样引用资源， Webpack 在打包的时候会找到 <code>element-ui</code> 并把里面所有的代码全部打包到出口文件，我们只使用了两个组件，全部打包不是我们所希望的，<code>tree-sharking</code> 是通过在 Webpack 中配置 <code>babel-plugin-import</code> 插件来实现的，它可以将解构的代码转换成下面的形式。</p>
+<blockquote>
+<p>优化后</p>
+</blockquote>
+<pre><code>import Button from&quot;element-ui/lib/button&quot;;
+import Alert from&quot;element-ui/lib/Alert&quot;;
+</code></pre><p>转化后会去 <code>node_modules</code> 中的 <code>element-ui</code> 模块找到 <code>Button</code> 和 <code>Alert</code> 两个组件对应的文件，并打包到出口文件中。</p>
+<p>通过上面的转换可以看出，其实 <code>tree-sharking</code> 的实现原理是通过改变 AST 语法树的结构来实现的，如果不了解抽象语法树可以参考 <a href="https://www.pandashen.com/2018/07/25/20180725130233/" target="_blank" rel="noopener">AST 抽象语法树</a>，</p>
+<blockquote>
+<p>优化前的 AST 语法树</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;type&quot;: &quot;Program&quot;,</span><br><span class="line">    &quot;body&quot;: [</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;type&quot;: &quot;ImportDeclaration&quot;,</span><br><span class="line">            &quot;specifiers&quot;: [</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;ImportSpecifier&quot;,</span><br><span class="line">                    &quot;local&quot;: &#123;</span><br><span class="line">                        &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                        &quot;name&quot;: &quot;Button&quot;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    &quot;imported&quot;: &#123;</span><br><span class="line">                        &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                        &quot;name&quot;: &quot;Button&quot;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;ImportSpecifier&quot;,</span><br><span class="line">                    &quot;local&quot;: &#123;</span><br><span class="line">                        &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                        &quot;name&quot;: &quot;Alert&quot;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    &quot;imported&quot;: &#123;</span><br><span class="line">                        &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                        &quot;name&quot;: &quot;Alert&quot;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            ],</span><br><span class="line">            &quot;source&quot;: &#123;</span><br><span class="line">                &quot;type&quot;: &quot;Literal&quot;,</span><br><span class="line">                &quot;value&quot;: &quot;element-ui&quot;,</span><br><span class="line">                &quot;raw&quot;: &quot;\&quot;element-ui\&quot;&quot;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;sourceType&quot;: &quot;module&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>优化后的 AST 语法树</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"> &#123;</span><br><span class="line">    &quot;type&quot;: &quot;Program&quot;,</span><br><span class="line">    &quot;body&quot;: [</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;type&quot;: &quot;ImportDeclaration&quot;,</span><br><span class="line">            &quot;specifiers&quot;: [</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;ImportDefaultSpecifier&quot;,</span><br><span class="line">                    &quot;local&quot;: &#123;</span><br><span class="line">                        &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                        &quot;name&quot;: &quot;Button&quot;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            ],</span><br><span class="line">            &quot;source&quot;: &#123;</span><br><span class="line">                &quot;type&quot;: &quot;Literal&quot;,</span><br><span class="line">                &quot;value&quot;: &quot;element-ui/lib/button&quot;,</span><br><span class="line">                &quot;raw&quot;: &quot;\&quot;element-ui/lib/button\&quot;&quot;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;type&quot;: &quot;ImportDeclaration&quot;,</span><br><span class="line">            &quot;specifiers&quot;: [</span><br><span class="line">                &#123;</span><br><span class="line">                    &quot;type&quot;: &quot;ImportDefaultSpecifier&quot;,</span><br><span class="line">                    &quot;local&quot;: &#123;</span><br><span class="line">                        &quot;type&quot;: &quot;Identifier&quot;,</span><br><span class="line">                        &quot;name&quot;: &quot;Alert&quot;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            ],</span><br><span class="line">            &quot;source&quot;: &#123;</span><br><span class="line">                &quot;type&quot;: &quot;Literal&quot;,</span><br><span class="line">                &quot;value&quot;: &quot;element-ui/lib/Alert&quot;,</span><br><span class="line">                &quot;raw&quot;: &quot;\&quot;element-ui/lib/Alert\&quot;&quot;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;sourceType&quot;: &quot;module&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从上面的语法树对比，可以看出在优化前 <code>body</code> 里面只有一个对象，使用的组件信息存在 <code>specifiers</code> 里，<code>source</code> 指向了 <code>element-ui</code>，而在优化后，将两个组件分别拆成了两个对象存在 <code>body</code> 中，每个对象的的 <code>specifiers</code> 只存储一个组件，并在 <code>source</code> 里面指向了当前组件对应的路径。</p>
+<hr>
+<h2 id="模拟-tree-starking"><a href="#模拟-tree-starking" class="headerlink" title="模拟 tree-starking"></a>模拟 tree-starking</h2><p>既然我们已经清楚要修改语法树的位置，下面就使用 AST 来模拟 <code>tree-sharking</code> 功能，对语法树的操作是依赖于 <code>babel-core</code> 和 <code>babel-types</code> 两个核心模块的，下面先安装依赖。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install babel-core babel-types</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>文件：babel-plugin-my-import.js</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">const babel = require(&quot;babel-core&quot;);</span><br><span class="line">const types = require(&quot;babel-types&quot;);</span><br><span class="line"></span><br><span class="line">let code = `import &#123; Button, Alert &#125; from &quot;element-ui&quot;`;</span><br><span class="line"></span><br><span class="line">let importPlugin = &#123;</span><br><span class="line">    visitor: &#123;</span><br><span class="line">        ImportDeclaration(path) &#123;</span><br><span class="line">            let node = path.node;</span><br><span class="line">            let source = node.source.value;</span><br><span class="line">            let specifiers = node.specifiers;</span><br><span class="line"></span><br><span class="line">            // 判断是否是默认导出，其中一个不是默认导出，则都不是默认导出</span><br><span class="line">            if (!types.isImportDefaultSpecifier(specifiers[0])) &#123;</span><br><span class="line">                // 如果不是默认导出，则需要转换</span><br><span class="line">                specifiers = specifiers.map(specifier =&gt; &#123;</span><br><span class="line">                    // 数组内容：当前默认导出的标识、从哪里导入</span><br><span class="line">                    return types.importDeclaration(</span><br><span class="line">                        [types.importDefaultSpecifier(specifier.local)],</span><br><span class="line">                        types.stringLiteral(`$&#123;source&#125;/lib/$&#123;specifier.local.name.toLowerCase()&#125;`)</span><br><span class="line">                    );</span><br><span class="line">                &#125;);</span><br><span class="line"></span><br><span class="line">                // 替换树结构</span><br><span class="line">                path.replaceWithMultiple(specifiers);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">let result = babel.transform(code, &#123;</span><br><span class="line">    plugins: [importPlugin]</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">console.log(result.code);</span><br><span class="line"></span><br><span class="line">// import Button from &quot;element-ui/lib/button&quot;;</span><br><span class="line">// import Alert from &quot;element-ui/lib/alert&quot;;</span><br></pre></td></tr></table></figure>
+<p>通过上面的代码可以发现我们使用 <code>babel-core</code> 和 <code>babel-types</code> 两个模块的核心方法对语法书进行了遍历、修改和替换，更详细的 API 可以查看 <a href="https://github.com/babel/babel/tree/6.x/packages/babel-types" target="_blank" rel="noopener">https://github.com/babel/babel/tree/6.x/packages/babel-types</a>。</p>
+<hr>
+<h2 id="结合-Webpack-使用插件"><a href="#结合-Webpack-使用插件" class="headerlink" title="结合 Webpack 使用插件"></a>结合 Webpack 使用插件</h2><p>前面只是验证了 <code>tree-sharking</code> 中 JS 语法的转换过程，接下来将上面的代码转换成插件配合 Webpack 使用，来彻底感受 <code>tree-sharking</code> 的工作过程。</p>
+<blockquote>
+<p>文件：~node_modules/babel-plugin-my-import.js</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">const babel = require(&quot;babel-core&quot;);</span><br><span class="line">const types = require(&quot;babel-types&quot;);</span><br><span class="line"></span><br><span class="line">let importPlugin = &#123;</span><br><span class="line">    visitor: &#123;</span><br><span class="line">        ImportDeclaration(path) &#123;</span><br><span class="line">            let node = path.node;</span><br><span class="line">            let source = node.source.value;</span><br><span class="line">            let specifiers = node.specifiers;</span><br><span class="line"></span><br><span class="line">            // 判断是否是默认导出，其中一个不是默认导出，则都不是默认导出</span><br><span class="line">            if (!types.isImportDefaultSpecifier(specifiers[0])) &#123;</span><br><span class="line">                // 如果不是默认导出，则需要转换</span><br><span class="line">                specifiers = specifiers.map(specifier =&gt; &#123;</span><br><span class="line">                    // 数组内容：当前默认导出的标识、从哪里导入</span><br><span class="line">                    return types.importDeclaration(</span><br><span class="line">                        [types.importDefaultSpecifier(specifier.local)],</span><br><span class="line">                        types.stringLiteral(`$&#123;source&#125;/lib/$&#123;specifier.local.name.toLowerCase()&#125;`)</span><br><span class="line">                    );</span><br><span class="line">                &#125;);</span><br><span class="line"></span><br><span class="line">                // 替换树解构</span><br><span class="line">                path.replaceWithMultiple(specifiers);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">module.exports = importPlugin;</span><br></pre></td></tr></table></figure>
+<p>上面删掉了多余的测试代码，将模块中的 <code>importPlugin</code> 插件导出，并把 <code>babel-plugin-my-import.js</code> 移入了 <code>node_modules</code> 当中。</p>
+<p><strong>接下来安装需要的依赖：</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">npm install webpack webpack-cli babel-loader babel-presets-env</span><br><span class="line">npm install vue element-ui --save</span><br></pre></td></tr></table></figure></p>
+<p>安装完依赖，写一个要编译的文件，使用 Webpack 进行打包，查看使用插件前和使用插件后出口文件的大小。<br>文件：import.js<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">import Vue from&quot;vue&quot;;</span><br><span class="line">import &#123; Button, Alert &#125; from&quot;element-ui&quot;;</span><br></pre></td></tr></table></figure></p>
+<p>下面来写一个简单的 Webpack 配置文件。</p>
+<blockquote>
+<p>文件：webpcak.config.js</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">    module.exports = &#123;</span><br><span class="line">    mode: &quot;development&quot;,</span><br><span class="line">    entry: &quot;import.js&quot;,</span><br><span class="line">    output: &#123;</span><br><span class="line">        filename: &quot;bundle.js&quot;,</span><br><span class="line">        path: __dirname</span><br><span class="line">    &#125;,</span><br><span class="line">    module: &#123;</span><br><span class="line">        rules: [&#123;</span><br><span class="line">            test: /\.js$/,</span><br><span class="line">            use: &#123;</span><br><span class="line">                loader: &quot;babel-loader&quot;,</span><br><span class="line">                options: &#123;</span><br><span class="line">                    presets: [</span><br><span class="line">                        &quot;env&quot;,</span><br><span class="line">                    ],</span><br><span class="line">                    plugins: [</span><br><span class="line">                        // 插件：不使用插件打包注释掉该行即可</span><br><span class="line">                        [&quot;my-import&quot;, &#123; libararyName: &quot;element-ui&quot; &#125;]</span><br><span class="line">                    ]</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            exclude: /node_modules/</span><br><span class="line">        &#125;]</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>为了防止 <code>babel</code> 相关的依赖升级 <code>7.0</code> 后出现一些问题导致 Webpack 无法启动，再此贴出 <code>package.json</code> 文件，按照对应版本下载依赖保证上面 Webpack 配置生效。</p>
+<blockquote>
+<p>文件：package.json</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line"> &quot;name&quot;: &quot;ast-lesson&quot;,</span><br><span class="line"> &quot;version&quot;: &quot;1.0.0&quot;,</span><br><span class="line"> &quot;description&quot;: &quot;tree-starking&quot;,</span><br><span class="line"> &quot;main&quot;: &quot;index.js&quot;,</span><br><span class="line"> &quot;scripts&quot;: &#123;</span><br><span class="line"> &quot;test&quot;: &quot;echo \&quot;Error: no test specified\&quot; &amp;&amp; exit 1&quot;</span><br><span class="line">   &#125;,</span><br><span class="line"> &quot;keywords&quot;: [],</span><br><span class="line"> &quot;author&quot;: &quot;&quot;,</span><br><span class="line"> &quot;license&quot;: &quot;ISC&quot;,</span><br><span class="line"> &quot;dependencies&quot;: &#123;</span><br><span class="line"> &quot;babel-core&quot;: &quot;^6.26.3&quot;,</span><br><span class="line"> &quot;babel-loader&quot;: &quot;^7.1.5&quot;,</span><br><span class="line"> &quot;babel-preset-env&quot;: &quot;^1.7.0&quot;,</span><br><span class="line"> &quot;babel-types&quot;: &quot;^6.26.0&quot;,</span><br><span class="line"> &quot;escodegen&quot;: &quot;^1.10.0&quot;,</span><br><span class="line"> &quot;esprima&quot;: &quot;^4.0.0&quot;,</span><br><span class="line"> &quot;estraverse&quot;: &quot;^4.2.0&quot;,</span><br><span class="line"> &quot;webpack&quot;: &quot;^4.16.0&quot;,</span><br><span class="line"> &quot;webpack-cli&quot;: &quot;^3.0.8&quot;</span><br><span class="line">   &#125;,</span><br><span class="line"> &quot;devDependencies&quot;: &#123;</span><br><span class="line"> &quot;vue&quot;: &quot;^2.5.17&quot;,</span><br><span class="line"> &quot;element-ui&quot;: &quot;^2.4.6&quot;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="对比使用插件前后的出口文件"><a href="#对比使用插件前后的出口文件" class="headerlink" title="对比使用插件前后的出口文件"></a>对比使用插件前后的出口文件</h2><p>接下来分别在使用插件和不使用插件时执行打包命令，查看出口文件 <code>bondle.js</code> 的大小。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npx webpack</span><br></pre></td></tr></table></figure></p>
+<p>使用 <code>babel-plugin-my-import</code> 前：</p>
+<p><a href="/2018/07/26/20180726122146/before-babel-plugin.jpg"><img src="/2018/10/25/解密webpack-tree-starking/before-babel-plugin.jpg" alt="使用 tree-starking 之前"></a></p>
+<p>使用 <code>babel-plugin-my-import</code> 后：</p>
+<p><a href="/2018/07/26/20180726122146/after-babel-plugin.jpg"><img src="/2018/10/25/解密webpack-tree-starking/after-babel-plugin.jpg" alt="使用 tree-starking 之后"></a></p>
+<p>通过对比，可以看到使用 <code>tree-sharking</code> 即我们自己实现的 <code>babel-plugin-my-import</code> 插件后，打包的出口文件大大减小，其原因是将引入第三方库没有使用的代码全都过滤掉了，只打包了有效代码。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>上面对 Webpack 的 <code>tree-sharking</code> 进行了分析，并模拟 <code>babel-plugin-import</code> 简易的实现了一版 <code>tree-sharking</code> 的优化插件，这个过程中相信大家已经了解了 <code>tree-sharking</code> 的原理以及实现类似插件的思路，并已经具备了开发类似插件的基本条件，最后还有一点需要补充，<code>tree-sharking</code> 优化的方式是根据 ES6 语法 <code>import</code> “静态” 引入的特性实现的，如果要说 <code>tree-sharking</code> 很强大，还不如说 ES6 模块化规范 “静态” 引入的特性强大，正由于是基于 “静态” 引入，所以目前 <code>tree-sharking</code> 只支持遍历一层 <code>import</code> 关键字。</p>
+<hr>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/10/koa-bodyparser中间件模拟/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3351,126 +3654,6 @@ wss.on(&apos;connection&apos;, (wsocket) =&gt; {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/03/Vue手势库/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/09/03/Vue手势库/" itemprop="url">Vue手势库</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-03T12:48:23+08:00">
-                2018-09-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br></pre></td><td class="code"><pre><span class="line">function vueTouch(el, binding, type) &#123;</span><br><span class="line">	var _this = this;</span><br><span class="line">	this.obj = el;</span><br><span class="line">	this.binding = binding;</span><br><span class="line">	this.touchType = type;</span><br><span class="line">	this.vueTouches = &#123;</span><br><span class="line">		x: 0,</span><br><span class="line">		y: 0</span><br><span class="line">	&#125;;</span><br><span class="line">	this.vueMoves = true;</span><br><span class="line">	this.vueLeave = true;</span><br><span class="line">	this.longTouch = true;</span><br><span class="line"></span><br><span class="line">	this.vueCallBack = typeof(binding.value) == &quot;object&quot; ? binding.value.fn : binding.value;</span><br><span class="line"></span><br><span class="line">	this.obj.addEventListener(&quot;touchstart&quot;, function(e) &#123;</span><br><span class="line">		_this.start(e);</span><br><span class="line">	&#125;, false);</span><br><span class="line"></span><br><span class="line">	this.obj.addEventListener(&quot;touchmove&quot;, function(e) &#123;</span><br><span class="line">		_this.move(e);</span><br><span class="line">	&#125;, false);</span><br><span class="line"></span><br><span class="line">	this.obj.addEventListener(&quot;touchend&quot;, function(e) &#123;</span><br><span class="line">		_this.end(e);</span><br><span class="line">	&#125;, false);</span><br><span class="line">&#125;;</span><br><span class="line">vueTouch.prototype = &#123;</span><br><span class="line">	start(e) &#123;</span><br><span class="line">		this.vueMoves = true;</span><br><span class="line">		this.vueLeave = true;</span><br><span class="line">		this.longTouch = true;</span><br><span class="line">		this.vueTouches = &#123;</span><br><span class="line">			x: e.changedTouches[0].pageX,</span><br><span class="line">			y: e.changedTouches[0].pageY</span><br><span class="line">		&#125;;</span><br><span class="line">		this.time = setTimeout(function() &#123;</span><br><span class="line">			if(this.vueLeave &amp;&amp; this.vueMoves) &#123;</span><br><span class="line">				this.touchType == &quot;longtap&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">				this.longTouch = false;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;.bind(this), 1000);</span><br><span class="line">	&#125;,</span><br><span class="line">	end(e) &#123;</span><br><span class="line">		var disX = e.changedTouches[0].pageX - this.vueTouches.x;</span><br><span class="line">		var disY = e.changedTouches[0].pageY - this.vueTouches.y;</span><br><span class="line">		clearTimeout(this.time);</span><br><span class="line">		if(Math.abs(disX) &gt; 10 || Math.abs(disY) &gt; 100) &#123;</span><br><span class="line">			this.touchType == &quot;swipe&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">			if(Math.abs(disX) &gt; Math.abs(disY)) &#123;</span><br><span class="line">				if(disX &gt; 10) &#123;</span><br><span class="line">					this.touchType == &quot;swiperight&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">				&#125;;</span><br><span class="line">				if(disX &lt; -10) &#123;</span><br><span class="line">					this.touchType == &quot;swipeleft&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">				&#125;;</span><br><span class="line">			&#125; else &#123;</span><br><span class="line">				if(disY &gt; 10) &#123;</span><br><span class="line">					this.touchType == &quot;swipedown&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">				&#125;;</span><br><span class="line">				if(disY &lt; -10) &#123;</span><br><span class="line">					this.touchType == &quot;swipeup&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">				&#125;;</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125; else &#123;</span><br><span class="line">			if(this.longTouch &amp;&amp; this.vueMoves) &#123;</span><br><span class="line">				this.touchType == &quot;tap&quot; &amp;&amp; this.vueCallBack(this.binding.value, e);</span><br><span class="line">				this.vueLeave = false</span><br><span class="line">			&#125;;</span><br><span class="line">		&#125;;</span><br><span class="line">	&#125;,</span><br><span class="line">	move(e) &#123;</span><br><span class="line">		this.vueMoves = false;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">Vue.directive(&quot;tap&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;tap&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">Vue.directive(&quot;swipe&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;swipe&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">Vue.directive(&quot;swipeleft&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;swipeleft&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">Vue.directive(&quot;swiperight&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;swiperight&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">Vue.directive(&quot;swipedown&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;swipedown&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">Vue.directive(&quot;swipeup&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;swipeup&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br><span class="line">Vue.directive(&quot;longtap&quot;, &#123;</span><br><span class="line">	bind: function(el, binding) &#123;</span><br><span class="line">		new vueTouch(el, binding, &quot;longtap&quot;);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-<h2 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html id=&quot;html&quot;&gt;</span><br><span class="line"></span><br><span class="line">	&lt;head&gt;</span><br><span class="line">		&lt;meta http-equiv=&quot;Content-Type&quot; content=&quot;text/html; charset=utf-8&quot; /&gt;</span><br><span class="line">		&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no&quot; /&gt;</span><br><span class="line">		&lt;title&gt;&lt;/title&gt;</span><br><span class="line">		&lt;style&gt;</span><br><span class="line">			.box &#123;</span><br><span class="line">				width: 250px;</span><br><span class="line">				height: 250px;</span><br><span class="line">				background-color: red;</span><br><span class="line">				color: #FFFFFF;</span><br><span class="line">				text-align: center;</span><br><span class="line">				line-height: 250px;</span><br><span class="line">				font-size: 30px;</span><br><span class="line">				position: absolute;</span><br><span class="line">				margin: auto;</span><br><span class="line">				left: 0;</span><br><span class="line">				right: 0;</span><br><span class="line">				top: 0;</span><br><span class="line">				bottom: 0;</span><br><span class="line">			&#125;</span><br><span class="line">		&lt;/style&gt;</span><br><span class="line">		&lt;script src=&quot;js/vue.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">		&lt;script type=&quot;text/javascript&quot; src=&quot;js/vue-touch.js&quot;&gt;&lt;/script&gt;</span><br><span class="line">	&lt;/head&gt;</span><br><span class="line"></span><br><span class="line">	&lt;body&gt;</span><br><span class="line">		&lt;div id=&quot;app&quot; class=&quot;box&quot; v-tap=&quot;&#123;fn:vuetap,name:&apos;点击&apos;&#125;&quot; v-longtap=&quot;&#123;fn:vuetap,name:&apos;长按&apos;&#125;&quot; v-swipeleft=&quot;&#123;fn:vuetap,name:&apos;左滑&apos;&#125;&quot; v-swiperight=&quot;&#123;fn:vuetap,name:&apos;右滑&apos;&#125;&quot; v-swipeup=&quot;&#123;fn:vuetap,name:&apos;上滑&apos;&#125;&quot; v-swipedown=&quot;&#123;fn:vuetap,name:&apos;下滑&apos;&#125;&quot;&gt;</span><br><span class="line">			&#123;&#123; name &#125;&#125;</span><br><span class="line">		&lt;/div&gt;</span><br><span class="line">		&lt;!--</span><br><span class="line">	vuetouch为函数名，如没有参数，可直接写函数名,比如：v-tap=&quot;vuetap&quot;</span><br><span class="line">	如果有参数以对象形式传，fn 为函数名</span><br><span class="line">--&gt;</span><br><span class="line">		&lt;script&gt;</span><br><span class="line">			kim = new Vue(&#123;</span><br><span class="line">				el: &quot;#app&quot;,</span><br><span class="line">				data: &#123;</span><br><span class="line">					name: &quot;开始&quot;</span><br><span class="line">				&#125;,</span><br><span class="line">				methods: &#123;</span><br><span class="line">					vuetap: function(s, e) &#123;</span><br><span class="line">						console.log(e)</span><br><span class="line">						this.name = s.name;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;);</span><br><span class="line">		&lt;/script&gt;</span><br><span class="line">	&lt;/body&gt;</span><br><span class="line"></span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3523,7 +3706,7 @@ wss.on(&apos;connection&apos;, (wsocket) =&gt; {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">148</span>
+                  <span class="site-state-item-count">149</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
