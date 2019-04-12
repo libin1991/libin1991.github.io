@@ -694,6 +694,159 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/25/async-await优雅的错误处理方法/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/01/25/async-await优雅的错误处理方法/" itemprop="url">async/await优雅的错误处理方法</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-25T22:58:50+08:00">
+                2019-01-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="async-await错误处理"><a href="#async-await错误处理" class="headerlink" title="async/await错误处理"></a>async/await错误处理</h3><p>一般情况下 async/await 在错误处理方面，主要使用 <code>try/catch</code>，像这样<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fetchData = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            resolve(<span class="string">'fetch data is me'</span>)</span><br><span class="line">        &#125;, <span class="number">1000</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> data = <span class="keyword">await</span> fetchData()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'data is -&gt;'</span>, data)</span><br><span class="line">    &#125; <span class="keyword">catch</span>(err) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'err is -&gt;'</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)()</span><br></pre></td></tr></table></figure></p>
+<p>这么看，感觉倒是没什么问题，如果是这样呢？有多个异步操作，需要对每个异步返回的 error 错误状态进行不同的处理，以下是示例代码<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fetchDataA = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            resolve(<span class="string">'fetch data is A'</span>)</span><br><span class="line">        &#125;, <span class="number">1000</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> fetchDataB = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            resolve(<span class="string">'fetch data is B'</span>)</span><br><span class="line">        &#125;, <span class="number">1000</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> fetchDataC = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">        setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            resolve(<span class="string">'fetch data is C'</span>)</span><br><span class="line">        &#125;, <span class="number">1000</span>)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> dataA = <span class="keyword">await</span> fetchDataA()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'dataA is -&gt;'</span>, dataA)</span><br><span class="line">    &#125; <span class="keyword">catch</span>(err) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'err is -&gt;'</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> dataB = <span class="keyword">await</span> fetchDataB()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'dataB is -&gt;'</span>, dataB)</span><br><span class="line">    &#125; <span class="keyword">catch</span>(err) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'err is -&gt;'</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> dataC = <span class="keyword">await</span> fetchDataC()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'dataC is -&gt;'</span>, dataC)</span><br><span class="line">    &#125; <span class="keyword">catch</span>(err) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'err is -&gt;'</span>, err)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)()</span><br></pre></td></tr></table></figure></p>
+<p>这样写代码里充斥着 <code>try/catch</code>，有代码洁癖的你能忍受的了吗？这时可能会想到只用一个 <code>try/catch</code>。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ... 这里 fetch 函数省略</span></span><br><span class="line"></span><br><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> dataA = <span class="keyword">await</span> fetchDataA()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'dataA is -&gt;'</span>, dataA)</span><br><span class="line">        <span class="keyword">const</span> dataB = <span class="keyword">await</span> fetchDataB()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'dataB is -&gt;'</span>, dataB)</span><br><span class="line">        <span class="keyword">const</span> dataC = <span class="keyword">await</span> fetchDataC()</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'dataC is -&gt;'</span>, dataC)</span><br><span class="line">    &#125; <span class="keyword">catch</span>(err) &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'err is -&gt;'</span>, err)</span><br><span class="line">        <span class="comment">// 难道要定义 err 类型，然后判断吗？？/**</span></span><br><span class="line">         * <span class="keyword">if</span> (err.type === <span class="string">'dataA'</span>) &#123;</span><br><span class="line">         *  <span class="built_in">console</span>.log(<span class="string">'dataA err is'</span>, err)</span><br><span class="line">         * &#125;</span><br><span class="line">         * ......</span><br><span class="line">         * *<span class="regexp">/</span></span><br><span class="line"><span class="regexp">    &#125;</span></span><br><span class="line"><span class="regexp">&#125;)()</span></span><br></pre></td></tr></table></figure></p>
+<p>如果是这样写只会增加编码的复杂度，而且要多写代码，这个时候就应该想想怎么优雅的解决，<code>async/await</code> 本质就是 <code>promise</code> 的语法糖，既然是 <code>promise</code> 那么就可以使用 <code>then</code> 函数了<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> fetchData = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">            setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">                resolve(<span class="string">'fetch data is me'</span>)</span><br><span class="line">            &#125;, <span class="number">1000</span>)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> data = <span class="keyword">await</span> fetchData().then(<span class="function"><span class="params">data</span> =&gt;</span> data ).catch(<span class="function"><span class="params">err</span> =&gt;</span> err)</span><br><span class="line">    <span class="built_in">console</span>.log(data)</span><br><span class="line">&#125;)()</span><br></pre></td></tr></table></figure></p>
+<p>在上面写法中，如果 fetchData 返回 resolve 正确结果时，data 是我们要的结果，如果是 reject 了，发生错误了，那么 data 是错误结果，这显然是行不通的，再对其完善。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> fetchData = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">            setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">                resolve(<span class="string">'fetch data is me'</span>)</span><br><span class="line">            &#125;, <span class="number">1000</span>)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> [err, data] = <span class="keyword">await</span> fetchData().then(<span class="function"><span class="params">data</span> =&gt;</span> [<span class="literal">null</span>, data] ).catch(<span class="function"><span class="params">err</span> =&gt;</span> [err, <span class="literal">null</span>])</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'err'</span>, err)</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'data'</span>, data)</span><br><span class="line">    <span class="comment">// err null// data fetch data is me</span></span><br><span class="line">&#125;)()</span><br></pre></td></tr></table></figure></p>
+<p>这样是不是好很多了呢，但是问题又来了，不能每个 await 都写这么长，写着也不方便也不优雅，再优化一下<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">(<span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> fetchData = <span class="keyword">async</span> () =&gt; &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">            setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">                resolve(<span class="string">'fetch data is me'</span>)</span><br><span class="line">            &#125;, <span class="number">1000</span>)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 抽离成公共方法</span></span><br><span class="line">    <span class="keyword">const</span> awaitWrap = <span class="function">(<span class="params">promise</span>) =&gt;</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> promise</span><br><span class="line">            .then(<span class="function"><span class="params">data</span> =&gt;</span> [<span class="literal">null</span>, data])</span><br><span class="line">            .catch(<span class="function"><span class="params">err</span> =&gt;</span> [err, <span class="literal">null</span>])</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> [err, data] = <span class="keyword">await</span> awaitWrap(fetchData())</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'err'</span>, err)</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'data'</span>, data)</span><br><span class="line">    <span class="comment">// err null// data fetch data is me</span></span><br><span class="line">&#125;)()</span><br></pre></td></tr></table></figure></p>
+<p>将对 <code>await</code> 处理的方法抽离成公共的方法，在使用 <code>await</code> 调用 <code>awaitWrap</code> 这样的方法是不是更优雅了呢。如果使用 typescript 实现大概是这个样子<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">functionawaitWrap&lt;T, U = any&gt;(promise: <span class="built_in">Promise</span>&lt;T&gt;): <span class="built_in">Promise</span>&lt;[U | <span class="literal">null</span>, T | <span class="literal">null</span>]&gt; &#123;</span><br><span class="line">    <span class="keyword">return</span> promise</span><br><span class="line">        .then&lt;[<span class="literal">null</span>, T]&gt;<span class="function">(<span class="params">(data: T</span>) =&gt;</span> [<span class="literal">null</span>, data])</span><br><span class="line">        .catch&lt;[U, <span class="literal">null</span>]&gt;(<span class="function"><span class="params">err</span> =&gt;</span> [err, <span class="literal">null</span>])</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="Promise-prototype-finally"><a href="#Promise-prototype-finally" class="headerlink" title="Promise.prototype.finally"></a>Promise.prototype.finally</h3><p>ES2018另一振奋人心的特效是finally()方法。 之前有几个 JavaScript 库实现了类似的方法，并且它被证实是有用的。这促使 Ecma技术委员会正式将finally()添加到规范中。 使用该方法，开发者可无需理会 promise 命数如何，直接执行这个代码块中的代码。 我们来看一个简单的例子：<br><img src="/2019/01/25/async-await优雅的错误处理方法/1.webp" alt=""><br>finally() 方法可在操作完成后进行一些扫尾（clean up）工作，无论操作是否成功。 在此代码中，finally() 方法在数据获取处理后直接隐藏了加载 spinner。 无论 promise 完成与否，函数中的注册代码都会执行，开发者不必在 then() 和 catch() 方法中重复编写逻辑。使用promise.then(func, func)也可实现与promise.then(func, func) 同样的效果，但你必须在 fulfillment 句柄及 rejection 句柄中重复相同的代码，或者引入一个变量：<br><img src="/2019/01/25/async-await优雅的错误处理方法/2.webp" alt=""><br>与 then() 和 catch() 相同，finally() 方法总是返回一个 promise，因此你可以链接更多的方法。 一般来说，我们会将 finally() 作为最后一环。但某些情况，例如在创建 HTTP 请求时，在 finally() 之后链接另一个catch(),以处理请求中可能发生的错误是不错的实践。<br><img src="/2019/01/25/async-await优雅的错误处理方法/3.webp" alt=""></p>
+<h3 id="ES7-Async-await"><a href="#ES7-Async-await" class="headerlink" title="ES7 Async / await"></a>ES7 Async / await</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">asyncTask</span>(<span class="params">cb</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> user = <span class="keyword">await</span> UserModel.findById(<span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span>(!user) <span class="keyword">return</span> cb(<span class="string">'No user found'</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">const</span> savedTask = <span class="keyword">await</span> TaskModel(&#123;<span class="attr">userId</span>: user.id, <span class="attr">name</span>: <span class="string">'Demo Task'</span>&#125;);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span>(user.notificationsEnabled) &#123;</span><br><span class="line">         <span class="keyword">await</span> NotificationService.sendNotification(user.id, <span class="string">'Task Created'</span>);  </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(savedTask.assignedUser.id !== user.id) &#123;</span><br><span class="line">        <span class="keyword">await</span> NotificationService.sendNotification(savedTask.assignedUser.id, <span class="string">'Task was created for you'</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    cb(<span class="literal">null</span>, savedTask);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的代码看起来更清晰，<strong>但是，错误处理呢？</strong></p>
+<p>在进行异步调用时，在执行promise（DB连接错误，db模型验证错误等等）时可能会发生某些事情。</p>
+<p>由于异步函数正在等待Promise，因此当promise遇到错误时，它会抛出一个异常，该异常将在promise的catch方法中捕获。</p>
+<p>在async / await函数中，通常使用<strong>try / catch</strong>块来捕获此类错误。</p>
+<p>我不是来自一个打字的语言背景，所以try / catch为我添加了额外的代码，在我看来，看起来并不干净。我确定这是个人偏好的问题，但这是我的看法。</p>
+<p>所以前面的代码看起来像这样：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">asyncTask</span>(<span class="params">cb</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">       <span class="keyword">const</span> user = <span class="keyword">await</span> UserModel.findById(<span class="number">1</span>);</span><br><span class="line">       <span class="keyword">if</span>(!user) <span class="keyword">return</span> cb(<span class="string">'No user found'</span>);</span><br><span class="line">    &#125; <span class="keyword">catch</span>(e) &#123;</span><br><span class="line">        <span class="keyword">return</span> cb(<span class="string">'Unexpected error occurred'</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">       <span class="keyword">const</span> savedTask = <span class="keyword">await</span> TaskModel(&#123;<span class="attr">userId</span>: user.id, <span class="attr">name</span>: <span class="string">'Demo Task'</span>&#125;);</span><br><span class="line">    &#125; <span class="keyword">catch</span>(e) &#123;</span><br><span class="line">        <span class="keyword">return</span> cb(<span class="string">'Error occurred while saving task'</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(user.notificationsEnabled) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">await</span> NotificationService.sendNotification(user.id, <span class="string">'Task Created'</span>);  </span><br><span class="line">        &#125; <span class="keyword">catch</span>(e) &#123;</span><br><span class="line">            <span class="keyword">return</span> cb(<span class="string">'Error while sending notification'</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(savedTask.assignedUser.id !== user.id) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">await</span> NotificationService.sendNotification(savedTask.assignedUser.id, <span class="string">'Task was created for you'</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span>(e) &#123;</span><br><span class="line">            <span class="keyword">return</span> cb(<span class="string">'Error while sending notification'</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    cb(<span class="literal">null</span>, savedTask);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="一种不同的做事方式"><a href="#一种不同的做事方式" class="headerlink" title="一种不同的做事方式"></a>一种不同的做事方式</h3><p>最近我一直在使用<strong>go-lang</strong>进行编码，并且非常喜欢他们的解决方案，看起来像这样：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">data, <span class="attr">err</span> := db.Query(<span class="string">"SELECT ..."</span>)</span><br><span class="line"><span class="keyword">if</span> err != nil &#123; <span class="keyword">return</span> err &#125;</span><br></pre></td></tr></table></figure>
+<p>我认为它比使用try-catch块更清晰，并且代码更少，这使得它具有可读性和可维护性。</p>
+<p>但是<strong>等待</strong>的问题是，如果没有为它提供try-catch块，它将默默地退出你的函数。除非提供catch子句，否则你无法控制它。</p>
+<p>当我和我的好朋友Tomer Barnea坐下来并试图寻找更清洁的解决方案时，我们完成了下一个方法：</p>
+<p>还记得<strong>await</strong>正在等待解决的承诺吗？</p>
+<p>有了这些知识，我们可以使用小实用功能来帮助我们捕获这些错误：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// to.js</span></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> <span class="function"><span class="keyword">function</span> <span class="title">to</span>(<span class="params">promise</span>) </span>&#123;</span><br><span class="line">   <span class="keyword">return</span> promise.then(<span class="function"><span class="params">data</span> =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> [<span class="literal">null</span>, data];</span><br><span class="line">   &#125;)</span><br><span class="line">   .catch(<span class="function"><span class="params">err</span> =&gt;</span> [err]);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>实用程序函数接收一个promise，然后使用返回数据作为第二项解析对数组的成功响应。并且从第一个接收到的错误。</p>
+<p>然后我们可以使异步代码看起来像这样：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> to <span class="keyword">from</span> <span class="string">'./to.js'</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">asyncTask</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">     <span class="keyword">let</span> err, user, savedTask;</span><br><span class="line"></span><br><span class="line">     [err, user] = <span class="keyword">await</span> to(UserModel.findById(<span class="number">1</span>));</span><br><span class="line">     <span class="keyword">if</span>(!user) <span class="keyword">throw</span> <span class="keyword">new</span> CustomerError(<span class="string">'No user found'</span>);</span><br><span class="line"></span><br><span class="line">     [err, savedTask] = <span class="keyword">await</span> to(TaskModel(&#123;<span class="attr">userId</span>: user.id, <span class="attr">name</span>: <span class="string">'Demo Task'</span>&#125;));</span><br><span class="line">     <span class="keyword">if</span>(err) <span class="keyword">throw</span> <span class="keyword">new</span> CustomError(<span class="string">'Error occurred while saving task'</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(user.notificationsEnabled) &#123;</span><br><span class="line">       <span class="keyword">const</span> [err] = <span class="keyword">await</span> to(NotificationService.sendNotification(user.id, <span class="string">'Task Created'</span>));  </span><br><span class="line">       <span class="keyword">if</span> (err) <span class="built_in">console</span>.error(<span class="string">'Just log the error and continue flow'</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的示例只是解决方案的一个简单用例，您可以在to.js方法中附加拦截器，该方法将接收原始错误对象，记录它或在传回之前执行您需要做的任何操作。</p>
+<blockquote>
+<p>这篇文章只是查看异步/等待错误处理的另一种方式。它不应该被用作你编写的每个async / await函数的goto，并且在很多情况下在顶部有一个catch会做得很好。有时我们不希望公开模型实现的错误对象，而是希望提供一个自定义错误对象来屏蔽底层的mongoose错误实现。</p>
+</blockquote>
+<h3 id="Github-Repo"><a href="#Github-Repo" class="headerlink" title=" Github Repo "></a><a href="https://github.com/scopsy/await-to-js" target="_blank" rel="noopener"><strong> Github Repo </strong></a></h3><p>我们为这个库创建了一个简单的NPM包，你可以使用它来安装它：</p>
+<pre><code class="js">npm i <span class="keyword">await</span>-to-js
+</code></pre>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/16/更优雅的方式处理数组/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2391,151 +2544,11 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/12/05/ES6模拟call-apply-bind/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/12/05/ES6模拟call-apply-bind/" itemprop="url">ES6模拟call,apply,bind</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-12-05T20:06:26+08:00">
-                2018-12-05
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="ES6自己实现"><a href="#ES6自己实现" class="headerlink" title="ES6自己实现"></a>ES6自己实现</h3><blockquote>
-<p>call</p>
-</blockquote>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Function</span>.prototype.call2 = <span class="function"><span class="keyword">function</span>(<span class="params">context,...list</span>) </span>&#123;</span><br><span class="line">	context = context || <span class="built_in">window</span>;</span><br><span class="line">	context.fn = <span class="keyword">this</span>;			 </span><br><span class="line">	<span class="keyword">let</span> result = context.fn(...list);</span><br><span class="line">	<span class="keyword">delete</span> context.fn</span><br><span class="line">	<span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> value = <span class="string">"JS"</span>;</span><br><span class="line"><span class="keyword">var</span> foo = &#123;</span><br><span class="line">	value: <span class="string">"Node"</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">bar</span>(<span class="params">...list</span>) </span>&#123;</span><br><span class="line">	<span class="built_in">console</span>.log(<span class="keyword">this</span>.value);</span><br><span class="line">	<span class="built_in">console</span>.log(list)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">bar.call2(foo,<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>);</span><br><span class="line">bar.call2(<span class="literal">null</span>,<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>);</span><br><span class="line">bar.call2(<span class="literal">undefined</span>,<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>);</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>apply</p>
-</blockquote>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Function</span>.prototype.apply2 = <span class="function"><span class="keyword">function</span>(<span class="params">context,arr</span>) </span>&#123;</span><br><span class="line">	context = context || <span class="built_in">window</span>;</span><br><span class="line">	context.fn = <span class="keyword">this</span>;			 </span><br><span class="line">	<span class="keyword">let</span> result = context.fn(...arr);</span><br><span class="line">	<span class="keyword">delete</span> context.fn</span><br><span class="line">	<span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> value = <span class="string">"JS"</span>;</span><br><span class="line"><span class="keyword">var</span> foo = &#123;</span><br><span class="line">	value: <span class="string">"Node"</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">bar</span>(<span class="params">...list</span>) </span>&#123;</span><br><span class="line">	<span class="built_in">console</span>.log(<span class="keyword">this</span>.value);</span><br><span class="line">	<span class="built_in">console</span>.log(list)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">bar.apply2(foo,[<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>]);</span><br><span class="line">bar.apply2(<span class="literal">null</span>,[<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>]);</span><br><span class="line">bar.apply2(<span class="literal">undefined</span>,[<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>]);</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>bind1</p>
-</blockquote>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Function</span>.prototype.bind1 = <span class="function"><span class="keyword">function</span>(<span class="params">context, ...arr1</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">let</span> func = <span class="keyword">this</span>;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">function</span>(<span class="params">...arr2</span>) </span>&#123;</span><br><span class="line">	</span><br><span class="line">		<span class="comment">//func.apply(context, [...arr1, ...arr2]);</span></span><br><span class="line">		</span><br><span class="line">		func.call(context, ...arr1, ...arr2);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> value = <span class="string">"JS"</span>;</span><br><span class="line"><span class="keyword">var</span> foo = &#123;</span><br><span class="line">	value: <span class="string">"Node"</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">bar</span>(<span class="params">...list</span>) </span>&#123;</span><br><span class="line">	<span class="built_in">console</span>.log(<span class="keyword">this</span>.value);</span><br><span class="line">	<span class="built_in">console</span>.log(list)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">bar.bind1(foo, <span class="number">1</span>, <span class="number">2</span>)(<span class="number">3</span>, <span class="number">4</span>);</span><br><span class="line">bar.bind1(<span class="literal">null</span>, <span class="number">5</span>, <span class="number">6</span>)(<span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line">bar.bind1(<span class="literal">null</span>)(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line">bar.bind1(<span class="literal">undefined</span>)(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>bind2</p>
-</blockquote>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Function</span>.prototype.bind2 = <span class="function"><span class="keyword">function</span>(<span class="params">context, ...arr1</span>) </span>&#123;</span><br><span class="line">	context = context || <span class="built_in">window</span>;</span><br><span class="line">	context.fn = <span class="keyword">this</span>;</span><br><span class="line">	<span class="keyword">return</span> <span class="function"><span class="keyword">function</span>(<span class="params">...arr2</span>) </span>&#123;</span><br><span class="line">		<span class="keyword">return</span> context.fn(...arr1, ...arr2);</span><br><span class="line">	&#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> value = <span class="string">"JS"</span>;</span><br><span class="line"><span class="keyword">var</span> foo = &#123;</span><br><span class="line">	value: <span class="string">"Node"</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">bar</span>(<span class="params">...list</span>) </span>&#123;</span><br><span class="line">	<span class="built_in">console</span>.log(<span class="keyword">this</span>.value);</span><br><span class="line">	<span class="built_in">console</span>.log(list)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">bar.bind2(foo, <span class="number">1</span>, <span class="number">2</span>)(<span class="number">3</span>, <span class="number">4</span>);</span><br><span class="line">bar.bind2(<span class="literal">null</span>, <span class="number">5</span>, <span class="number">6</span>)(<span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line">bar.bind2(<span class="literal">null</span>)(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br><span class="line">bar.bind2(<span class="literal">undefined</span>)(<span class="number">5</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>);</span><br></pre></td></tr></table></figure>
-<h3 id="有什么问题？"><a href="#有什么问题？" class="headerlink" title="有什么问题？"></a>有什么问题？</h3><p>前面我们用的 eval 方式可以用 ES6 的解决还存在的一些问题，有没有注意到，这段代码是有问题的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">context.fn = this;</span><br></pre></td></tr></table></figure></p>
-<p><strong> 假如对象在被 call 调用前，已经有 fn 属性怎么办？ </strong></p>
-<p>ES6 中提供了一种新的基本数据类型，Symbol，表示独一无二的值，另外，Symbol 作为属性的时候，不能使用点运算符。所以再加上 ES 的 rest 剩余参数替代 arguments 遍历的工作就有：</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Function</span>.prototype.newCall = <span class="function"><span class="keyword">function</span> (<span class="params">context,...params</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">typeof</span> context === <span class="string">'object'</span>) &#123;</span><br><span class="line">        context = context || <span class="built_in">window</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        context = <span class="built_in">Object</span>.create(<span class="literal">null</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> fn = <span class="built_in">Symbol</span>();</span><br><span class="line">    context[fn] = thisvar result = context[fn](...params);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">delete</span> context.fn;</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> person = &#123;</span><br><span class="line">    name: <span class="string">"jayChou"</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">functionsay(age, sex) &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">`name: <span class="subst">$&#123;<span class="keyword">this</span>.name&#125;</span>,age: <span class="subst">$&#123;age&#125;</span>, sex: <span class="subst">$&#123;sex&#125;</span>`</span>);</span><br><span class="line">    <span class="keyword">return</span> age + sex;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> check = say.newCall(person, <span class="number">18</span>, <span class="string">'男'</span>);</span><br><span class="line"><span class="built_in">console</span>.log(check); <span class="comment">// 18男</span></span><br></pre></td></tr></table></figure>
-<p>apply 和 call 的实现原理，基本类似，区别在于 apply 的参数是以数组的形式传入</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Function</span>.prototype.newApply = <span class="function"><span class="keyword">function</span>(<span class="params">context, parameter</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">typeof</span> context === <span class="string">'object'</span>) &#123;</span><br><span class="line">    context = context || <span class="built_in">window</span></span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    context = <span class="built_in">Object</span>.create(<span class="literal">null</span>)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">let</span> fn = <span class="built_in">Symbol</span>()</span><br><span class="line">  context[fn] = <span class="keyword">this</span>;</span><br><span class="line">  <span class="keyword">var</span> result = context[fn](...parameter);</span><br><span class="line">  <span class="keyword">delete</span> context[fn];</span><br><span class="line">  <span class="keyword">return</span> result;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right"></i></a>
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right"></i></a>
   </nav>
 
 
@@ -2583,7 +2596,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">150</span>
+                  <span class="site-state-item-count">151</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -2596,7 +2609,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">106</span>
+                  <span class="site-state-item-count">107</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
