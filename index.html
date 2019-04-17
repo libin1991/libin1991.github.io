@@ -694,6 +694,154 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/04/17/为啥await不能用在forEach中/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/04/17/为啥await不能用在forEach中/" itemprop="url">为啥await不能用在forEach中</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-17T21:09:46+08:00">
+                2019-04-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="不知道你是否写过类似的代码"><a href="#不知道你是否写过类似的代码" class="headerlink" title="不知道你是否写过类似的代码:"></a>不知道你是否写过类似的代码:</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">test</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line"> <span class="keyword">let</span> arr = [<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]</span><br><span class="line"> arr.forEach(<span class="keyword">async</span> item =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> res = <span class="keyword">await</span> fetch(item)</span><br><span class="line">  <span class="built_in">console</span>.log(res)</span><br><span class="line"> &#125;)</span><br><span class="line"> <span class="built_in">console</span>.log(<span class="string">'end'</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fetch</span>(<span class="params">x</span>) </span>&#123;</span><br><span class="line"> <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">  setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">   resolve(x)</span><br><span class="line">  &#125;, <span class="number">500</span> * x)</span><br><span class="line"> &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">test()</span><br></pre></td></tr></table></figure>
+<p>我当时期望的打印顺序是<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">3</span><br><span class="line">2</span><br><span class="line">1</span><br><span class="line">end</span><br></pre></td></tr></table></figure></p>
+<p> 结果现实与我开了个玩笑，打印顺序居然是<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">end</span><br><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p><strong>为什么？</strong></p>
+</blockquote>
+<p>其实原因很简单，<strong>那就是 forEach 只支持同步代码</strong>。</p>
+<p>我们可以参考下 Polyfill 版本的 forEach，简化以后类似就是这样的伪代码<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> (index &lt; arr.length) &#123;</span><br><span class="line">  callback(item, index)   <span class="comment">//也就是我们传入的回调函数</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>从上述代码中我们可以发现，forEach 只是简单的执行了下回调函数而已，并不会去处理异步的情况。<br><strong>并且你在 callback 中即使使用 break 也并不能结束遍历。</strong></p>
+<blockquote>
+<p>怎么解决？</p>
+</blockquote>
+<p>一般来说解决的办法有2种,for…of和for循环。</p>
+<p>使用 Promise.all 的方式行不行，答案是： <font color="#ff0000"> <strong>不行</strong> </font></p>
+ <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">test</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line"> <span class="keyword">let</span> arr = [<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]</span><br><span class="line"> <span class="keyword">await</span> <span class="built_in">Promise</span>.all(</span><br><span class="line">  arr.map(<span class="keyword">async</span> item =&gt; &#123;</span><br><span class="line">   <span class="keyword">const</span> res = <span class="keyword">await</span> fetch(item)</span><br><span class="line">   <span class="built_in">console</span>.log(res)</span><br><span class="line">  &#125;)</span><br><span class="line"> )</span><br><span class="line"> <span class="built_in">console</span>.log(<span class="string">'end'</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/04/17/为啥await不能用在forEach中/1.png" alt=""></p>
+<p>可以看到并没有按照我们期望的输出。</p>
+<p>这样可以生效的原因是 async 函数肯定会返回一个 Promise 对象，调用 map 以后返回值就是一个存放了 Promise 的数组了，这样我们把数组传入 Promise.all 中就可以解决问题了。但是这种方式其实并不能达成我们要的效果，如果你希望内部的 fetch 是顺序完成的，可以选择第二种方式。</p>
+<h3 id="第1种方法是使用-for…of"><a href="#第1种方法是使用-for…of" class="headerlink" title="第1种方法是使用 for…of"></a>第1种方法是使用 for…of</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">test</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line"> <span class="keyword">let</span> arr = [<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]</span><br><span class="line"> <span class="keyword">for</span> (<span class="keyword">const</span> item <span class="keyword">of</span> arr) &#123;</span><br><span class="line">  <span class="keyword">const</span> res = <span class="keyword">await</span> fetch(item)</span><br><span class="line">  <span class="built_in">console</span>.log(res)</span><br><span class="line"> &#125;</span><br><span class="line"> <span class="built_in">console</span>.log(<span class="string">'end'</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/04/17/为啥await不能用在forEach中/2.png" alt=""></p>
+<p>这种方式相比 Promise.all 要简洁的多，并且也可以实现开头我想要的输出顺序。</p>
+<p>但是这时候你是否又多了一个疑问？为啥 for…of 内部就能让 await 生效呢。</p>
+<p>因为 for…of 内部处理的机制和 forEach 不同，forEach 是直接调用回调函数，for…of 是通过迭代器的方式去遍历。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">test</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line"> <span class="keyword">let</span> arr = [<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]</span><br><span class="line"> <span class="keyword">const</span> iterator = arr[<span class="built_in">Symbol</span>.iterator]()</span><br><span class="line"> <span class="keyword">let</span> res = iterator.next()</span><br><span class="line"> <span class="keyword">while</span> (!res.done) &#123;</span><br><span class="line">  <span class="keyword">const</span> value = res.value</span><br><span class="line">  <span class="keyword">const</span> res1 = <span class="keyword">await</span> fetch(value)</span><br><span class="line">  <span class="built_in">console</span>.log(res1)</span><br><span class="line">  res = iterator.next()</span><br><span class="line"> &#125;</span><br><span class="line"> <span class="built_in">console</span>.log(<span class="string">'end'</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="第2种方法是使用-for循环"><a href="#第2种方法是使用-for循环" class="headerlink" title="第2种方法是使用 for循环"></a>第2种方法是使用 for循环</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">test</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> arr = [<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">var</span> i=<span class="number">0</span>;i&lt;arr.length;i++) &#123;</span><br><span class="line">    <span class="keyword">const</span> res = <span class="keyword">await</span> fetch(arr[i])</span><br><span class="line">    <span class="built_in">console</span>.log(res)</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'end'</span>)</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">fetch</span>(<span class="params">x</span>) </span>&#123;</span><br><span class="line"> <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">  setTimeout(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">   resolve(x)</span><br><span class="line">  &#125;, <span class="number">500</span> * x)</span><br><span class="line"> &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">test()</span><br></pre></td></tr></table></figure>
+<p><img src="/2019/04/17/为啥await不能用在forEach中/3.png" alt=""></p>
+<h3 id="要想在循环中使用async-await，请使用for…of-或者-for-循环"><a href="#要想在循环中使用async-await，请使用for…of-或者-for-循环" class="headerlink" title="要想在循环中使用async await，请使用for…of 或者 for 循环"></a>要想在循环中使用async await，请使用for…of 或者 for 循环</h3><p><img src="/2019/04/17/为啥await不能用在forEach中/4.png" alt=""></p>
+<blockquote>
+<p>参考链接：</p>
+</blockquote>
+<h4 id="async-await与forEach引发的血案"><a href="#async-await与forEach引发的血案" class="headerlink" title="async,await与forEach引发的血案"></a><a href="https://juejin.im/post/5cb5a669e51d456e845b41f6" target="_blank" rel="noopener">async,await与forEach引发的血案</a></h4><h4 id="【JS基础】从JavaScript中的for…of说起-下-async和await"><a href="#【JS基础】从JavaScript中的for…of说起-下-async和await" class="headerlink" title="【JS基础】从JavaScript中的for…of说起(下) - async和await"></a><a href="https://juejin.im/post/5cb53a516fb9a06853012584" target="_blank" rel="noopener">【JS基础】从JavaScript中的for…of说起(下) - async和await</a></h4>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/03/31/HTTP缓存机制及原理/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -2707,198 +2855,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/02/03/Vue组件通信方式全面详解/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/02/03/Vue组件通信方式全面详解/" itemprop="url">Vue组件通信方式全面详解</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-02-03T15:22:59+08:00">
-                2019-02-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>众所周知，Vue 主要思想之一就是组件式开发。因此，在实际的项目开发中，肯定会以组件的开发模式进行。形如页面和页面之间需要通信一样，Vue 组件和组件之间肯定也需要互通有无、共享状态。接下来，我们就悉数给大家展示所有 Vue 组件之间的通信方式。</p>
-<h2 id="组件关系"><a href="#组件关系" class="headerlink" title="组件关系"></a>组件关系</h2><p><img src="/2019/02/03/Vue组件通信方式全面详解/1.png" alt="Vue 组件通信.png"></p>
-<p>上面展示的图片可以引入所有 Vue 组件的关系形式：</p>
-<ul>
-<li>A 组件和 B 组件、B 组件和 C 组件、B 组件和 D 组件形成了父子关系</li>
-<li>C 组件和 D 组件形成了兄弟关系</li>
-<li>A 组件和 C 组件、A 组件和 D 组件形成了隔代关系（其中的层级可能是多级，即隔多代）</li>
-</ul>
-<h2 id="组件通信"><a href="#组件通信" class="headerlink" title="组件通信"></a>组件通信</h2><p>这么多的组件关系，那么组件和组件之间又有哪些通信的方式呢？各种方式的区别又是什么？适用场景又是什么呢？带着问题继续往下看吧！</p>
-<h3 id="props-和-emit"><a href="#props-和-emit" class="headerlink" title="props 和 $emit"></a><code>props</code> 和 <code>$emit</code></h3><p>用过 Vue 技术栈开发项目过的开发者对这样一个组合肯定不会陌生，这种组件通信的方式是我们运用的非常多的一种。props 以单向数据流的形式可以很好的完成父子组件的通信。</p>
-<p>所谓单向数据流：就是数据只能通过 props 由父组件流向子组件，而子组件并不能通过修改 props 传过来的数据修改父组件的相应状态。至于为什么这样做，Vue 官网做出了解释：</p>
-<p><strong>所有的 prop 都使得其父子 prop 之间形成了一个<code>单向下行绑定</code>：父级 prop 的更新会向下流动到子组件中，但是反过来则不行。这样会防止从子组件意外改变父级组件的状态，从而导致你的应用的数据流向难以理解。</strong></p>
-<p><strong>额外的，每次父级组件发生更新时，子组件中所有的 prop 都将会刷新为最新的值。这意味着你不应该在一个子组件内部改变 prop。如果你这样做了，Vue 会在浏览器的控制台中发出警告。</strong></p>
-<p>正因为这个特性，于是就有了对应的 <code>$emit</code>。<code>$emit</code> 用来触发当前实例上的事件。对此，我们可以在父组件自定义一个处理接受变化状态的逻辑，然后在子组件中如若相关的状态改变时，就触发父组件的逻辑处理事件。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 父组件</span></span><br><span class="line">Vue.component(<span class="string">'parent'</span>, &#123;</span><br><span class="line">  template:<span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is parent component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;child :message="message" v-on:getChildData="getChildData"&gt;&lt;/child&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      message: <span class="string">'hello'</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods:&#123;</span><br><span class="line">    <span class="comment">// 执行子组件触发的事件</span></span><br><span class="line">    getChildData(val) &#123;</span><br><span class="line">      <span class="built_in">console</span>.log(val);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 子组件</span></span><br><span class="line">Vue.component(<span class="string">'child'</span>, &#123;</span><br><span class="line">  template:<span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="text" v-model="myMessage" @input="passData(myMessage)"&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * 得到父组件传递过来的数据</span></span><br><span class="line"><span class="comment">   * 这里的定义最好是写成数据校验的形式，免得得到的数据是我们意料之外的</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * props: &#123;</span></span><br><span class="line"><span class="comment">   *   message: &#123;</span></span><br><span class="line"><span class="comment">   *     type: String,</span></span><br><span class="line"><span class="comment">   *     default: ''</span></span><br><span class="line"><span class="comment">   *   &#125;</span></span><br><span class="line"><span class="comment">   * &#125;</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line">  props:[<span class="string">'message'</span>], </span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      <span class="comment">// 这里是必要的，因为你不能直接修改 props 的值</span></span><br><span class="line">      myMessage: <span class="keyword">this</span>.message</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods:&#123;</span><br><span class="line">    passData(val) &#123;</span><br><span class="line">      <span class="comment">// 数据状态变化时触发父组件中的事件this.$emit('getChildData', val);</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line">    </span><br><span class="line"><span class="keyword">var</span> app=<span class="keyword">new</span> Vue(&#123;</span><br><span class="line">  el: <span class="string">'#app'</span>,</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;parent /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>在上面的例子中，有父组件 parent 和子组件 child。</p>
-<ul>
-<li>父组件传递了 message 数据给子组件，并且通过v-on绑定了一个 getChildData 事件来监听子组件的触发事件；</li>
-<li>子组件通过 props 得到相关的 message 数据，然后将数据缓存在 data 里面，最后当属性数据值发生变化时，通过 this.$emit 触发了父组件注册的 getChildData 事件处理数据逻辑。</li>
-</ul>
-<h3 id="attrs-和-listeners"><a href="#attrs-和-listeners" class="headerlink" title="$attrs 和 $listeners"></a><code>$attrs</code> 和 <code>$listeners</code></h3><p>上面这种组件通信的方式只适合直接的父子组件，也就是如果父组件A下面有子组件B，组件B下面有组件C，这时如果组件A直接想传递数据给组件C那就行不通了！ 只能是组件A通过 props 将数据传给组件B，然后组件B获取到组件A 传递过来的数据后再通过 props 将数据传给组件C。当然这种方式是非常复杂的，无关组件中的逻辑业务一种增多了，代码维护也没变得困难，再加上如果嵌套的层级越多逻辑也复杂，无关代码越多！</p>
-<p>针对这样一个问题，<code>Vue 2.4</code> 提供了<code>$attrs</code> 和 <code>$listeners</code> 来实现能够直接让组件A传递消息给组件C。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 组件A</span></span><br><span class="line">Vue.component(<span class="string">'A'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is parent component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;B :messagec="messagec" :message="message" v-on:getCData="getCData" v-on:getChildData="getChildData(message)"&gt;&lt;/B&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      message: <span class="string">'hello'</span>,</span><br><span class="line">      messagec: <span class="string">'hello c'</span><span class="comment">//传递给c组件的数据</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    <span class="comment">// 执行B子组件触发的事件</span></span><br><span class="line">    getChildData(val) &#123;</span><br><span class="line">      <span class="built_in">console</span>.log(<span class="string">`这是来自B组件的数据：<span class="subst">$&#123;val&#125;</span>`</span>);</span><br><span class="line">    &#125;,</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 执行C子组件触发的事件</span></span><br><span class="line">    getCData(val) &#123;</span><br><span class="line">      <span class="built_in">console</span>.log(<span class="string">`这是来自C组件的数据：<span class="subst">$&#123;val&#125;</span>`</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 组件B</span></span><br><span class="line">Vue.component(<span class="string">'B'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="text" v-model="mymessage" @input="passData(mymessage)"&gt; </span></span><br><span class="line"><span class="string">      &lt;!-- C组件中能直接触发 getCData 的原因在于：B组件调用 C组件时，使用 v-on 绑定了 $listeners 属性 --&gt;</span></span><br><span class="line"><span class="string">      &lt;!-- 通过v-bind 绑定 $attrs 属性，C组件可以直接获取到 A组件中传递下来的 props（除了 B组件中 props声明的） --&gt;</span></span><br><span class="line"><span class="string">      &lt;C v-bind="$attrs" v-on="$listeners"&gt;&lt;/C&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * 得到父组件传递过来的数据</span></span><br><span class="line"><span class="comment">   * 这里的定义最好是写成数据校验的形式，免得得到的数据是我们意料之外的</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * props: &#123;</span></span><br><span class="line"><span class="comment">   *   message: &#123;</span></span><br><span class="line"><span class="comment">   *     type: String,</span></span><br><span class="line"><span class="comment">   *     default: ''</span></span><br><span class="line"><span class="comment">   *   &#125;</span></span><br><span class="line"><span class="comment">   * &#125;</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line">  props: [<span class="string">'message'</span>],</span><br><span class="line">  data()&#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      mymessage: <span class="keyword">this</span>.message</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    passData(val)&#123;</span><br><span class="line">      <span class="comment">//触发父组件中的事件this.$emit('getChildData', val)</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 组件C</span></span><br><span class="line">Vue.component(<span class="string">'C'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="text" v-model="$attrs.messagec" @input="passCData($attrs.messagec)"&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    passCData(val) &#123;</span><br><span class="line">      <span class="comment">// 触发父组件A中的事件this.$emit('getCData',val)</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line">    </span><br><span class="line"><span class="keyword">var</span> app=<span class="keyword">new</span> Vue(&#123;</span><br><span class="line">  el:<span class="string">'#app'</span>,</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;A /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>在上面的例子中，我们定义了 A，B，C 三个组件，其中组件B 是组件 A 的子组件，组件C 是组件B 的子组件。</p>
-<ul>
-<li>在组件 A 里面为组件 B 和组件 C 分别定义了一个属性值（message，messagec）和监听事件（getChildData，getCData），并将这些通过 props 传递给了组件 A 的直接子组件 B；</li>
-<li>在组件 B 中通过 props 只获取了与自身直接相关的属性（message），并将属性值缓存在了 data 中，以便后续的变化监听处理，然后当属性值变化时触发父组件 A 定义的数据逻辑处理事件（getChildData）。关于组件 B 的直接子组件 C，传递了属性 <code>$attrs</code> 和绑定了事件 <code>$listeners</code>；</li>
-<li>在组件 C 中直接在 v-model 上绑定了 <code>$attrs</code> 属性，通过 v-on 绑定了 <code>$listeners</code>；</li>
-</ul>
-<p>最后就将 <code>$attrs</code> 和 <code>$listeners</code> 单独拿出来说说吧！</p>
-<ul>
-<li><p><code>$attrs</code>：包含了父作用域中不被 prop 所识别 (且获取) 的特性绑定 (<code>class</code> 和 <code>style</code> 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定属性 (class和 <code>style</code> 除外)，并且可以通过 <code>v-bind=&quot;$attrs&quot;</code> 传入内部组件。</p>
-</li>
-<li><p><code>$listeners</code>：包含了父作用域中的 (不含 <code>.native</code> 修饰器的) <code>v-on</code> 事件监听器。它可以通过 <code>v-on=&quot;$listeners&quot;</code> 传入内部组件。</p>
-</li>
-</ul>
-<h3 id="中央事件总线-EventBus"><a href="#中央事件总线-EventBus" class="headerlink" title="中央事件总线 EventBus"></a>中央事件总线 EventBus</h3><p>对于父子组件之间的通信，上面的两种方式是完全可以实现的，但是对于两个组件不是父子关系，那么又该如何实现通信呢？在项目规模不大的情况下，完全可以使用中央事件总线 <code>EventBus</code> 的方式。如果你的项目规模是大中型的，那你可以使用我们后面即将介绍的 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.yuque.com%2Flittlelane%2Fvue%2Fkllzcm%231765f2e8" target="_blank" rel="noopener">Vuex 状态管理</a>。</p>
-<p><code>EventBus</code> 通过新建一个 <code>Vue</code> 事件 <code>bus</code> 对象，然后通过 <code>bus.$emit</code> 触发事件，<code>bus.$on</code> 监听触发的事件。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 组件 A</span></span><br><span class="line">Vue.component(<span class="string">'A'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is A component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="text" v-model="mymessage" @input="passData(mymessage)"&gt; </span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      mymessage: <span class="string">'hello brother1'</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    passData(val) &#123;</span><br><span class="line">      <span class="comment">//触发全局事件globalEventthis.$EventBus.$emit('globalEvent', val)</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 组件 B</span></span><br><span class="line">Vue.component(<span class="string">'B'</span>, &#123;</span><br><span class="line">  template:<span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is B component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;组件A 传递过来的数据：&#123;&#123;brothermessage&#125;&#125;&lt;/p&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      mymessage: <span class="string">'hello brother2'</span>,</span><br><span class="line">      brothermessage: <span class="string">''</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  mounted() &#123;</span><br><span class="line">    <span class="comment">//绑定全局事件globalEventthis.$EventBus.$on('globalEvent', (val) =&gt; &#123;</span></span><br><span class="line">      <span class="keyword">this</span>.brothermessage = val;</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">//定义中央事件总线const EventBus = new Vue();</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 将中央事件总线赋值到 Vue.prototype 上，这样所有组件都能访问到了</span></span><br><span class="line">Vue.prototype.$EventBus = EventBus;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> app = <span class="keyword">new</span> Vue(&#123;</span><br><span class="line">  el: <span class="string">'#app'</span>,</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;A /&gt;</span></span><br><span class="line"><span class="string">      &lt;B /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>在上面的实例中，我们定义了组件 A 和组件 B，但是组件 A 和组件 B 之间没有任何的关系。</p>
-<ul>
-<li>1)、 首先我们通过 <code>new Vue()</code> 实例化了一个 Vue 的实例，也就是我们这里称呼的中央事件总线 EventBus ，然后将其赋值给了 <code>Vue.prototype.$EventBus</code>，使得所有的业务逻辑组件都能够访问到；</li>
-<li>2)、 然后定义了组件 A，在组件 A 里面定义了一个处理的方法 passData，主要定义触发一个全局的 <code>globalEvent</code> 事件，并传递一个参数；</li>
-<li>3). 最后定义了组件 B，在组件 B 里面的 <code>mounted</code> 生命周期监听了组件 A 里面定义的全局 <code>globalEvent</code> 事件，并在回调函数里面执行了一些逻辑处理。</li>
-</ul>
-<p>中央事件总线 <code>EventBus</code> 非常简单，就是任意组件和组件之间打交道，没有多余的业务逻辑，只需要在状态变化组件触发一个事件，然后在处理逻辑组件监听该事件就可以。该方法非常适合小型的项目！</p>
-<h3 id="provide-和-inject"><a href="#provide-和-inject" class="headerlink" title="provide 和 inject"></a><code>provide</code> 和 <code>inject</code></h3><p>熟悉 React 开发的同学对 <code>Context API</code> 肯定不会陌生吧！在 Vue 中也提供了类似的 API 用于组件之间的通信。</p>
-<p>在父组件中通过 <code>provider</code> 来提供属性，然后在子组件中通过 inject 来注入变量。不论子组件有多深，只要调用了 <code>inject</code> 那么就可以注入在 provider 中提供的数据，而不是局限于只能从当前父组件的 prop 属性来获取数据，只要在父组件的生命周期内，子组件都可以调用。这和 React 中的 <code>Context API</code> 有没有很相似！<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 定义 parent 组件</span></span><br><span class="line">Vue.component(<span class="string">'parent'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is parent component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;child&gt;&lt;/child&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  provide: &#123;</span><br><span class="line">    <span class="keyword">for</span>:<span class="string">'test'</span></span><br><span class="line">  &#125;,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      message: <span class="string">'hello'</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义 child 组件</span></span><br><span class="line">Vue.component(<span class="string">'child'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="tet" v-model="mymessage"&gt; </span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  inject: [<span class="string">'for'</span>],	<span class="comment">// 得到父组件传递过来的数据</span></span><br><span class="line">  data()&#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      mymessage: <span class="keyword">this</span>.for</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> app = <span class="keyword">new</span> Vue(&#123;</span><br><span class="line">  el: <span class="string">'#app'</span>,</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;parent /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>在上面的实例中，我们定义了组件 <code>parent</code> 和组件 <code>child</code>，组件 <code>parent</code> 和组件 <code>child</code> 是父子关系。</p>
-<ul>
-<li>1)、 在 <code>parent</code> 组件中，通过 <code>provide</code> 属性，以对象的形式向子孙组件暴露了一些属性</li>
-<li>2)、 在 <code>child</code> 组件中，通过 <code>inject</code> 属性注入了 <code>parent</code> 组件提供的数据，实际这些通过 <code>inject</code> 注入的属性是挂载到 Vue 实例上的，所以在组件内部可以通过 this 来访问。</li>
-</ul>
-<blockquote>
-<p>⚠️ 注意：官网文档提及 provide 和 inject 主要为高阶插件/组件库提供用例，并不推荐直接用于应用程序代码中。</p>
-</blockquote>
-<p>关于 <code>provide</code> 和 <code>inject</code> 这对属性的更多具体用法可以参照<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%3F%23provide-inject" target="_blank" rel="noopener">官网的文档</a>。</p>
-<h3 id="v-model"><a href="#v-model" class="headerlink" title="v-model"></a><code>v-model</code></h3><p>这种方式和前面讲到的 props 有点类型，但是既然单独提出来说了，那肯定也有其独特之处！不管了，先上代码吧！<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 定义 parent 组件</span></span><br><span class="line">Vue.component(<span class="string">'parent'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is parent component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;&#123;&#123;message&#125;&#125;&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;child v-model="message"&gt;&lt;/child&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      message: <span class="string">'hello'</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义 child 组件</span></span><br><span class="line">Vue.component(<span class="string">'child'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="text" v-model="mymessage" @change="changeValue"&gt; </span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  props: &#123;</span><br><span class="line">    value: <span class="built_in">String</span>, <span class="comment">// v-model 会自动传递一个字段为 value 的 props 属性</span></span><br><span class="line">  &#125;,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      mymessage: <span class="keyword">this</span>.value</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    changeValue() &#123;</span><br><span class="line">      <span class="keyword">this</span>.$emit(<span class="string">'input'</span>, <span class="keyword">this</span>.mymessage); <span class="comment">//通过如此调用可以改变父组件上 v-model 绑定的值</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> app = <span class="keyword">new</span> Vue(&#123;</span><br><span class="line">  el: <span class="string">'#app'</span>,</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">     &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;parent /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>说到 v-model 这个指定，大家肯定会想到双向数据绑定，如 input 输入值，下面的显示就是实时的根据输入的不同而显示相应的内容。刚开始学习 Vue 的时候有没有觉得很神奇，不管你有没有，反正我有过这种感觉！</p>
-<p>关于详细的 v-model 用法和自定义组件 v-model 的实现，可以到<a href="https://link.juejin.im?target=https%3A%2F%2Fwww.yuque.com%2Flittlelane%2Fvue%2Fiqevua" target="_blank" rel="noopener">这里</a>查看！这里我们主要讲解 v-model 是如何实现父子组件通信的。</p>
-<p>在上面的实例代码中，我们定义了 parent 和 child 两个组件，这两个组件是父子关系，v-model 也只能实现父子组件之间的通信。</p>
-<ul>
-<li>1)、 在 parent 组件中，我们给自定义的 child 组件实现了 v-model 绑定了 message 属性。此时相当于给 child 组件传递了 value 属性和绑定了 input 事件。</li>
-<li>2)、 顺理成章，在定义的 child 组件中，可以通过 props 获取 value 属性，根据 props 单向数据流的原则，又将 value 缓存在了 data 里面的 mymessage 上，再在 input 上通过 <code>v-model</code> 绑定了 <code>mymessage</code> 属性和一个 <code>change</code> 事件。当 input 值变化时，就会触发 change 事件，处理 parent 组件通过 <code>v-model</code> 给 child 组件绑定的 <code>input</code> 事件，触发 <code>parent</code> 组件中 <code>message</code> 属性值的变化，完成 <code>child</code> 子组件改变 parent 组件的属性值。</li>
-</ul>
-<p>这里主要是 <code>v-model</code> 的实现原理要着重了解一下！这种方式的用处适合于将展示组件和业务逻辑组件分离。</p>
-<h3 id="parent-和-children"><a href="#parent-和-children" class="headerlink" title="$parent 和 $children"></a><code>$parent</code> 和 <code>$children</code></h3><p>这里要说的这种方式就比较直观了，直接操作父子组件的实例。<code>$parent</code> 就是父组件的实例对象，而 <code>$children</code> 就是当前实例的直接子组件实例了，不过这个属性值是数组类型的，且并不保证顺序，也不是响应式的。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 定义 parent 组件</span></span><br><span class="line">Vue.component(<span class="string">'parent'</span>, &#123;</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;p&gt;this is parent component!&lt;/p&gt;</span></span><br><span class="line"><span class="string">      &lt;button @click="changeChildValue"&gt;test&lt;/button&gt;</span></span><br><span class="line"><span class="string">      &lt;child /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      message: <span class="string">'hello'</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    changeChildValue()&#123;</span><br><span class="line">      <span class="keyword">this</span>.$children[<span class="number">0</span>].mymessage = <span class="string">'hello'</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 定义 child 组件</span></span><br><span class="line">Vue.component(<span class="string">'child'</span>, &#123;</span><br><span class="line">  template:<span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;input type="text" v-model="mymessage" @change="changeValue" /&gt; </span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span>,</span><br><span class="line">  data() &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123;</span><br><span class="line">      mymessage: <span class="keyword">this</span>.$parent.message</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    changeValue()&#123;</span><br><span class="line">      <span class="keyword">this</span>.$parent.message = <span class="keyword">this</span>.mymessage;<span class="comment">//通过如此调用可以改变父组件的值</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">&#125;);</span><br><span class="line">    </span><br><span class="line"><span class="keyword">const</span> app = <span class="keyword">new</span> Vue(&#123;</span><br><span class="line">  el: <span class="string">'#app'</span>,</span><br><span class="line">  template: <span class="string">`</span></span><br><span class="line"><span class="string">    &lt;div&gt;</span></span><br><span class="line"><span class="string">      &lt;parent /&gt;</span></span><br><span class="line"><span class="string">    &lt;/div&gt;</span></span><br><span class="line"><span class="string">  `</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
-<p>在上面实例代码中，分别定义了 parent 和 child 组件，这两个组件是直接的父子关系。两个组件分别在内部定义了自己的属性。在 parent 组件中，直接通过 <code>this.$children[0].mymessage = &#39;hello&#39;;</code> 给 <code>child</code> 组件内的 <code>mymessage</code> 属性赋值，而在 child 子组件中，同样也是直接通过<code>this.$parent.message</code> 给 <code>parent</code> 组件中的 <code>message</code> 赋值，形成了父子组件通信。</p>
-<p>关于 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-parent" target="_blank" rel="noopener"><code>$parent</code></a> 和 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-children" target="_blank" rel="noopener"><code>$children</code></a> 这对属性的详细介绍可以查询官网文档！</p>
-<h3 id="boradcast-和-dispatch"><a href="#boradcast-和-dispatch" class="headerlink" title="$boradcast 和 $dispatch"></a><code>$boradcast</code> 和 <code>$dispatch</code></h3><p>这也是一对成对出现的方法，不过只是在 <code>Vue1.0</code> 中提供了，而 <code>Vue2.0</code> 被废弃了，但是还是有很多开源软件都自己封装了这种组件通信的方式，比如 <a href="https://link.juejin.im?target=http%3A%2F%2Fmint-ui.github.io%2F%23!%2Fzh-cn" target="_blank" rel="noopener">Mint UI</a>、<a href="https://link.juejin.im?target=http%3A%2F%2Felement-cn.eleme.io%2F%23%2Fzh-CN" target="_blank" rel="noopener">Element UI</a> 和 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.iviewui.com%2F" target="_blank" rel="noopener">iView</a> 等。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// broadcast 方法的主逻辑处理方法functionbroadcast(componentName, eventName, params) &#123;</span></span><br><span class="line">  <span class="keyword">this</span>.$children.forEach(<span class="function"><span class="params">child</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> name = child.$options.componentName;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (name === componentName) &#123;</span><br><span class="line">      child.$emit.apply(child, [eventName].concat(params));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      broadcast.apply(child, [componentName, eventName].concat(params));</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">exportdefault &#123;</span><br><span class="line">  methods: &#123;</span><br><span class="line">    <span class="comment">// 定义 dispatch 方法</span></span><br><span class="line">    dispatch(componentName, eventName, params) &#123;</span><br><span class="line">      <span class="keyword">let</span> parent = <span class="keyword">this</span>.$parent;</span><br><span class="line">      <span class="keyword">let</span> name = parent.$options.componentName;</span><br><span class="line">      <span class="keyword">while</span> (parent &amp;&amp; (!name || name !== componentName)) &#123;</span><br><span class="line">        parent = parent.$parent;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (parent) &#123;</span><br><span class="line">          name = parent.$options.componentName;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      </span><br><span class="line">      <span class="keyword">if</span> (parent) &#123;</span><br><span class="line">        parent.$emit.apply(parent, [eventName].concat(params));</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 定义 broadcast 方法</span></span><br><span class="line">    broadcast(componentName, eventName, params) &#123;</span><br><span class="line">      broadcast.call(<span class="keyword">this</span>, componentName, eventName, params);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
-<p>上面所示的代码，一般都作为一个 <code>mixins</code> 去混入使用, <code>broadcast</code> 是向特定的父组件触发事件，<code>dispatch</code> 是向特定的子组件触发事件，本质上这种方式还是 <code>on</code> 和 <code>emit</code> 的封装，在一些基础组件中都很实用。</p>
-<p>因为在 <code>Vue 2.0</code> 这个 API 已经废弃，那我们在这里也就提一下，如果想详细了解 <code>Vue 1.0</code> 和其他基于 Vue 的 UI 框架关于这个 API 的实现，可以点击查看<a href="https://link.juejin.im?target=https%3A%2F%2Fwww.yuque.com%2Flittlelane%2Fvue%2Fusdfkw" target="_blank" rel="noopener">这篇文章</a>！</p>
-<h3 id="Vuex-状态管理"><a href="#Vuex-状态管理" class="headerlink" title="Vuex 状态管理"></a>Vuex 状态管理</h3><p>Vuex 是状态管理工具，实现了项目状态的集中式管理。工具的实现借鉴了 <a href="https://link.juejin.im?target=https%3A%2F%2Ffacebook.github.io%2Fflux%2Fdocs%2Foverview.html" target="_blank" rel="noopener">Flux</a>、<a href="https://link.juejin.im?target=http%3A%2F%2Fredux.js.org%2F" target="_blank" rel="noopener">Redux</a>、和 <a href="https://link.juejin.im?target=https%3A%2F%2Fguide.elm-lang.org%2Farchitecture%2F" target="_blank" rel="noopener">The Elm Architecture</a> 的模式和概念。当然与其他模式不同的是，Vuex 是专门为 Vue.js 设计的状态管理库，以利用 Vue.js 的细粒度数据响应机制来进行高效的状态更新。详细的关于 Vuex 的介绍，你既可以去查看<a href="https://link.juejin.im?target=https%3A%2F%2Fvuex.vuejs.org%2Fzh%2F" target="_blank" rel="noopener">官网文档</a>，也可以查看本专栏关于 Vuex 一系列的介绍。</p>
-<h3 id="refs"><a href="#refs" class="headerlink" title="refs"></a>refs</h3><p>通过this.$refs.XXX 拿到组件上面的所有方法属性</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>写到这里，Vue 中关于组件通信的所有方式就介绍完了，是不是感觉还是颇丰的呢？其实还有另外的两种方式可以实现组件的通信，一是通过 <a href="https://link.juejin.im?target=https%3A%2F%2Frouter.vuejs.org%2Fzh%2F" target="_blank" rel="noopener">Vue Router</a> 通信，二是通过浏览器本地存储实现组件通信。关于这两种方式，这里我就不讲了，当然我会在本专栏中单独开篇讲解的，希望大家有兴趣就去看看！</p>
-<p>准确来说本文详细讲解了实现 Vue 通信的六种方式，每种方式都有其特点。在实际的项目，大家可以酌情的进行使用。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -2951,7 +2907,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">151</span>
+                  <span class="site-state-item-count">152</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

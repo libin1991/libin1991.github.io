@@ -694,6 +694,222 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/20/ES6之promise、generator-co、async-await手写promise/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/08/20/ES6之promise、generator-co、async-await手写promise/" itemprop="url">ES6之promise、generator+co、async+await手写promise</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-20T12:06:32+08:00">
+                2018-08-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="一、前言"><a href="#一、前言" class="headerlink" title="一、前言"></a>一、前言</h4><p>传统的解决代码单线程执行的方案是<code>回调函数和事件</code>。这是个解决问题的方案，但是会造成回调地狱。</p>
+<p>异步编程是优化代码逻辑提高代码易读性的关键。</p>
+<p>目前通用的异步编程方法有三种：</p>
+<ol>
+<li>Promise</li>
+<li>generator+co</li>
+<li>async+await</li>
+</ol>
+<p>这三种方法我都经常在用，但是对它们的原理却一知半解。于是想炒个冷饭从头到尾理一遍，梳理一下它们之间的关系。</p>
+<h4 id="二、Promise"><a href="#二、Promise" class="headerlink" title="二、Promise"></a>二、Promise</h4><h5 id="2-1-原理"><a href="#2-1-原理" class="headerlink" title="2.1 原理"></a>2.1 原理</h5><p>Promise对象是一个构造函数，用来生成Promise实例。<br>Promise对象代表一个异步操作，有三种状态：<code>pending</code>（进行中）、<code>fulfilled</code>（已成功）和<code>rejected</code>（已失败）。<br>Promise函数的两个参数分别是<code>resolve</code>和<code>reject</code>。它们是Promise中定义的两个函数，在运行自定义函数时返回。<br><code>resolve</code>函数将Promise对象的状态从 <code>pending</code> 变为<code>resolved</code>,<code>reject</code>将Promise对象的状态从 <code>pending</code> 变为<code>rejected</code><br>Promise的原型链上定义了then方法，提供两个回调函数分别捕获resolve、reject返回的值。</p>
+<h5 id="2-2-静态方法"><a href="#2-2-静态方法" class="headerlink" title="2.2 静态方法"></a>2.2 静态方法</h5><p>方法描述<code>Promise.resolve(promise)</code>;返回 <code>promise</code>（仅当 <code>promise.constructor == Promise</code> 时）<code>Promise.resolve(thenable)</code>;<br>从<code>thenable</code> 中生成一个新<code>promise</code>。<code>thenable</code> 是具有 <code>then()</code> 方法的类似于 <code>promise</code> 的对象。<code>Promise.resolve(obj)</code>;<br>在此情况下，生成一个<code>promise</code> 并在执行时返回 <code>obj。Promise.reject(obj)</code>;生成一个<code>promise</code> 并在拒绝时返回 obj。<br>为保持一致和调试之目的（例如堆叠追踪）， obj 应为 <code>instanceof Error</code>。<br><code>Promise.all(array)</code>;生成一个<code>promise</code>，<br>该 promise 在数组中各项执行时执行，在任意一项拒绝时拒绝。<code>Promise.race(array)</code>;<br>生成一个 Promise，该 Promise 在任意项执行时执行，或在任意项拒绝时拒绝，以最先发生的为准。<br>sample 1<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">let p1 = new Promise((resolve,reject)=&gt;&#123;</span><br><span class="line">    console.log(&apos;hello&apos;)</span><br><span class="line">    setTimeout(function () &#123;</span><br><span class="line">        reject(&apos;1212&apos;)</span><br><span class="line">    &#125;,1000)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">p1.then(data=&gt; &#123;</span><br><span class="line">    console.log(&apos;success&apos;+data)</span><br><span class="line">&#125;,err=&gt;&#123;</span><br><span class="line">    console.log(&apos;err&apos;+err)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">p1.then(data=&gt; &#123;</span><br><span class="line">    console.log(&apos;success&apos;+data)</span><br><span class="line">&#125;,err=&gt;&#123;</span><br><span class="line">    console.log(&apos;err&apos;+err)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>terminal:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hello</span><br><span class="line">err1212</span><br><span class="line">err1212</span><br></pre></td></tr></table></figure></p>
+<p>sample 1 中新建了一个Promise实例，定时1S后使用reject方法，将Promise实例的状态从pending变成rejected，触发then的err捕捉回调函数。</p>
+<p>在sample 1 中调用then方法，并不会马上执行回调。是等待实例中状态改变后才会执行。这一点和<code>发布订阅</code>模式很类似。</p>
+<p>sample 2<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">let fs = require(&apos;fs&apos;)</span><br><span class="line"></span><br><span class="line">let event = &#123;</span><br><span class="line">    arr:[],</span><br><span class="line">    result:[],</span><br><span class="line">    on(fn)&#123;</span><br><span class="line">        this.arr.push(fn)</span><br><span class="line">    &#125;,</span><br><span class="line">    emit(data)&#123;</span><br><span class="line">        this.result.push(data)</span><br><span class="line">        this.arr.forEach(fn=&gt;fn(this.result))</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">event.on(function (data) &#123;</span><br><span class="line">    if(data.length === 2)&#123;</span><br><span class="line">        console.log(data)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">fs.readFile(&apos;1.txt&apos;,&apos;utf8&apos;,function (err,data) &#123;</span><br><span class="line">    event.emit(data)</span><br><span class="line">&#125;)</span><br><span class="line">fs.readFile(&apos;2.txt&apos;,&apos;utf8&apos;,function (err,data) &#123;</span><br><span class="line">    event.emit(data)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>smaple2 中将结果data放入暂存数组中，在执行接听函数的时候返回。</p>
+<h5 id="2-3-简写Promise源码"><a href="#2-3-简写Promise源码" class="headerlink" title="2.3 简写Promise源码"></a>2.3 简写Promise源码</h5><p>通过之前的例子和对发布订阅模式的理解，我们可以大概写出Promise实例的基本功能：</p>
+<p>code 1：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">function Promise(executor) &#123;</span><br><span class="line">    let self = this</span><br><span class="line">    self.value = undefined</span><br><span class="line">    self.reason = undefined</span><br><span class="line">    self.status = &apos;pending&apos;</span><br><span class="line">    self.onResovedCallbacks = []</span><br><span class="line">    self.onRejectedCallbacks = []</span><br><span class="line">    function resolve(data) &#123;</span><br><span class="line">        if(self.status === &apos;pending&apos;)&#123;</span><br><span class="line">            self.value = data</span><br><span class="line">            self.status = &apos;resolved&apos;</span><br><span class="line">            self.onResovedCallbacks.forEach(fn=&gt;fn())</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    function reject(reason) &#123;</span><br><span class="line">        if(self.status === &apos;pending&apos;) &#123;</span><br><span class="line">            self.reason = reason</span><br><span class="line">            self.status = &apos;reject&apos;</span><br><span class="line">            self.onRejectedCallbacks.forEach(fn=&gt;fn())</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    //如果函数执行时发生异常</span><br><span class="line">    try&#123;</span><br><span class="line">        executor(resolve,reject)</span><br><span class="line">    &#125;catch (e)&#123;</span><br><span class="line">        reject(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Promise.prototype.then = function (onFulfilled,onRejected) &#123;</span><br><span class="line">    let self = this</span><br><span class="line">    if(self.status === &apos;pending&apos;)&#123;</span><br><span class="line">        self.onResovedCallbacks.push(()=&gt;&#123;</span><br><span class="line">            onFulfilled(self.value)</span><br><span class="line">        &#125;)</span><br><span class="line">        self.onRejectedCallbacks.push(()=&gt;&#123;</span><br><span class="line">            onRejected(self.reason)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;elseif(self.status === &apos;resolved&apos;)&#123;</span><br><span class="line">        onFulfilled(self.value)</span><br><span class="line">    &#125;elseif(self.status === &apos;reject&apos;)&#123;</span><br><span class="line">        onRejected(self.reason)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports = Promise</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><p>函数内部变量</p>
+</li>
+<li><p>status：储存Promise的状态</p>
+</li>
+<li>onResovedCallbacks：储存Promise pending状态下成功回调函数</li>
+<li>onRejectedCallbacks：储存Promise pending状态下失败回调函数</li>
+<li>resolve函数</li>
+<li><p>reject函数</p>
+</li>
+<li><p>Promise.prototype.then</p>
+</li>
+<li><p>根据实例状态执行响应的回调</p>
+</li>
+<li>status == pending使用发布订阅模式储存回调函数。</li>
+</ul>
+<h5 id="2-4-Promise用法简述"><a href="#2-4-Promise用法简述" class="headerlink" title="2.4 Promise用法简述"></a>2.4 Promise用法简述</h5><ol>
+<li><p>如果一个promise执行完后,返回的还是一个Promise对象,会把这个promise的执行结果,传递给下一个then中。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">let fs = require(&apos;fs&apos;)</span><br><span class="line"></span><br><span class="line">functionread(filePath,encoding) &#123;</span><br><span class="line">    return new Promise((resolve,reject)=&gt;&#123;</span><br><span class="line">        fs.readFile(filePath,encoding,(err,data)=&gt; &#123;</span><br><span class="line">            if(err) reject(err)</span><br><span class="line">            resolve(data)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">read(&apos;1.txt&apos;,&apos;utf8&apos;).then(</span><br><span class="line">    f1=&gt;read(f1,&apos;utf8&apos;) // 1</span><br><span class="line">).then(</span><br><span class="line">    data=&gt; console.log(&apos;resolved:&apos;,comments)</span><br><span class="line">    err=&gt; console.log(&apos;rejected: &apos;,err)</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>如果then中返回的不是promise，是一个普通值,会将这个普通值作为下一个then的返回结果。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"> ......</span><br><span class="line"> </span><br><span class="line">read(&apos;1.txt&apos;,&apos;utf8&apos;).then(</span><br><span class="line">    f1=&gt;read(f1,&apos;utf8&apos;)</span><br><span class="line">).then(</span><br><span class="line">    return 123 //2</span><br><span class="line">).then(</span><br><span class="line">    data=&gt; console.log(&apos;resolved:&apos;,comments)</span><br><span class="line">    err=&gt; console.log(&apos;rejected: &apos;,err)</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>如果当前then中失败了会走下一个then的失败。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"> ......</span><br><span class="line"> </span><br><span class="line">read(&apos;1.txt&apos;,&apos;utf8&apos;).then(</span><br><span class="line">    f1=&gt;read(f1,&apos;utf8&apos;)</span><br><span class="line">).then(</span><br><span class="line">    return 123</span><br><span class="line">).then(</span><br><span class="line">    throw new Error(&apos;出错&apos;) //3</span><br><span class="line">).then(</span><br><span class="line">    data=&gt; console.log(&apos;resolved:&apos;,comments)</span><br><span class="line">    err=&gt; console.log(&apos;rejected: &apos;,err)</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>如果返回的是undefined不管当前是失败还是成功，都会走下一次成功。</p>
+</li>
+<li>catch是错误没有处理的情况下会走。</li>
+<li>then中可以不写。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"> ......</span><br><span class="line"> </span><br><span class="line">read(&apos;1.txt&apos;,&apos;utf8&apos;).then(</span><br><span class="line">    f1=&gt;read(f1,&apos;utf8&apos;)</span><br><span class="line">).then(</span><br><span class="line">    return 123</span><br><span class="line">).then(</span><br><span class="line">    throw new Error(&apos;出错&apos;) </span><br><span class="line">).then() //6</span><br><span class="line"> .then(</span><br><span class="line">    data=&gt; console.log(&apos;resolved:&apos;,comments)</span><br><span class="line">    err=&gt; console.log(&apos;rejected: &apos;,err)</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>这些用法中最重要的是promise的then链式调用。<br>可以大致猜到，旧Promise的then方法返回的是一个新的Promise对象。</p>
+<p>参考<a href="https://link.juejin.im?target=https%3A%2F%2Fpromisesaplus.com%2F" target="_blank" rel="noopener">Promises/A+规范</a>，可以完善手写的Promise源码使其支持promise的静态方法和调用规则。</p>
+<p>code 2：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br></pre></td><td class="code"><pre><span class="line">function Promise(executor) &#123;</span><br><span class="line">    let self = this</span><br><span class="line">    self.value = undefined</span><br><span class="line">    self.reason = undefined</span><br><span class="line">    self.status = &apos;pending&apos;</span><br><span class="line">    self.onResovedCallbacks = []</span><br><span class="line">    self.onRejectedCallbacks = []</span><br><span class="line">    function resolve(value) &#123;</span><br><span class="line">        if (self.status === &apos;pending&apos;) &#123;</span><br><span class="line">            self.value = value</span><br><span class="line">            self.status = &apos;resolved&apos;</span><br><span class="line">            self.onResovedCallbacks.forEach(fn=&gt;fn())</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    function reject(reason) &#123;</span><br><span class="line">        if (self.status === &apos;pending&apos;) &#123;</span><br><span class="line">            self.reason = reason</span><br><span class="line">            self.status = &apos;rejected&apos;</span><br><span class="line">            self.onRejectedCallbacks.forEach(fn=&gt;fn())</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    //如果函数执行时发生异常</span><br><span class="line">    try &#123;</span><br><span class="line">        executor(resolve, reject)</span><br><span class="line">    &#125; catch (e) &#123;</span><br><span class="line">        reject(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">function resolvePromise(promise2, x, resolve, reject) &#123;</span><br><span class="line">    //If promise and x refer to the same object, reject promise with a TypeError as the reason.</span><br><span class="line">    if (promise2 === x) &#123;</span><br><span class="line">        return reject(new TypeError(&apos;chaining cycle&apos;))</span><br><span class="line">    &#125;</span><br><span class="line">    let called</span><br><span class="line">    //2.3.3.Otherwise, if x is an object or function,</span><br><span class="line">    if (x !== null &amp;&amp; (typeof x == &apos;object&apos; || typeof x === &apos;function&apos;)) &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            letthen = x.then</span><br><span class="line">            //2.3.3.3.If then is a function, call it with x as this, first argument resolvePromise, and second argument rejectPromise, where:</span><br><span class="line">            //2.3.3.3.3.If both resolvePromise and rejectPromise are called, or multiple calls to the same argument are made, the first call takes precedence, and any further calls are ignored.</span><br><span class="line">            if (typeof then === &apos;function&apos;) &#123;</span><br><span class="line">                then.call(x, y=&gt; &#123;</span><br><span class="line">                    if (called) return;</span><br><span class="line">                    called = true;</span><br><span class="line">                    //递归直到解析成普通值为止</span><br><span class="line">                    //2.3.3.1.If/when resolvePromise is called with a value y, run [[Resolve]](promise, y).</span><br><span class="line">                    resolvePromise(promise2, y, resolve, reject)</span><br><span class="line">                &#125;, err=&gt; &#123;</span><br><span class="line">                    if (called) return;</span><br><span class="line">                    called = true;</span><br><span class="line">                    reject(err)</span><br><span class="line">                &#125;)</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                resolve(x)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; catch (e) &#123;</span><br><span class="line">            if (called) return;</span><br><span class="line">            called = true;</span><br><span class="line">            //2.3.3.3.If retrieving the property x.then results in a thrown exception e, reject promise with e as the reason.</span><br><span class="line">            reject(e)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        //If x is not an object or function, fulfill promise with x.</span><br><span class="line">        resolve(x)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">//then调用的时候 都是异步调用 (原生的then的成功或者失败 是一个微任务)</span><br><span class="line">Promise.prototype.then = function (onFulfilled, onRejected) &#123;</span><br><span class="line">    //成功和失败的函数 是可选参数</span><br><span class="line">    onFulfilled = typeof onFulfilled === &apos;function&apos; ? onFulfilled : val=&gt;val;</span><br><span class="line">    onRejected = typeof onRejected === &apos;function&apos; ? onRejected : (e)=&gt; &#123;throw e&#125;;</span><br><span class="line">    let self = this</span><br><span class="line">    let promise2;</span><br><span class="line">    promise2 = new Promise((resolve, reject)=&gt; &#123;</span><br><span class="line">        if (self.status === &apos;resolved&apos;) &#123;</span><br><span class="line">            setTimeout(()=&gt; &#123;</span><br><span class="line">                try &#123;</span><br><span class="line">                    let x = onFulfilled(self.value)</span><br><span class="line">                    resolvePromise(promise2, x, resolve, reject)</span><br><span class="line">                &#125; catch (e) &#123;</span><br><span class="line">                    reject(e)</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;, 0)</span><br><span class="line">        &#125; elseif (self.status === &apos;rejected&apos;) &#123;</span><br><span class="line">            setTimeout(()=&gt; &#123;</span><br><span class="line">                try &#123;</span><br><span class="line">                    let x = onRejected(self.reason)</span><br><span class="line">                    resolvePromise(promise2, x, resolve, reject)</span><br><span class="line">                &#125; catch (e) &#123;</span><br><span class="line">                    reject(e)</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;, 0)</span><br><span class="line">        &#125; elseif (self.status === &apos;pending&apos;) &#123;</span><br><span class="line">            self.onResovedCallbacks.push(()=&gt; &#123;</span><br><span class="line">                setTimeout(()=&gt; &#123;</span><br><span class="line">                    try &#123;</span><br><span class="line">                        let x = onFulfilled(self.value)</span><br><span class="line">                        resolvePromise(promise2, x, resolve, reject)</span><br><span class="line">                    &#125; catch (e) &#123;</span><br><span class="line">                        //当执行成功回调的时候,可能会出现异常,那就用这个异常作为promise2的错误结果</span><br><span class="line">                        reject(e)</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, 0)</span><br><span class="line">            &#125;)</span><br><span class="line">            self.onRejectedCallbacks.push(()=&gt; &#123;</span><br><span class="line">                setTimeout(()=&gt; &#123;</span><br><span class="line">                    try &#123;</span><br><span class="line">                        let x = onRejected(self.reason)</span><br><span class="line">                        resolvePromise(promise2, x, resolve, reject)</span><br><span class="line">                    &#125; catch (e) &#123;</span><br><span class="line">                        reject(e)</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, 0)</span><br><span class="line">            &#125;)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">    return promise2</span><br><span class="line">&#125;</span><br><span class="line">//setTimeout (规范要求)</span><br><span class="line"></span><br><span class="line">Promise.reject = function (reason) &#123;</span><br><span class="line">    return new Promise((resolve,reject)=&gt;&#123;</span><br><span class="line">        reject(reason)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Promise.resolve = function (value) &#123;</span><br><span class="line">    return new Promise((resolve,reject)=&gt;&#123;</span><br><span class="line">        resolve(value)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Promise.prototype.catch = function (onReject) &#123;</span><br><span class="line">    return this.then(null,onReject)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Promise.defer = Promise.deferred = function () &#123;</span><br><span class="line">    let dfd = &#123;&#125;</span><br><span class="line">    dfd.promise = new Promise((resolve, reject)=&gt; &#123;</span><br><span class="line">        dfd.resolve = resolve</span><br><span class="line">        dfd.reject = reject</span><br><span class="line">    &#125;)</span><br><span class="line">    return dfd;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports = Promise</span><br></pre></td></tr></table></figure></p>
+<ol>
+<li>为了支持then的链式调用，Promise.then.prototype中返回一个新的Promise对象<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">return p2 = new Promise()</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>2.增加resolvePromise方法，处理旧Promise的回调函数的结果x，根据x的类型，分别调用新promise对象的resolve/reject方法。</p>
+<ul>
+<li>是普通值用resolve方法返回</li>
+<li>是函数或者对象就继续用resolvePromise方法迭代（解决回调函数是Promise对象）</li>
+<li>出错就用reject方法返回</li>
+</ul>
+<h4 id="三、bluebird"><a href="#三、bluebird" class="headerlink" title="三、bluebird"></a>三、bluebird</h4><p>1: NodeJS 中的 fs.readFile 方法的基本使用方式<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">const fs = require(&apos;fs&apos;),path = require(&apos;path&apos;);</span><br><span class="line"> </span><br><span class="line">fs.readFile(path.join(__dirname, &apos;1.txt&apos;), &apos;utf-8&apos;, (err, data) =&gt; &#123;</span><br><span class="line"> if (err) &#123;</span><br><span class="line">   console.error(err);</span><br><span class="line"> &#125; else &#123;</span><br><span class="line">   console.log(data);</span><br><span class="line"> &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure></p>
+<p>2：使用Promise封装<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">let fs = require(&apos;fs&apos;)</span><br><span class="line"></span><br><span class="line">functionread(filePath, encoding) &#123;</span><br><span class="line">    return new Promise((resolve, reject)=&gt; &#123;</span><br><span class="line">        fs.readFile(filePath, encoding, (err, data)=&gt; &#123;</span><br><span class="line">            if (err) reject(err)</span><br><span class="line">            resolve(data)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">read(&apos;1.txt&apos;, &apos;utf8&apos;).then( data=&gt; data)</span><br></pre></td></tr></table></figure></p>
+<p>把fs.readFile方法用Promise封装一下就能使用Promise api。但是每次手动封装比较麻烦，bluebird可以帮我们简化这个步骤。</p>
+<p>3：在 NodeJS 环境中，通过 const bluebird = require(‘bluebird’) 就可以开始使用 Bluebird 提供的 Promise 对象。</p>
+<p>Promise.promisify 将单个方法转换成Promise对象。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">const bluebird = require(&apos;bluebird&apos;) </span><br><span class="line">letread = bluebird.promisify(fs.readFile)</span><br><span class="line">read(&apos;1.txt&apos;, &apos;utf-8&apos;).then(data=&gt; &#123;</span><br><span class="line">    console.log(&apos;data promisify&apos;, data)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>使用<code>bluebird.promisify</code>方法，就能将fs.readFile直接封装成一个promise对象，它的原理很简单，return new Promise<br>是它的核心：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">function promisify(fn) &#123;</span><br><span class="line">    return function () &#123;</span><br><span class="line">        return new Promise((resolve, reject)=&gt; &#123;</span><br><span class="line">            fn(...arguments, function (err, data) &#123;</span><br><span class="line">                if (err) reject(err)</span><br><span class="line">                resolve(data)</span><br><span class="line">            &#125;)</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>4.使用 Promise.promisifyAll 把一个对象的所有方法都自动转换成使用 Promise。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">const bluebird = require(&apos;bluebird&apos;),</span><br><span class="line">  fs = require(&apos;fs&apos;),</span><br><span class="line">  path = require(&apos;path&apos;);</span><br><span class="line">Promise.promisifyAll(fs);</span><br><span class="line"> </span><br><span class="line">fs.readFileAsync(path.join(__dirname, &apos;sample.txt&apos;), &apos;utf-8&apos;)</span><br><span class="line">  .then(data =&gt; console.log(data))</span><br><span class="line">  .catch(err =&gt; console.error(err));</span><br></pre></td></tr></table></figure></p>
+<p>promisifyAll核心是遍历对象，生成些新创建方法的名称在已有方法的名称后加上”Async”后缀。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">function promisifyAll(obj) &#123;</span><br><span class="line">    Object.keys(obj).forEach(key=&gt;&#123;</span><br><span class="line">        if(typeof obj[key] === &apos;function&apos;)&#123;</span><br><span class="line">            obj[key+&apos;Async&apos;] = promisify(obj[key])</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h4 id="四、generator-co"><a href="#四、generator-co" class="headerlink" title="四、generator+co"></a>四、generator+co</h4><h5 id="4-1-简介"><a href="#4-1-简介" class="headerlink" title="4.1 简介"></a>4.1 简介</h5><p>generator函数最大的特点是可以用<code>yield</code>暂停执行，为了区别普通函数在函数名前加*号。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">function *say() &#123;</span><br><span class="line">    let a = yield &quot;test1&quot;let b = yield &quot;test2&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">let it = say();</span><br><span class="line"></span><br><span class="line">console.log(1, it.next()) //1 &#123; value: &apos;test1&apos;, done: false &#125;</span><br><span class="line">console.log(2, it.next()) //2 &#123; value: &apos;test2&apos;, done: false &#125;</span><br><span class="line">console.log(3, it.next()) //3 &#123; value: undefined, done: true &#125;</span><br></pre></td></tr></table></figure></p>
+<p>执行say()方法返回的是指针对象，不会返回函数执行结果。it 就是iterator 迭代器</p>
+<p>需要调用指针对象的next()方法，让函数指针不断移动并返回一个对象。（{value:xxx,done:xxx}）</p>
+<p>value是yield后面的值，done表示函数是否执行完成。</p>
+<p>我们可以用generator函数实现结果的产出，但是也需要它支持输入。</p>
+<p>generator函数的运行顺序如下：<br>使用it.next()执行函数，结果并不会返回给定义的变量a。next方法可以接受参数，这是向 Generator 函数体内输入数据。<br>第二个next的时候传入参数，就能被变量a接收到。</p>
+<p>terminal 返回：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">1 &#123; value: &apos;test1&apos;, done: false &#125;</span><br><span class="line">aaa</span><br><span class="line">2 &#123; value: &apos;test2&apos;, done: false &#125;</span><br><span class="line">bbb</span><br><span class="line">3 &#123; value: undefined, done: true &#125;</span><br></pre></td></tr></table></figure></p>
+<p>4.2 使用</p>
+<p>example：使用generator异步执行函数，使函数的返回作为下一个函数的入参执行。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">let bluebird = require(&apos;bluebird&apos;)</span><br><span class="line">let fs = require(&apos;fs&apos;)</span><br><span class="line">letread = bluebird.promisify(fs.readFile)</span><br><span class="line"></span><br><span class="line">function *r() &#123;</span><br><span class="line">    let r1 = yield read(&apos;1.txt&apos;, &apos;utf-8&apos;)</span><br><span class="line">    console.log(&apos;r1&apos;,r1); // r1 2.txt</span><br><span class="line">    let r2 = yield read(r1, &apos;utf-8&apos;)</span><br><span class="line">    console.log(&apos;r2&apos;,r2); // r2 3.txt</span><br><span class="line">    let r3 = yield read(r2, &apos;utf-8&apos;)</span><br><span class="line">    console.log(&apos;r3&apos;,r3); // r3 hello</span><br><span class="line">    return r3</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>拿读取文件的例子：使用bluebird将fs.readFile变成promise对象，将读取到的文件内容作为入参传入下一个要执行的函数。</p>
+<p>突然发现，要拿到结果会是个复杂的过程，但还是硬着头皮下下去：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">const it_r = r()</span><br><span class="line">it_r.next().value.then(d1=&gt;&#123;</span><br><span class="line">    return it_r.next(d1).value</span><br><span class="line">&#125;).then(d2=&gt;&#123;</span><br><span class="line">    return it_r.next(d2).value</span><br><span class="line">&#125;).then(d3=&gt;&#123;</span><br><span class="line">    return it_r.next(d3).value</span><br><span class="line">&#125;).then(data=&gt;&#123;</span><br><span class="line">    console.log(data) // hello</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>it.next().value 返回的是一个promise，使用then方法，拿到它成功回调的值，并传入下一个next。</p>
+<p>这样能成功拿到我们要的值，但是太麻烦了。于是就有了generator+co的组合！</p>
+<p>安装：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ npm install co</span><br></pre></td></tr></table></figure></p>
+<p>使用:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">co(r()).then(data=&gt; &#123;</span><br><span class="line">    console.log(data)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<p>co会迭代执行it.next()方法，直到done的布尔值为true就返回generator函数的运行结果。</p>
+<p>大致执行代码如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">function co(it) &#123;</span><br><span class="line">    return new Promise((resolve, reject)=&gt; &#123;</span><br><span class="line">        function next(data) &#123;</span><br><span class="line">            let &#123;value, done&#125; = it.next(data)</span><br><span class="line">            if(done)&#123;</span><br><span class="line">                resolve(value)</span><br><span class="line">            &#125;else&#123;</span><br><span class="line">                value.then(data=&gt; &#123;</span><br><span class="line">                    next(data)</span><br><span class="line">                &#125;,reject)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        next()</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h4 id="五、async-await"><a href="#五、async-await" class="headerlink" title="五、async+await"></a>五、async+await</h4><p>async 函数是Generator 函数的语法糖。</p>
+<p>比Generator函数用起来简单</p>
+<ol>
+<li>可以让代码像同步</li>
+<li>可以try+catch</li>
+<li>可以使用promise api<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">async functionr() &#123;</span><br><span class="line">   try&#123;</span><br><span class="line">        let r1 = await read(&apos;1.txt&apos;,&apos;utf8&apos;)</span><br><span class="line">        let r2 = await read(r1,&apos;utf8&apos;)</span><br><span class="line">        let r3 = await read(r2,&apos;utf8&apos;)</span><br><span class="line">        return r3</span><br><span class="line">    &#125;catch(e)&#123;</span><br><span class="line">        console.log(&apos;e&apos;,e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">r().then(data=&gt; &#123;</span><br><span class="line">    console.log(data)</span><br><span class="line">&#125;,err=&gt;&#123;</span><br><span class="line">    console.log(&apos;err&apos;,err)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>async 函数返回一个 Promise 对象，可以使用 then 方法添加回调函数。遇到await就会先返回，等待函数执行。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/13/交叉观察器-intersectionObserver-Vue实战/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3610,687 +3826,6 @@ foo();
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/08/TypeScript入门/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/05/08/TypeScript入门/" itemprop="url">TypeScript入门</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-08T21:04:54+08:00">
-                2018-05-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>目前angular、deno已经开始使用typescript，并且我们熟知的vue，在3.0也即将会使用typescript，可以说，前端领域，typescript会逐渐变为必备的技能，那么，为什么typescript变得越来越火呢？</p>
-<p>网上有各种typescript和javascript的对比，那么在我的角度的理解，javascript是解释型（动态）语言，可以说是从上到下执行，在我们开发过程中，比如有语法错误等等，需要执行到这一行代码才能知道，而typescript则像写易语言那样生成exe时，需要静态编译，而静态编译这个过程，会把代码都检查一遍，看是否通过检测，最终才生成exe，typescript最终是也是编译成javascript原生代码的，只是在这个生成过程中，会进行各种检测，来检查代码是否符合语法啊规则啊，符合的话最终再编译成javascript，规范了我们代码的编写，同时也提高了代码的复用以及组件化，在runtime阶段为我们提前找到错误。<br><img src="/2018/05/08/TypeScript入门/1.webp" alt=""><br>typescript支持es5/es6的语法，并且扩展了javascript语法，更像java、c#、swift这种语言了。</p>
-<p>在前端nodejs很火，但是为什么在后端却不火，很大程度也是因为nodejs也是解释型（动态）语言，优势就是解释型语言比较灵活，但是缺点也很明显，用node开发后台程序，开发一直爽，重构火葬场.一旦重构了，就会出现很多问题，像Java、c#这类语言，非常严谨，类型检查等非常严谨，而javascript呢，一般是靠我们用肉眼去排查，很麻烦，typescript就是解决这一类问题的。</p>
-<p>总而言之，typescript是未来的趋势，也是谷歌推荐的框架，我也是刚学typescript，很多都是站在前辈的肩膀总结的，废话不多说，我们开始进入正题吧！</p>
-<hr>
-<h2 id="TypeScript-安装"><a href="#TypeScript-安装" class="headerlink" title="TypeScript 安装"></a>TypeScript 安装</h2><p>首先我们全局安装</p>
-<p><code>npm i typescript -g</code></p>
-<p>全局安装完成后，我们新建一个<code>hello.ts</code>的ts文件<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// hello.ts内容</span><br><span class="line">let a = &quot;TypeScript&quot;</span><br></pre></td></tr></table></figure></p>
-<p>接下来我们在命令行输入<code>tsc hello.ts</code>来编译这个ts文件，然后会在同级目录生成一个编译好了的<code>hello.js</code>文件<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">// hello.js内容</span><br><span class="line">var = &quot;TypeScript&quot;</span><br></pre></td></tr></table></figure></p>
-<p>那么我们每次都要输<code>tsc hello.ts</code>命令来编译，这样很麻烦，能否让它自动编译？答案是可以的，我平时使用vscode来开发，需要配置一下vscode就可以。</p>
-<p>首先我们在命令行执行<code>tsc --init</code>来生成配置文件，然后我们在目录下看到生成了一个<code>tsconfig.json</code>文件<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;compilerOptions&quot;: &#123;</span><br><span class="line">    /* Basic Options */</span><br><span class="line">    &quot;target&quot;: &quot;es5&quot;,                          /* Specify ECMAScript target version: &apos;ES3&apos; (default), &apos;ES5&apos;, &apos;ES2015&apos;, &apos;ES2016&apos;, &apos;ES2017&apos;,&apos;ES2018&apos; or &apos;ESNEXT&apos;. */</span><br><span class="line">    &quot;module&quot;: &quot;commonjs&quot;,                     /* Specify module code generation: &apos;none&apos;, &apos;commonjs&apos;, &apos;amd&apos;, &apos;system&apos;, &apos;umd&apos;, &apos;es2015&apos;, or &apos;ESNext&apos;. */</span><br><span class="line">    // &quot;lib&quot;: [],                             /* Specify library files to be included in the compilation. */</span><br><span class="line">    // &quot;allowJs&quot;: true,                       /* Allow javascript files to be compiled. */</span><br><span class="line">    // &quot;checkJs&quot;: true,                       /* Report errors in .js files. */</span><br><span class="line">    // &quot;jsx&quot;: &quot;preserve&quot;,                     /* Specify JSX code generation: &apos;preserve&apos;, &apos;react-native&apos;, or &apos;react&apos;. */</span><br><span class="line">    // &quot;declaration&quot;: true,                   /* Generates corresponding &apos;.d.ts&apos; file. */</span><br><span class="line">    // &quot;declarationMap&quot;: true,                /* Generates a sourcemap for each corresponding &apos;.d.ts&apos; file. */</span><br><span class="line">    // &quot;sourceMap&quot;: true,                     /* Generates corresponding &apos;.map&apos; file. */</span><br><span class="line">    // &quot;outFile&quot;: &quot;./&quot;,                       /* Concatenate and emit output to single file. */</span><br><span class="line">     &quot;outDir&quot;: &quot;./dist&quot;,                        /* Redirect output structure to the directory. */</span><br><span class="line">    // &quot;rootDir&quot;: &quot;./&quot;,                       /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */</span><br><span class="line">    // &quot;composite&quot;: true,                     /* Enable project compilation */</span><br><span class="line">    // &quot;removeComments&quot;: true,                /* Do not emit comments to output. */</span><br><span class="line">    // &quot;noEmit&quot;: true,                        /* Do not emit outputs. */</span><br><span class="line">    // &quot;importHelpers&quot;: true,                 /* Import emit helpers from &apos;tslib&apos;. */</span><br><span class="line">    // &quot;downlevelIteration&quot;: true,            /* Provide full support for iterables in &apos;for-of&apos;, spread, and destructuring when targeting &apos;ES5&apos; or &apos;ES3&apos;. */</span><br><span class="line">    // &quot;isolatedModules&quot;: true,               /* Transpile each file as a separate module (similar to &apos;ts.transpileModule&apos;). */</span><br><span class="line"></span><br><span class="line">    /* Strict Type-Checking Options */</span><br><span class="line">    &quot;strict&quot;: true,                           /* Enable all strict type-checking options. */</span><br><span class="line">    // &quot;noImplicitAny&quot;: true,                 /* Raise error on expressions and declarations with an implied &apos;any&apos; type. */</span><br><span class="line">    // &quot;strictNullChecks&quot;: true,              /* Enable strict null checks. */</span><br><span class="line">    // &quot;strictFunctionTypes&quot;: true,           /* Enable strict checking of function types. */</span><br><span class="line">    // &quot;strictBindCallApply&quot;: true,           /* Enable strict &apos;bind&apos;, &apos;call&apos;, and &apos;apply&apos; methods on functions. */</span><br><span class="line">    // &quot;strictPropertyInitialization&quot;: true,  /* Enable strict checking of property initialization in classes. */</span><br><span class="line">    // &quot;noImplicitThis&quot;: true,                /* Raise error on &apos;this&apos; expressions with an implied &apos;any&apos; type. */</span><br><span class="line">    // &quot;alwaysStrict&quot;: true,                  /* Parse in strict mode and emit &quot;use strict&quot; for each source file. */</span><br><span class="line"></span><br><span class="line">    /* Additional Checks */</span><br><span class="line">    // &quot;noUnusedLocals&quot;: true,                /* Report errors on unused locals. */</span><br><span class="line">    // &quot;noUnusedParameters&quot;: true,            /* Report errors on unused parameters. */</span><br><span class="line">    // &quot;noImplicitReturns&quot;: true,             /* Report error when not all code paths in function return a value. */</span><br><span class="line">    // &quot;noFallthroughCasesInSwitch&quot;: true,    /* Report errors for fallthrough cases in switch statement. */</span><br><span class="line"></span><br><span class="line">    /* Module Resolution Options */</span><br><span class="line">    // &quot;moduleResolution&quot;: &quot;node&quot;,            /* Specify module resolution strategy: &apos;node&apos; (Node.js) or &apos;classic&apos; (TypeScript pre-1.6). */</span><br><span class="line">    // &quot;baseUrl&quot;: &quot;./&quot;,                       /* Base directory to resolve non-absolute module names. */</span><br><span class="line">    // &quot;paths&quot;: &#123;&#125;,                           /* A series of entries which re-map imports to lookup locations relative to the &apos;baseUrl&apos;. */</span><br><span class="line">    // &quot;rootDirs&quot;: [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */</span><br><span class="line">    // &quot;typeRoots&quot;: [],                       /* List of folders to include type definitions from. */</span><br><span class="line">    // &quot;types&quot;: [],                           /* Type declaration files to be included in compilation. */</span><br><span class="line">    // &quot;allowSyntheticDefaultImports&quot;: true,  /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */</span><br><span class="line">    &quot;esModuleInterop&quot;: true                   /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies &apos;allowSyntheticDefaultImports&apos;. */</span><br><span class="line">    // &quot;preserveSymlinks&quot;: true,              /* Do not resolve the real path of symlinks. */</span><br><span class="line"></span><br><span class="line">    /* Source Map Options */</span><br><span class="line">    // &quot;sourceRoot&quot;: &quot;&quot;,                      /* Specify the location where debugger should locate TypeScript files instead of source locations. */</span><br><span class="line">    // &quot;mapRoot&quot;: &quot;&quot;,                         /* Specify the location where debugger should locate map files instead of generated locations. */</span><br><span class="line">    // &quot;inlineSourceMap&quot;: true,               /* Emit a single file with source maps instead of having a separate file. */</span><br><span class="line">    // &quot;inlineSources&quot;: true,                 /* Emit the source alongside the sourcemaps within a single file; requires &apos;--inlineSourceMap&apos; or &apos;--sourceMap&apos; to be set. */</span><br><span class="line"></span><br><span class="line">    /* Experimental Options */</span><br><span class="line">    // &quot;experimentalDecorators&quot;: true,        /* Enables experimental support for ES7 decorators. */</span><br><span class="line">    // &quot;emitDecoratorMetadata&quot;: true,         /* Enables experimental support for emitting type metadata for decorators. */</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>这个json文件里有很多选项</p>
-<ul>
-<li><code>target</code>是选择编译到什么语法</li>
-<li><code>module</code>则是模块类型</li>
-<li><code>outDir</code>则是输出目录，可以指定这个参数到指定目录</li>
-</ul>
-<p>接下来我们需要开启监控了，在vscode任务栏中<br><img src="/2018/05/08/TypeScript入门/2.webp" alt=""><br><img src="/2018/05/08/TypeScript入门/3.webp" alt=""><br><img src="/2018/05/08/TypeScript入门/4.webp" alt=""><br>此时就会开启监控了，会监听ts的变化，然后自动去编译。</p>
-<hr>
-<h2 id="数据类型"><a href="#数据类型" class="headerlink" title="数据类型"></a>数据类型</h2><p>java、c#是强类型语言，而js是弱类型语言，强弱类语言有什么区别呢？typescript最大的优点就是类型检查，可以帮你检查你定义的类型和赋值的类型。</p>
-<h4 id="布尔类型boolean"><a href="#布尔类型boolean" class="headerlink" title="布尔类型boolean"></a>布尔类型boolean</h4><pre><code>// 在js中，定义isFlag为true，为布尔类型boolean
-let isFlag = true;
-// 但是我们也可以重新给它赋值为字符串
-isFlag = &quot;hello swr&quot;;
-
-// 在ts中，定义isFlag为true，为布尔类型boolean
-// 在变量名后加冒号和类型，如  :boolean
-let isFlag:boolean = true
-// 重新赋值到字符串类型会报错
-isFlag = &quot;hello swr&quot; 
-
-// 在java中，一般是这样定义，要写变量名也要写类型名
-// int a = 10; 
-// string name = &quot;TypeScript&quot;
-</code></pre><h4 id="数字类型number"><a href="#数字类型number" class="headerlink" title="数字类型number"></a>数字类型number</h4><pre><code>let age:number = 28;
-age = 29;
-</code></pre><h4 id="字符串类型string"><a href="#字符串类型string" class="headerlink" title="字符串类型string"></a>字符串类型string</h4><pre><code>let name:string = &quot;TypeScript&quot;
-name = &quot;iamswr&quot;
-</code></pre><p>以上<code>boolean、number、string</code>类型有个共性，就是可以通过<code>typeof</code>来获取到是什么类型，是基本数据类型。</p>
-<p>那么复杂的数据类型是怎么处理的呢？</p>
-<h4 id="数组-Array"><a href="#数组-Array" class="headerlink" title="数组 Array"></a>数组 Array</h4><pre><code>// 在js中
-let pets = [&quot;旺财&quot;,&quot;小黑&quot;];
-
-// 在ts中
-// 需要注意的是，这个是一个字符串类型的数组
-// 只能往里面写字符串，写别的类型会报错
-let pets:string[] = [&quot;旺财&quot;,&quot;小黑&quot;];
-
-// 另外一种ts写法
-let pets:Array&lt;string&gt; = [&quot;旺财&quot;,&quot;小黑&quot;];
-
-// 那么如果想在数组里放对象呢？
-let pets:Array&lt;object&gt; = [{name:&quot;旺财&quot;},{name:&quot;小黑&quot;}];
-
-// 那么怎样在一个数组中，随意放string、number、boolean类型呢？
-// 这里的 | 相当于 或 的意思
-let arr:Array&lt;string|number|boolean&gt; = [&quot;hello swr&quot;,28];
-
-// 想在数组中放任意类型
-let arr:Array&lt;any&gt; = [&quot;hello swr&quot;,28,true]
-</code></pre><h4 id="元组类型tuple"><a href="#元组类型tuple" class="headerlink" title="元组类型tuple"></a>元组类型tuple</h4><p>什么是元组类型？其实元组是数组的一种。</p>
-<pre><code>let person:[string,number] = [&apos;TypeScript&apos;,28]
-</code></pre><p>有点类似解构赋值，但是又不完全是解构赋值，比如元组类型必须一一对应上，多了少了或者类型不对都会报错。</p>
-<p>元组类型是一个不可变的数组，长度、类型是不可变的。</p>
-<h4 id="枚举类型enum"><a href="#枚举类型enum" class="headerlink" title="枚举类型enum"></a>枚举类型enum</h4><p>枚举在java中是从6.0才引入的一种类型，在java和ts中的关键字都是<code>enum</code>。</p>
-<p>什么是枚举？枚举有点类似一一列举，一个一个数出来，在易语言中，我们会经常枚举窗口，来找到自己想要的，一般用于值是某几个固定的值，比如生肖（有12种）、星座（有12种）、性别（男女）等，这些值是固定的，可以一个一个数出来。</p>
-<p>为什么我们要用枚举呢？我们可以定义一些值，定义完了后可以直接拿来用了，用的时候也不会赋错值。</p>
-<p>比如我们普通赋值</p>
-<pre><code>// 我们给性别赋值一个boy，但是我们有时候手误，可能输成boy1、boy2了
-// 这样就会导致我们赋值错误了
-let sex = &quot;boy&quot;
-</code></pre><p>既然这样容易导致手误赋错值，那么我们可以定义一个枚举</p>
-<pre><code>// 定义一个枚举类型的值
-enum sex {
-  BOY,
-  GIRL
-}
-console.log(sex)
-console.log(`TypeScript是${sex.BOY}`)
-</code></pre><p>我们看看转为es5语法是怎样的</p>
-<pre><code>// 转为es5语法
-&quot;use strict&quot;;
-var sex;
-(function (sex) {
-    sex[sex[&quot;BOY&quot;] = 0] = &quot;BOY&quot;;
-    sex[sex[&quot;GIRL&quot;] = 1] = &quot;GIRL&quot;;
-})(sex || (sex = {}));
-console.log(sex); // 打印输出{ &apos;0&apos;: &apos;BOY&apos;, &apos;1&apos;: &apos;GIRL&apos;, BOY: 0, GIRL: 1 }
-console.log(&quot;\u90B5\u5A01\u5112\u662F&quot; + sex.BOY); // 打印输出 TypeScript是0
-</code></pre><p>是不是感觉有点像给对象添加各种属性，然后这个属性又有点像常量，然后通过对象去取这个属性？</p>
-<p>上面这样写，不是很友好，那么我们还可以给<code>BOY`</code>GIRL`赋值</p>
-<pre><code>enum sex{
-    BOY=&quot;男&quot;,
-    GIRL=&quot;女&quot;
-}
-
-
-// 转化为es5语法
-// 我们顺便看看实现的原理
-&quot;use strict&quot;;
-var sex;
-// 首先这里是一个自执行函数
-// 并且把sex定义为对象，传参进给自执行函数
-// 然后给sex对象添加属性并且赋值
-(function (sex) {
-    sex[&quot;BOY&quot;] = &quot;\u7537&quot;;
-    sex[&quot;GIRL&quot;] = &quot;\u5973&quot;;
-})(sex || (sex = {}));
-console.log(sex); // 打印输出 { BOY: &apos;男&apos;, GIRL: &apos;女&apos; }
-console.log(&quot;\u90B5\u5A01\u5112\u662F&quot; + sex.BOY); // 打印输出 TypeScript是男
-</code></pre><p>比如我们实际项目中，特别是商城类，订单会存在很多状态流转，那么非常适合用枚举</p>
-<pre><code>enum orderStatus {
-    WAIT_FOR_PAY = &quot;待支付&quot;,
-    UNDELIVERED = &quot;完成支付，待发货&quot;,
-    DELIVERED = &quot;已发货&quot;,
-    COMPLETED = &quot;已确认收货&quot;
-}
-</code></pre><p>到这里，我们会有一个疑虑，为什么我们不这样写呢？</p>
-<pre><code>let orderStatus2 = {
-    WAIT_FOR_PAY : &quot;待支付&quot;,
-    ...
-}
-</code></pre><p>如果我们直接写对象的键值对方式，是可以在外部修改这个值的，而我们通过<code>enum</code>则不能修改定义好的值了，更加严谨。</p>
-<h4 id="任意类型-any"><a href="#任意类型-any" class="headerlink" title="任意类型 any"></a>任意类型 any</h4><p><code>any</code>有好处也有坏处，特别是前端，很多时候写类型的时候，几乎分不清楚类型，任意去写，写起来很爽，但是对于后续的重构、迭代等是非常不友好的，会暴露出很多问题，某种程度来说，any类型就是放弃了类型检查了。。。</p>
-<p>比如我们有这样一个场景，就是需要获取某一个dom节点</p>
-<pre><code>let btn = document.getElementById(&apos;btn&apos;);
-btn.style.color = &quot;blue&quot;;
-</code></pre><p>此时我们发现在ts中会报错<br> <img src="/2018/05/08/TypeScript入门/5.webp" alt=""><br> 因为我们取这个dom节点，有可能取到，也有可能没取到，当没取到的时候，相当于是null，是没有style这个属性的。</p>
-<p>那么我们可以给它添加一个类型为<code>any</code></p>
-<pre><code>// 添加一个any类型，此时就不会报错了，但是也相当于放弃了类型检查了
-let btn:any = document.getElementById(&apos;btn&apos;);
-btn.style.color = &quot;blue&quot;;
-
-// 当然也有粗暴一些的方式，利用 ! 强制断言
-let btn = document.getElementById(&quot;btn&quot;);
-btn!.style!.color = &quot;blue&quot;;
-
-// 可以赋值任何类型的值
-// 跟以前我们var let声明的一模一样的
-let person:any = &quot;TypeScript&quot;
-person = 28
-</code></pre><h4 id="null-undefined类型"><a href="#null-undefined类型" class="headerlink" title="null undefined类型"></a>null undefined类型</h4><p>这个也没什么好说的，不过可以看下下面的例子</p>
-<pre><code>// (string | number | null | undefined) 相当于这几种类型
-// 是 string 或 number 或 null 或 undefined
-let str:(string | number | null | undefined)
-str = &quot;hello swr&quot;
-str = 28
-str = null
-str = undefined
-</code></pre><h4 id="void类型"><a href="#void类型" class="headerlink" title="void类型"></a>void类型</h4><p>void表示没有任何类型，一般是定义函数没有返回值。</p>
-<pre><code>// ts写法
-function say(name:string):void {
-  console.log(&quot;hello&quot;,name)
-}
-say(&quot;swr&quot;)
-
-
-// 转为es5
-&quot;use strict&quot;;
-function say(name) {
-    console.log(&quot;hello&quot;, name);
-}
-say(&quot;swr&quot;);
-</code></pre><p>怎么理解叫没有返回值呢？此时我们给函数return一个值</p>
-<pre><code>function say(name:string):void {
-  console.log(&quot;hello&quot;,name)
-  // return&quot;ok&quot; 会报错
-  return&quot;ok&quot;
-  // return undefined 不会报错
-  // return 不会报错
-}
-say(&quot;swr&quot;)
-</code></pre><p>那么此时我们希望这个函数返回一个字符串类型怎么办？</p>
-<pre><code>function say(name:string):string {
-  console.log(&quot;hello&quot;,name)
-  return&quot;ok&quot;
-}
-say(&quot;swr&quot;)
-</code></pre><h4 id="never类型"><a href="#never类型" class="headerlink" title="never类型"></a>never类型</h4><p>这个用得很少，一般是用于抛出异常。</p>
-<pre><code>let xx:never;
-function error(message: string): never {
-  throw new Error(message);
-}
-
-error(&quot;error&quot;)
-</code></pre><h4 id="我们要搞明白any、never、void"><a href="#我们要搞明白any、never、void" class="headerlink" title="我们要搞明白any、never、void"></a>我们要搞明白any、never、void</h4><ul>
-<li>any是任意的值</li>
-<li>void是不能有任何值</li>
-<li>never永远不会有返回值</li>
-</ul>
-<p><code>any</code>比较好理解，就是任何值都可以</p>
-<pre><code>let str:any = &quot;hello swr&quot;
-str = 28
-str = true
-</code></pre><p><code>void</code>不能有任何值(返回值)</p>
-<pre><code>function say():void {
-
-}
-</code></pre><p><code>never</code>则不好理解，什么叫永远不会有返回值？</p>
-<pre><code>// 除了上面举例的抛出异常以外，我们看一下这个例子
-// 这个loop函数，一旦开始执行，就永远不会结束
-// 可以看出在while中，是死循环，永远都不会有返回值，包括undefined
-
-function loop():never {
-    while(true){
-        console.log(&quot;陷入死循环啦&quot;)
-    }
-}
-
-loop()
-
-// 包括比如JSON.parse也是使用这种 never | any
-function parse(str:string):(never | any){
-    return JSON.parse(str)
-}
-// 首先在正常情况下，我们传一个JSON格式的字符串，是可以正常得到一个JSON对象的
-let json = parse(&apos;{&quot;name&quot;:&quot;TypeScript&quot;}&apos;)
-// 但是有时候，传进去的不一定是JSON格式的字符串，那么就会抛出异常
-// 此时就需要never了
-let json = parse(&quot;iamswr&quot;)
-</code></pre><p>也就是说，当一个函数执行的时候，被抛出异常打断了，导致没有返回值或者该函数是一个死循环，永远没有返回值，这样叫做永远不会有返回值。</p>
-<p>实际开发中，是never和联合类型来一起用，比如<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">function say():(never | string) &#123;</span><br><span class="line">  return &quot;ok&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<hr>
-<h2 id="函数"><a href="#函数" class="headerlink" title="函数"></a>函数</h2><p>函数是这样定义的</p>
-<pre><code>function say(name:string):void {
-  console.log(&quot;hello&quot;,name)
-}
-say(&quot;TypeScript&quot;)
-</code></pre><p>形参和实参要完全一样，如想不一样，则需要配置可选参数，可选参数放在后面</p>
-<pre><code>// 形参和实参一一对应，完全一样
-function say(name:string,age:number):void {
-  console.log(&quot;hello&quot;,name,age)
-}
-say(&quot;TypeScript&quot;,28)
-
-
-// 可选参数，用 ？ 处理，只能放在后面
-function say(name:string,age?:number):void {
-  console.log(&quot;hello&quot;,name,age)
-}
-say(&quot;TypeScript&quot;)
-</code></pre><p>那么如何设置默认参数呢？</p>
-<pre><code>// 在js中我们是这样写的
-function ajax(url,method=&quot;get&quot;){
-    console.log(url,method)
-}
-
-// 在ts中我们是这样写的
-function ajax(url:string,method:string = &quot;GET&quot;) {
-  console.log(url,method)
-}
-</code></pre><p>那么如何设置剩余参数呢？可以利用扩展运算符</p>
-<pre><code>function sum(...args:Array&lt;number&gt;):number {
-  returneval(args.join(&quot;+&quot;))
-}
-let total:number = sum(1,2,3,4,5)
-console.log(total)
-</code></pre><p>那么如何实现函数重载呢？函数重载是java中非常有名的，在java中函数的重载，是指两个或者两个以上的同名函数，参数的个数和类型不一样</p>
-<pre><code>// 比如说我们现在有2个同名函数
-function say(name:string){
-
-}
-function say(name:string,age:number){
-
-}
-// 那么我想达到一个效果
-// 当我传参数name时，执行name:string这个函数
-// 当我传参数name和age时，执行name:string,age:number这个函数
-// 此时该怎么办？
-</code></pre><h4 id="接下来看一下typescript中的函数重载"><a href="#接下来看一下typescript中的函数重载" class="headerlink" title="接下来看一下typescript中的函数重载"></a>接下来看一下typescript中的函数重载</h4><pre><code>// 首先声明两个函数名一样的函数
-function say(val: string): void; // 函数的声明
-function say(val: number): void; // 函数的声明
-// 函数的实现，注意是在这里是有函数体的
-// 其实下面的say()无论怎么执行，实际上就是执行下面的函数
-function say(val: any):void {
-  console.log(val)
-}
-
-say(&quot;hello swr&quot;)
-say(28)
-</code></pre><p>在typescript中主要体现是同一个同名函数提供多个函数类型定义，函数实际上就只有一个，就是拥有函数体那个，如果想根据传入值类型的不一样执行不同逻辑，则需要在这个函数里面进行一个类型判断。</p>
-<p>那么这个函数重载有什么作用呢？其实在ts中，函数重载只是用来限制参数的个数和类型，用来检查类型的，而且重载不能拆开几个函数，这一点和java的处理是不一样的，需要注意。</p>
-<hr>
-<h2 id="类"><a href="#类" class="headerlink" title="类"></a>类</h2><h4 id="如何定义一个类？"><a href="#如何定义一个类？" class="headerlink" title="如何定义一个类？"></a>如何定义一个类？</h4><pre><code>// ts写法
-// 其实跟es6非常像，没太大的区别
-class Person{
-  // 这里声明的变量，是实例上的属性
-  name:string
-  age:number
-  constructor(name:string,age:number){
-    // this.name和this.age必须在前面先声明好类型
-    // name:string   age:number
-    this.name = name
-    this.age = age
-  }
-  // 原型方法
-  say():string{
-    return&quot;hello swr&quot;
-  }
-}
-
-let p = new Person(&quot;TypeScript&quot;,28)
-
-
-// 那么转为es5呢？
-&quot;use strict&quot;;
-var Person = /** @class */ (function () {
-    function Person(name, age) {
-        this.name = name;
-        this.age = age;
-    }
-    Person.prototype.say = function () {
-        return&quot;hello swr&quot;;
-    };
-    return Person;
-}());
-var p = new Person(&quot;TypeScript&quot;, 28);
-</code></pre><h4 id="可以发现，其实跟我们es6的class是非常像的，那么类的继承是怎样实现呢？"><a href="#可以发现，其实跟我们es6的class是非常像的，那么类的继承是怎样实现呢？" class="headerlink" title="可以发现，其实跟我们es6的class是非常像的，那么类的继承是怎样实现呢？"></a>可以发现，其实跟我们es6的class是非常像的，那么类的继承是怎样实现呢？</h4><pre><code>// 类的继承和es6也是差不多
-class Parent{
-  // 这里声明的变量，是实例上的属性
-  name:string
-  age:number
-  constructor(name:string,age:number){
-    // this.name和this.age必须在前面先声明好类型
-    // name:string   age:number
-    this.name = name
-    this.age = age
-  }
-  // 原型方法
-  say():string{
-    return&quot;hello swr&quot;
-  }
-}
-
-class Child extends Parent{
-  childName:string
-  constructor(name:string,age:number,childName:string){
-    super(name,age)
-    this.childName = childName
-  }
-  childSay():string{
-    return this.childName
-  }
-}
-
-let child = new Child(&quot;TypeScript&quot;,28,&quot;bb&quot;)
-console.log(child)
-</code></pre><h4 id="类的修饰符"><a href="#类的修饰符" class="headerlink" title="类的修饰符"></a>类的修饰符</h4><ul>
-<li><code>public</code>公开的，可以供自己、子类以及其它类访问</li>
-<li><code>protected</code>受保护的，可以供自己、子类访问，但是其他就访问不了</li>
-<li><code>private</code>私有的，只有自己访问，而子类、其他都访问不了</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">class Parent&#123;</span><br><span class="line">  public name:string</span><br><span class="line">  protected age:number</span><br><span class="line">  private money:number</span><br><span class="line"></span><br><span class="line">  /**</span><br><span class="line">   * 也可以简写为</span><br><span class="line">   * constructor(public name:string,protected age:number,private money:number)</span><br><span class="line">   */</span><br><span class="line"></span><br><span class="line">  constructor(name:string,age:number,money:number)&#123;</span><br><span class="line">    this.name = name</span><br><span class="line">    this.age = age</span><br><span class="line">    this.money = money</span><br><span class="line">  &#125;</span><br><span class="line">  getName():string&#123;</span><br><span class="line">    return this.name</span><br><span class="line">  &#125;</span><br><span class="line">  getAge():number&#123;</span><br><span class="line">    return this.age</span><br><span class="line">  &#125;</span><br><span class="line">  getMoney():number&#123;</span><br><span class="line">    return this.money</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">let p = new Parent(&quot;TypeScript&quot;,28,10)</span><br><span class="line">console.log(p.name)</span><br><span class="line">console.log(p.age) // 报错</span><br><span class="line">console.log(p.money) // 报错</span><br></pre></td></tr></table></figure>
-<h4 id="静态属性、静态方法，跟es6差不多"><a href="#静态属性、静态方法，跟es6差不多" class="headerlink" title="静态属性、静态方法，跟es6差不多"></a>静态属性、静态方法，跟es6差不多</h4><pre><code>class Person{
-    // 这是类的静态属性
-    static name = &quot;TypeScript&quot;
-    // 这是类的静态方法，需要通过这个类去调用
-    static say(){
-        console.log(&quot;hello swr&quot;)
-    }
-}
-let p = new Person()
-Person.say() // hello swr
-p.say() // 报错
-</code></pre><h4 id="抽象类"><a href="#抽象类" class="headerlink" title="抽象类"></a>抽象类</h4><p>抽象类和方法，有点类似抽取共性出来，但是又不是具体化，比如说，世界上的动物都需要吃东西，那么会把吃东西这个行为，抽象出来。</p>
-<p>如果子类继承的是一个抽象类，子类必须实现父类里的抽象方法，不然的话不能实例化，会报错。</p>
-<pre><code>// 关键字 abstract 抽象的意思
-// 首先定义个抽象类Animal
-// Animal类有一个抽象方法eat
-abstract class Animal{
-    // 实际上是使用了public修饰符
-    // 如果添加private修饰符则会报错
-    abstract eat():void;
-}
-
-// 需要注意的是，这个Animal类是不能实例化的
-let animal = new Animal() // 报错
-
-// 抽象类的抽象方法，意思就是，需要在继承这个抽象类的子类中
-// 实现这个抽象方法，不然会报错
-// 报错，因为在子类中没有实现eat抽象方法
-class Person extends Animal{
-    eat1(){
-        console.log(&quot;吃米饭&quot;)
-    }
-}
-
-// Dog类继承Animal类后并且实现了抽象方法eat，所以不会报错
-class Dog extends Animal{
-    eat(){
-        console.log(&quot;吃骨头&quot;)
-    }
-}
-</code></pre><hr>
-<h2 id="五、接口"><a href="#五、接口" class="headerlink" title="五、接口"></a>五、接口</h2><p>这里的接口，主要是一种规范，规范某些类必须遵守规范，和抽象类有点类似，但是不局限于类，还有属性、函数等。</p>
-<h4 id="首先我们看看接口是如何规范对象的"><a href="#首先我们看看接口是如何规范对象的" class="headerlink" title="首先我们看看接口是如何规范对象的"></a>首先我们看看接口是如何规范对象的</h4><pre><code>// 假设我需要获取用户信息
-// 我们通过这样的方式，规范必须传name和age的值
-function getUserInfo(user:{name:string,age:number}){
-    console.log(`${user.name}${user.age}`)
-}
-getUserInfo({name:&quot;TypeScript&quot;,age:28})
-</code></pre><p>这样看，还是挺完美的，那么问题就出现了，如果我另外还有一个方法，也是需要这个规范呢？</p>
-<pre><code>function getUserInfo(user:{name:string,age:number}){
-    console.log(`${user.name}${user.age}`)
-}
-function getInfo(user:{name:string,age:number}){
-    console.log(`${user.name}${user.age}`)
-}
-getUserInfo({name:&quot;TypeScript&quot;,age:28})
-getInfo({name:&quot;iamswr&quot;,age:28})
-</code></pre><p>可以看出，函数<code>getUserInfo</code>和<code>getInfo</code>都遵循同一个规范，那么我们有办法对这个规范复用吗？</p>
-<pre><code>// 首先把需要复用的规范，写到接口中 关键字 interface
-interface infoInterface{
-    name:string,
-    age:number
-}
-// 然后把这个接口，替换到我们需要复用的地方
-function getUserInfo(user:infoInterface){
-    console.log(`${user.name}${user.age}`)
-}
-function getInfo(user:infoInterface){
-    console.log(`${user.name}${user.age}`)
-}
-getUserInfo({name:&quot;TypeScript&quot;,age:28})
-getInfo({name:&quot;iamswr&quot;,age:28})
-</code></pre><p>那么有些参数可传可不传，该怎么处理呢？</p>
-<pre><code>interface infoInterface{
-    name:string,
-    age:number,
-    city?:string // 该参数为可选参数
-}
-function getUserInfo(user:infoInterface){
-    console.log(`${user.name}${user.age}${user.city}`)
-}
-function getInfo(user:infoInterface){
-    console.log(`${user.name}${user.age}`)
-}
-getUserInfo({name:&quot;TypeScript&quot;,age:28,city:&quot;深圳&quot;})
-getInfo({name:&quot;iamswr&quot;,age:28})
-</code></pre><h4 id="接口是如何规范函数的"><a href="#接口是如何规范函数的" class="headerlink" title="接口是如何规范函数的"></a>接口是如何规范函数的</h4><pre><code>// 对一个函数的参数和返回值进行规范
-interface mytotal {
-  // 左侧是函数的参数，右侧是函数的返回类型
-  (a:number,b:number) : number
-}
-
-let total:mytotal = function (a:number,b:number):number {
-  return a + b
-}
-
-console.log(total(10,20))
-</code></pre><h4 id="接口是如何规范数组的"><a href="#接口是如何规范数组的" class="headerlink" title="接口是如何规范数组的"></a>接口是如何规范数组的</h4><pre><code>interface userInterface {
-  // index为数组的索引，类型是number
-  // 右边是数组里为字符串的数组成员
-  [index: number]: string
-}
-let arr: userInterface = [&apos;TypeScript&apos;, &apos;iamswr&apos;];
-console.log(arr);
-</code></pre><h4 id="接口是如何规范类的"><a href="#接口是如何规范类的" class="headerlink" title="接口是如何规范类的"></a>接口是如何规范类的</h4><p>这个比较重要，因为写react的时候会经常使用到类</p>
-<pre><code>// 首先实现一个接口
-interface Animal{
-    // 这个类必须有name
-    name:string,
-    // 这个类必须有eat方法
-    // 规定eat方法的参数类型以及返回值类型
-    eat(any:string):void
-}
-// 关键字 implements 实现
-// 因为接口是抽象的，需要通过子类去实现它
-class Person implements Animal{
-    name:string
-    constructor(name:string){
-        this.name = name
-    }
-    eat(any:string):void{
-        console.log(`吃${any}`)
-    }
-}
-</code></pre><p>那么如果想遵循多个接口呢？</p>
-<pre><code>interface Animal{
-    name:string,
-    eat(any:string):void
-}
-// 新增一个接口
-interface Animal2{
-    sleep():void
-}
-// 可以在implements后面通过逗号添加，和java是一样的
-// 一个类只能继承一个父类，但是却能遵循多个接口
-class Person implements Animal,Animal2{
-    name:string
-    constructor(name:string){
-        this.name = name
-    }
-    eat(any:string):void{
-        console.log(`吃${any}`)
-    }
-    sleep(){
-        console.log(&apos;睡觉&apos;)
-    }
-}
-</code></pre><h4 id="接口可以继承接口"><a href="#接口可以继承接口" class="headerlink" title="接口可以继承接口"></a>接口可以继承接口</h4><pre><code>interface Animal{
-    name:string,
-    eat(any:string):void
-}
-// 像类一样，通过extends继承
-interface Animal2 extends Animal{
-    sleep():void
-}
-// 因为Animal2类继承了Animal
-// 所以这里遵循Animal2就相当于把Animal也继承了
-class Person implements Animal2{
-    name:string
-    constructor(name:string){
-        this.name = name
-    }
-    eat(any:string):void{
-        console.log(`吃${any}`)
-    }
-    sleep(){
-        console.log(&apos;睡觉&apos;)
-    }
-}
-</code></pre><hr>
-<h2 id="六、泛型"><a href="#六、泛型" class="headerlink" title="六、泛型"></a>六、泛型</h2><p>泛型可以支持不特定的数据类型，什么叫不特定呢？比如我们有一个方法，里面接收参数，但是参数类型我们是不知道，但是这个类型在方法里面很多地方会用到，参数和返回值要保持一致性</p>
-<pre><code>// 假设我们有一个需求，我们不知道函数接收什么类型的参数，也不知道返回值的类型
-// 而我们又需要传进去的参数类型和返回值的类型保持一致，那么我们就需要用到泛型
-
-// &lt;T&gt;的意思是泛型，即generic type
-// 可以看出value的类型也为T，返回值的类型也为T
-function deal&lt;T&gt;(value:T):T{
-    return value
-}
-// 下面的&lt;string&gt;、&lt;number&gt;实际上用的时候再传给上面的&lt;T&gt;
-console.log(deal&lt;string&gt;(&quot;TypeScript&quot;))
-console.log(deal&lt;number&gt;(28))
-</code></pre><h4 id="实际上，泛型用得还是比较少，主要是看类的泛型是如何使用的"><a href="#实际上，泛型用得还是比较少，主要是看类的泛型是如何使用的" class="headerlink" title="实际上，泛型用得还是比较少，主要是看类的泛型是如何使用的"></a>实际上，泛型用得还是比较少，主要是看类的泛型是如何使用的</h4><pre><code>class MyMath&lt;T&gt;{
-  // 定义一个私有属性
-  private arr:T[] = []
-  // 规定传参类型
-  add(value:T){
-    this.arr.push(value)
-  }
-  // 规定返回值的类型
-  max():T{
-    return Math.max.apply(null,this.arr)
-  }
-}
-
-// 这里规定了类型为number
-// 相当于把T都替换成number
-let mymath = new MyMath&lt;number&gt;()
-mymath.add(1)
-mymath.add(2)
-mymath.add(3)
-console.log(mymath.max())
-
-// 假设我们传个字符串呢？
-// 则会报错:类型“&quot;TypeScript&quot;”的参数不能赋给类型“number”的参数。
-mymath.add(&quot;TypeScript&quot;)
-</code></pre><p>那么我们会思考，有了接口为什么还需要抽象类？</p>
-<p>接口里面只能放定义，抽象类里面可以放普通类、普通类的方法、定义抽象的东西。</p>
-<p>比如说，我们父类有10个方法，其中9个是实现过的方法，有1个是抽象的方法，那么子类继承过来，只需要实现这一个抽象的方法就可以了，但是接口的话，则是全是抽象的，子类都要实现这些方法，简而言之，接口里面不可以放实现，而抽象类可以放实现。</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4343,7 +3878,7 @@ mymath.add(&quot;TypeScript&quot;)
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">151</span>
+                  <span class="site-state-item-count">152</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
