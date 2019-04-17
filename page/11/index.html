@@ -694,6 +694,163 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/21/React-setState/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/09/21/React-setState/" itemprop="url">React setState</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-21T20:16:49+08:00">
+                2017-09-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p><img src="/2017/09/21/React-setState/1.webp" alt=""></p>
+<blockquote>
+<p>面试官：“react中<code>setState</code>是同步的还是异步？”</p>
+</blockquote>
+<blockquote>
+<p>我：“异步的，<code>setState</code>不能立马拿到结果。”</p>
+</blockquote>
+<blockquote>
+<p>面试官：“那什么场景下是异步的，可不可能是同步，什么场景下又是同步的？”</p>
+</blockquote>
+<blockquote>
+<p>我：“……”</p>
+</blockquote>
+<h3 id="setState真的是异步的吗？"><a href="#setState真的是异步的吗？" class="headerlink" title="setState真的是异步的吗？"></a><code>setState</code>真的是异步的吗？</h3><p>这两天自己简单的看了下 <code>setState</code> 的部分实现代码，在这边给到大家一个自己个人的见解，可能文字或图片较多，没耐心的同学可以直接跳过看总结(<strong>源码版本是16.4.1</strong>)。</p>
+<p><strong>看之前，为了方便理解和简化流程，我们默认react内部代码执行到<code>performWork</code><br>、<code>performWorkOnRoot</code>、<code>performSyncWork</code>、<code>performAsyncWork</code>这四个方法的时候，就是react去update更新并且作用到UI上。</strong></p>
+<h3 id="一、合成事件中的setState"><a href="#一、合成事件中的setState" class="headerlink" title="一、合成事件中的setState"></a>一、合成事件中的<code>setState</code></h3><p>首先得了解一下什么是合成事件，react为了解决跨平台，兼容性问题，自己封装了一套事件机制，代理了原生的事件，像在<code>jsx</code>中常见的<code>onClick</code>、<code>onChange</code>这些都是合成事件。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  increment = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新前的val --&gt; 0</span><br><span class="line">  &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.increment&#125;&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>合成事件中的<code>setState</code>写法比较常见，点击事件里去改变 <code>this.state.val</code> 的状态值，在 <code>increment</code> 事件中打个断点可以看到调用栈，这里我贴一张自己画的流程图：<br><img src="/2017/09/21/React-setState/2.webp" alt=""><br>从 <code>dispatchInteractiveEvent</code> 到 <code>callCallBack</code> 为止，都是对合成事件的处理和执行，从 <code>setState</code> 到 <code>requestWork</code> 是调用 <code>this.setState</code> 的逻辑，这边主要看下  <code>requestWork</code> 这个函数（从 <code>dispatchEvent</code> 到 <code>requestWork</code> 的调用栈是属于 <code>interactiveUpdates$1</code> 的 <code>try</code> 代码块，下文会提到）。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">function requestWork(root, expirationTime) &#123;</span><br><span class="line">  addRootToSchedule(root, expirationTime);</span><br><span class="line"></span><br><span class="line">  if (isRendering) &#123;</span><br><span class="line">    // Prevent reentrancy. Remaining work will be scheduled at the end of</span><br><span class="line">    // the currently rendering batch.</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (isBatchingUpdates) &#123;</span><br><span class="line">    // Flush work at the end of the batch.</span><br><span class="line">    if (isUnbatchingUpdates) &#123;</span><br><span class="line">      // ...unless we&apos;re inside unbatchedUpdates, in which case we should</span><br><span class="line">      // flush it now.</span><br><span class="line">      nextFlushedRoot = root;</span><br><span class="line">      nextFlushedExpirationTime = Sync;</span><br><span class="line">      performWorkOnRoot(root, Sync, false);</span><br><span class="line">    &#125;</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // TODO: Get rid of Sync and use current time?</span><br><span class="line">  if (expirationTime === Sync) &#123;</span><br><span class="line">    performSyncWork();</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    scheduleCallbackWithExpiration(expirationTime);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在 <code>requestWork</code> 中有三个if分支，三个分支中有两个方法 <code>performWorkOnRoot</code> 和 <code>performSyncWork</code> ，就是我们默认的update函数，但是在合成事件中，走的是第二个if分支，第二个分支中有两个标识 <code>isBatchingUpdates</code> 和 <code>isUnbatchingUpdates</code> 两个初始值都为  <code>false</code> ，但是在 <code>interactiveUpdates$1</code> 中会把 <code>isBatchingUpdates</code> 设为 <code>true</code> ，下面就是 <code>interactiveUpdates$1</code> 的代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">function interactiveUpdates$1(fn, a, b) &#123;</span><br><span class="line">  if (isBatchingInteractiveUpdates) &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125;</span><br><span class="line">  // If there are any pending interactive updates, synchronously flush them.</span><br><span class="line">  // This needs to happen before we read any handlers, because the effect of</span><br><span class="line">  // the previous event may influence which handlers are called during</span><br><span class="line">  // this event.</span><br><span class="line">  if (!isBatchingUpdates &amp;&amp; !isRendering &amp;&amp; lowestPendingInteractiveExpirationTime !== NoWork) &#123;</span><br><span class="line">    // Synchronously flush pending interactive updates.</span><br><span class="line">    performWork(lowestPendingInteractiveExpirationTime, false, null);</span><br><span class="line">    lowestPendingInteractiveExpirationTime = NoWork;</span><br><span class="line">  &#125;</span><br><span class="line">  var previousIsBatchingInteractiveUpdates = isBatchingInteractiveUpdates;</span><br><span class="line">  var previousIsBatchingUpdates = isBatchingUpdates;</span><br><span class="line">  isBatchingInteractiveUpdates = true;</span><br><span class="line">  isBatchingUpdates = true;  // 把requestWork中的isBatchingUpdates标识改为true</span><br><span class="line">  try &#123;</span><br><span class="line">    return fn(a, b);</span><br><span class="line">  &#125; finally &#123;</span><br><span class="line">    isBatchingInteractiveUpdates = previousIsBatchingInteractiveUpdates;</span><br><span class="line">    isBatchingUpdates = previousIsBatchingUpdates;</span><br><span class="line">    if (!isBatchingUpdates &amp;&amp; !isRendering) &#123;</span><br><span class="line">      performSyncWork();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这个方法中把 <code>isBatchingUpdates</code> 设为了 <code>true</code> ,导致在 <code>requestWork</code> 方法中， <code>isBatchingUpdates</code> 为 <code>true</code> ，但是 <code>isUnbatchingUpdates</code> 是 <code>false</code> ，而被直接return了。</p>
+<p>那return完的逻辑回到哪里呢，最终正是回到了 <code>interactiveUpdates</code> 这个方法，仔细看一眼，这个方法里面有个<a href="https://link.juejin.im?target=http%3A%2F%2Fjavascript.ruanyifeng.com%2Fgrammar%2Ferror.html%23toc12" target="_blank" rel="noopener">try finally</a>语法，前端同学这个其实是用的比较少的，简单的说就是会先执行 <code>try</code> 代码块中的语句，然后再执行 <code>finally</code> 中的代码，而 <code>fn(a, b)</code> 是在try代码块中，刚才说到在 <code>requestWork</code> 中被return掉的也就是这个fn（上文提到的 <code>从dispatchEvent</code> 到 <code>requestWork</code> 的一整个调用栈）。</p>
+<p>所以当你在 <code>increment</code> 中调用 <code>setState</code> 之后去console.log的时候，是属于 <code>try</code> 代码块中的执行，但是由于是合成事件，try代码块执行完state并没有更新，所以你输入的结果是更新前的 <code>state</code> 值，这就导致了所谓的”异步”，但是当你的try代码块执行完的时候（也就是你的increment合成事件），这个时候会去执行 <code>finally</code> 里的代码，在 <code>finally</code> 中执行了 <code>performSyncWork</code> 方法，这个时候才会去更新你的 <code>state</code> 并且渲染到UI上。</p>
+<h3 id="二、生命周期函数中的setState"><a href="#二、生命周期函数中的setState" class="headerlink" title="二、生命周期函数中的setState"></a>二、生命周期函数中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">   console.log(this.state.val) // 输出的还是更新前的值 --&gt; 0</span><br><span class="line"> &#125;</span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>钩子函数中setState的调用栈：<br><img src="/2017/09/21/React-setState/3.webp" alt=""><br>其实还是和合成事件一样，当 <code>componentDidmount</code> 执行的时候，react内部并没有更新，执行完<code>componentDidmount</code>  后才去 <code>commitUpdateQueue</code> 更新。这就导致你在 <code>componentDidmount</code> 中 <code>setState</code> 完去console.log拿的结果还是更新前的值。</p>
+<h3 id="三、原生事件中的setState"><a href="#三、原生事件中的setState" class="headerlink" title="三、原生事件中的setState"></a>三、原生事件中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  changeValue = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val) // 输出的是更新后的值 --&gt; 1</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    document.body.addEventListener(&apos;click&apos;, this.changeValue, false)</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>原生事件是指非react合成事件，原生自带的事件监听 <code>addEventListener</code> ，或者也可以用原生js、jq直接 <code>document.querySelector().onclick</code> 这种绑定事件的形式都属于原生事件。<br><img src="/2017/09/21/React-setState/4.webp" alt=""><br>原生事件的调用栈就比较简单了，因为没有走合成事件的那一大堆，直接触发click事件，到 <code>requestWork</code> ,在<code>requestWork</code>里由于 <code>expirationTime === Sync</code> 的原因，直接走了 <code>performSyncWork</code> 去更新，并不像合成事件或钩子函数中被return，所以当你在原生事件中setState后，能同步拿到更新后的state值。</p>
+<h3 id="四、setTimeout中的setState"><a href="#四、setTimeout中的setState" class="headerlink" title="四、setTimeout中的setState"></a>四、setTimeout中的<code>setState</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line"> componentDidMount() &#123;</span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val) // 输出更新后的值 --&gt; 1</span><br><span class="line">    &#125;, 0)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div&gt;</span><br><span class="line">        &#123;`Counter is: $&#123;this.state.val&#125;`&#125;</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 <code>setTimeout</code> 中去 <code>setState</code> 并不算是一个单独的场景，它是随着你外层去决定的，因为你可以在合成事件中 <code>setTimeout</code> ，可以在钩子函数中 <code>setTimeout</code> ，也可以在原生事件<code>setTimeout</code>，但是不管是哪个场景下，基于<a href="https://link.juejin.im?target=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D6XRNXXgP_0" target="_blank" rel="noopener">event loop</a>的模型下， <code>setTimeout</code> 中里去 <code>setState</code> 总能拿到最新的state值。</p>
+<p>举个栗子，比如之前的合成事件，由于你是 <code>setTimeout(_ =&gt; { this.setState()}, 0)</code> 是在 <code>try</code> 代码块中,当你 <code>try</code> 代码块执行到 <code>setTimeout</code> 的时候，把它丢到列队里，并没有去执行，而是先执行的 <code>finally</code> 代码块，等 <code>finally</code> 执行完了， <code>isBatchingUpdates</code> 又变为了 <code>false</code> ，导致最后去执行队列里的 <code>setState</code> 时候， <code>requestWork</code> 走的是和原生事件一样的 <code>expirationTime === Sync</code> if分支，所以表现就会和原生事件一样，可以同步拿到最新的state值。</p>
+<h3 id="五、setState中的批量更新"><a href="#五、setState中的批量更新" class="headerlink" title="五、setState中的批量更新"></a>五、<code>setState</code>中的批量更新</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">class App extends Component &#123;</span><br><span class="line"></span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  batchUpdates = () =&gt; &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return (</span><br><span class="line">      &lt;div onClick=&#123;this.batchUpdates&#125;&gt;</span><br><span class="line">        &#123;`Counter is $&#123;this.state.val&#125;`&#125; // 1</span><br><span class="line">      &lt;/div&gt;</span><br><span class="line">    )</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的结果最终是1，在 <code>setState</code> 的时候react内部会创建一个 <code>updateQueue</code> ，通过 <code>firstUpdate</code> 、 <code>lastUpdate</code> 、 <code>lastUpdate.next</code> 去维护一个更新的队列，在最终的 <code>performWork</code> 中，相同的key会被覆盖，只会对最后一次的 <code>setState</code> 进行更新，下面是部分实现代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">function createUpdateQueue(baseState) &#123;</span><br><span class="line">  var queue = &#123;</span><br><span class="line">    expirationTime: NoWork,</span><br><span class="line">    baseState: baseState,</span><br><span class="line">    firstUpdate: null,</span><br><span class="line">    lastUpdate: null,</span><br><span class="line">    firstCapturedUpdate: null,</span><br><span class="line">    lastCapturedUpdate: null,</span><br><span class="line">    firstEffect: null,</span><br><span class="line">    lastEffect: null,</span><br><span class="line">    firstCapturedEffect: null,</span><br><span class="line">    lastCapturedEffect: null</span><br><span class="line">  &#125;;</span><br><span class="line">  return queue;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">function appendUpdateToQueue(queue, update, expirationTime) &#123;</span><br><span class="line">  // Append the update to the end of the list.</span><br><span class="line">  if (queue.lastUpdate === null) &#123;</span><br><span class="line">    // Queue is empty</span><br><span class="line">    queue.firstUpdate = queue.lastUpdate = update;</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    queue.lastUpdate.next = update;</span><br><span class="line">    queue.lastUpdate = update;</span><br><span class="line">  &#125;</span><br><span class="line">  if (queue.expirationTime === NoWork || queue.expirationTime &gt; expirationTime) &#123;</span><br><span class="line">    // The incoming update has the earliest expiration of any update in the</span><br><span class="line">    // queue. Update the queue&apos;s expiration time.</span><br><span class="line">    queue.expirationTime = expirationTime;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="看个demo"><a href="#看个demo" class="headerlink" title="看个demo"></a>看个demo</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">class App extends React.Component &#123;</span><br><span class="line">  state = &#123; val: 0 &#125;</span><br><span class="line"></span><br><span class="line">  componentDidMount() &#123;</span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">    console.log(this.state.val)</span><br><span class="line"></span><br><span class="line">    setTimeout(_ =&gt; &#123;</span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val);</span><br><span class="line"></span><br><span class="line">      this.setState(&#123; val: this.state.val + 1 &#125;)</span><br><span class="line">      console.log(this.state.val)</span><br><span class="line">    &#125;, 0)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    return &lt;div&gt;&#123;this.state.val&#125;&lt;/div&gt;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>结合上面分析的，钩子函数中的 <code>setState</code> 无法立马拿到更新后的值，所以前两次都是输出0，当执行到 <code>setTimeout</code> 里的时候，前面两个state的值已经被更新，由于 <code>setState</code> 批量更新的策略， <code>this.state.val</code> 只对最后一次的生效，为1，而在 <code>setTimmout</code> 中 <code>setState</code> 是可以同步拿到更新结果，所以 <code>setTimeout</code> 中的两次输出2，3，最终结果就为 <code>0, 0, 2, 3</code> 。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结 :"></a>总结 :</h3><ol>
+<li><strong><code>setState</code> 只在合成事件和钩子函数中是“异步”的，在原生事件和 <code>setTimeout</code> 中都是同步的。</strong></li>
+<li><strong><code>setState</code>的“异步”并不是说内部由异步代码实现，其实本身执行的过程和代码都是同步的，只是合成事件和钩子函数的调用顺序在更新之前，导致在合成事件和钩子函数中没法立马拿到更新后的值，形式了所谓的“异步”，当然可以通过第二个参数 setState(partialState, callback) 中的callback拿到更新后的结果。</strong></li>
+<li><strong><code>setState</code> 的批量更新优化也是建立在“异步”（合成事件、钩子函数）之上的，在原生事件和setTimeout 中不会批量更新，在“异步”中如果对同一个值进行多次 <code>setState</code> ， <code>setState</code> 的批量更新策略会对其进行覆盖，取最后一次的执行，如果是同时 <code>setState</code> 多个不同的值，在更新时会对其进行合并批量更新。</strong></li>
+</ol>
+<p>以上就是我看了部分代码后的粗浅理解，对源码细节的那块分析的较少，主要是想让大家理解<code>setState</code>在不同的场景，不同的写法下到底发生了什么样的一个过程和结果，希望对大家有帮助，由于是个人的理解和见解，如果哪里有说的不对的地方，欢迎大家一起指出并讨论。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/09/11/Git-必知必会/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3818,654 +3975,6 @@ for(var a of Object.entries(obj)) console.log(a);
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/18/探索webpack-机制/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/05/18/探索webpack-机制/" itemprop="url">探索webpack 机制</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-18T22:20:52+08:00">
-                2017-05-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>本文从简单的例子入手，从打包文件去分析以下三个问题：webpack打包文件是怎样的？如何做到兼容各大模块化方案的？webpack3带来的新特性又是什么？</p>
-<h2 id="一个简单的例子"><a href="#一个简单的例子" class="headerlink" title="一个简单的例子"></a>一个简单的例子</h2><p>webpack配置</p>
-<pre><code>// webpack.config.js
-module.exports = {
-  entry: &apos;./src/index.js&apos;,
-  output: {
-    filename: &apos;bundle.js&apos;,
-    path: path.resolve(__dirname, &apos;dist&apos;)
-  },
-};
-</code></pre><p>简单的js文件</p>
-<pre><code>// src/index.js
- console.log(&apos;hello world&apos;);
-</code></pre><p>webpack打包后的代码</p>
-<pre><code>// dist/bundle.js
- /******/ (function(modules) { // webpackBootstrap
-/******/     // The module cache
-/******/     var installedModules = {};
-/******/
-/******/     // The require function
-/******/     function __webpack_require__(moduleId) {
-/******/
-/******/         // Check if module is in cache
-/******/         if(installedModules[moduleId]) {
-/******/             return installedModules[moduleId].exports;
-/******/         }
-/******/         // Create a new module (and put it into the cache)
-/******/         var module = installedModules[moduleId] = {
-/******/             i: moduleId,
-/******/             l: false,
-/******/             exports: {}
-/******/         };
-/******/
-/******/         // Execute the module function
-/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
-/******/         // Flag the module as loaded
-/******/         module.l = true;
-/******/
-/******/         // Return the exports of the module
-/******/         return module.exports;
-/******/     }
-/******/
-/******/
-/******/     // expose the modules object (__webpack_modules__)
-/******/     __webpack_require__.m = modules;
-/******/
-/******/     // expose the module cache
-/******/     __webpack_require__.c = installedModules;
-/******/
-/******/     // define getter function for harmony exports
-/******/     __webpack_require__.d = function(exports, name, getter) {
-/******/         if(!__webpack_require__.o(exports, name)) {
-/******/             Object.defineProperty(exports, name, {
-/******/                 configurable: false,
-/******/                 enumerable: true,
-/******/                 get: getter
-/******/             });
-/******/         }
-/******/     };
-/******/
-/******/     // getDefaultExport function for compatibility with non-harmony modules
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-/******/
-/******/     // Object.prototype.hasOwnProperty.call
-/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
-/******/
-/******/     // __webpack_public_path__
-/******/     __webpack_require__.p = &quot;&quot;;
-/******/
-/******/     // Load entry module and return exports
-/******/     return __webpack_require__(__webpack_require__.s = 0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports) {
-
-console.log(&apos;hello world&apos;);
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>一看你就会想，我就一行代码，你给我打包那么多？？？（黑人问号）</p>
-<p>我们来分析一下这部分代码，先精简一下，其实整体就是一个自执行函数，然后传入一个模块数组</p>
-<pre><code>(function(modules) { 
-     //...
- })([function(module, exports) {
-     //..
- }])
-</code></pre><p>好了，传入模块数组做了什么(其实注释都很明显了，我只是大概翻译一下）</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-/******/     // The module cache  缓存已经load过的模块
-/******/     var installedModules = {};
-/******/
-/******/     // The require function  引用的函数
-/******/     function __webpack_require__(moduleId) {
-/******/
-/******/         // Check if module is in cache 假如在缓存里就直接返回
-/******/         if(installedModules[moduleId]) {
-/******/             return installedModules[moduleId].exports;
-/******/         }
-/******/         // Create a new module (and put it into the cache) 构造一个模块并放入缓存
-/******/         var module = installedModules[moduleId] = {
-/******/             i: moduleId, //模块id
-/******/             l: false, // 是否已经加载完毕
-/******/             exports: {} // 对外暴露的内容
-/******/         };
-/******/
-/******/         // Execute the module function 传入模块参数，并执行模块
-/******/         modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
-/******/         // Flag the module as loaded 标记模块已经加载完毕
-/******/         module.l = true;
-/******/
-/******/         // Return the exports of the module 返回模块暴露的内容
-/******/         return module.exports;
-/******/     }
-/******/
-/******/
-/******/     // expose the modules object (__webpack_modules__) 暴露模块数组
-/******/     __webpack_require__.m = modules;
-/******/
-/******/     // expose the module cache 暴露缓存数组
-/******/     __webpack_require__.c = installedModules;
-/******/
-/******/     // define getter function for harmony exports 为ES6 exports定义getter
-/******/     __webpack_require__.d = function(exports, name, getter) {
-/******/         if(!__webpack_require__.o(exports, name)) { // 假如exports本身不含有name这个属性
-/******/             Object.defineProperty(exports, name, {
-/******/                 configurable: false,
-/******/                 enumerable: true,
-/******/                 get: getter
-/******/             });
-/******/         }
-/******/     };
-/******/
-/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-/******/
-/******/     // Object.prototype.hasOwnProperty.call
-/******/     __webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
-/******/
-/******/     // __webpack_public_path__ webpack配置下的公共路径
-/******/     __webpack_require__.p = &quot;&quot;;
-/******/
-/******/     // Load entry module and return exports 最后执行entry模块并且返回它的暴露内容
-/******/     return __webpack_require__(__webpack_require__.s = 0);
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports) {
-
-console.log(&apos;hello world&apos;);
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>整体流程是怎样的呢</p>
-<ul>
-<li>传入module数组</li>
-<li><p>调用<strong>webpack_require</strong>(<strong>webpack_require</strong>.s = 0)</p>
-</li>
-<li><p>构造module对象，放入缓存</p>
-</li>
-<li>调用module,传入相应参数modules[moduleId].call(module.exports, module, module.exports, <strong>webpack_require</strong>); （这里exports会被函数内部的东西修改）</li>
-<li>标记module对象已经加载完毕</li>
-<li><p>返回模块暴露的内容（注意到上面函数传入了module.exports,可以对引用进行修改）</p>
-</li>
-<li><p>模块函数中传入module, module.exports, webpack_require</p>
-</li>
-<li>执行过程中通过对上面三者的引用修改，完成变量暴露和引用</li>
-</ul>
-<h2 id="webpack模块机制是怎样的"><a href="#webpack模块机制是怎样的" class="headerlink" title="webpack模块机制是怎样的"></a>webpack模块机制是怎样的</h2><p>我们可以去官网看下webpack模块</p>
-<blockquote>
-<p><a href="https://link.zhihu.com/?target=https%3A//doc.webpack-china.org/concepts/modules%23-webpack-" target="_blank" rel="noopener">https://doc.webpack-china.org/concepts/modules#-webpack-</a><br>webpack 模块能够以各种方式表达它们的依赖关系，几个例子如下：</p>
-</blockquote>
-<ul>
-<li>ES2015 import 语句</li>
-<li>CommonJS require() 语句</li>
-<li>AMD define 和 require 语句</li>
-<li>css/sass/less 文件中的 @import 语句。</li>
-<li>样式(url(…))或 HTML 文件(<img src="/2017/05/18/探索webpack-机制/...">)中的图片链接(image url)</li>
-</ul>
-<p>强大的webpack模块可以兼容各种模块化方案，并且无侵入性(non-opinionated)</p>
-<p>我们可以再编写例子一探究竟</p>
-<h2 id="CommonJS"><a href="#CommonJS" class="headerlink" title="CommonJS"></a>CommonJS</h2><p>修改src/index.js</p>
-<pre><code>var cj = require(&apos;./cj.js&apos;);
-
-console.log(&apos;hello world&apos;);
-cj();
-</code></pre><p>新增src/cj.js，保持前面例子其他不变</p>
-<pre><code>// src/cj.js
-function a() {
-    console.log(&quot;CommonJS&quot;);
-}
-module.exports = a;
-</code></pre><p>再次运行webpack</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-  //... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-let cj = __webpack_require__(1);
-
-console.log(&apos;hello world&apos;);
-cj();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports) {
-
-function a() {
-    console.log(&quot;CommonJS&quot;);
-}
-module.exports = a;
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以看到模块数组多了个引入的文件，然后index.js模块函数多了个参数<strong>webpack_require</strong>，去引用文件（<strong>webpack_require</strong>在上一节有介绍），整体上就是依赖的模块修改了module.exports，然后主模块执行依赖模块，获取exports即可</p>
-<h2 id="ES2015-import"><a href="#ES2015-import" class="headerlink" title="ES2015 import"></a>ES2015 import</h2><p>新增src/es.js</p>
-<pre><code>// src/es.js
-export default function b() {
-    console.log(&apos;ES Modules&apos;);
-}
-</code></pre><p>修改src/index.js</p>
-<pre><code>// src/index.js
-import es from &apos;./es.js&apos;;
-
-console.log(&apos;hello world&apos;);
-es();
-</code></pre><p>webpack.config.js不变，执行webpack</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
-
-
-console.log(&apos;hello world&apos;);
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* default */])();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = b;
-function b() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以看到它们都变成了严格模式，webpack自动采用的</p>
-<p>表现其实跟CommonJS相似，也是传入export然后修改，在主模块再require进来，</p>
-<p>我们可以看到这个</p>
-<pre><code>Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-</code></pre><p>这个干嘛用的？其实就是标记当前的exports是es模块，还记得之前的<strong>webpack_require</strong>.n吗，我们再拿出来看看</p>
-<pre><code>/******/     // getDefaultExport function for compatibility with non-harmony modules 解决ES module和Common js module的冲突，ES则返回module[&apos;default&apos;]
-/******/     __webpack_require__.n = function(module) {
-/******/         var getter = module &amp;&amp; module.__esModule ?
-/******/             function getDefault() { return module[&apos;default&apos;]; } :
-/******/             function getModuleExports() { return module; };
-/******/         __webpack_require__.d(getter, &apos;a&apos;, getter);
-/******/         return getter;
-/******/     };
-</code></pre><p>为了避免跟非ES Modules冲突？冲突在哪里呢？<br>其实这部分如果你看到babel转换ES Modules源码就知道了，为了兼容模块，会把ES Modules直接挂在exports.default上，然后加上__esModule属性，引入的时候判断一次是否是转换模块，是则引入module[‘default’]，不是则引入module</p>
-<p>我们再多引入几个ES Modules看看效果</p>
-<pre><code>// src/es.js
-export function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-export function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-export function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-export function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-</code></pre><p>我们多引入esTwo和esFour，但是不使用esFour</p>
-<pre><code>// src/index.js
-import { es, esTwo, esFour} from &apos;./es.js&apos;;
-
-console.log(&apos;hello world&apos;);
-es();
-esTwo();
-</code></pre><p>得出</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ...
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__es_js__ = __webpack_require__(1);
-
-
-console.log(&apos;hello world&apos;);
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;a&quot; /* es */])();
-Object(__WEBPACK_IMPORTED_MODULE_0__es_js__[&quot;b&quot; /* esTwo */])();
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-/* harmony export (immutable) */ __webpack_exports__[&quot;a&quot;] = es;
-/* harmony export (immutable) */ __webpack_exports__[&quot;b&quot;] = esTwo;
-/* unused harmony export esThree */
-/* unused harmony export esFour */
-function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>嗯嗯其实跟前面是一样的，举出这个例子重点在哪里呢，有没有注意到注释中</p>
-<pre><code>/* unused harmony export esThree */
-/* unused harmony export esFour */
-</code></pre><p>esThree是我们没有引入的模块，esFour是我们引用但是没有使用的模块，webpack均对它们做了unused的标记，其实这个如果你使用了webpack插件uglify，通过标记，就会把esThree和esFour这两个未使用的代码消除（其实它就是tree-shaking)</p>
-<h2 id="AMD"><a href="#AMD" class="headerlink" title="AMD"></a>AMD</h2><p>我们再来看看webpack怎么支持AMD</p>
-<p>新增src/amd.js</p>
-<pre><code>// src/amd.js
-define([
-],function(){
-    return {
-        amd:function(){
-            console.log(&apos;AMD&apos;);
-        }
-    };
-});
-</code></pre><p>修改index.js</p>
-<pre><code>// src/index.js
-define([
-    &apos;./amd.js&apos;
-],function(amdModule){
-    amdModule.amd();
-});
-</code></pre><p>得到</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
-    __webpack_require__(1)
-], __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule){
-    amdModule.amd();
-}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;!(__WEBPACK_AMD_DEFINE_ARRAY__ = [
-], __WEBPACK_AMD_DEFINE_RESULT__ = function(){
-    return {
-        amd:function(){
-            console.log(&apos;AMD&apos;);
-        }
-    };
-}.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-                __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>先看amd.js整理一下代码</p>
-<pre><code>function(module, exports, __webpack_require__) {
-    var __WEBPACK_AMD_DEFINE_ARRAY__,
-        __WEBPACK_AMD_DEFINE_RESULT__;
-
-    !(
-        __WEBPACK_AMD_DEFINE_ARRAY__ = [],
-
-        __WEBPACK_AMD_DEFINE_RESULT__ = function() {
-            return {
-                amd: function() {
-                    console.log(&apos;AMD&apos;);
-                }
-            };
-        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-
-        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp;
-        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
-
-    );
-})
-</code></pre><p>简单来讲收集define Array然后置入返回函数，根据参数获取依赖</p>
-<blockquote>
-<p>apply对数组拆解成一个一个参数</p>
-</blockquote>
-<p>再看index.js模块部分</p>
-<pre><code>function(module, exports, __webpack_require__) {
-
-    var __WEBPACK_AMD_DEFINE_ARRAY__,
-        __WEBPACK_AMD_DEFINE_RESULT__;
-    !(
-        __WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)],
-        __WEBPACK_AMD_DEFINE_RESULT__ = function(amdModule) {
-                amdModule.amd();
-        }.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__),
-
-        __WEBPACK_AMD_DEFINE_RESULT__ !== undefined &amp;&amp; 
-        (module.exports = __WEBPACK_AMD_DEFINE_RESULT__)
-    );
-}
-</code></pre><p>其实就是引入了amd.js暴露的{amd:[Function: amd]}</p>
-<h2 id="css-image"><a href="#css-image" class="headerlink" title="css/image?"></a>css/image?</h2><p>css和image也可以成为webpack的模块，这是令人震惊的，这就不能通过普通的hack commonjs或者函数调用简单去调用了，这就是anything to JS，它就需要借助webpack loader去实现了</p>
-<blockquote>
-<p>像css就是转换成一段js代码，通过处理，调用时就是可以用js将这段css插入到style中，image也类似，这部分就不详细阐述了，有兴趣的读者可以深入去研究</p>
-</blockquote>
-<h2 id="webpack3新特性"><a href="#webpack3新特性" class="headerlink" title="webpack3新特性"></a>webpack3新特性</h2><p>我们可以再顺便看下webpack3新特性的表现<br>具体可以看这里<a href="https://link.zhihu.com/?target=https%3A//medium.com/webpack/webpack-3-official-release-15fd2dd8f07b" target="_blank" rel="noopener">https://medium.com/webpack/webpack-3-official-release-15fd2dd8f07b</a></p>
-<h2 id="Scope-Hoisting"><a href="#Scope-Hoisting" class="headerlink" title="Scope Hoisting"></a>Scope Hoisting</h2><p>我们可以发现模块数组是一个一个独立的函数然后闭包引用webpack主函数的相应内容，每个模块都是独立的，然后带来的结果是在浏览器中执行速度变慢，然后webpack3学习了Closure Compiler和RollupJS这两个工具，连接所有闭包到一个闭包里，放入一个函数，让执行速度更快,并且整体代码体积也会有所缩小</p>
-<p>我们可以实际看一下效果（要注意的是这个特性只支持ES Modules,是不支持CommonJs和AMD的）<br>使用上面的例子，配置webpack.config.js，增加new webpack.optimize.ModuleConcatenationPlugin()</p>
-<pre><code>const path = require(&apos;path&apos;);
-const webpack = require(&apos;webpack&apos;);
-
-module.exports = {
-  entry: &apos;./src/index.js&apos;,
-  output: {
-    filename: &apos;bundle.js&apos;,
-    path: path.resolve(__dirname, &apos;dist&apos;)
-  },
-  module: {
-  },
-  plugins: [
-    new webpack.optimize.ModuleConcatenationPlugin(),
-  ]
-};
-</code></pre><p>打包</p>
-<pre><code>/******/ (function(modules) { // webpackBootstrap
-// ... 省略代码
-/******/ })
-/************************************************************************/
-/******/ ([
-/* 0 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-&quot;use strict&quot;;
-Object.defineProperty(__webpack_exports__, &quot;__esModule&quot;, { value: true });
-
-// CONCATENATED MODULE: ./src/es.js
-function es() {
-    console.log(&apos;ES Modules&apos;);
-}
-
-function esTwo() {
-    console.log(&apos;ES Modules Two&apos;);
-}
-
-function esThree() {
-    console.log(&apos;ES Modules Three&apos;);
-}
-
-function esFour() {
-    console.log(&apos;ES Modules Four&apos;);
-}
-
-
-// CONCATENATED MODULE: ./src/index.js
-// src/index.js
-
-
-console.log(&apos;hello world&apos;);
-es();
-
-
-/***/ })
-/******/ ]);
-</code></pre><p>我们可以惊喜的发现没有什么require了，它们拼接成了一个函数，good!?</p>
-<h2 id="Magic-Comments"><a href="#Magic-Comments" class="headerlink" title="Magic Comments"></a>Magic Comments</h2><p>code splitting是webpack一个重点特性之一，涉及到要动态引入的时候，webpack可以使用 require.ensure去实现，后来webpack2支持使用了符合 ECMAScript 提案 的 import() 语法，但是它有个不足之处，无法指定chunk的名称chunkName,为了解决这个问题，出现了Magic Comments，支持用注释的方式去指定，如下</p>
-<pre><code>import(/* webpackChunkName: &quot;my-chunk-name&quot; */ &apos;module&apos;);
-</code></pre><h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>webpack是一个强大的模块打包工具，在处理依赖、模块上都很优秀，本文从bundle.js文件分析出发去探索了不同模块方案的加载机制，初步去理解webpack，并且对webpack3特性进行阐述，当然，webpack还有很多地方需要去探索深究，敬请期待以后的文章吧～</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4518,7 +4027,7 @@ es();
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">152</span>
+                  <span class="site-state-item-count">153</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
