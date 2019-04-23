@@ -694,6 +694,186 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/11/03/Git-的-4-个阶段的撤销更改/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/03/Git-的-4-个阶段的撤销更改/" itemprop="url">Git 的 4 个阶段的撤销更改</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-03T13:07:36+08:00">
+                2017-11-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="Git-误操作救命篇一：-如何将改动撤销？"><a href="#Git-误操作救命篇一：-如何将改动撤销？" class="headerlink" title="Git 误操作救命篇一： 如何将改动撤销？"></a><a href="https://zhuanlan.zhihu.com/p/42929114" target="_blank" rel="noopener">Git 误操作救命篇一： 如何将改动撤销？</a></h2><p>虽然git诞生距今已有12年之久，网上各种关于git的介绍文章数不胜数，但是依然有很多人（包括我自己在内）对于它的功能不能完全掌握。以下的介绍只是基于我个人对于git的理解，并且可能生编硬造了一些不完全符合git说法的词语。目的只是为了让git通俗化，使初学者也能大概了解如何快速上手git。同时，下面所有讨论，我们都假设只使用一个分支，也就是主分支master的情况，虽然这种作法并不符合git规范，但是现实情况中绝大部分用户是直接在master分支上进行工作的，所以在这里我们不去引入更加复杂的各种分支的情况，也不涉及标签tag的操作，只讲在最简单的主分支上如何回退。</p>
+<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a><strong>基本概念</strong></h1><h2 id="3个步骤"><a href="#3个步骤" class="headerlink" title="3个步骤"></a><strong>3个步骤</strong></h2><p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwzsRUe3nJiclZIHpg0Mc2EYjcdSxicXjJSJDs9bOYlNEHbwJZzibibQxKpg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
+<p>正常情况下，我们的工作流就是3个步骤，对应上图中的3个箭头线：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">  git add .</span><br><span class="line">  </span><br><span class="line">  git commit -m &quot;comment&quot;</span><br><span class="line">  </span><br><span class="line">  git push</span><br><span class="line"></span><br><span class="line">  </span><br><span class="line">git add .把所有文件放入暂存区；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git commit把所有文件从暂存区提交进本地仓库；</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">git push把所有文件从本地仓库推送进远程仓库。</span><br></pre></td></tr></table></figure></p>
+<h2 id="4个区"><a href="#4个区" class="headerlink" title="4个区"></a><strong>4个区</strong></h2><p>git之所以令人费解，主要是它相比于svn等等传统的版本管理工具，多引入了一个暂存区(Stage)的概念，就因为多了这一个概念，而使很多人疑惑。其实，在初学者来说，每个区具体怎么工作的，我们完全不需要关心，而只要知道有这么4个区就够了：</p>
+<ul>
+<li><p>工作区(Working Area)</p>
+</li>
+<li><p>暂存区(Stage)</p>
+</li>
+<li><p>本地仓库(Local Repository)</p>
+</li>
+<li><p>远程仓库(Remote Repository)</p>
+</li>
+</ul>
+<h2 id="5种状态"><a href="#5种状态" class="headerlink" title="5种状态"></a><strong>5种状态</strong></h2><p>以上4个区，进入每一个区成功之后会产生一个状态，再加上最初始的一个状态，一共是5种状态。以下我们把这5种状态分别命名为：</p>
+<ul>
+<li><p>未修改(Origin)</p>
+</li>
+<li><p>已修改(Modified)</p>
+</li>
+<li><p>已暂存(Staged)</p>
+</li>
+<li><p>已提交(Committed)</p>
+</li>
+<li><p>已推送(Pushed)</p>
+</li>
+</ul>
+<h1 id="检查修改"><a href="#检查修改" class="headerlink" title="检查修改"></a><strong>检查修改</strong></h1><p>了解了基本概念之后，我们来谈一谈犯错误之后如何撤销的问题。首先，我们要了解如何检查这3个步骤当中每一个步骤修改了什么，然后才好判断有没有修改成功。检查修改的二级命令都相同，都是diff，只是参数有所不同。</p>
+<h2 id="已修改，未暂存"><a href="#已修改，未暂存" class="headerlink" title="已修改，未暂存"></a><strong>已修改，未暂存</strong></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff</span><br></pre></td></tr></table></figure>
+<p>首先，我们来看一下，如果我们只是简单地在浏览器里保存了一下文件，但是还没有做git add .之前，我们如何检查有哪些修改。我们先随便拿一个文件来做一下实验：</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwDg9nsy9V0Ra5nMdBquNG1HpYFaOazjo6vl1LPHJpjMia8ibicSXu0Svyw/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
+<p>我们在文件开头的第2行胡乱加了4个数字1234，存盘，这时文件进入了已修改状态，但是还没有进入暂存区，我们运行git diff，结果如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">diff --git a/index.md b/index.md</span><br><span class="line"></span><br><span class="line">index 73ff1ba..1066758 100644</span><br><span class="line"></span><br><span class="line">--- a/index.md</span><br><span class="line"></span><br><span class="line">+++ b/index.md</span><br><span class="line"></span><br><span class="line">@@ -1,5 +1,5 @@</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">-layout: main</span><br><span class="line"></span><br><span class="line">+1234layout: main</span><br><span class="line"></span><br><span class="line">color: black</span><br><span class="line"></span><br><span class="line">---</span><br></pre></td></tr></table></figure></p>
+<p>git diff的结果告诉我们哪些文件已经做了哪些修改。</p>
+<p><strong>已暂存，未提交</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff --cached</span><br></pre></td></tr></table></figure></p>
+<p>现在我们把修改放入暂存区看一下。先执行git add .，然后执行git diff，你会发现没有任何结果：</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwXwBzS1lToMWWjy9lEibicoiaibAAAaZa1HCp2j6v52OTN1cjRDia7VTVE6w/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
+<p>这说明git diff这个命令只检查我们的工作区和暂存区之间的差异，如果我们想看到暂存区和本地仓库之间的差异，就需要加一个参数git diff –cached：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">diff --git a/index.md b/index.md</span><br><span class="line"></span><br><span class="line">index 73ff1ba..1066758 100644</span><br><span class="line"></span><br><span class="line">--- a/index.md</span><br><span class="line"></span><br><span class="line">+++ b/index.md</span><br><span class="line"></span><br><span class="line">@@ -1,5 +1,5 @@</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line"></span><br><span class="line">-layout: main</span><br><span class="line"></span><br><span class="line">+1234layout: main</span><br><span class="line"></span><br><span class="line">color: black</span><br><span class="line"></span><br><span class="line">---</span><br></pre></td></tr></table></figure></p>
+<p>这时候我们看到的差异是暂存区和本地仓库之间的差异。</p>
+<p><strong>已提交，未推送</strong><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git diff master origin/master</span><br></pre></td></tr></table></figure></p>
+<p>现在，我们把修改从暂存区提交到本地仓库，再看一下差异。先执行git commit，然后再执行git diff –cached，没有差异，执行git diff master origin/master，可以看到差异：</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwNSkuZnLBptQUSBddcyOZURahoMau6Rq0cebaYVniaudrh3kXToVj6WA/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
+<p>在这里，master就是你的本地仓库，而origin/master就是你的远程仓库，master是主分支的意思，因为我们都在主分支上工作，所以这里两边都是master，而origin就代表远程。</p>
+<h1 id="撤销修改"><a href="#撤销修改" class="headerlink" title="撤销修改"></a><strong>撤销修改</strong></h1><p>了解清楚如何检查各种修改之后，我们开始尝试各种撤销操作。</p>
+<h2 id="已修改，未暂存-1"><a href="#已修改，未暂存-1" class="headerlink" title="已修改，未暂存"></a><strong>已修改，未暂存</strong></h2><p>如果我们只是在编辑器里修改了文件，但还没有执行git add .，这时候我们的文件还在工作区，并没有进入暂存区，我们可以用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"> git checkout .</span><br><span class="line"></span><br><span class="line">或者</span><br><span class="line"></span><br><span class="line">  git reset --hard</span><br></pre></td></tr></table></figure></p>
+<p>来进行撤销操作。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnw3vn4WgIpIIyGGweDCXuZzlhpOwS62ibmJNjwviaXsCp9bwshpI9KAKBQ/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
+<p>可以看到，在执行完git checkout .之后，修改已被撤销，git diff没有任何内容了。</p>
+<blockquote>
+<p>一对反义词 git add .的反义词是git checkout .。做完修改之后，如果你想向前走一步，让修改进入暂存区，就执行git add .，如果你想向后退一步，撤销刚才的修改，就执行git checkout .。</p>
+</blockquote>
+<h2 id="已暂存，未提交"><a href="#已暂存，未提交" class="headerlink" title="已暂存，未提交"></a><strong>已暂存，未提交</strong></h2><p>你已经执行了git add .，但还没有执行git commit -m “comment”。这时候你意识到了错误，想要撤销，你可以执行：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset</span><br><span class="line"></span><br><span class="line">git checkout .</span><br></pre></td></tr></table></figure></p>
+<p>或者<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard</span><br></pre></td></tr></table></figure></p>
+<p>git reset只是把修改退回到了git add .之前的状态，也就是说文件本身还处于已修改未暂存状态，你如果想退回未修改状态，还需要执行git checkout .。</p>
+<p>或许你已经注意到了，以上两个步骤都可以用同一个命令git reset –hard来完成。是的，就是这个强大的命令，可以一步到位地把你的修改完全恢复到未修改的状态。</p>
+<p><strong>已提交，未推送</strong></p>
+<p>你的手太快，你既执行了git add .，又执行了git commit，这时候你的代码已经进入了你的本地仓库，然而你后悔了，怎么办？不要着急，还有办法。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard origin/master</span><br></pre></td></tr></table></figure></p>
+<p>还是这个git reset –hard命令，只不过这次多了一个参数origin/master，正如我们上面讲过的，origin/master代表远程仓库，既然你已经污染了你的本地仓库，那么就从远程仓库把代码取回来吧。</p>
+<p><strong>已推送</strong></p>
+<p>很不幸，你的手实在是太快了，你既git add了，又git commit了，并且还git push了，这时你的代码已经进入远程仓库。如果你想恢复的话，还好，由于你的本地仓库和远程仓库是等价的，你只需要先恢复本地仓库，再强制push到远程仓库就好了：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git reset --hard HEAD^</span><br><span class="line"></span><br><span class="line">git push -f</span><br></pre></td></tr></table></figure></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/9aPYe0E1fb1el0zsnhYXiadWS9DtUkHnwCtsdla2FrJ4nCjP0tBssNeB7ZqBkQON4Jcxb2ghrAUEibNa2icoiaB3cg/640?wx_fmt=jpeg&amp;tp=webp&amp;wxfrom=5&amp;wx_lazy=1&amp;wx_co=1" alt=""></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a><strong>总结</strong></h1><p>以上4种状态的撤销我们都用到了同一个命令git reset –hard，前2种状态的用法甚至完全一样，所以只要掌握了git reset –hard这个命令的用法，从此你再也不用担心提交错误了。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/30/Pm2-常用配置及命令/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -1458,498 +1638,6 @@ export default {
         
           
             <h3 id="CSS网格布局（Grid）完全教程"><a href="#CSS网格布局（Grid）完全教程" class="headerlink" title="CSS网格布局（Grid）完全教程"></a><a href="https://www.zcfy.cc/article/learn-css-grid-a-guide-to-learning-css-grid-jonathan-suh" target="_blank" rel="noopener">CSS网格布局（Grid）完全教程</a></h3>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/10/22/Vue-js-父子组件通信的十种方式&奇技淫巧/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/10/22/Vue-js-父子组件通信的十种方式&奇技淫巧/" itemprop="url">Vue.js 父子组件通信的十种方式&奇技淫巧</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-22T19:56:41+08:00">
-                2017-10-22
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="面试官：Vue-中父子组件通信有哪些方式？"><a href="#面试官：Vue-中父子组件通信有哪些方式？" class="headerlink" title=" 面试官：Vue 中父子组件通信有哪些方式？"></a><strong> 面试官：Vue 中父子组件通信有哪些方式？</strong></h3><h4 id="vue组件通信全揭秘-共7章"><a href="#vue组件通信全揭秘-共7章" class="headerlink" title="  vue组件通信全揭秘(共7章) "></a><font color="#dd0000"> <strong> <a href="https://juejin.im/post/5bd97e7c6fb9a022852a71cf" target="_blank" rel="noopener">vue组件通信全揭秘(共7章)</a> </strong></font><br></h4><blockquote>
-<p>几种通信方式无外乎以下几种：</p>
-</blockquote>
-<ul>
-<li><code>Prop</code>（常用）</li>
-<li><code>$emit</code> (组件封装用的较多)</li>
-<li><code>.sync</code>语法糖 （较少）</li>
-<li><code>$attrs</code> 和 <code>$listeners</code> (组件封装用的较多)</li>
-<li><code>provide</code> 和 <code>inject</code> （高阶组件/组件库用的较多）</li>
-<li>其他方式通信</li>
-</ul>
-<h3 id="Prop"><a href="#Prop" class="headerlink" title="Prop"></a>Prop</h3><p>英式发音：[prɒp]。这个在我们日常开发当中用到的非常多。简单来说，<strong>我们可以通过 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents.html%23%25E9%2580%259A%25E8%25BF%2587-Prop-%25E5%2590%2591%25E5%25AD%2590%25E7%25BB%2584%25E4%25BB%25B6%25E4%25BC%25A0%25E9%2580%2592%25E6%2595%25B0%25E6%258D%25AE" target="_blank" rel="noopener">Prop</a> 向子组件传递数据</strong>。用一个形象的比喻来说，父子组件之间的数据传递相当于自上而下的下水管子，只能从上往下流，不能逆流。这也正是 Vue 的设计理念之<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>。而 Prop 正是管道与管道之间的一个衔接口，这样水（数据）才能往下流。说这么多，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&lt;divid=&quot;app&quot;&gt;</span><br><span class="line">    &lt;child:content=&quot;message&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">let Child = Vue.extend(&#123;</span><br><span class="line">  template: &apos;&lt;h2&gt;&#123;&#123; content &#125;&#125;&lt;/h2&gt;&apos;,</span><br><span class="line">  props: &#123;</span><br><span class="line">    content: &#123;</span><br><span class="line">      type: String,</span><br><span class="line">      default: () =&gt; &#123; return&apos;from child&apos; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    message: &apos;from parent&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  components: &#123;</span><br><span class="line">    Child</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">from parent</span><br></pre></td></tr></table></figure>
-<h3 id="emit"><a href="#emit" class="headerlink" title="$emit"></a>$emit</h3><p>英式发音：[iˈmɪt]。官方说法是<strong>触发当前实例上的事件。附加参数都会传给监听器回调</strong>。按照我的理解不知道能不能给大家说明白，先简单看下代码吧：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;my-button @greet=&quot;sayHi&quot;&gt;&lt;/my-button&gt;
-&lt;/div&gt;
-
-let MyButton = Vue.extend({
-  template: &apos;&lt;button @click=&quot;triggerClick&quot;&gt;click&lt;/button&gt;&apos;,
-  data () {
-    return {
-      greeting: &apos;vue.js!&apos;
-    }
-  },
-  methods: {
-    triggerClick () {
-      this.$emit(&apos;greet&apos;, this.greeting)
-    }
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  components: {
-    MyButton
-  },
-  methods: {
-    sayHi (val) {
-      alert(&apos;Hi, &apos; + val)   // &apos;Hi, vue.js!&apos;
-    }
-  }
-})
-</code></pre><p> 大致逻辑是酱婶儿的：当我在页面上点击按钮时，触发了组件 <code>MyButton</code> 上的监听事件 <code>greet</code>，并且把参数传给了回调函数 <code>sayHi</code> 。说白了，当我们从子组件 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-emit" target="_blank" rel="noopener">Emit</a>（派发） 一个事件之前，其内部都提前在事件队列中 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23vm-on" target="_blank" rel="noopener">On</a>（监听）了这个事件及其监听回调。其实相当于下面这种写法：</p>
-<pre><code>vm.$on(&apos;greet&apos;, functionsayHi (val) {
-  console.log(&apos;Hi, &apos; + val)
-})
-vm.$emit(&apos;greet&apos;, &apos;vue.js&apos;)
-// =&gt; &quot;Hi, vue.js&quot;
-</code></pre><h3 id="sync-修饰符"><a href="#sync-修饰符" class="headerlink" title=".sync 修饰符"></a>.sync 修饰符</h3><p>这个家伙在 <a href="mailto:vue@1.x" target="_blank" rel="noopener">vue@1.x</a> 的时候曾作为双向绑定功能存在，即子组件可以修改父组件中的值。因为它违反了<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-props.html%23%25E5%258D%2595%25E5%2590%2591%25E6%2595%25B0%25E6%258D%25AE%25E6%25B5%2581" target="_blank" rel="noopener">单向数据流</a>的设计理念，所以在 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 的时候被干掉了。但是在 <a href="mailto:vue@2.3.0" target="_blank" rel="noopener">vue@2.3.0</a>+ 以上版本又重新引入了这个 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fcomponents-custom-events.html%23sync-%25E4%25BF%25AE%25E9%25A5%25B0%25E7%25AC%25A6" target="_blank" rel="noopener">.sync</a> 修饰符。但是这次它只是作为一个编译时的语法糖存在。它会被扩展为一个自动更新父组件属性的 v-on 监听器。说白了就是让我们手动进行更新父组件中的值了，从而使数据改动来源更加的明显。下面引入自官方的一段话：</p>
-<blockquote>
-<p>在有些情况下，我们可能需要对一个 prop 进行“双向绑定”。不幸的是，真正的双向绑定会带来维护上的问题，因为子组件可以修改父组件，且在父组件和子组件都没有明显的改动来源。</p>
-</blockquote>
-<p>既然作为一个语法糖，肯定是某种写法的简写形式，哪种写法呢，看代码：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&lt;text-document</span><br><span class="line">  v-bind:title=&quot;doc.title&quot;</span><br><span class="line">  v-on:update:title=&quot;doc.title = $event&quot;&gt;</span><br><span class="line">&lt;/text-document&gt;</span><br></pre></td></tr></table></figure></p>
-<p>于是我们可以用 <code>.sync</code> 语法糖简写成如下形式：</p>
-<pre><code>&lt;text-document v-bind:title.sync=&quot;doc.title&quot;&gt;&lt;/text-document&gt;
-</code></pre><p>废话这么多，如何做到“双向绑定” 呢？让我们进段广告，广告之后更加精彩！<br>…<br>好的，欢迎回来。假如我们想实现这样一个效果：改变子组件文本框中的值同时改变父组件中的值。怎么做？列位不妨先想想。先看段代码：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;login:name.sync=&quot;userName&quot;&gt;&lt;/login&gt; 
-    {{ userName }}
-&lt;/div&gt;
-
-let Login = Vue.extend({
-  template: `
-    &lt;div class=&quot;input-group&quot;&gt;
-      &lt;label&gt;姓名:&lt;/label&gt;
-      &lt;input v-model=&quot;text&quot;&gt;
-    &lt;/div&gt;
-  `,
-  props: [&apos;name&apos;],
-  data () {
-    return {
-      text: &apos;&apos;
-    }
-  },
-  watch: {
-    text (newVal) {
-      this.$emit(&apos;update:name&apos;, newVal)
-    }
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  data: {
-    userName: &apos;&apos;
-  },
-  components: {
-    Login
-  }
-})
-</code></pre><p>下面划重点，代码里有这一句话：</p>
-<pre><code>this.$emit(&apos;update:name&apos;, newVal)
-</code></pre><p>官方语法是：<code>update:myPropName</code> 其中 <code>myPropName</code> 表示要更新的 prop 值。当然如果你不用 .sync 语法糖使用上面的 .$emit 也能达到同样的效果。仅此而已！</p>
-<h3 id="attrs-和-listeners"><a href="#attrs-和-listeners" class="headerlink" title="$attrs 和 $listeners"></a><code>$attrs</code> 和 <code>$listeners</code></h3><ul>
-<li>官网对 <code>$attrs</code> 的解释如下：</li>
-</ul>
-<blockquote>
-<p>包含了父作用域中不作为 prop 被识别 (且获取) 的特性绑定 (<code>class</code> 和 <code>style</code> 除外)。当一个组件没有声明任何 prop 时，这里会包含所有父作用域的绑定 (<code>class</code> 和 <code>style</code> 除外)，并且可以通过 <code>v-bind=&quot;$attrs&quot;</code> 传入内部组件——在创建高级别的组件时非常有用。</p>
-</blockquote>
-<ul>
-<li>官网对 <code>$listeners</code> 的解释如下：</li>
-</ul>
-<blockquote>
-<p>包含了父作用域中的 (不含 <code>.native</code> 修饰器的) <code>v-on</code> 事件监听器。它可以通过 <code>v-on=&quot;$listeners&quot;</code> 传入内部组件——在创建更高层次的组件时非常有用。</p>
-</blockquote>
-<p>我觉得 <code>$attrs</code> 和 <code>$listeners</code> 属性像两个收纳箱，一个负责收纳属性，一个负责收纳事件，都是以对象的形式来保存数据。看下面的代码解释：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;child:foo=&quot;foo&quot;:bar=&quot;bar&quot;
-        @one.native=&quot;triggerOne&quot;
-        @two=&quot;triggerTwo&quot;&gt;
-    &lt;/child&gt;
-&lt;/div&gt;
-</code></pre><p>从 Html 中可以看到，这里有俩属性和俩方法，区别是属性一个是 <code>prop</code> 声明，事件一个是 <code>.native</code> 修饰器。</p>
-<pre><code>let Child = Vue.extend({
-  template: &apos;&lt;h2&gt;{{ foo }}&lt;/h2&gt;&apos;,
-  props: [&apos;foo&apos;],
-  created () {
-    console.log(this.$attrs, this.$listeners)
-    // -&gt; {bar: &quot;parent bar&quot;}
-    // -&gt; {two: fn}
-
-    // 这里我们访问父组件中的 `triggerTwo` 方法
-    this.$listeners.two()
-    // -&gt; &apos;two&apos;
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  data: {
-    foo: &apos;parent foo&apos;,
-    bar: &apos;parent bar&apos;
-  },
-  components: {
-    Child
-  },
-  methods: {
-    triggerOne () {
-      alert(&apos;one&apos;)
-    },
-    triggerTwo () {
-      alert(&apos;two&apos;)
-    }
-  }
-})
-</code></pre><p>可以看到，我们可以通过 <code>$attrs</code> 和 <code>$listeners</code> 进行数据传递，在需要的地方进行调用和处理，还是很方便的。当然，我们还可以通过 <code>v-on=&quot;$listeners&quot;</code> 一级级的往下传递，子子孙孙无穷尽也！</p>
-<p>一个插曲！</p>
-<p>当我们在组件上赋予了一个非Prop 声明时，编译之后的代码会把这些个属性都当成原始属性对待，添加到 html 原生标签上，看上面的代码编译之后的样子：</p>
-<pre><code>&lt;h2 bar=&quot;parent bar&quot;&gt;parent foo&lt;/h2&gt;
-</code></pre><p>这样会很难看，同时也爆了某些东西。如何去掉？这正是 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23inheritAttrs" target="_blank" rel="noopener">inheritAttrs</a> 属性的用武之地！给组件加上这个属性就行了，一般是配合 <code>$attrs</code> 使用。看代码：</p>
-<pre><code>// 源码
-let Child = Vue.extend({
-  ...
-  inheritAttrs: false, // 默认是 true
-  ...
-})
-</code></pre><p>再次编译：</p>
-<pre><code>&lt;h2&gt;parent foo&lt;/h2&gt;
-</code></pre><h3 id="provide-inject"><a href="#provide-inject" class="headerlink" title="provide / inject"></a><code>provide</code> / <code>inject</code></h3><p>他俩是对CP, 感觉挺神秘的。来看下官方对 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23provide-inject" target="_blank" rel="noopener">provide / inject</a> 的描述：</p>
-<blockquote>
-<p><code>provide</code> 和 <code>inject</code> 主要为高阶插件/组件库提供用例。并不推荐直接用于应用程序代码中。并且这对选项需要一起使用，以允许一个祖先组件向其所有子孙后代注入一个依赖，不论组件层次有多深，并在起上下游关系成立的时间里始终生效。</p>
-</blockquote>
-<p>看完描述有点懵懵懂懂！一句话总结就是：小时候你老爸什么东西都先帮你存着等你长大该娶媳妇儿了你要房子给你买要车给你买只要他有的尽量都会满足你。下面是这句话的代码解释：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-    &lt;son&gt;&lt;/son&gt;
-&lt;/div&gt;
-
-let Son = Vue.extend({
-  template: &apos;&lt;h2&gt;son&lt;/h2&gt;&apos;,
-  inject: {
-    house: {
-      default: &apos;没房&apos;
-    },
-    car: {
-      default: &apos;没车&apos;
-    },
-    money: {
-      // 长大工作了虽然有点钱// 仅供生活费，需要向父母要default: &apos;￥4500&apos;
-    }
-  },
-  created () {
-    console.log(this.house, this.car, this.money)
-    // -&gt; &apos;房子&apos;, &apos;车子&apos;, &apos;￥10000&apos;
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  provide: {
-    house: &apos;房子&apos;,
-    car: &apos;车子&apos;,
-    money: &apos;￥10000&apos;
-  },
-  components: {
-    Son
-  }
-})
-</code></pre><h3 id="其他方式通信"><a href="#其他方式通信" class="headerlink" title="其他方式通信"></a>其他方式通信</h3><p>除了以上五种方式外，其实还有：</p>
-<ul>
-<li><strong>EventBus</strong></li>
-</ul>
-<p>思路就是声明一个全局Vue实例变量 <code>EventBus</code> , 把所有的通信数据，事件监听都存储到这个变量上。这样就达到在组件间数据共享了，有点类似于 <a href="https://link.juejin.im?target=https%3A%2F%2Fvuex.vuejs.org%2Fzh%2Fguide%2F" target="_blank" rel="noopener">Vuex</a>。但这种方式只适用于极小的项目，复杂项目还是推荐 Vuex。下面是实现 EventBus 的简单代码：</p>
-<pre><code>&lt;divid=&quot;app&quot;&gt;
-   &lt;child&gt;&lt;/child&gt;
-&lt;/div&gt;
-
-// 全局变量
-let EventBus = new Vue()
-
-// 子组件
-let Child = Vue.extend({
-  template: &apos;&lt;h2&gt;child&lt;/h2&gt;&apos;,
-  created () {
-    console.log(EventBus.message)
-    // -&gt; &apos;hello&apos;
-    EventBus.$emit(&apos;received&apos;, &apos;from child&apos;)
-  }
-})
-
-new Vue({
-  el: &apos;#app&apos;,
-  components: {
-    Child
-  },
-  created () {
-    // 变量保存
-    EventBus.message = &apos;hello&apos;// 事件监听
-    EventBus.$on(&apos;received&apos;, function (val) {
-      console.log(&apos;received: &apos;+ val)
-      // -&gt; &apos;received: from child&apos;
-    })
-  }
-})
-</code></pre><ul>
-<li><strong>Vuex</strong></li>
-</ul>
-<p>官方推荐的，Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。</p>
-<ul>
-<li><strong>$parent</strong></li>
-</ul>
-<p>父实例，如果当前实例有的话。通过访问父实例也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
-<ul>
-<li><strong>$root</strong></li>
-</ul>
-<p>当前组件树的根 Vue 实例。如果当前实例没有父实例，此实例将会是其自己。通过访问根组件也能进行数据之间的交互，但极小情况下会直接修改父组件中的数据。</p>
-<ul>
-<li><strong>broadcast / dispatch</strong></li>
-</ul>
-<p>他俩是 <a href="mailto:vue@1.0" target="_blank" rel="noopener">vue@1.0</a> 中的方法，分别是事件广播 和 事件派发。虽然 <a href="mailto:vue@2.0" target="_blank" rel="noopener">vue@2.0</a> 里面删掉了，但可以模拟这两个方法。可以借鉴 <a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FElemeFE%2Felement%2Fblob%2F1.x%2Fsrc%2Fmixins%2Femitter.js%23L14" target="_blank" rel="noopener">Element</a> 实现。有时候还是非常有用的，比如我们在开发树形组件的时候等等。</p>
-<hr>
-<h2 id="给-props-属性设置多个类型"><a href="#给-props-属性设置多个类型" class="headerlink" title="给 props 属性设置多个类型"></a>给 props 属性设置多个类型</h2><p>这个技巧在开发组件的时候用的较多，为了更大的容错性考虑。比如一个 <code>&lt;my-button&gt;</code> 上暴露了一个 <code>width</code> 属性：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// my-button.vue</span><br><span class="line">export default &#123;</span><br><span class="line">  props: &#123;</span><br><span class="line">    width: [String, Number],</span><br><span class="line">    default: &apos;100px&apos;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>我们既可以传 <code>100px</code>，也可以传 <code>100</code> 。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- my-button.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;button :style=&quot;computedWidth&quot;&gt;width: &#123;&#123; computedWidth &#125;&#125;&lt;/button&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  export default &#123;</span><br><span class="line">    props: &#123;</span><br><span class="line">      width: [String, Number],</span><br><span class="line">      default: &apos;100px&apos;</span><br><span class="line">    &#125;,</span><br><span class="line">    computed: &#123;</span><br><span class="line">      computedWidth () &#123;</span><br><span class="line">        let o = &#123;&#125;</span><br><span class="line">        if (typeof this.width === &apos;string&apos;) o.width = this.width</span><br><span class="line">        if (typeof this.width === &apos;number&apos;) o.width = this.width + &apos;px&apos;</span><br><span class="line">        return o</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<p>使用：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- 在其他组件中使用 --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;my-button width=&quot;100px&quot;&gt;&lt;/my-button&gt;</span><br><span class="line">  &lt;!-- or --&gt;</span><br><span class="line">  &lt;my-button width=&quot;100&quot;&gt;&lt;/my-button&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<h2 id="data-初始化"><a href="#data-初始化" class="headerlink" title="data 初始化"></a><strong>data</strong> 初始化</h2><p>因为 <code>props</code> 要比 <code>data</code> 先完成初始化，所以我们可以利用这一点给 <code>data</code> 初始化一些数据进去，看代码：</p>
-<pre><code>export default {
-  data () {
-    return {
-      buttonSize: this.size
-    }
-  },
- props: {
-   size: String
- }
-}
-</code></pre><p>除了以上，子组件的 <code>data</code> 函数也可以有参数，且该参数是当前实例对象。所有我们可以利用这一点做一些自己的判断。如，改写上面的代码：</p>
-<pre><code>export default {
-  data (vm) {
-    return {
-      buttonSize: vm.size
-    }
-  },
- props: {
-   size: String
- }
-}
-</code></pre><h2 id="template"><a href="#template" class="headerlink" title="template"></a>template</h2><p>我们在做 <code>v-if</code> 判断的时候，可以把判断条件放在 <code>template</code> 组件上，<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Fconditional.html%23%25E5%259C%25A8-lt-template-gt-%25E5%2585%2583%25E7%25B4%25A0%25E4%25B8%258A%25E4%25BD%25BF%25E7%2594%25A8-v-if-%25E6%259D%25A1%25E4%25BB%25B6%25E6%25B8%25B2%25E6%259F%2593%25E5%2588%2586%25E7%25BB%2584" target="_blank" rel="noopener">最终</a>的渲染结果将不包含 <code>&lt;template&gt;</code> 元素。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot;&gt;</span><br><span class="line">    &lt;template v-if=&quot;isVal&quot;&gt;</span><br><span class="line">      &lt;h2&gt;...&lt;/h2&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">    &lt;template v-else&gt;</span><br><span class="line">      &lt;h2&gt;...&lt;/h2&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p><code>v-for</code> 也同样适用。</p>
-<h2 id="Lifecycle-hook"><a href="#Lifecycle-hook" class="headerlink" title="Lifecycle hook"></a>Lifecycle hook</h2><p>生命周期钩子可以是一个数组类型，且数组中的函数会依次执行。</p>
-<pre><code>export default {
- ...
- created: [
-   function one () {
-     console.log(1)
-   },
-   function two () {
-     console.log(2)
-   }
- ]
- ...
-}
-</code></pre><p>没什么用，知道就行了。事实上生命周期钩子还可以作用于 DOM 元素上，利用这一点，我们可以用父组件中的方法来初始化子组件的生命周期钩子：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- Child.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;h3&gt;I&apos;m child!&lt;/h3&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;!-- Parent.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">   &lt;child @hook:created=&quot;handleChildCreated&quot;&gt;&lt;/child&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">   import Child from &apos;./child.vue&apos;</span><br><span class="line">   export default &#123;</span><br><span class="line">     components: [ Child ],</span><br><span class="line">     methods: &#123;</span><br><span class="line">       handleChildCreated () &#123;</span><br><span class="line">         console.log(&apos;handle child created...&apos;)</span><br><span class="line">       &#125;</span><br><span class="line">     &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>其他钩子雷同，不再赘述。</p>
-<h2 id="v-for-和-v-if-一起使用"><a href="#v-for-和-v-if-一起使用" class="headerlink" title="v-for 和 v-if 一起使用"></a>v-for 和 v-if 一起使用</h2><p>由于 <code>v-for</code> 比 <code>v-if</code> 渲染优先级更高，所以有时候可以一起使用。下面两种常见的情况下会倾向于把 <code>v-for</code> 和 <code>v-if</code> 放在同一个标签上使用：</p>
-<ul>
-<li>筛选一些不想显示的条目</li>
-<li>为了避免渲染本应该被隐藏的列表</li>
-</ul>
-<p>举个栗子：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;ul class=&quot;items&quot;&gt;</span><br><span class="line">    &lt;!-- 只有激活的用户才可以显示 --&gt;</span><br><span class="line">    &lt;li v-for=&quot;(user, index) in users&quot; v-if=&quot;user.isActive&quot; :key=&quot;user.id&quot;&gt;&#123;&#123; user.name &#125;&#125;&lt;/li&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p>关于以上两点不明白的地方可以参见 <a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fstyle-guide%2F%23%25E9%2581%25BF%25E5%2585%258D-v-if-%25E5%2592%258C-v-for-%25E7%2594%25A8%25E5%259C%25A8%25E4%25B8%2580%25E8%25B5%25B7-%25E5%25BF%2585%25E8%25A6%2581" target="_blank" rel="noopener">Vue 风格指南</a>。</p>
-<h2 id="混合"><a href="#混合" class="headerlink" title="混合"></a>混合</h2><p>如果好多组件都共用到一些像 <code>props</code>、<code>data</code>、<code>methods</code> 等，可以单独抽出来放到 <code>mixins</code> 混合器中。</p>
-<pre><code>// paging-mixin.vue
-export default {
-  props: {
-    pageSize: 1,
-    pageLength: 10,
-    currentPage: 1
-    total: 20
-  },
-  methods: {
-    /**
-     * 上一页
-     */
-    prevPage (page) {
-      ...
-    },
-    /**
-     * 下一页
-     */
-    nextPage (page) {
-      ...
-    }
-    /**
-     * 跳转到当前页
-     */
-    currentPage (page) {
-      ...
-    }
-  }
-}
-</code></pre><p>比如在用户管理列表使用：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- Users.vue --&gt;</span><br><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;user-model&quot;&gt;</span><br><span class="line">    &lt;my-table :data=&quot;users&quot;&gt;&lt;/my-table&gt;</span><br><span class="line">    &lt;my-paging</span><br><span class="line">      :page-length=&quot;pageLength&quot;</span><br><span class="line">      :page-size=&quot;pageSize&quot;</span><br><span class="line">      :current-page=&quot;currentPage&quot;</span><br><span class="line">      :total=&quot;total&quot;&gt;</span><br><span class="line">    &lt;/my-paging&gt;</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line"></span><br><span class="line">&lt;script&gt;</span><br><span class="line">  import PagingMixin from &apos;../mixins/paging-mixin.vue&apos;</span><br><span class="line">  export default &#123;</span><br><span class="line">    mixins: [PagingMixin],</span><br><span class="line">    data () &#123;</span><br><span class="line">      return &#123;</span><br><span class="line">        users: [],</span><br><span class="line">        pageLength: 10,</span><br><span class="line">        pageSize: 1,</span><br><span class="line">        currentPage: 1,</span><br><span class="line">        total: 20</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>不用每个页面都写一遍 <code>props</code> 和 <code>methods</code> 了。</p>
-<h2 id="render-函数"><a href="#render-函数" class="headerlink" title="render 函数"></a>render 函数</h2><p>下面是一段简单的 template 模板代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot;&gt;</span><br><span class="line">    &lt;h2&gt;title&lt;/h2&gt;</span><br><span class="line">    this is content</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p>我们用<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fguide%2Frender-function.html" target="_blank" rel="noopener">渲染函数</a>来重写上面的代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">export default &#123;</span><br><span class="line">  render (h) &#123;</span><br><span class="line">    let _c = h</span><br><span class="line">    return _c(&apos;div&apos;, </span><br><span class="line">      &#123; class: &apos;box&apos;&#125;, </span><br><span class="line">      [_c(&apos;h2&apos;, &#123;&#125;, &apos;title&apos;), &apos;this is content&apos;])</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>事实上，Vue 会把模板(template)编译成渲染函数(render) 。上面的 template 模板会被编译成如下渲染函数：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">let render = function () &#123;</span><br><span class="line">  return _c(&apos;div&apos;,</span><br><span class="line">    &#123;staticClass:&quot;box&quot;&#125;,</span><br><span class="line">    [_c(&apos;h2&apos;, [_v(&quot;title&quot;)]), _v(&quot;this is content&quot;)])</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>是不是很像？ 正如官方说的，<strong>渲染函数比 template 更接近编译器</strong>。如果用一个流程图来解释的话，大概是这个样子：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">template</span><br><span class="line">    ↓</span><br><span class="line">预编译工具（vue-loader + vue-template-compile）</span><br><span class="line">    ↓</span><br><span class="line">  render</span><br><span class="line">    ↓</span><br><span class="line">resolve vnode</span><br></pre></td></tr></table></figure></p>
-<p>具体参见 <code>Vue声明周期图示</code> </p>
-<p>渲染函数用处：</p>
-<ul>
-<li>开发组件库，Element 源码用的都是 render</li>
-<li>封装一些高阶组件。组件里面嵌套组件就是高阶组件，前提是要满足组件三要素：<code>props</code>、<code>event</code>、<code>slot</code></li>
-<li>用于处理一些复杂的逻辑判断。如果我们一个组件里面有很多的 <code>v-if</code> 判断的话，用模板就显得不合适了，这个时候可以用渲染函数来轻松处理</li>
-</ul>
-<h2 id="errorCaptured"><a href="#errorCaptured" class="headerlink" title="errorCaptured"></a>errorCaptured</h2><p>捕获一个来自子孙组件的错误时被调用。有时候当我们想收集错误日志，却不想把错误暴露到浏览器控制台的时候很有用。下面是个例子：</p>
-<p><code>Child.vue</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;!-- 省略一些无关代码 --&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  export default &#123;</span><br><span class="line">    mounted () &#123;</span><br><span class="line">      // 故意把 console 写错</span><br><span class="line">      consol.log(&apos;这里会报错！&apos;)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p><code>Parent.vue</code></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;child&gt;&lt;/child&gt;</span><br><span class="line">&lt;/template&gt;</span><br><span class="line">&lt;script&gt;</span><br><span class="line">  import Child from &apos;./Child.vue&apos;</span><br><span class="line">  export default &#123;</span><br><span class="line">    components: [ Child ],</span><br><span class="line">    /**</span><br><span class="line">     * 收到三个参数：</span><br><span class="line">     * 错误对象、发生错误的组件实例</span><br><span class="line">     * 以及一个包含错误来源信息的字符串。</span><br><span class="line">     * 此钩子可以返回 false 以阻止该错误继续向上传播。</span><br><span class="line">     */</span><br><span class="line">    errorCaptured (err, vm, info) &#123;</span><br><span class="line">      console.log(err)</span><br><span class="line">      // -&gt; ReferenceError: consle is not defined ...</span><br><span class="line">      console.log(vm)</span><br><span class="line">      // -&gt; &#123;_uid: 1, _isVue: true, $options: &#123;…&#125;, _renderProxy: o, _self: o,…&#125;</span><br><span class="line">      console.log(info)</span><br><span class="line">      // -&gt; `mounted hook`</span><br><span class="line">      // 告诉我们这个错误是在 vm 组件中的 mounted 钩子中发生的</span><br><span class="line">      </span><br><span class="line">      // 阻止该错误继续向上传播</span><br><span class="line">      return false</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>关于 errorCaptured 更多说明，请<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23errorCaptured" target="_blank" rel="noopener">移步官网-&gt;</a> 。</p>
-<h2 id="v-once"><a href="#v-once" class="headerlink" title="v-once"></a>v-once</h2><p>通过 <code>v-once</code> 创建低开销的静态组件。渲染普通的 HTML 元素在 Vue 中是非常快速的，但有的时候你可能有一个组件，这个组件包含了大量静态内容。在这种情况下，你可以在根元素上添加 <code>v-once</code> 特性以确保这些内容只计算一次然后缓存起来，就像这样：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">  &lt;div class=&quot;box&quot; v-once&gt;</span><br><span class="line">    &lt;h2&gt; 用户协议 &lt;/h2&gt;</span><br><span class="line">    ... a lot of static content ...</span><br><span class="line">  &lt;/div&gt;</span><br><span class="line">&lt;/template&gt;</span><br></pre></td></tr></table></figure>
-<p>只渲染元素和组件一次。随后的重新渲染，元素/组件及其所有的子节点将被视为静态内容并跳过。这可以用于优化更新性能。关于 <code>v-once</code> 更多介绍，请<a href="https://link.juejin.im?target=https%3A%2F%2Fcn.vuejs.org%2Fv2%2Fapi%2F%23v-once" target="_blank" rel="noopener">移步官网-&gt;</a>。</p>
-<h2 id="slot-scope"><a href="#slot-scope" class="headerlink" title="slot-scope"></a>slot-scope</h2><p>作用域插槽。<a href="mailto:`vue@2.5.0" target="_blank" rel="noopener">`vue@2.5.0</a><code>版本以前叫</code>scope<code>，之后的版本用</code>slot-scope<code>将其代替。除了 scope 只可以用于</code><template><code>元素，其它和</code>slot-scope` 都相同。</template></p>
-<p>用过 Element 组件的同学都知道，当我们在使用 <a href="https://link.juejin.im?target=http%3A%2F%2Felement-cn.eleme.io%2F2.4%2F%23%2Fzh-CN%2Fcomponent%2Ftable%23zi-ding-yi-lie-mo-ban" target="_blank" rel="noopener"><code>&lt;el-table&gt;</code></a> 的时候会看到如下代码：</p>
-<p><a href="mailto:Element@1.4.x" target="_blank" rel="noopener">Element@1.4.x</a> 的版本：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;el-table-column label=&quot;操作&quot;&gt;</span><br><span class="line">  &lt;template scope=&quot;scope&quot;&gt;</span><br><span class="line">  &lt;el-button</span><br><span class="line">    size=&quot;small&quot;</span><br><span class="line">    @click=&quot;handleEdit(scope.$index, scope.row)&quot;&gt;编辑&lt;/el-button&gt;</span><br><span class="line">  &lt;el-button</span><br><span class="line">    size=&quot;small&quot;</span><br><span class="line">    type=&quot;danger&quot;</span><br><span class="line">    @click=&quot;handleDelete(scope.$index, scope.row)&quot;&gt;删除&lt;/el-button&gt;</span><br><span class="line">  &lt;/template&gt;</span><br><span class="line">&lt;/el-table-column&gt;</span><br></pre></td></tr></table></figure>
-<p>但在 2.0 之后的版本替换成了 <code>slot-scope</code>。</p>
-<p><a href="mailto:Element@2.0.11" target="_blank" rel="noopener">Element@2.0.11</a>：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;el-table-column label=&quot;操作&quot;&gt;</span><br><span class="line">  &lt;template slot-scope=&quot;scope&quot;&gt;</span><br><span class="line">    &lt;el-button</span><br><span class="line">      size=&quot;mini&quot;</span><br><span class="line">      @click=&quot;handleEdit(scope.$index, scope.row)&quot;&gt;编辑&lt;/el-button&gt;</span><br><span class="line">    &lt;el-button</span><br><span class="line">      size=&quot;mini&quot;</span><br><span class="line">      type=&quot;danger&quot;</span><br><span class="line">      @click=&quot;handleDelete(scope.$index, scope.row)&quot;&gt;删除&lt;/el-button&gt;</span><br><span class="line">  &lt;/template&gt;</span><br><span class="line">&lt;/el-table-column&gt;</span><br></pre></td></tr></table></figure>
-<p>说白了，<code>slot-scope</code> 相当于函数的回调，我把结果给你，你想怎么处理就怎么处理，一切随你：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">function getUserById (url, data, callback) &#123;</span><br><span class="line">  $.ajax(&#123;</span><br><span class="line">    url,</span><br><span class="line">    data,</span><br><span class="line">    success: function (result) &#123;</span><br><span class="line">      callback(result)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 使用</span><br><span class="line">getUserById(&apos;/users&apos;, &#123; id: 1 &#125;, function (response) &#123;</span><br><span class="line">  // 拿到数据并开始处理自己的页面逻辑</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-<p>下面我们来简单模拟下 <code>&lt;el-table&gt;</code> 组件内部是怎么使用 <code>slot-scope</code> 的，看代码：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">// 定义模板</span><br><span class="line">let template = `</span><br><span class="line"> &lt;ul class=&quot;table&quot;&gt;</span><br><span class="line">  &lt;li v-for=&quot;(item, index) in data&quot; :key=&quot;index&quot;&gt;</span><br><span class="line">    &lt;!-- 我希望数据由调用者自己处理 --&gt;</span><br><span class="line">    &lt;!-- &apos;row&apos; 相当于变量名，随便起名 --&gt;</span><br><span class="line">    &lt;slot :row=&quot;item&quot;&gt;</span><br><span class="line">      &lt;!-- 当使用者什么都没写的时候，默认值才会显示--&gt;</span><br><span class="line">      &#123;&#123; item.name &#125;&#125;</span><br><span class="line">    &lt;/slot&gt;</span><br><span class="line">  &lt;/li&gt;</span><br><span class="line"> &lt;/ul&gt;</span><br><span class="line">`</span><br><span class="line">// 声明 `el-table` 组件</span><br><span class="line">Vue.component(&apos;el-table&apos;, &#123;</span><br><span class="line">  template,</span><br><span class="line">  props: &#123;</span><br><span class="line">    data: Array,</span><br><span class="line">    default: []</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">// 根组件</span><br><span class="line">new Vue(&#123;</span><br><span class="line">  el: &apos;#app&apos;,</span><br><span class="line">  data: &#123;</span><br><span class="line">    userData: [</span><br><span class="line">      &#123;id: 1, name: &apos;张三&apos;, isActived: false&#125;,</span><br><span class="line">      &#123;id: 2, name: &apos;李四&apos;, isActived: false&#125;,</span><br><span class="line">      &#123;id: 1, name: &apos;王五&apos;, isActived: true&#125;,</span><br><span class="line">      &#123;id: 1, name: &apos;赵六&apos;, isActived: false&#125;,</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-<p>组件使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">&lt;div id=&quot;app&quot;&gt;</span><br><span class="line">  &lt;el-table :data=&quot;userData&quot;&gt;</span><br><span class="line">    &lt;!-- 使用的时候可以用 template --&gt;</span><br><span class="line">    &lt;!-- `scope` 只是个形参，随便起名 --&gt;</span><br><span class="line">    &lt;template slot-scope=&quot;scope&quot;&gt;</span><br><span class="line">      &lt;template v-if=&quot;scope.row.isActived&quot;&gt;</span><br><span class="line">        &lt;span class=&quot;red&quot;&gt;&#123;&#123; scope.row.name &#125;&#125;&lt;/span&gt;</span><br><span class="line">      &lt;/template&gt;</span><br><span class="line">      &lt;template v-else&gt;</span><br><span class="line">        &#123;&#123; scope.row.name &#125;&#125;</span><br><span class="line">      &lt;/template&gt;</span><br><span class="line">    &lt;/template&gt;</span><br><span class="line">  &lt;/el-table&gt;</span><br><span class="line">&lt;/div&gt;</span><br><span class="line"></span><br><span class="line">CSS：</span><br><span class="line"></span><br><span class="line">.red &#123;</span><br><span class="line">  color: red</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>我们完全可以在 <code>&lt;li&gt;</code> 中进行逻辑判断，为什么还要放到外面进行处理呢？ 因为有时候我们用的不是自己开发的组件，比如上面的 <code>&lt;el-table&gt;</code> ，所以就有必要这么做了。最后，你可以狠狠的<a href="https://link.juejin.im?target=https%3A%2F%2Fcodepen.io%2Fgongph%2Fpen%2FPxbqyP" target="_blank" rel="noopener">戳这里</a>查看效果！</p>
-
           
         
       
@@ -4071,7 +3759,7 @@ text-justify:inter-ideograph;
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">107</span>
+                  <span class="site-state-item-count">2</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

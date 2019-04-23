@@ -694,6 +694,502 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/30/深入理解ES6  Async Functions/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/05/30/深入理解ES6  Async Functions/" itemprop="url">深入理解ES6 Async Functions (异步函数)</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-05-30T18:35:10+08:00">
+                2018-05-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><h2 id="async-异步-函数变体"><a href="#async-异步-函数变体" class="headerlink" title="async(异步) 函数变体"></a>async(异步) 函数变体</h2><p>以下是已经存在的异步函数变体。请注意无处不在的 <code>async</code> 关键字。</p>
+<ul>
+<li>异步函数声明： <code>async function foo() {}</code></li>
+<li>异步函数表达式： <code>const foo = async function () {};</code></li>
+<li>异步函数定义：<code>let obj = { async foo() {} }</code></li>
+<li>异步箭头函数： <code>const foo = async () =&gt; {};</code></li>
+</ul>
+<h2 id="async-异步-函数总是返回-Promises"><a href="#async-异步-函数总是返回-Promises" class="headerlink" title="async(异步) 函数总是返回 Promises"></a>async(异步) 函数总是返回 Promises</h2><p>async(异步) 函数的 Promise 完成状态：</p>
+<pre><code>async function asyncFunc() {
+return 123;
+}
+
+asyncFunc()
+.then(x =&gt; console.log(x));
+// 123
+</code></pre><p>async(异步) 函数的 Promise 拒绝状态：</p>
+<pre><code>async function asyncFunc() {
+throw new Error(&apos;Problem!&apos;);
+}
+
+asyncFunc()
+.catch(err =&gt; console.log(err));
+// Error: Problem!
+</code></pre><h2 id="通过-await-处理-async-异步-计算的结果和错误"><a href="#通过-await-处理-async-异步-计算的结果和错误" class="headerlink" title="通过 await 处理 async(异步) 计算的结果和错误"></a>通过 <code>await</code> 处理 async(异步) 计算的结果和错误</h2><p><code>await</code>（只允许在 async(异步) 函数内部使用）等待其操作对象 Promise 返回：</p>
+<ul>
+<li>如果 Promise 是完成状态，<code>await</code> 的结果是完成态的值。</li>
+<li>如果 Promise 是拒绝状态，<code>await</code> 会抛出拒绝值。</li>
+</ul>
+<p>处理单个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const result = await otherAsyncFunc();
+   console.log(result);
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc()
+.then(result =&gt; {
+       console.log(result);
+});
+}
+</code></pre><p>按顺序处理多个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const result1 = await otherAsyncFunc1();
+   console.log(result1);
+const result2 = await otherAsyncFunc2();
+   console.log(result2);
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc1()
+.then(result1 =&gt; {
+       console.log(result1);
+return otherAsyncFunc2();
+})
+.then(result2 =&gt; {
+       console.log(result2);
+});
+}
+</code></pre><p>并行处理多个 async(异步) 返回值：</p>
+<pre><code>async function asyncFunc() {
+const [result1, result2] = await Promise.all([
+       otherAsyncFunc1(),
+       otherAsyncFunc2(),
+]);
+   console.log(result1, result2);
+}
+
+// 等价于:
+function asyncFunc() {
+return Promise.all([
+       otherAsyncFunc1(),
+       otherAsyncFunc2(),
+])
+.then([result1, result2] =&gt; {
+       console.log(result1, result2);
+});
+}
+</code></pre><p>错误处理：</p>
+<pre><code>async function asyncFunc() {
+try {
+await otherAsyncFunc();
+} catch (err) {
+       console.error(err);
+}
+}
+
+// 等价于:
+function asyncFunc() {
+return otherAsyncFunc()
+.catch(err =&gt; {
+       console.error(err);
+});
+}
+</code></pre><h2 id="理解-async-异步-函数"><a href="#理解-async-异步-函数" class="headerlink" title="理解 async(异步) 函数"></a>理解 async(异步) 函数</h2><p>在我解释 async(异步) 函数之前，我需要解释一下如何组合使用 Promises 和 Generator ，通过看起来同步的代码来执行 async(异步) 操作。</p>
+<p>对于能够 async(异步) 计算其一次性结果的函数，作为 ES6 一部分的 Promises 已经变得流行起来。一个例子是 <a href="https://link.zhihu.com/?target=https%3A//fetch.spec.whatwg.org/%23concept-request" target="_blank" rel="noopener">客户端 fetch API</a> ，它是 XMLHttpRequest 获取数据的替代方法。使用示例如下：</p>
+<pre><code>function fetchJson(url) {
+return fetch(url)
+.then(request =&gt; request.text())
+.then(text =&gt; {
+return JSON.parse(text);
+})
+.catch(error =&gt; {
+       console.log(`ERROR: ${error.stack}`);
+});
+}
+fetchJson(&apos;http://example.com/some_file.json&apos;)
+.then(obj =&gt; console.log(obj));
+</code></pre><h2 id="通过-generator-来编写异步代码"><a href="#通过-generator-来编写异步代码" class="headerlink" title="通过 generator 来编写异步代码"></a>通过 generator 来编写异步代码</h2><p>co 是一个使用 Promise 和 generator 来实现看似同步编码的库，但与上一示例中使用的样式相同：</p>
+<pre><code>const fetchJson = co.wrap(function* (url) {
+try {
+let request = yield fetch(url);
+let text = yield request.text();
+return JSON.parse(text);
+}
+catch (error) {
+       console.log(`ERROR: ${error.stack}`);
+}
+});
+</code></pre><p>每次回调函数（ generator 函数）产生一个 Promise 对象给 co ，回调会被暂停，只有当 Promise 执行完成后，co 才会继续执行回调 。 如果 Promise 处于完成状态，<code>yield</code> 返回完成状态的值，如果处于拒绝状态，<code>yield</code> 抛出拒绝状态的错误。此外，co 保证结果是通过回调执行完成才返回的（类似于 <code>then()</code> 所做的工作）。</p>
+<h2 id="通过-async-异步-函数来编写异步代码"><a href="#通过-async-异步-函数来编写异步代码" class="headerlink" title="通过 async(异步) 函数来编写异步代码"></a>通过 async(异步) 函数来编写异步代码</h2><p>async(异步) 函数用的特定语法基本上和 co 类似：</p>
+<pre><code>async function fetchJson(url) {
+try {
+let request = await fetch(url);
+let text = await request.text();
+return JSON.parse(text);
+}
+catch (error) {
+       console.log(`ERROR: ${error.stack}`);
+}
+}
+</code></pre><p>在内部，异步函数写法更类似于 generators 。</p>
+<h2 id="以同步开始，异步处理的-async-异步-函数"><a href="#以同步开始，异步处理的-async-异步-函数" class="headerlink" title="以同步开始，异步处理的 async(异步) 函数"></a>以同步开始，异步处理的 async(异步) 函数</h2><p>以下是 async(异步)函数是如何工作的：</p>
+<ol>
+<li>async(异步) 函数总是返回一个 Promise 对象 <code>p</code> 。Promise 对象在 async(异步) 函数开始执行时被创建。</li>
+<li>函数体执行过程中，可以通过 <code>return</code> 或 <code>throw</code> 终止执行。或者通过 <code>await</code> 暂停执行，在这种情况下，通常会在以后继续执行。</li>
+<li>返回 Promise 对象 <code>p</code>。</li>
+</ol>
+<p>当执行 async(异步) 函数的函数体时，<code>return x</code> 中的 <code>x</code> 是 Promise 对象 <code>p</code> 的完成状态的结果，而 <code>throw err</code> 是 <code>p</code> 的拒绝状态的结果。执行结果是异步返回的。换句话说：<code>then()</code> 和 <code>catch()</code> 的回调总是在当前代码完成后执行。</p>
+<p>以下是代码示例：</p>
+<pre><code>async function asyncFunc() {
+   console.log(&apos;asyncFunc()&apos;); // (A)
+return &apos;abc&apos;;
+}
+asyncFunc().
+then(x =&gt; console.log(`Resolved: ${x}`)); // (B)
+console.log(&apos;main&apos;); // (C)
+
+// Output:
+// asyncFunc()
+// main
+// Resolved: abc
+</code></pre><p>您可以认为是以下的执行顺序：</p>
+<ol>
+<li>行A：async(异步) 函数以同步开始。async(异步) 函数的 Promise 通过 <code>return</code> 来返回完成状态的结果。</li>
+<li>行C：执行继续。</li>
+<li>行B：Promise 完成状态通知是异步发生的。</li>
+</ol>
+<h2 id="返回不被包裹的-Promise-对象"><a href="#返回不被包裹的-Promise-对象" class="headerlink" title="返回不被包裹的 Promise 对象"></a>返回不被包裹的 Promise 对象</h2><p>Promise 的 resolve 是一项标准操作。 <code>return</code> 就是使用它来 resolve async(异步) 函数的 Promise <code>p</code> 的。这意味着：</p>
+<ol>
+<li>返回一个非 Promise 值，该值将被处理成 <code>p</code> 的完成状态值。</li>
+<li>返回一个 Promise 对象，那么 <code>p</code> 此时相当于是该 Promise 的状态。</li>
+</ol>
+<p>因此，您可以返回一个 Promise ，并且这个 Promise 不会包裹在别的 Promise 中：</p>
+<pre><code>async function asyncFunc() {
+return Promise.resolve(123);
+}
+asyncFunc()
+.then(x =&gt; console.log(x)) // 123
+</code></pre><p>有趣的是，返回一个拒绝状态（reject）的 Promise 对象会导致 async(异步) 函数被拒绝（reject）（通常，您可以使用 <code>throw</code> ）：</p>
+<pre><code>async function asyncFunc() {
+return Promise.reject(new Error(&apos;Problem!&apos;));
+}
+asyncFunc()
+.catch(err =&gt; console.error(err)); // Error: Problem!
+</code></pre><p>这与 Promise 解决方案的工作方式是一致的。 使你能够在不使用 <code>await</code> 的情况下，使用其他 async(异步) 计算来执行完成和拒绝处理：</p>
+<pre><code>async function asyncFunc() {
+return anotherAsyncFunc();
+}
+</code></pre><p>上面的代码示例和下面的类似，但是比下面的更高效。（以下代码示例没有包裹 <code>anotherAsyncFunc()</code> 的 Promise ，而是包裹 <code>anotherAsyncFunc()</code> 本身 ）：</p>
+<pre><code>async function asyncFunc() {
+return await anotherAsyncFunc();
+}
+</code></pre><h2 id="使用-await-小贴士"><a href="#使用-await-小贴士" class="headerlink" title="使用 await 小贴士"></a>使用 <code>await</code> 小贴士</h2><h2 id="不要忘记使用-await"><a href="#不要忘记使用-await" class="headerlink" title="不要忘记使用 await"></a>不要忘记使用 <code>await</code></h2><p>在 async(异步) 函数中容易犯的一个错误就是在调用 async(异步) 函数时忘记使用 <code>await</code> ：</p>
+<pre><code>async function asyncFunc() {
+const value = otherAsyncFunc(); // missing `await`!
+···
+}
+</code></pre><p>在这个例子中，方法执行返回的 Promise 对象赋值给了 <code>value</code> ，它通常不是你在 async(异步) 函数中想要的结果。</p>
+<p>await 甚至可以在 async(异步) 函数不返回任何值的情况下起作用。它的 Promise 只是用来告诉调用者完成状态。例如：</p>
+<pre><code>async function foo() {
+await step1(); // (A)
+···
+}
+</code></pre><p>行A中的 <code>await</code> 确保在执行 <code>foo()</code> 剩余部分之前， <code>step1()</code> 已经执行完成。</p>
+<h2 id="不需要使用-await-的情况"><a href="#不需要使用-await-的情况" class="headerlink" title="不需要使用 await 的情况"></a>不需要使用 await 的情况</h2><p>有时，你只想触发异步计算，并且不需要关注它什么时候完成。以下是代码示例：</p>
+<pre><code>async function asyncFunc() {
+const writer = openFile(&apos;someFile.txt&apos;);
+   writer.write(&apos;hello&apos;); // don’t wait
+   writer.write(&apos;world&apos;); // don’t wait
+await writer.close(); // wait for file to close
+}
+</code></pre><p>在这里，我们不关心单个的写入操作是否完成，只需要他们以正确的顺序执行 (API必须保证，但这是由 async(异步) 函数的执行模型所鼓励的，正如我们所见)。</p>
+<p><code>asyncFunc()</code> 函数最后一行的 <code>await</code> 确保该函数仅在文件写入关闭后才会执行。</p>
+<p>由于返回的 Promises 没有被其他 async(异步) 函数包裹，所以你可以用 <code>return</code> 替换 <code>await writer.close()</code> ：</p>
+<pre><code>async function asyncFunc() {
+const writer = openFile(&apos;someFile.txt&apos;);
+   writer.write(&apos;hello&apos;);
+   writer.write(&apos;world&apos;);
+return writer.close();
+}
+</code></pre><p>这两个版本各有利弊，<code>await</code> 版本可能稍微更容易理解。</p>
+<h2 id="await-是顺序执行的，Promise-all-是并行的"><a href="#await-是顺序执行的，Promise-all-是并行的" class="headerlink" title="await 是顺序执行的，Promise.all() 是并行的"></a>await 是顺序执行的，Promise.all() 是并行的</h2><p>下面的代码调用了两个 async(异步) 函数， <code>asyncFunc1()</code> 和 <code>asyncFunc1()</code> 。</p>
+<pre><code>async function foo() {
+const result1 = await asyncFunc1();
+const result2 = await asyncFunc2();
+}
+</code></pre><p>这两个函数调用顺序执行。但是并行执行它们往往会加快速度。您可以使用 Promise.all() ：</p>
+<pre><code>async function foo() {
+const [result1, result2] = await Promise.all([
+       asyncFunc1(),
+       asyncFunc2(),
+]);
+}
+</code></pre><p>我们现在正在等待一个包含两个元素的数组的 Promise ，而不是等待两个 Promise。</p>
+<h2 id="异步函数和回调"><a href="#异步函数和回调" class="headerlink" title="异步函数和回调"></a>异步函数和回调</h2><p>async(异步) 函数的一个限制是 <code>await</code>(等待) 只影响直接相关的 async(异步) 函数。因此，async(异步) 函数无法在回调（但是，回调可以是 async(异步) 函数本身，稍后我们将会看到）中使用 <code>await</code>(等待)。这使得基于回调的实用函数和方法难以使用。例子中我们将使用数组方法 <code>map()</code> 和 <code>forEach()</code>。</p>
+<h2 id="Array-prototype-map"><a href="#Array-prototype-map" class="headerlink" title="Array.prototype.map()"></a>Array.prototype.map()</h2><p>我们从数组方法 <code>map()</code> 开始讲解。在下面的代码示例中，我们想要加载由 URLs 数组指向的文件，并将它们返回到数组中。</p>
+<pre><code>async function downloadContent(urls) {
+return urls.map(url =&gt; {
+// 错误的语法!
+const content = await httpGet(url);
+return content;
+});
+}
+</code></pre><p>这不起作用，因为在正常箭头函数中 <code>await</code> 语法上是非法的(愚人码头注： <code>await</code>(等待) 只影响直接相关的 async(异步) 函数)。那么如何使用异步的箭头函数呢？</p>
+<pre><code>async function downloadContent(urls) {
+return urls.map(async (url) =&gt; { // 注意这一行中的 async ;
+const content = await httpGet(url);
+return content;
+});
+}
+</code></pre><p>这段代码有两个问题：</p>
+<ul>
+<li>现在返回的结果是一个 Promises 对象的数组，而不是一个字符串的数组。</li>
+<li>一旦 <code>map()</code> 执行完成，回调执行的工作并不能同时完成，因为 <code>await</code> 只暂停了包裹它的箭头函数 和 <code>httpGet()</code> 异步执行达到完成状态。这意味着你不能使用 <code>await</code>，来等待 <code>downloadContent()</code> 执行结束。</li>
+</ul>
+<p>我们可以通过 <code>Promise.all()</code> 来解决这两个问题，<code>Promise.all()</code> 可以将一系列的 Promise 转换为一个 Promise 数组（所有值都是经过 Promise 完成并返回）：</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(async (url) =&gt; {
+const content = await httpGet(url);
+return content;
+});
+return await Promise.all(promiseArray);
+}
+</code></pre><p><code>map()</code> 的回调并不对 <code>httpGet()</code> 的结果起作用，只是起到不断执行的作用。因此，这里我们不需要一个异步的箭头函数，只需要一个普通的箭头函数就能达到相同的结果。</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(
+       url =&gt; httpGet(url));
+return await Promise.all(promiseArray);
+}
+</code></pre><p>我们仍然可以做一个小的改进：这个异步函数稍微有点低效 – 首先通过 <code>await</code> 来解开 <code>Promise.all()</code> 的结果，然后通过 <code>return</code> 再次包裹它。 假设 <code>return</code> 不包裹 Promises，我们可以直接返回 <code>Promise.all()</code> 的结果：</p>
+<pre><code>async function downloadContent(urls) {
+const promiseArray = urls.map(
+       url =&gt; httpGet(url));
+return Promise.all(promiseArray);
+}
+</code></pre><h2 id="Array-prototype-forEach"><a href="#Array-prototype-forEach" class="headerlink" title="Array.prototype.forEach()"></a>Array.prototype.forEach()</h2><p>我们使用数组的 forEach() 方法在控制台中打印几个通过 URLs 加载的文件的内容：</p>
+<pre><code>async function logContent(urls) {
+   urls.forEach(url =&gt; {
+// Wrong syntax
+const content = await httpGet(url);
+       console.log(content);
+});
+}
+</code></pre><p>同样的，这里的代码会产生一个语法错误，因为你不能在通常的箭头函数内部使用 <code>await</code> 。</p>
+<p>我们换作异步箭头函数：</p>
+<pre><code>async function logContent(urls) {
+   urls.forEach(async url =&gt; {
+const content = await httpGet(url);
+       console.log(content);
+});
+// Not finished here
+}
+</code></pre><p>这段代码起作用了，但是会出现一个警告：<code>httpGet()</code> 返回的 Promise 对象是异步完成的，这也意味着当 <code>forEach()</code> 返回的时候回调可能还没有结束，因此你无法等到 <code>logContent()</code> 只能结束。</p>
+<p>如果你并不想要这个结果，你可以将 <code>forEach()</code> 转换为 <code>for-of</code> 循环。</p>
+<pre><code>async function logContent(urls) {
+for (const url of urls) {
+const content = await httpGet(url);
+       console.log(content);
+}
+}
+</code></pre><p>现在一切都在 <code>for-of</code> 循环完成后完成。但是，处理步骤依次发生：<code>httpGet()</code> 只是在第一次调用完成后再次调用。如果您希望处理步骤并行执行，你必须使用 <code>Promise.all()</code>：</p>
+<pre><code>async function logContent(urls) {
+await Promise.all(urls.map(
+async url =&gt; {
+const content = await httpGet(url);
+           console.log(content);
+}));
+}
+</code></pre><p><code>map()</code> 用于创建一个 Promises 数组。 我们对他们的完成结果并不感兴趣，我们只要 <code>await</code>(等待) 所有方法执行完成。这意味着我们希望的是在 async(异步) 函数完成之后所有的执行都已经完成。我们也可以返回 <code>Promise.all()</code> ，但是该函数的结果是一个数组，其元素都是未完成状态的。</p>
+<h2 id="使用异步函数小贴士"><a href="#使用异步函数小贴士" class="headerlink" title="使用异步函数小贴士"></a>使用异步函数小贴士</h2><h2 id="了解你的-Promises"><a href="#了解你的-Promises" class="headerlink" title="了解你的 Promises"></a>了解你的 Promises</h2><p>async(异步) 函数的基础就是 <a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">Promises</a> 对象，这就是为什么理解 Promises 对于理解 async(异步) 函数至关重要。特别是当遇到不是基于 Promises 的老代码来实现 async(异步) 函数时，你通常别无选择，只能用 Promise 来重构。</p>
+<p>举个例子，这里有个 “promisified” 版本的 <code>XMLHttpRequest</code> ：</p>
+<pre><code>function httpGet(url, responseType=&quot;&quot;) {
+return new Promise(
+function (resolve, reject) {
+const request = new XMLHttpRequest();
+           request.onload = function () {
+if (this.status === 200) {
+// Success
+                   resolve(this.response);
+} else {
+// Something went wrong (404 etc.)
+                   reject(new Error(this.statusText));
+}
+};
+           request.onerror = function () {
+               reject(new Error(
+&apos;XMLHttpRequest Error: &apos;+this.statusText));
+};
+           request.open(&apos;GET&apos;, url);
+           xhr.responseType = responseType;
+           request.send();
+});
+}
+</code></pre><p>XMLHttpRequest 的 API 是基于回调的。通过一个 async(异步) 函数来实现它，意味着你必须在回调中返回 Promise 的完成(fulfill) 或拒绝(reject) 状态。这是不可能的，因为你只能通过 <code>return</code> 或者 <code>throw</code> 来完成这样的操作。你不能从回调函数内部 <code>return</code> 一个函数的结果。<code>throw</code>也有类似的约束。</p>
+<p>因此，异步函数的通用编码风格是：</p>
+<ul>
+<li>直接使用 Promise 对象来构建异步原语。</li>
+<li>用异步函数来使用这些原语。</li>
+</ul>
+<p>扩展阅读：“Exploring ES6” 中的 “<a href="https://link.zhihu.com/?target=http%3A//exploringjs.com/es6/ch_promises.html" target="_blank" rel="noopener">异步编程中的 Promises 对象</a>” 章节</p>
+<h2 id="立即调用异步函数表达式"><a href="#立即调用异步函数表达式" class="headerlink" title="立即调用异步函数表达式"></a>立即调用异步函数表达式</h2><p>有时，如果你可以在模块或脚本的顶层使用 await ，那将是一种很好的选择。当然，它只能在异步函数中使用。您可以创建一个异步函数 <code>main()</code> 并立即调用它：</p>
+<pre><code>async function main() {
+   console.log(await asyncFunction());
+}
+main();
+</code></pre><p>或者您可以使用立即调用异步函数表达式：</p>
+<pre><code>(async function () {
+   console.log(await asyncFunction());
+})();
+</code></pre><p>另一个选择是立即调用异步箭头函数：</p>
+<pre><code>(async () =&gt; {
+   console.log(await asyncFunction());
+})();
+</code></pre><h2 id="用异步函数进行单元测试"><a href="#用异步函数进行单元测试" class="headerlink" title="用异步函数进行单元测试"></a>用异步函数进行单元测试</h2><p>以下代码使用 <a href="https://link.zhihu.com/?target=https%3A//mochajs.org/" target="_blank" rel="noopener">测试框架 mocha</a> 对异步函数 asyncFun1() 和 asyncFun2() 来进行单元测试：</p>
+<pre><code>import assert from &apos;assert&apos;;
+
+// Bug: the following test always succeeds
+test(&apos;Testing async code&apos;, function () {
+   asyncFunc1() // (A)
+.then(result1 =&gt; {
+assert.strictEqual(result1, &apos;a&apos;); // (B)
+return asyncFunc2();
+})
+.then(result2 =&gt; {
+assert.strictEqual(result2, &apos;b&apos;); // (C)
+});
+});
+</code></pre><p>然而，这个测试总是成功的，因为 mocha 不会等待 B 行和 C 行断言执行完成。</p>
+<p>你可以通过返回链式调用的 Promise 来解决这个问题，因为 mocha 会识别一个测试是否返回一个 Promise ，然后等待该 Promise 完成 再进行下一步（除非超时）。</p>
+<pre><code>return asyncFunc1() // (A)
+</code></pre><p>异步函数总是返回 Promises ，这使得它们能方便的、完美的来进行这种单元测试：</p>
+<pre><code>import assert from &apos;assert&apos;;
+test(&apos;Testing async code&apos;, async function () {
+const result1 = await asyncFunc1();
+assert.strictEqual(result1, &apos;a&apos;);
+const result2 = await asyncFunc2();
+assert.strictEqual(result2, &apos;b&apos;);
+});
+</code></pre><p>在 mocha 中使用异步单元测试异步函数有两个优点：代码更简洁，能够准确处理返回的 Promise 对象。</p>
+<h2 id="不要担心没有处理的拒绝拒态"><a href="#不要担心没有处理的拒绝拒态" class="headerlink" title="不要担心没有处理的拒绝拒态"></a>不要担心没有处理的拒绝拒态</h2><p>当前的 JavaScript 引擎可以在拒绝态未处理的情况下提出警告。以下代码在过去会经常执行失败，但是当前的 JavaScript 引擎可以进行警告：</p>
+<pre><code>JavaScript 代码:
+async function foo() {
+throw new Error(&apos;Problem!&apos;);
+}
+foo();
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/08/TypeScript入门/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3487,341 +3983,6 @@ console.log(stu instanceof Person); // true
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/02/03/我也来实现一把MVVM/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/02/03/我也来实现一把MVVM/" itemprop="url">我也来实现一把MVVM</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-02-03T00:20:32+08:00">
-                2018-02-03
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>大家都知道，vue是个MVVM框架，能够实现view和model的双向绑定，不像backbone那样，model改变需要手动去通知view更新，而vue实现的原理就是通过Object.defineProperty实现数据挟持，定义setter，然后数据改变的时候通知视图更新。</p>
-<p>下面是网上vue的实现原理图：</p>
-<p> <img src="https://user-gold-cdn.xitu.io/2018/4/10/162ad3d5be3e5105?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="image"></p>
-<h3 id="实现效果"><a href="#实现效果" class="headerlink" title="实现效果"></a>实现效果</h3><p><img src="https://user-gold-cdn.xitu.io/2018/8/15/1653b294cd1b80e3?imageslim" alt=""></p>
-<h4 id="1、MVVM"><a href="#1、MVVM" class="headerlink" title="1、MVVM"></a>1、MVVM</h4><p>入口文件，在这里对vue当中的$el、methods、$data进行初始化，调用observer遍历$data的数据并进行挟持，调用compile遍历$el下的所有节点，解析指令和取值操作。遍历$data的数据，通过Object.defineProperty的getter和setter实现对$data的代理。</p>
-<h4 id="2、Observer"><a href="#2、Observer" class="headerlink" title="2、Observer"></a>2、Observer</h4><p>遍历data，通过Object.defineProperty设置getter和setter，在setter知道数据发生了改变，然后通知Wacher去更新view。</p>
-<h4 id="3、Compile"><a href="#3、Compile" class="headerlink" title="3、Compile"></a>3、Compile</h4><p>遍历$el下的所有节点，解析指令和取值操作等，为每个节点绑定更新函数（为什么在compile这里绑定呢？因为这里刚好是遍历的节点☺），绑定事件和method的关系，同时也添加订阅者，当接受到视图更新的订阅消息后，调用更新函数，实现视图更新。同时在添加订阅者的时候，初始化渲染视图。</p>
-<h4 id="4、Watcher"><a href="#4、Watcher" class="headerlink" title="4、Watcher"></a>4、Watcher</h4><p>Watcher作为订阅者，充当Observer和Compile的中间桥梁，包含update方法，update方法调用Compile中绑定的事件更新函数，实现对视图的初始化和更新操作。</p>
-<h3 id="MVVM的实现"><a href="#MVVM的实现" class="headerlink" title="MVVM的实现"></a>MVVM的实现</h3><p>MVVM完成初始化操作，并且调用observer和compile。对$data进行代理，如此便可以通过this.attribute来代理this.$data.attribute。因为一个属性可能对应多个指令，所以需要一个_binding属性来存放属性对应的所有订阅者，这样属性一改变，就可以取出所有的订阅者去更新视图。</p>
-<pre><code>function MVVM(options) {
-  // 初始化
-  this.$data = options.data;
-  this.$methods = options.methods;
-  this.$el = options.el;
-  // 保存data的每个属性对应的所有watcher
-  this._binding  = {};
-  // 调用observer和compile
-  this._observer(options.data);
-  this._compile();
-  // this.xxx 代理this.$data.xxx
-  this.proxyAttribute();
-}
-</code></pre><h3 id="Observer的实现"><a href="#Observer的实现" class="headerlink" title="Observer的实现"></a>Observer的实现</h3><p>Observer遍历$data，通过Object.defineProperty的setter的挟持数据改变，监听到数据改变后取出所有该属性对应的订阅者，然后通知更新函数更新视图。</p>
-<p>注意：这里有循环，且闭包（getter和setter）里面需要依赖循环项（value和key），所以用立即执行函数解决循环项获取不对的问题。</p>
-<pre><code>MVVM.prototype._observer = function(data) {
-  var self = this;
-  for(var key in this.$data) {
-    if (this.$data.hasOwnProperty(key)) {
-      // 初始化属性对应的订阅者容器（数组）
-      this._binding[key] = {
-        _directives: [],
-        _texts: []
-      };
-
-      if(typeof this.$data[key] === &quot;object&quot;) {
-        return this._observer(this.$data[key]);
-      }
-      var val = data[key];
-      // 立即执行函数获取正确的循环项
-      (function(value, key) {
-        Object.defineProperty(self.$data, key, {
-          enumerable: true,
-          configurable: true,
-          get: function() {
-            return value;
-          },
-          set(newval) {
-            if(newval === value) {
-              return;
-            }
-            value = newval;
-            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-属性
-            if(self._binding[key]._directives) {
-              self._binding[key]._directives.forEach(function(watcher) {
-                watcher.update();
-              }, self);
-            }
-            // 监听到数据改变后取出所有该属性对应的订阅者，通知view更新-文本
-            if(self._binding[key]._texts) {
-              self._binding[key]._texts.forEach(function(watcher) {
-                watcher.update();
-              }, self);
-            }
-          }
-        });
-      })(val, key);
-    }
-  }
-}
-</code></pre><h3 id="Compile的实现"><a href="#Compile的实现" class="headerlink" title="Compile的实现"></a>Compile的实现</h3><p>Compile遍历所有的节点，解析指令，为每个节点绑定更新函数，且添加订阅者，当订阅者通知view更新的时候，调用更新函数，实现对视图的更新。</p>
-<p>这里同样需要使用立即执行函数来解决闭包依赖的循环项问题。</p>
-<p>还有一点需要解决的是，如果节点的innerText依赖多个属性的话，如何做到只替换改变属性对应的文本问题。</p>
-<p>比如：已经被编译解析成“欢迎： 鸣人”，如果message改变为“你好”，怎么让使得“欢迎：鸣人”改为“你好：鸣人”。</p>
-<pre><code>MVVM.prototype._compile = function() {
-  var dom = document.querySelector(this.$el);
-  var children = dom.children;
-  var self = this;
-  var i = 0, j = 0;
-  // 更新函数，但observer中model的数据改变的时候，通过Watcher的update调用更新函数，从而更新dom
-  var updater = null;
-  for(; i &lt; children.length; i++) {
-    var node = children[i];
-    (function(node) {
-      // 解析{{}}里面的内容
-      // 保存指令原始内容，不然数据更新时无法完成替换
-      var text = node.innerText;
-      var matches = text.match(/{{([^{}]+)}}/g);
-      if(matches &amp;&amp; matches.length &gt; 0) {
-        // 保存和node绑定的所有属性
-        node.bindingAttributes = [];
-        for(j = 0; j &lt; matches.length; j++) {
-          // data某个属性
-          var attr = matches[j].match(/{{([^{}]+)}}/)[1];
-          // 将和该node绑定的data属性保存起来
-          node.bindingAttributes.push(attr);
-          (function(attr) {
-            updater = function() {
-              // 改变的属性值对应的文本进行替换
-              var innerText = text.replace(new RegExp(&quot;{{" + attr + "}}&quot;, &quot;g&quot;), self.$data[attr]);
-              // 如果该node绑定多个属性 eg:&lt;div&gt;{{title}}{{description}}&lt;/div&gt;
-              for(var k = 0; k &lt; node.bindingAttributes.length; k++) {
-                if(node.bindingAttributes[k] !== attr) {
-                  // 恢复原来没改变的属性对应的文本
-                  innerText = innerText.replace(&quot;{{" + node.bindingAttributes[k] + "}}&quot;, self.$data[node.bindingAttributes[k]]);
-                }
-              }
-              node.innerText = innerText;
-            }
-            self._binding[attr]._texts.push(new Watcher(self, attr, updater));
-          })(attr);
-        }
-      }
-
-      // 解析vue指令
-      var attributes = node.getAttributeNames();
-      for(j = 0; j &lt; attributes.length; j++) {
-        // vue指令
-        var attribute = attributes[j];
-        // DOM attribute
-        var domAttr = null;
-        // 绑定的data属性
-        var vmDataAttr = node.getAttribute(attribute);
-
-        if(/v-bind:([^=]+)/.test(attribute)) {
-          // 解析v-bind
-          domAttr = RegExp.$1;
-          // 更新函数
-          updater = function(val) {
-            node[domAttr] = val;
-          }
-          // data属性绑定多个watcher
-          self._binding[vmDataAttr]._directives.push(
-            new Watcher(self, vmDataAttr, updater)
-          )
-        } elseif(attribute === &quot;v-model&quot; &amp;&amp; (node.tagName = &apos;INPUT&apos; || node.tagName == &apos;TEXTAREA&apos;)) {
-          // 解析v-model
-          // 更新函数
-          updater = function(val) {
-            node.value = val;
-          }
-          // data属性绑定多个watcher
-          self._binding[vmDataAttr]._directives.push(
-            new Watcher(self, vmDataAttr, updater)
-          )
-          // 监听input/textarea的数据变化，同步到model去，实现双向绑定
-          node.addEventListener(&quot;input&quot;, function(evt) {
-            var $el = evt.currentTarget;
-            self.$data[vmDataAttr] = $el.value;
-          });
-        } elseif(/v-on:([^=]+)/.test(attribute)) {
-          // 解析v-on
-          var event = RegExp.$1;
-          var method = vmDataAttr;
-          node.addEventListener(event, function(evt) {
-            self.$methods[method] &amp;&amp; self.$methods[method].call(self, evt);
-          });
-        }
-      }
-    })(node);
-  }
-
-}
-</code></pre><h3 id="Watcher的实现"><a href="#Watcher的实现" class="headerlink" title="Watcher的实现"></a>Watcher的实现</h3><p>Watcher充当订阅者的角色，架起了Observer和Compile的桥梁，Observer监听到数据变化后，通知Wathcer更新视图(调用Wathcer的update方法)，Watcher再告诉Compile去调用更新函数，实现dom的更新。同时页面的初始化渲染也交给了Watcher（当然也可以放到Compile进行）。</p>
-<pre><code>function Watcher(vm, attr, cb) {
-  this.vm = vm; // viewmodel
-  this.attr = attr; // data的属性，一个watcher订阅一个data属性
-  this.cb = cb; // 更新函数，在compile那边定义
-  // 初始化渲染视图
-  this.update();
-}
-
-Watcher.prototype.update = function() {
-  // 通知comile中的更新函数更新dom 
-  this.cb(this.vm.$data[this.attr]);
-}
-</code></pre><h3 id="全部代码"><a href="#全部代码" class="headerlink" title="全部代码"></a>全部代码</h3><p>git地址：<a href="https://link.juejin.im?target=https%3A%2F%2Fgithub.com%2FVikiLee%2FMVVM.git" target="_blank" rel="noopener">github.com/VikiLee/MVV…</a></p>
-<p>鸣谢：<a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F5acc17cb51882555745a03f8" target="_blank" rel="noopener">juejin.im/post/5acc17…</a></p>
-<h3 id="使用例子"><a href="#使用例子" class="headerlink" title="使用例子"></a>使用例子</h3><pre><code>&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;en&quot;&gt;
-&lt;head&gt;
-  &lt;meta charset=&quot;UTF-8&quot;&gt;
-  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
-  &lt;meta http-equiv=&quot;X-UA-Compatible&quot; content=&quot;ie=edge&quot;&gt;
-  &lt;title&gt;Document&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;div id=&quot;view&quot;&gt;
-    &lt;div v-bind:id=&quot;id&quot;&gt;
-      {{message}}:{{name}}
-    &lt;/div&gt;
-    &lt;input type=&quot;text&quot; v-model=&quot;name&quot;/&gt;
-    &lt;button v-on:click=&quot;handleClick&quot;&gt;获取输入值&lt;/button&gt;
-  &lt;/div&gt;
-&lt;/body&gt;
-&lt;script src=&quot;js/MVVM.js&quot;type=&quot;text/javascript&quot;&gt;&lt;/script&gt;
-&lt;script&gt;
-  var vue = new MVVM({
-    el: &quot;#view&quot;,
-    data: {
-      message: &quot;欢迎光临&quot;,
-      name: &quot;鸣人&quot;,
-      id: &quot;id&quot;
-    },
-    methods: {
-      handleClick: function() {
-        alert(this.message + &quot;:&quot; + this.name + &quot;, 点击确定路飞会出来&quot;);
-        this.name = &apos;路飞&apos;;
-      }
-    }
-  })
-
-  setTimeout(function() {
-    vue.message = &quot;你好&quot;;
-  }, 1000);
-&lt;/script&gt;
-&lt;/html&gt;
-</code></pre>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3887,7 +4048,7 @@ Watcher.prototype.update = function() {
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">107</span>
+                  <span class="site-state-item-count">2</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
