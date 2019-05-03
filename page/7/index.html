@@ -694,6 +694,493 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/06/03/JavaScript的事件循环/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/06/03/JavaScript的事件循环/" itemprop="url">JavaScript的事件循环</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-06-03T11:15:38+08:00">
+                2018-06-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="Node-js-事件循环一-浅析"><a href="#Node-js-事件循环一-浅析" class="headerlink" title="Node.js 事件循环一: 浅析"></a>Node.js 事件循环一: 浅析</h2><blockquote>
+<p>理解事件循环系列第一步 浅析和总览</p>
+</blockquote>
+<p>多数的网站不需要大量计算，程序花费的时间主要集中在磁盘 I/O 和网络 I/O 上面</p>
+<p>SSD读取很快，但和CPU处理指令的速度比起来也不在一个数量级上，而且网络上一个数据包来回的时间更慢：</p>
+<p><img src="https://pic1.zhimg.com/v2-67a42368c7dffa3348730760c9c0b907_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-67a42368c7dffa3348730760c9c0b907_hd.jpg" alt=""></p>
+<p>一个数据包来回的延迟平均320ms(我网速慢，ping国内网站会更快)，这段时间内一个普通 cpu 执行几千万个周期应该没问题</p>
+<p>因此异步IO就要发挥作用了，比如用多线程，如果用 Java 去读一个文件，这是一个阻塞的操作，在等待数据返回的过程中什么也干不了，因此就开一个新的线程来处理文件读取，读取操作结束后再去通知主线程。</p>
+<p>这样虽然行得通，但是代码写起来比较麻烦。像 Node.js V8 这种无法开一个线程的怎么办？</p>
+<p>先看下面函数执行过程</p>
+<h2 id="栈-Stack"><a href="#栈-Stack" class="headerlink" title="栈 Stack"></a>栈 Stack</h2><p>当我们调用一个函数，它的地址、参数、局部变量都会压入到一个 stack 中</p>
+<pre><code>function fire() {
+    const result = sumSqrt(3, 4)
+    console.log(result);
+}
+function sumSqrt(x, y) {
+    const s1 = square(x)
+    const s2 = square(y)
+    const sum = s1 + s2;
+    return Math.sqrt(sum)
+}
+function square(x) {
+    return x * x;
+}
+
+fire()
+</code></pre><blockquote>
+<p>下面的图都是用 keynote 做的 <a href="https://link.zhihu.com/?target=https%3A//github.com/ccforward/cc/blob/master/Blog/pic/event-loop.key" target="_blank" rel="noopener">keynote地址</a></p>
+</blockquote>
+<p>函数 <code>fire</code> 首先被调用</p>
+<p><img src="https://pic3.zhimg.com/v2-a3840ed51ad7ccaedb915e05b087e1e4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-a3840ed51ad7ccaedb915e05b087e1e4_hd.jpg" alt=""></p>
+<p><code>fire</code> 调用 <code>sumSqrt</code> 函数 参数为3和4</p>
+<p><img src="https://pic4.zhimg.com/v2-5871549477044a0e7a657f9a16e9367c_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-5871549477044a0e7a657f9a16e9367c_hd.jpg" alt=""></p>
+<p>之后调用 <code>square</code> 参数为 x, x==3</p>
+<p><img src="https://pic2.zhimg.com/v2-ced7e64c06861509c593cdb0cfbc594e_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-ced7e64c06861509c593cdb0cfbc594e_hd.jpg" alt=""></p>
+<p>当 <code>square</code> 执行结束返回时，从 stack 中弹出，并将返回值赋值给 s1<br>s1加入到 sumSqrt 的 stack frame 中</p>
+<p><img src="https://pic2.zhimg.com/v2-0f214a42ee6c2226c343edb7431116be_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-0f214a42ee6c2226c343edb7431116be_hd.jpg" alt=""></p>
+<p>以同样的方式调用下一个 <code>square</code> 函数</p>
+<p><img src="https://pic4.zhimg.com/v2-6488db685f7ba396d9bb72b80daf0465_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-6488db685f7ba396d9bb72b80daf0465_hd.jpg" alt=""></p>
+<p><img src="https://pic1.zhimg.com/v2-4900e4ce2e398d085ceb6f2ea31ad6d9_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-4900e4ce2e398d085ceb6f2ea31ad6d9_hd.jpg" alt=""></p>
+<p>在下一行的表达式中计算出 s1+s2 并赋值给 sum</p>
+<p><img src="https://pic3.zhimg.com/v2-0045b1427a3fd41aa31cbac4271b6200_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-0045b1427a3fd41aa31cbac4271b6200_hd.jpg" alt=""></p>
+<p>之后调用 <code>Math.sqrt</code> 参数为sum</p>
+<p><img src="https://pic4.zhimg.com/v2-89dc079ce6308a32fbf78c29b67c4985_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-89dc079ce6308a32fbf78c29b67c4985_hd.jpg" alt=""></p>
+<p>现在就剩下 <code>sumSqrt</code> 函数返回计算结果了</p>
+<p><img src="https://pic2.zhimg.com/v2-3fe1e6705f665c11f3c350bdd4f643c9_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-3fe1e6705f665c11f3c350bdd4f643c9_hd.jpg" alt=""></p>
+<p>返回值赋值给 result</p>
+<p><img src="https://pic4.zhimg.com/v2-d55914f97f05518c2f31b10909efb4f4_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-d55914f97f05518c2f31b10909efb4f4_hd.jpg" alt=""></p>
+<p>在 console 中打印出 result</p>
+<p><img src="https://pic3.zhimg.com/v2-99d7b0ece63e888549b258944fe0e1e4_b.jpg" alt=""><img src="https://pic3.zhimg.com/80/v2-99d7b0ece63e888549b258944fe0e1e4_hd.jpg" alt=""></p>
+<p>最终 <code>fire</code> 没有任何返回值 从stack中弹出 stack也清空了</p>
+<p><img src="https://pic4.zhimg.com/v2-bd4e4983cbba11fe080913f2a1d0ef43_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-bd4e4983cbba11fe080913f2a1d0ef43_hd.jpg" alt=""></p>
+<p>当函数执行完毕后本地变量会从 stack 中弹出，这只有在使用 numbers string boolean 这种基本数据类型时才会发生。而对象、数组的值是存在于 heap(堆) 中的，stack 只存放了他们对应的指针。</p>
+<p>当函数之行结束从 stack 中弹出来时，只有对象的指针被弹出，而真正的值依然存在 heap 中，然后由垃圾回收器自动的清理回收。</p>
+<h2 id="事件循环"><a href="#事件循环" class="headerlink" title="事件循环"></a>事件循环</h2><p>通过一个例子来了解函数的执行顺序</p>
+<pre><code>&apos;use strict&apos;
+
+const express = require(&apos;express&apos;)
+const superagent = require(&apos;superagent&apos;)
+const app = express()
+
+app.get(&apos;/&apos;, getArticle)
+
+function getArticle(req, res) {
+    fetchArticle(req, res)
+    print()
+}
+
+const aids = [4564824, 4506868, 4767667, 4856099, 7456996];
+
+function fetchArticle(req, res) {
+    const aid = aids[Math.floor(Math.random() * aids.length)]
+    superagent.get(`http://news-at.zhihu.com/api/4/news/${aid}`)
+        .end((err, res) =&gt; {
+            if(err) {
+                console.log(&apos;error ......&apos;);
+                return res.status(500).send(&apos;an error ......&apos;)
+            }
+            const article = res.body
+            res.send(article)
+            console.log(&apos;Got an article&apos;)
+        })
+
+    console.log(&apos;Now is fetching an article&apos;)
+}
+
+function print(){
+    console.log(&apos;Print something&apos;)
+}
+
+
+app.listen(&apos;5000&apos;)
+</code></pre><p>请求 <code>http://localhost:5000/</code> 后打印出</p>
+<pre><code>Now is fetching an article
+
+Print something
+
+Got an article
+</code></pre><p>虽然 V8 是单线程的，但底层的 C++ API 却不是。这意味着当我们执行一些非阻塞的操作，Node会调用一些代码，与引擎里的js代码同时执行。一旦这个隐藏的线程收到了等待的返回值或者抛出一个异常，之前提供的回调函数就会执行。</p>
+<p>上面的说的Node调用的一些代码其实就是 <a href="https://link.zhihu.com/?target=https%3A//github.com/libuv/libuv" target="_blank" rel="noopener">libuv</a>，一个开源的跨平台的异步 I/O 。最初就是为 Node.js 开发的，现在<a href="https://link.zhihu.com/?target=https%3A//github.com/libuv/libuv/wiki/Projects-that-use-libuv" target="_blank" rel="noopener">很多项目</a>都在用</p>
+<h2 id="任务队列"><a href="#任务队列" class="headerlink" title="任务队列"></a>任务队列</h2><p>javascript 是单线程事件驱动的语言，那我们可以给时间添加监听器，当事件触发时，监听器就能执行回调函数。</p>
+<p>当我们去调用 <code>setTimeout`</code>http.get<code></code>fs.readFile`, Node.js 会把这些定时器、http、IO操作发送给另一个线程以保证V8继续执行我们的代码。</p>
+<p>然而我们只有一个主线程和一个 call-stack ，这样当一个读取文件的操作还在执行时，有一个网络请求request过来，那这时他的回调就需要等stack变空才能执行。</p>
+<p>回调函数正在等待轮到自己执行所排的队就被称为任务队列(或者事件队列、消息队列)。每当主线程完成前一个任务，回调函数就会在一个无限循环圈里被调用，因此这个圈被称为事件循环。</p>
+<p>我们前面那个获取文章的例子的执行顺序就会如下：</p>
+<ol>
+<li>express 给 request 事件注册了一个 handler，并且当请求到达路径 ‘/‘ 时来触发handler</li>
+<li>调过各个函数并且在端口 5000 上启动监听</li>
+<li>stack 为空，等待 <code>request</code> 事件触发</li>
+<li>根据传入的请求，事件触发，express 调用之前提供的函数 <code>getArticle</code></li>
+<li><code>getArticle</code> 压入(push) stack</li>
+<li><code>fetchArticle</code> 被调用 同时压入 stack</li>
+<li><code>Math.floor</code> 和 <code>Math.random</code> 被调用压入 stack 然后再 弹出(pop), 从 aids 里面取出的一个值被赋值给变量 aid</li>
+<li><code>superagent.get</code> 被执行，参数为 <code>&#39;http://news-at.zhihu.com/api/4/news/${aid}&#39;</code> ,并且回调函数注册给了 <code>end</code> 事件</li>
+<li>到 <code>http://news-at.zhihu.com/api/4/news/${aid}</code> 的HTTP请求被发送到后台线程，然后函数继续往下执行</li>
+<li><code>&#39;Now is fetching an article&#39;</code> 打印在 console 中。 函数 <code>fetchArticle</code> 返回</li>
+<li><code>print</code> 函数被调用, <code>&#39;Print something&#39;</code> 打印在 console 中</li>
+<li>函数 <code>getArticle</code> 返回，并从 stack 中弹出， stack 为空</li>
+<li>等待 <code>http://news-at.zhihu.com/api/4/news/${aid}</code> 发送相应信息</li>
+<li>响应信息到达，<code>end</code> 事件被触发</li>
+<li>注册给 <code>end</code> 事件的匿名回调函数被执行，这个匿名函数和他闭包中的所有变量压入 stack，这意味着这个匿名函数可以访问并修改 <code>express</code>, <code>superagent</code>, <code>app</code>, <code>aids</code>, <code>req</code>, <code>res</code>, <code>aid</code> 的值以及之前所有已经定义的函数</li>
+<li>函数 <code>res.send()</code> 伴随着 200 或 500 的状态码被执行，但同时又被放入到后台线程中，因此 响应流 不会阻塞我们函数的执行。匿名函数也被 pop 出 stack。</li>
+</ol>
+<h2 id="Microtasks-Macrotasks"><a href="#Microtasks-Macrotasks" class="headerlink" title="Microtasks Macrotasks"></a>Microtasks Macrotasks</h2><p>任务队列不止一个，还有 microtasks 和 macrotasks</p>
+<p>microtasks:</p>
+<ul>
+<li>process.nextTick</li>
+<li>promise</li>
+<li>Object.observe</li>
+</ul>
+<p>macrotasks:</p>
+<ul>
+<li>setTimeout</li>
+<li>setInterval</li>
+<li>setImmediate</li>
+<li>I/O</li>
+</ul>
+<p>这两个的详细区别下一篇再写，先看一段代码</p>
+<pre><code>console.log(&apos;start&apos;)
+
+const interval = setInterval(() =&gt; {  
+  console.log(&apos;setInterval&apos;)
+}, 0)
+
+setTimeout(() =&gt; {  
+  console.log(&apos;setTimeout 1&apos;)
+  Promise.resolve()
+      .then(() =&gt; {
+        console.log(&apos;promise 3&apos;)
+      })
+      .then(() =&gt; {
+        console.log(&apos;promise 4&apos;)
+      })
+      .then(() =&gt; {
+        setTimeout(() =&gt; {
+          console.log(&apos;setTimeout 2&apos;)
+          Promise.resolve()
+              .then(() =&gt; {
+                console.log(&apos;promise 5&apos;)
+              })
+              .then(() =&gt; {
+                console.log(&apos;promise 6&apos;)
+              })
+              .then(() =&gt; {
+                clearInterval(interval)
+              })
+        }, 0)
+      })
+}, 0)
+
+Promise.resolve()
+    .then(() =&gt; {  
+        console.log(&apos;promise 1&apos;)
+    })
+    .then(() =&gt; {
+        console.log(&apos;promise 2&apos;)
+    })
+</code></pre><p>理解了node的事件循环还是比较容易得出答案的：</p>
+<pre><code>start
+promise 1
+promise 2
+setInterval
+setTimeout 1
+promise 3
+promise 4
+setInterval
+setTimeout 2
+promise 5
+promise 6
+</code></pre><p>根据 <a href="https://link.zhihu.com/?target=https%3A//html.spec.whatwg.org/multipage/webappapis.html%23task-queue" target="_blank" rel="noopener">WHATVG</a> 的说明，在一个事件循环的周期(cycle)中一个 (macro)task 应该从 macrotask 队列开始执行。当这个 macrotask 结束后，所有的 microtasks 将在同一个 cycle 中执行。在 microtasks 执行时还可以加入更多的 microtask，然后一个一个的执行，直到 microtask 队列清空。</p>
+<p>规范理解起来有点晦涩，来看下上面的例子</p>
+<h2 id="Cycle-1"><a href="#Cycle-1" class="headerlink" title="Cycle 1"></a>Cycle 1</h2><p>1)<code>setInterval</code> 被列为 task</p>
+<p>2)<code>setTimeout 1</code> 被列为 task</p>
+<p>3)<code>Promise.resolve 1</code> 中两个 <code>then</code> 被列为 microtask</p>
+<p>4) stack 清空 microtasks 执行</p>
+<p>任务队列： <code>setInterval`</code>setTimeout 1`</p>
+<h2 id="Cycle-2"><a href="#Cycle-2" class="headerlink" title="Cycle 2"></a>Cycle 2</h2><p>5) microtasks 队列清空 <code>setInteval</code> 的回调可以执行。另一个 <code>setInterval</code> 被列为 task , 位于 <code>setTimeout 1</code>后面</p>
+<p>任务队列： <code>setTimeout 1`</code>setInterval`</p>
+<h2 id="Cycle-3"><a href="#Cycle-3" class="headerlink" title="Cycle 3"></a>Cycle 3</h2><p>6) microtask 队列清空，<code>setTimeout 1</code> 的回调可以执行，<code>promise 3</code> 和 <code>promise 4</code> 被列为 microtasks</p>
+<p>7)<code>promise 3</code> 和 <code>promise 4</code> 执行。 <code>setTimeout 2</code> 被列为 task</p>
+<p>任务队列 <code>setInterval`</code>setTimeout 2`</p>
+<h2 id="Cycle-4"><a href="#Cycle-4" class="headerlink" title="Cycle 4"></a>Cycle 4</h2><p>8) microtask 队列清空 <code>setInteval</code> 的回调可以执行。然后另一个 <code>setInterval</code> 被列为 task ，位于 <code>setTimeout 2</code> 后面</p>
+<p>任务队列： <code>setTimeout 2`</code>setInterval`</p>
+<p>9)<code>setTimeout 2</code> 的回调执行， <code>promise 5</code> 和 <code>promise 6</code> 被列为 microtasks</p>
+<p>现在 <code>promise 5</code> 和 <code>promise 6</code> 的回调应该执行，并且 clear 掉 <code>interval</code>。 但有的时候不知道为什么 <code>setInterval</code> 还会在执行一遍，变成下面结果</p>
+<pre><code>...
+setTimeout 2
+setInterval
+promise 5
+promise 6
+</code></pre><p>但是把上面的代码放入 chrome console 中执行却没有问题。这一点还要再根据不同的 node版本 查一下。</p>
+<h2 id="关于-macrotask-和-microtask"><a href="#关于-macrotask-和-microtask" class="headerlink" title="关于 macrotask 和 microtask"></a>关于 macrotask 和 microtask</h2><p>用例子简单理解了下 macrotask 和 microtask</p>
+<p>这里再详细的总结下两者的区别和使用</p>
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>一个事件循环(EventLoop)中会有一个正在执行的任务(Task)，而这个任务就是从 macrotask 队列中来的。在<a href="https://link.zhihu.com/?target=https%3A//html.spec.whatwg.org/multipage/webappapis.html%23task-queue" target="_blank" rel="noopener">whatwg规范</a>中有 queue 就是任务队列。当这个 macrotask 执行结束后所有可用的 microtask 将会在同一个事件循环中执行，当这些 microtask 执行结束后还能继续添加 microtask 一直到真个 microtask 队列执行结束。</p>
+<h2 id="怎么用"><a href="#怎么用" class="headerlink" title="怎么用"></a>怎么用</h2><p>基本来说，当我们想以同步的方式来处理异步任务时候就用 microtask（比如我们需要直接在某段代码后就去执行某个任务，就像Promise一样）。</p>
+<p>其他情况就直接用 macrotask。</p>
+<h2 id="两者的具体实现"><a href="#两者的具体实现" class="headerlink" title="两者的具体实现"></a>两者的具体实现</h2><ul>
+<li>macrotasks: setTimeout setInterval setImmediate I/O UI渲染</li>
+<li>microtasks: Promise process.nextTick Object.observe MutationObserver</li>
+</ul>
+<h2 id="从规范中理解"><a href="#从规范中理解" class="headerlink" title="从规范中理解"></a>从规范中理解</h2><p>whatwg规范：<a href="https://link.zhihu.com/?target=https%3A//html.spec.whatwg.org/multipage/webappapis.html%23task-queue" target="_blank" rel="noopener">https://html.spec.whatwg.org/multipage/webappapis.html#task-queue</a></p>
+<ul>
+<li>一个事件循环(event loop)会有一个或多个任务队列(task queue) task queue 就是 macrotask queue</li>
+<li>每一个 event loop 都有一个 microtask queue</li>
+<li>task queue == macrotask queue != microtask queue</li>
+<li>一个任务 task 可以放入 macrotask queue 也可以放入 microtask queue 中</li>
+<li>当一个 task 被放入队列 queue(macro或micro) 那这个 task 就可以被立即执行了</li>
+</ul>
+<p>再来回顾下事件循环如何执行一个任务的流程</p>
+<p>当执行栈(call stack)为空的时候，开始依次执行：</p>
+<ol>
+<li>把最早的任务(task A)放入任务队列</li>
+<li>如果 task A 为null (那任务队列就是空)，直接跳到第6步</li>
+<li>将 currently running task 设置为 task A</li>
+<li>执行 task A (也就是执行回调函数)</li>
+<li>将 currently running task 设置为 null 并移出 task A</li>
+<li>执行 microtask 队列</li>
+</ol>
+<ul>
+<li>a: 在 microtask 中选出最早的任务 task X</li>
+<li>b: 如果 task X 为null (那 microtask 队列就是空)，直接跳到 g</li>
+<li>c: 将 currently running task 设置为 task X</li>
+<li>d: 执行 task X</li>
+<li>e: 将 currently running task 设置为 null 并移出 task X</li>
+<li>f: 在 microtask 中选出最早的任务 , 跳到 b</li>
+<li>g: 结束 microtask 队列</li>
+</ul>
+<ol>
+<li>跳到第一步</li>
+</ol>
+<p>上面就算是一个简单的 event-loop 执行模型</p>
+<p>再简单点可以总结为：</p>
+<ol>
+<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
+<li>执行 microtask 队列中所有可用的任务，然后移出</li>
+<li>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</li>
+</ol>
+<h2 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h2><ul>
+<li>当一个task(在 macrotask 队列中)正处于执行状态，也可能会有新的事件被注册，那就会有新的 task 被创建。比如下面两个</li>
+</ul>
+<ol>
+<li>promiseA.then() 的回调就是一个 task</li>
+</ol>
+<ul>
+<li>promiseA 是 resolved或rejected: 那这个 task 就会放入当前事件循环回合的 microtask queue</li>
+<li>promiseA 是 pending: 这个 task 就会放入 事件循环的未来的某个(可能下一个)回合的 microtask queue 中</li>
+<li><p>setTimeout 的回调也是个 task ，它会被放入 macrotask queue 即使是 0ms 的情况</p>
+</li>
+<li><p>microtask queue 中的 task 会在事件循环的当前回合中执行，因此 macrotask queue 中的 task 就只能等到事件循环的下一个回合中执行了</p>
+</li>
+<li>click ajax setTimeout 的回调是都是 task, 同时，包裹在一个 script 标签中的js代码也是一个 task 确切说是 macrotask。</li>
+</ul>
+<p>两者的具体实现</p>
+<ul>
+<li>macrotasks: setTimeout ，setInterval， setImmediate， I/O ，UI渲染，requestAnimationFrame</li>
+<li>microtasks: Promise， process.nextTick， Object.observe， MutationObserver</li>
+</ul>
+<p>再简单点可以总结为：<br><img src="https://pic1.zhimg.com/v2-e92a4f5f686d115832b63b9b9e3ac2cd_b.jpg" alt=""><img src="https://pic1.zhimg.com/80/v2-e92a4f5f686d115832b63b9b9e3ac2cd_hd.jpg" alt=""></p>
+<ol>
+<li>在 macrotask 队列中执行最早的那个 task ，然后移出</li>
+<li>再执行 microtask 队列中所有可用的任务，然后移出</li>
+<li>下一个循环，执行下一个 macrotask 中的任务 (再跳到第2步)</li>
+</ol>
+<p>这里解释一下，一共有Promise、MutationObserver以及setTimeout三种尝试得到timerFunc的方法。<br>优先使用Promise，在Promise不存在的情况下使用MutationObserver，这两个方法的回调函数都会在microtask中执行，它们会比setTimeout更早执行，所以优先使用。<br>如果上述两种方法都不支持的环境则会使用setTimeout，在task尾部推入这个函数，等待调用执行。</p>
+<p>为什么要优先使用microtask？我在顾轶灵在知乎的回答中学习到：</p>
+<blockquote>
+<p>JS 的 event loop 执行时会区分 task 和 microtask，引擎在每个 task 执行完毕，从队列中取下一个 task 来执行之前，会先执行完所有 microtask 队列中的 microtask。<br>setTimeout 回调会被分配到一个新的 task 中执行，而 Promise 的 resolver、 MutationObserver 的回调都会被安排到一个新的 microtask 中执行，会比 setTimeout 产生的 task 先执行。<br>要创建一个新的 microtask，优先使用 Promise，如果浏览器不支持，再尝试 MutationObserver。<br>实在不行，只能用 setTimeout 创建 task 了。<br>为啥要用 microtask？<br>根据 HTML Standard，在每个 task 运行完以后，UI 都会重渲染，那么在 microtask 中就完成数据更新，当前 task 结束就可以得到最新的 UI 了。<br>反之如果新建一个 task 来做数据更新，那么渲染就会进行两次。</p>
+</blockquote>
+<p>首先是Promise，(Promise.resolve()).then()可以在microtask中加入它的回调，</p>
+<p>MutationObserver新建一个textNode的DOM对象，用MutationObserver绑定该DOM并指定回调函数，在DOM变化的时候则会触发回调,该回调会进入microtask，即textNode.data = String(counter)时便会加入该回调。</p>
+<p>setTimeout是最后的一种备选方案，并且默认有4ms延时，setTimeout延时0不会老老实实立即执行：</p>
+<pre><code>setTimeout(function(){
+    console.log(&quot;我不是立即执行的,一般我会延时4ms,哈哈&quot;);
+},0);
+</code></pre><p>它会将回调函数加入task中，等到执行。<br><img src="https://pic2.zhimg.com/v2-59cf9f88d7daac690d39edfb9fffc8b8_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-59cf9f88d7daac690d39edfb9fffc8b8_hd.jpg" alt=""></p>
+<pre><code>setTimeout(function(){console.log(4)},0);
+new Promise(function(resolve){
+    console.log(1)
+    for( var i=0 ; i&lt;10000 ; i++ ){
+        i==9999 &amp;&amp; resolve()
+    }
+    console.log(2)
+}).then(function(){
+    console.log(5)
+});
+console.log(3);
+结果是：
+1,2,3,5,4
+</code></pre><p>再看这个，两个自执行同时执行：</p>
+<pre><code>&lt;script&gt;
+(function test() {
+  setTimeout(function () {
+    console.log(4)
+  }, 0);
+  new Promise(function executor (resolve) {
+    console.log(1);
+    for(var i = 0; i &lt; 10000; i++) {
+      i == 9999 &amp;&amp; resolve();
+    }
+    console.log(2);
+  }).then(function() {
+    console.log(5);
+  });
+  console.log(3);
+})()
+
+(function test2() {
+  setTimeout(function () {
+    console.log(42)
+  }, 0);
+  new Promise(function executor (resolve) {
+    console.log(12);
+    for(var i = 0; i &lt; 10000; i++) {
+      i == 9999 &amp;&amp; resolve();
+    }
+    console.log(22);
+  }).then(function() {
+    console.log(52);
+  });
+  console.log(32);
+})()
+&lt;/script&gt;
+</code></pre><p><img src="https://pic2.zhimg.com/v2-cd18c572eb05069895ede7e34388bb8d_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-cd18c572eb05069895ede7e34388bb8d_hd.jpg" alt=""><img src="https://pic3.zhimg.com/v2-afcb6fa6fb862818359f757107b769ab_b.jpg" alt=""><br>整个执行过程是一个 main thread 【<a href="https://link.zhihu.com/?target=http%3A//www.baidu.com/link%3Furl%3DCV-egCVH8yK1w-ilUqGsztryG8s2mbuhAliIC_L1n_-BSZ_KJ16tAfaNkmbcRtU8" target="_blank" rel="noopener">主线程</a>】 ，但并不意味着先执行第一个自执行后再执行第二个，因为两个自执行中的<code>setTimeout</code>进入的是同一个事件循环中等待，因此他俩在最后分别输出了了 4 和 42。</p>
+<p>当一个程序有：setTimeout， setInterval ，setImmediate， I/O， UI渲染，Promise ，process.nextTick， Object.observe， MutationObserver的时候：</p>
+<p>1.先执行 macrotasks：I/O -》 UI渲染</p>
+<p>2.再执行 microtasks ：process.nextTick -》 Promise -》MutationObserver -&gt;Object.observe</p>
+<p>3.再把setTimeout setInterval setImmediate 塞入一个新的macrotasks，依次：</p>
+<p>setTimeout ，setInterval –》setImmediate</p>
+<p>综上，nextTick的目的就是产生一个回调函数加入task或者microtask中，当前栈执行完以后（可能中间还有别的排在前面的函数）调用该回调函数，起到了异步触发（即下一个tick时触发）的目的。</p>
+<pre><code>setImmediate(function(){
+    console.log(1);
+},0);
+setTimeout(function(){
+    console.log(2);
+},0);
+new Promise(function(resolve){
+    console.log(3);
+    resolve();
+    console.log(4);
+}).then(function(){
+    console.log(5);
+});
+console.log(6);
+process.nextTick(function(){
+    console.log(7);
+});
+console.log(8);
+结果是：3 4 6 8 7 5 2 1 
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/30/深入理解ES6  Async Functions/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3752,237 +4239,6 @@ console.log(stu instanceof Person); // true
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/02/21/JS前端错误监控与上报/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/02/21/JS前端错误监控与上报/" itemprop="url">JS前端错误监控与上报</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-02-21T21:13:50+08:00">
-                2018-02-21
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h3 id="我们的目标是什么？"><a href="#我们的目标是什么？" class="headerlink" title="我们的目标是什么？"></a>我们的目标是什么？</h3><p>将用户在使用网页服务时产生的影响用户体验的异常通过网络请求传回服务器，并进行可视化的展现，整个过程要求我们回传的错误信息包含错误类型、调用堆栈等错误信息以便开发人员定位错误。</p>
-<h3 id="需上报的错误类型有几种？"><a href="#需上报的错误类型有几种？" class="headerlink" title="需上报的错误类型有几种？"></a>需上报的错误类型有几种？</h3><ol>
-<li>静态资源加载失败</li>
-<li>AJAX请求失败</li>
-<li>JavaScript异常<ul>
-<li>运行时报错<ul>
-<li>同步错误</li>
-<li>异步错误</li>
-</ul>
-</li>
-<li>语法错误</li>
-</ul>
-</li>
-<li>promise异常</li>
-</ol>
-<h3 id="捕获错误有几种方式？"><a href="#捕获错误有几种方式？" class="headerlink" title="捕获错误有几种方式？"></a>捕获错误有几种方式？</h3><p>这里我总结了几种，分别是：</p>
-<ul>
-<li>onerror全局监听</li>
-<li>addEventListener全局监听</li>
-<li>try…catch主动捕获</li>
-<li>promise…catch主动捕获</li>
-<li>重写<code>XMLHttpRequest</code>对象方法</li>
-<li>MVVM框架例如VUE和React中的官方错误处理方法</li>
-</ul>
-<p>下面分别介绍：</p>
-<h4 id="try-catch"><a href="#try-catch" class="headerlink" title="try catch"></a>try catch</h4><p>使用方法大家应该都知道，使用try…catch可以主动的处理异常，养成在关键操作处写try…catch的习惯可以非常好的帮助后续判断线上遇到的各种异常。</p>
-<p>这里需要指出try catch需要注意的几点：</p>
-<ol>
-<li><p>try-catch 只能捕获到同步的运行时错误，其他类型无法捕获</p>
-<p><strong>解决方案：</strong> onerror都可以捕获到运行时的同步/异步错误</p>
-</li>
-</ol>
-<h4 id="onerror"><a href="#onerror" class="headerlink" title="onerror"></a>onerror</h4><blockquote>
-<p>当JavaScript运行时错误（包括语法错误）发生时，window会触发一个ErrorEvent接口的error事件，并执行window.onerror()。</p>
-</blockquote>
-<p>window.error可以用于全局捕获JavaScript产生的错误，使用方式如下：</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.onerror = <span class="function"><span class="keyword">function</span>(<span class="params">message, source, lineno, colno, error</span>) </span>&#123; </span><br><span class="line">   <span class="comment">// message：错误信息（字符串）。</span></span><br><span class="line">   <span class="comment">// source：发生错误的脚本URL（字符串）</span></span><br><span class="line">   <span class="comment">// lineno：发生错误的行号（数字）</span></span><br><span class="line">   <span class="comment">// colno：发生错误的列号（数字）</span></span><br><span class="line">   <span class="comment">// error：Error对象（对象）</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>但是使用时需要注意几点：</p>
-<ol>
-<li><p><strong>Script Error</strong> </p>
-<p>在单页面应用中，当我们使用script标签引入了JS文件，当该JS文件的来源域名和网页的域名不同时，这时如果该JS文件内部报错，则我们只能捕获到Script Error，而不是详细的错误信息，这是由于浏览器的跨域限制。</p>
-<p><strong>解决方案：</strong></p>
-<ul>
-<li>需要在跨域的script标签中加入<code>crossorigin</code>属性，例如<code>&lt;script type=&quot;text/javascript&quot; src=&quot;example.js&quot; crossorigin&gt;&lt;/script&gt;</code></li>
-<li>需要给跨域资源的服务器的response header设置允许跨域：<code>Access-Control-Allow-Origin:*</code></li>
-</ul>
-</li>
-<li><p>不能全局捕获到资源（如图片或脚本）的加载失败</p>
-<p><strong>解决方案：</strong> 使用<code>window.addEventListener</code>捕获。</p>
-</li>
-<li><p>onerror无法捕获语法错误</p>
-</li>
-<li><p>onerror最好写在所有 JS 脚本的前面，否则有可能捕获不到错误</p>
-</li>
-</ol>
-<h4 id="addEventListener"><a href="#addEventListener" class="headerlink" title="addEventListener"></a>addEventListener</h4><blockquote>
-<p>当一项资源（如图片或脚本）加载失败，加载资源的元素会触发一个Event接口的error事件，并执行该元素上的onerror()处理函数。这些error事件不会向上冒泡到window，不过（至少在Firefox中）能被单一的window.addEventListener捕获。</p>
-</blockquote>
-<p>使用方式如下：</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.addEventListener(<span class="string">'error'</span>, (error) =&gt; &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(error);</span><br><span class="line">&#125;, <span class="literal">true</span>)</span><br></pre></td></tr></table></figure>
-<p><code>window.addEventListener</code>在运行时错误和资源加载错误时返回的错误对象不同，可以参考下面两图：</p>
-<p>运行时错误：</p>
-<p><img src="/2018/02/21/JS前端错误监控与上报/1.jpg" alt=""></p>
-<p>资源加载错误：</p>
-<p><img src="/2018/02/21/JS前端错误监控与上报/2.jpg" alt=""></p>
-<p>使用时需要注意的点：</p>
-<ol>
-<li>不同浏览器下返回的error对象可能不同，需要注意兼容处理。</li>
-<li>需要注意避免addEventListener重复监听。</li>
-</ol>
-<h4 id="promise-catch"><a href="#promise-catch" class="headerlink" title="promise catch"></a>promise catch</h4><p>在promise中使用catch可以非常方便的捕获到异步error，使用方法大家也应该都了解了。</p>
-<p>这里说一下需要注意的点:</p>
-<p>没有写catch的Promise中抛出的错误无法被onerror 或 try-catch捕获到，所以我们务必要在Promise中不要忘记写catch处理抛出的异常。</p>
-<p>   <strong>解决方案：</strong> 为了防止有漏掉的Promise异常，建议在全局增加一个对<code>unhandledrejection</code>的监听，用来全局监听Uncaught Promise Error。使用方式：</p>
-   <figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.addEventListener(<span class="string">"unhandledrejection"</span>, <span class="function"><span class="keyword">function</span>(<span class="params">e</span>)</span>&#123; </span><br><span class="line">	<span class="built_in">console</span>.log(e);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-<h4 id="重写XMLHttpRequest对象的方法"><a href="#重写XMLHttpRequest对象的方法" class="headerlink" title="重写XMLHttpRequest对象的方法"></a>重写<code>XMLHttpRequest</code>对象的方法</h4><p>该方法主要针对AJAX请求异常,附上参考代码：</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="keyword">var</span> _self = <span class="keyword">this</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 重写 open</span></span><br><span class="line">        XMLHttpRequest.prototype.open = <span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">            <span class="comment">// 先在此处取得请求的url、method</span></span><br><span class="line">            _self.reqUrl = <span class="built_in">arguments</span>[<span class="number">1</span>];</span><br><span class="line">            _self.reqMethod = <span class="built_in">arguments</span>[<span class="number">0</span>];</span><br><span class="line">            <span class="comment">// 在调用原生 open 实现重写</span></span><br><span class="line">            _self.xhrOpen.apply(<span class="keyword">this</span>, <span class="built_in">arguments</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 重写 send</span></span><br><span class="line">        XMLHttpRequest.prototype.send = <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">            <span class="comment">// 记录xhr</span></span><br><span class="line">            <span class="keyword">var</span> xhrmsg = &#123;</span><br><span class="line">                <span class="string">'url'</span>: _self.reqUrl,</span><br><span class="line">                <span class="string">'type'</span>: _self.reqMethod,</span><br><span class="line">                <span class="comment">// 此处可以取得 ajax 的请求参数</span></span><br><span class="line">                <span class="string">'data'</span>: <span class="built_in">arguments</span>[<span class="number">0</span>] || &#123;&#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>.addEventListener(<span class="string">'readystatechange'</span>, <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">                <span class="keyword">if</span> (<span class="keyword">this</span>.readyState === <span class="number">4</span>) &#123;</span><br><span class="line">                    <span class="comment">// 此处可以取得一些响应信息</span></span><br><span class="line">                    <span class="comment">// 响应信息</span></span><br><span class="line">                    xhrmsg[<span class="string">'res'</span>] = <span class="keyword">this</span>.response;</span><br><span class="line">                    xhrmsg[<span class="string">'status'</span>] = <span class="keyword">this</span>.status;</span><br><span class="line">                    <span class="keyword">this</span>.status &gt;= <span class="number">200</span> &amp;&amp; <span class="keyword">this</span>.status &lt; <span class="number">400</span> ?</span><br><span class="line">                        xhrmsg[<span class="string">'level'</span>] = <span class="string">'success'</span> : xhrmsg[<span class="string">'level'</span>] = <span class="string">'error'</span>;</span><br><span class="line">                    xhrArray.push(xhrmsg);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line"></span><br><span class="line">            _self.xhrSend.apply(<span class="keyword">this</span>, <span class="built_in">arguments</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-<h4 id="MVVM框架提供的错误处理钩子"><a href="#MVVM框架提供的错误处理钩子" class="headerlink" title="MVVM框架提供的错误处理钩子"></a>MVVM框架提供的错误处理钩子</h4><p>VUE和React都分别提供了对应的错误处理钩子，由于笔者使用VUE多一些，这里介绍一下VUE的错误处理：</p>
-<p><strong>VUE官方文档介绍：</strong></p>
-<blockquote>
-<p>指定组件的渲染和观察期间未捕获错误的处理函数。这个处理函数被调用时，可获取错误信息和 Vue 实例。</p>
-<p> 从 2.2.0 起，这个钩子也会捕获组件生命周期钩子里的错误。同样的，当这个钩子是 <code>undefined</code> 时，被捕获的错误会通过 <code>console.error</code> 输出而避免应用崩溃。</p>
-<p> 从 2.4.0 起这个钩子也会捕获 Vue 自定义事件处理函数内部的错误了。</p>
-</blockquote>
-<p>下面我们看一下实际情况：</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&lt;template&gt;</span><br><span class="line">	&lt;div @click=<span class="string">"clickerror"</span>&gt;error&lt;<span class="regexp">/div&gt;</span></span><br><span class="line"><span class="regexp">&lt;/</span>template&gt;</span><br><span class="line"></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> &#123;</span><br><span class="line">  mounted() &#123;</span><br><span class="line">    <span class="keyword">this</span>.mounterror();</span><br><span class="line">  &#125;,</span><br><span class="line">  methods: &#123;</span><br><span class="line">    mounterror() &#123;</span><br><span class="line">    	<span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">"抛出mount错误"</span>);</span><br><span class="line">    &#125;,</span><br><span class="line">    clickerror() &#123;</span><br><span class="line">		<span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">"抛出click错误"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Vue.config.errorHandler = <span class="function">(<span class="params">err, vm, info</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.error(<span class="string">'通过vue errorHandler捕获的错误'</span>);</span><br><span class="line">  <span class="built_in">console</span>.error(err);</span><br><span class="line">  <span class="built_in">console</span>.error(vm);</span><br><span class="line">  <span class="built_in">console</span>.error(info);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><img src="/2018/02/21/JS前端错误监控与上报/3.jpg" alt=""></p>
-<p>可以看到生命周期钩子里的错误是可以被errorHandler捕获到，但是当我们主动点击div触发clickerror时，会发现这时错误并没有被errorHandler捕获到，控制台输出的是Uncaught Error，也就是没有被捕获到的错误，所以需要注意的是，errorHandler方法目前还捕获不到绑定监听事件触发的异常，但是可以捕获到在生命周期钩子中调用的方法的错误。</p>
-<blockquote>
-<p>在React中，可以使用ErrorBoundary组件包括业务组件的方式进行异常捕获，配合React 16.0+新出的componentDidCatch API，可以实现统一的异常捕获和日志上报。</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">class ErrorBoundary extends React.Component &#123;</span><br><span class="line">  constructor(props) &#123;</span><br><span class="line">    super(props);</span><br><span class="line">    this.state = &#123; hasError: false &#125;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  componentDidCatch(error, info) &#123;</span><br><span class="line">    // Display fallback UI</span><br><span class="line">    this.setState(&#123; hasError: true &#125;);</span><br><span class="line">    // You can also log the error to an error reporting service</span><br><span class="line">    logErrorToMyService(error, info);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  render() &#123;</span><br><span class="line">    if (this.state.hasError) &#123;</span><br><span class="line">      // You can render any custom fallback UI</span><br><span class="line">      return &lt;h1&gt;Something went wrong.&lt;/h1&gt;;</span><br><span class="line">    &#125;</span><br><span class="line">    return this.props.children;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>使用方式如下：</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;ErrorBoundary&gt;</span><br><span class="line">  &lt;MyWidget /&gt;</span><br><span class="line">&lt;/ErrorBoundary&gt;</span><br></pre></td></tr></table></figure>
-<p><strong>解决方案</strong> ：使用window.onerror</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.onerror = <span class="function"><span class="keyword">function</span> (<span class="params">message, source, lineno, colno, error</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.error(<span class="string">'通过onerror捕获到的错误'</span>);</span><br><span class="line">  <span class="built_in">console</span>.error(message);</span><br><span class="line">  <span class="built_in">console</span>.error(source);</span><br><span class="line">  <span class="built_in">console</span>.error(lineno);</span><br><span class="line">  <span class="built_in">console</span>.error(colno);</span><br><span class="line">  <span class="built_in">console</span>.error(error);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在MVVM框架中使用onerror监听全局异常会发现并不能捕获到绑定事件的详细错误信息，只会输出Script Error，</p>
-<p><img src="/2018/02/21/JS前端错误监控与上报/4.jpg" alt=""></p>
-<p>这时我们可以尝试进入webpack配置，设置<code>devtool:&quot;source-map&quot;</code>,这时在控制台再次打印可以看见成功捕获到绑定事件的错误。</p>
-<p><img src="/2018/02/21/JS前端错误监控与上报/5.jpg" alt=""></p>
-<h3 id="错误上报"><a href="#错误上报" class="headerlink" title="错误上报"></a>错误上报</h3><p>两种主流上报方式：</p>
-<ol>
-<li><p>通过Ajax发送数据</p>
-<p>因为Ajax请求本身也有可能会发生异常，而且有可能会引发跨域问题，一般情况下更推荐使用动态创建img标签的形式进行上报。</p>
-</li>
-<li><p>动态创建 img 标签的形式</p>
-</li>
-</ol>
-<p><code>new Image().src = reportUrl + &#39;?msg=&#39; + msg;</code></p>
-<h3 id="前端性能与异常上报"><a href="#前端性能与异常上报" class="headerlink" title="前端性能与异常上报"></a><a href="https://github.com/xingbofeng/xingbofeng.github.io/issues/36" target="_blank" rel="noopener">前端性能与异常上报</a></h3><h3 id="前端性能监控：window-performance"><a href="#前端性能监控：window-performance" class="headerlink" title="前端性能监控：window.performance"></a><a href="https://libin1991.github.io/2016/04/23/%E5%89%8D%E7%AB%AF%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%EF%BC%9Awindow-performance/" target="_blank" rel="noopener">前端性能监控：window.performance</a></h3>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4035,7 +4291,7 @@ console.log(stu instanceof Person); // true
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">153</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -4048,7 +4304,7 @@ console.log(stu instanceof Person); // true
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">107</span>
+                  <span class="site-state-item-count">109</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
