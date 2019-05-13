@@ -694,6 +694,496 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/05/Babel-将-Generator-编译成了什么/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/10/05/Babel-将-Generator-编译成了什么/" itemprop="url">Babel 将 Generator 编译成了什么</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-10-05T21:36:19+08:00">
+                2018-10-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文就是简单介绍下 Generator 语法编译后的代码。</p>
+<h2 id="Generator"><a href="#Generator" class="headerlink" title="Generator"></a>Generator</h2><pre><code>function* helloWorldGenerator() {
+  yield&apos;hello&apos;;
+  yield&apos;world&apos;;
+  return&apos;ending&apos;;
+}
+</code></pre><p>我们打印下执行的结果：</p>
+<pre><code>var hw = helloWorldGenerator();
+
+console.log(hw.next()); // {value: &quot;hello&quot;, done: false}console.log(hw.next()); // {value: &quot;world&quot;, done: false}console.log(hw.next()); // {value: &quot;ending&quot;, done: true}console.log(hw.next()); // {value: undefined, done: true}
+</code></pre><h2 id="Babel"><a href="#Babel" class="headerlink" title="Babel"></a>Babel</h2><p>具体的执行过程就不说了，我们直接在 Babel 官网的 <a href="https://babeljs.io/repl" target="_blank" rel="noopener">Try it out</a> 粘贴上述代码，然后查看代码被编译成了什么样子：</p>
+<pre><code>/**
+ * 我们就称呼这个版本为简单编译版本吧
+ */var _marked = /*#__PURE__*/ regeneratorRuntime.mark(helloWorldGenerator);
+
+functionhelloWorldGenerator() {
+  return regeneratorRuntime.wrap(
+    functionhelloWorldGenerator$(_context) {
+      while (1) {
+        switch ((_context.prev = _context.next)) {
+          case0:
+            _context.next = 2;
+            return&quot;hello&quot;;
+
+          case2:
+            _context.next = 4;
+            return&quot;world&quot;;
+
+          case4:
+            return _context.abrupt(&quot;return&quot;, &quot;ending&quot;);
+
+          case5:
+          case&quot;end&quot;:
+            return _context.stop();
+        }
+      }
+    },
+    _marked,
+    this
+  );
+}
+</code></pre><p>猛一看，好像编译后的代码还蛮少的，但是细细一看，编译后的代码肯定是不能用的呀，<code>regeneratorRuntime</code> 是个什么鬼？哪里有声明呀？<code>mark</code> 和 <code>wrap</code> 方法又都做了什么？</p>
+<p>难道就不能编译一个完整可用的代码吗？</p>
+<h2 id="regenerator"><a href="#regenerator" class="headerlink" title="regenerator"></a>regenerator</h2><p>如果你想看到完整可用的代码，你可以使用 <a href="https://github.com/facebook/regenerator" target="_blank" rel="noopener">regenerator</a>，这是 facebook 下的一个工具，用于编译 ES6 的 generator 函数。</p>
+<p>我们先安装一下 regenerator：</p>
+<pre><code>npm install -g regenerator
+</code></pre><p>然后新建一个 generator.js 文件，里面的代码就是文章最一开始的代码，我们执行命令：</p>
+<pre><code>regenerator --include-runtime generator.js &gt; generator-es5.js
+</code></pre><p>我们就可以在 generator-es5.js 文件看到编译后的完整可用的代码。</p>
+<p>而这一编译就编译了 700 多行…… 编译后的代码可以查看 </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br><span class="line">482</span><br><span class="line">483</span><br><span class="line">484</span><br><span class="line">485</span><br><span class="line">486</span><br><span class="line">487</span><br><span class="line">488</span><br><span class="line">489</span><br><span class="line">490</span><br><span class="line">491</span><br><span class="line">492</span><br><span class="line">493</span><br><span class="line">494</span><br><span class="line">495</span><br><span class="line">496</span><br><span class="line">497</span><br><span class="line">498</span><br><span class="line">499</span><br><span class="line">500</span><br><span class="line">501</span><br><span class="line">502</span><br><span class="line">503</span><br><span class="line">504</span><br><span class="line">505</span><br><span class="line">506</span><br><span class="line">507</span><br><span class="line">508</span><br><span class="line">509</span><br><span class="line">510</span><br><span class="line">511</span><br><span class="line">512</span><br><span class="line">513</span><br><span class="line">514</span><br><span class="line">515</span><br><span class="line">516</span><br><span class="line">517</span><br><span class="line">518</span><br><span class="line">519</span><br><span class="line">520</span><br><span class="line">521</span><br><span class="line">522</span><br><span class="line">523</span><br><span class="line">524</span><br><span class="line">525</span><br><span class="line">526</span><br><span class="line">527</span><br><span class="line">528</span><br><span class="line">529</span><br><span class="line">530</span><br><span class="line">531</span><br><span class="line">532</span><br><span class="line">533</span><br><span class="line">534</span><br><span class="line">535</span><br><span class="line">536</span><br><span class="line">537</span><br><span class="line">538</span><br><span class="line">539</span><br><span class="line">540</span><br><span class="line">541</span><br><span class="line">542</span><br><span class="line">543</span><br><span class="line">544</span><br><span class="line">545</span><br><span class="line">546</span><br><span class="line">547</span><br><span class="line">548</span><br><span class="line">549</span><br><span class="line">550</span><br><span class="line">551</span><br><span class="line">552</span><br><span class="line">553</span><br><span class="line">554</span><br><span class="line">555</span><br><span class="line">556</span><br><span class="line">557</span><br><span class="line">558</span><br><span class="line">559</span><br><span class="line">560</span><br><span class="line">561</span><br><span class="line">562</span><br><span class="line">563</span><br><span class="line">564</span><br><span class="line">565</span><br><span class="line">566</span><br><span class="line">567</span><br><span class="line">568</span><br><span class="line">569</span><br><span class="line">570</span><br><span class="line">571</span><br><span class="line">572</span><br><span class="line">573</span><br><span class="line">574</span><br><span class="line">575</span><br><span class="line">576</span><br><span class="line">577</span><br><span class="line">578</span><br><span class="line">579</span><br><span class="line">580</span><br><span class="line">581</span><br><span class="line">582</span><br><span class="line">583</span><br><span class="line">584</span><br><span class="line">585</span><br><span class="line">586</span><br><span class="line">587</span><br><span class="line">588</span><br><span class="line">589</span><br><span class="line">590</span><br><span class="line">591</span><br><span class="line">592</span><br><span class="line">593</span><br><span class="line">594</span><br><span class="line">595</span><br><span class="line">596</span><br><span class="line">597</span><br><span class="line">598</span><br><span class="line">599</span><br><span class="line">600</span><br><span class="line">601</span><br><span class="line">602</span><br><span class="line">603</span><br><span class="line">604</span><br><span class="line">605</span><br><span class="line">606</span><br><span class="line">607</span><br><span class="line">608</span><br><span class="line">609</span><br><span class="line">610</span><br><span class="line">611</span><br><span class="line">612</span><br><span class="line">613</span><br><span class="line">614</span><br><span class="line">615</span><br><span class="line">616</span><br><span class="line">617</span><br><span class="line">618</span><br><span class="line">619</span><br><span class="line">620</span><br><span class="line">621</span><br><span class="line">622</span><br><span class="line">623</span><br><span class="line">624</span><br><span class="line">625</span><br><span class="line">626</span><br><span class="line">627</span><br><span class="line">628</span><br><span class="line">629</span><br><span class="line">630</span><br><span class="line">631</span><br><span class="line">632</span><br><span class="line">633</span><br><span class="line">634</span><br><span class="line">635</span><br><span class="line">636</span><br><span class="line">637</span><br><span class="line">638</span><br><span class="line">639</span><br><span class="line">640</span><br><span class="line">641</span><br><span class="line">642</span><br><span class="line">643</span><br><span class="line">644</span><br><span class="line">645</span><br><span class="line">646</span><br><span class="line">647</span><br><span class="line">648</span><br><span class="line">649</span><br><span class="line">650</span><br><span class="line">651</span><br><span class="line">652</span><br><span class="line">653</span><br><span class="line">654</span><br><span class="line">655</span><br><span class="line">656</span><br><span class="line">657</span><br><span class="line">658</span><br><span class="line">659</span><br><span class="line">660</span><br><span class="line">661</span><br><span class="line">662</span><br><span class="line">663</span><br><span class="line">664</span><br><span class="line">665</span><br><span class="line">666</span><br><span class="line">667</span><br><span class="line">668</span><br><span class="line">669</span><br><span class="line">670</span><br><span class="line">671</span><br><span class="line">672</span><br><span class="line">673</span><br><span class="line">674</span><br><span class="line">675</span><br><span class="line">676</span><br><span class="line">677</span><br><span class="line">678</span><br><span class="line">679</span><br><span class="line">680</span><br><span class="line">681</span><br><span class="line">682</span><br><span class="line">683</span><br><span class="line">684</span><br><span class="line">685</span><br><span class="line">686</span><br><span class="line">687</span><br><span class="line">688</span><br><span class="line">689</span><br><span class="line">690</span><br><span class="line">691</span><br><span class="line">692</span><br><span class="line">693</span><br><span class="line">694</span><br><span class="line">695</span><br><span class="line">696</span><br><span class="line">697</span><br><span class="line">698</span><br><span class="line">699</span><br><span class="line">700</span><br><span class="line">701</span><br><span class="line">702</span><br><span class="line">703</span><br><span class="line">704</span><br><span class="line">705</span><br><span class="line">706</span><br><span class="line">707</span><br><span class="line">708</span><br><span class="line">709</span><br><span class="line">710</span><br><span class="line">711</span><br><span class="line">712</span><br><span class="line">713</span><br><span class="line">714</span><br><span class="line">715</span><br><span class="line">716</span><br><span class="line">717</span><br><span class="line">718</span><br><span class="line">719</span><br><span class="line">720</span><br><span class="line">721</span><br><span class="line">722</span><br><span class="line">723</span><br><span class="line">724</span><br><span class="line">725</span><br><span class="line">726</span><br><span class="line">727</span><br><span class="line">728</span><br><span class="line">729</span><br><span class="line">730</span><br><span class="line">731</span><br><span class="line">732</span><br><span class="line">733</span><br><span class="line">734</span><br><span class="line">735</span><br><span class="line">736</span><br><span class="line">737</span><br><span class="line">738</span><br><span class="line">739</span><br><span class="line">740</span><br><span class="line">741</span><br><span class="line">742</span><br><span class="line">743</span><br><span class="line">744</span><br><span class="line">745</span><br><span class="line">746</span><br><span class="line">747</span><br><span class="line">748</span><br><span class="line">749</span><br><span class="line">750</span><br><span class="line">751</span><br><span class="line">752</span><br><span class="line">753</span><br><span class="line">754</span><br><span class="line">755</span><br><span class="line">756</span><br><span class="line">757</span><br></pre></td><td class="code"><pre><span class="line">/**</span><br><span class="line"> * Copyright (c) 2014-present, Facebook, Inc.</span><br><span class="line"> *</span><br><span class="line"> * This source code is licensed under the MIT license found in the</span><br><span class="line"> * LICENSE file in the root directory of this source tree.</span><br><span class="line"> */</span><br><span class="line"></span><br><span class="line">!(function(global) &#123;</span><br><span class="line">  &quot;use strict&quot;;</span><br><span class="line"></span><br><span class="line">  var Op = Object.prototype;</span><br><span class="line">  var hasOwn = Op.hasOwnProperty;</span><br><span class="line">  var undefined; // More compressible than void 0.</span><br><span class="line">  var $Symbol = typeof Symbol === &quot;function&quot; ? Symbol : &#123;&#125;;</span><br><span class="line">  var iteratorSymbol = $Symbol.iterator || &quot;@@iterator&quot;;</span><br><span class="line">  var asyncIteratorSymbol = $Symbol.asyncIterator || &quot;@@asyncIterator&quot;;</span><br><span class="line">  var toStringTagSymbol = $Symbol.toStringTag || &quot;@@toStringTag&quot;;</span><br><span class="line"></span><br><span class="line">  var inModule = typeof module === &quot;object&quot;;</span><br><span class="line">  var runtime = global.regeneratorRuntime;</span><br><span class="line">  if (runtime) &#123;</span><br><span class="line">    if (inModule) &#123;</span><br><span class="line">      // If regeneratorRuntime is defined globally and we&apos;re in a module,</span><br><span class="line">      // make the exports object identical to regeneratorRuntime.</span><br><span class="line">      module.exports = runtime;</span><br><span class="line">    &#125;</span><br><span class="line">    // Don&apos;t bother evaluating the rest of this file if the runtime was</span><br><span class="line">    // already defined globally.</span><br><span class="line">    return;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // Define the runtime globally (as expected by generated code) as either</span><br><span class="line">  // module.exports (if we&apos;re in a module) or a new, empty object.</span><br><span class="line">  runtime = global.regeneratorRuntime = inModule ? module.exports : &#123;&#125;;</span><br><span class="line"></span><br><span class="line">  function wrap(innerFn, outerFn, self, tryLocsList) &#123;</span><br><span class="line">    // If outerFn provided and outerFn.prototype is a Generator, then outerFn.prototype instanceof Generator.</span><br><span class="line">    var protoGenerator = outerFn &amp;&amp; outerFn.prototype instanceof Generator ? outerFn : Generator;</span><br><span class="line">    var generator = Object.create(protoGenerator.prototype);</span><br><span class="line">    var context = new Context(tryLocsList || []);</span><br><span class="line"></span><br><span class="line">    // The ._invoke method unifies the implementations of the .next,</span><br><span class="line">    // .throw, and .return methods.</span><br><span class="line">    generator._invoke = makeInvokeMethod(innerFn, self, context);</span><br><span class="line"></span><br><span class="line">    return generator;</span><br><span class="line">  &#125;</span><br><span class="line">  runtime.wrap = wrap;</span><br><span class="line"></span><br><span class="line">  // Try/catch helper to minimize deoptimizations. Returns a completion</span><br><span class="line">  // record like context.tryEntries[i].completion. This interface could</span><br><span class="line">  // have been (and was previously) designed to take a closure to be</span><br><span class="line">  // invoked without arguments, but in all the cases we care about we</span><br><span class="line">  // already have an existing method we want to call, so there&apos;s no need</span><br><span class="line">  // to create a new function object. We can even get away with assuming</span><br><span class="line">  // the method takes exactly one argument, since that happens to be true</span><br><span class="line">  // in every case, so we don&apos;t have to touch the arguments object. The</span><br><span class="line">  // only additional allocation required is the completion record, which</span><br><span class="line">  // has a stable shape and so hopefully should be cheap to allocate.</span><br><span class="line">  function tryCatch(fn, obj, arg) &#123;</span><br><span class="line">    try &#123;</span><br><span class="line">      return &#123; type: &quot;normal&quot;, arg: fn.call(obj, arg) &#125;;</span><br><span class="line">    &#125; catch (err) &#123;</span><br><span class="line">      return &#123; type: &quot;throw&quot;, arg: err &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var GenStateSuspendedStart = &quot;suspendedStart&quot;;</span><br><span class="line">  var GenStateSuspendedYield = &quot;suspendedYield&quot;;</span><br><span class="line">  var GenStateExecuting = &quot;executing&quot;;</span><br><span class="line">  var GenStateCompleted = &quot;completed&quot;;</span><br><span class="line"></span><br><span class="line">  // Returning this object from the innerFn has the same effect as</span><br><span class="line">  // breaking out of the dispatch switch statement.</span><br><span class="line">  var ContinueSentinel = &#123;&#125;;</span><br><span class="line"></span><br><span class="line">  // Dummy constructor functions that we use as the .constructor and</span><br><span class="line">  // .constructor.prototype properties for functions that return Generator</span><br><span class="line">  // objects. For full spec compliance, you may wish to configure your</span><br><span class="line">  // minifier not to mangle the names of these two functions.</span><br><span class="line">  function Generator() &#123;&#125;</span><br><span class="line">  function GeneratorFunction() &#123;&#125;</span><br><span class="line">  function GeneratorFunctionPrototype() &#123;&#125;</span><br><span class="line"></span><br><span class="line">  // This is a polyfill for %IteratorPrototype% for environments that</span><br><span class="line">  // don&apos;t natively support it.</span><br><span class="line">  var IteratorPrototype = &#123;&#125;;</span><br><span class="line">  IteratorPrototype[iteratorSymbol] = function () &#123;</span><br><span class="line">    return this;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  var getProto = Object.getPrototypeOf;</span><br><span class="line">  var NativeIteratorPrototype = getProto &amp;&amp; getProto(getProto(values([])));</span><br><span class="line">  if (NativeIteratorPrototype &amp;&amp;</span><br><span class="line">      NativeIteratorPrototype !== Op &amp;&amp;</span><br><span class="line">      hasOwn.call(NativeIteratorPrototype, iteratorSymbol)) &#123;</span><br><span class="line">    // This environment has a native %IteratorPrototype%; use it instead</span><br><span class="line">    // of the polyfill.</span><br><span class="line">    IteratorPrototype = NativeIteratorPrototype;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var Gp = GeneratorFunctionPrototype.prototype =</span><br><span class="line">    Generator.prototype = Object.create(IteratorPrototype);</span><br><span class="line">  GeneratorFunction.prototype = Gp.constructor = GeneratorFunctionPrototype;</span><br><span class="line">  GeneratorFunctionPrototype.constructor = GeneratorFunction;</span><br><span class="line">  GeneratorFunctionPrototype[toStringTagSymbol] =</span><br><span class="line">    GeneratorFunction.displayName = &quot;GeneratorFunction&quot;;</span><br><span class="line"></span><br><span class="line">  // Helper for defining the .next, .throw, and .return methods of the</span><br><span class="line">  // Iterator interface in terms of a single ._invoke method.</span><br><span class="line">  function defineIteratorMethods(prototype) &#123;</span><br><span class="line">    [&quot;next&quot;, &quot;throw&quot;, &quot;return&quot;].forEach(function(method) &#123;</span><br><span class="line">      prototype[method] = function(arg) &#123;</span><br><span class="line">        return this._invoke(method, arg);</span><br><span class="line">      &#125;;</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  runtime.isGeneratorFunction = function(genFun) &#123;</span><br><span class="line">    var ctor = typeof genFun === &quot;function&quot; &amp;&amp; genFun.constructor;</span><br><span class="line">    return ctor</span><br><span class="line">      ? ctor === GeneratorFunction ||</span><br><span class="line">        // For the native GeneratorFunction constructor, the best we can</span><br><span class="line">        // do is to check its .name property.</span><br><span class="line">        (ctor.displayName || ctor.name) === &quot;GeneratorFunction&quot;</span><br><span class="line">      : false;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  runtime.mark = function(genFun) &#123;</span><br><span class="line">    if (Object.setPrototypeOf) &#123;</span><br><span class="line">      Object.setPrototypeOf(genFun, GeneratorFunctionPrototype);</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      genFun.__proto__ = GeneratorFunctionPrototype;</span><br><span class="line">      if (!(toStringTagSymbol in genFun)) &#123;</span><br><span class="line">        genFun[toStringTagSymbol] = &quot;GeneratorFunction&quot;;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    genFun.prototype = Object.create(Gp);</span><br><span class="line">    return genFun;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  // Within the body of any async function, `await x` is transformed to</span><br><span class="line">  // `yield regeneratorRuntime.awrap(x)`, so that the runtime can test</span><br><span class="line">  // `hasOwn.call(value, &quot;__await&quot;)` to determine if the yielded value is</span><br><span class="line">  // meant to be awaited.</span><br><span class="line">  runtime.awrap = function(arg) &#123;</span><br><span class="line">    return &#123; __await: arg &#125;;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  function AsyncIterator(generator) &#123;</span><br><span class="line">    function invoke(method, arg, resolve, reject) &#123;</span><br><span class="line">      var record = tryCatch(generator[method], generator, arg);</span><br><span class="line">      if (record.type === &quot;throw&quot;) &#123;</span><br><span class="line">        reject(record.arg);</span><br><span class="line">      &#125; else &#123;</span><br><span class="line">        var result = record.arg;</span><br><span class="line">        var value = result.value;</span><br><span class="line">        if (value &amp;&amp;</span><br><span class="line">            typeof value === &quot;object&quot; &amp;&amp;</span><br><span class="line">            hasOwn.call(value, &quot;__await&quot;)) &#123;</span><br><span class="line">          return Promise.resolve(value.__await).then(function(value) &#123;</span><br><span class="line">            invoke(&quot;next&quot;, value, resolve, reject);</span><br><span class="line">          &#125;, function(err) &#123;</span><br><span class="line">            invoke(&quot;throw&quot;, err, resolve, reject);</span><br><span class="line">          &#125;);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        return Promise.resolve(value).then(function(unwrapped) &#123;</span><br><span class="line">          // When a yielded Promise is resolved, its final value becomes</span><br><span class="line">          // the .value of the Promise&lt;&#123;value,done&#125;&gt; result for the</span><br><span class="line">          // current iteration.</span><br><span class="line">          result.value = unwrapped;</span><br><span class="line">          resolve(result);</span><br><span class="line">        &#125;, function(error) &#123;</span><br><span class="line">          // If a rejected Promise was yielded, throw the rejection back</span><br><span class="line">          // into the async generator function so it can be handled there.</span><br><span class="line">          return invoke(&quot;throw&quot;, error, resolve, reject);</span><br><span class="line">        &#125;);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    var previousPromise;</span><br><span class="line"></span><br><span class="line">    function enqueue(method, arg) &#123;</span><br><span class="line">      function callInvokeWithMethodAndArg() &#123;</span><br><span class="line">        return new Promise(function(resolve, reject) &#123;</span><br><span class="line">          invoke(method, arg, resolve, reject);</span><br><span class="line">        &#125;);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      return previousPromise =</span><br><span class="line">        // If enqueue has been called before, then we want to wait until</span><br><span class="line">        // all previous Promises have been resolved before calling invoke,</span><br><span class="line">        // so that results are always delivered in the correct order. If</span><br><span class="line">        // enqueue has not been called before, then it is important to</span><br><span class="line">        // call invoke immediately, without waiting on a callback to fire,</span><br><span class="line">        // so that the async generator function has the opportunity to do</span><br><span class="line">        // any necessary setup in a predictable way. This predictability</span><br><span class="line">        // is why the Promise constructor synchronously invokes its</span><br><span class="line">        // executor callback, and why async functions synchronously</span><br><span class="line">        // execute code before the first await. Since we implement simple</span><br><span class="line">        // async functions in terms of async generators, it is especially</span><br><span class="line">        // important to get this right, even though it requires care.</span><br><span class="line">        previousPromise ? previousPromise.then(</span><br><span class="line">          callInvokeWithMethodAndArg,</span><br><span class="line">          // Avoid propagating failures to Promises returned by later</span><br><span class="line">          // invocations of the iterator.</span><br><span class="line">          callInvokeWithMethodAndArg</span><br><span class="line">        ) : callInvokeWithMethodAndArg();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // Define the unified helper method that is used to implement .next,</span><br><span class="line">    // .throw, and .return (see defineIteratorMethods).</span><br><span class="line">    this._invoke = enqueue;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  defineIteratorMethods(AsyncIterator.prototype);</span><br><span class="line">  AsyncIterator.prototype[asyncIteratorSymbol] = function () &#123;</span><br><span class="line">    return this;</span><br><span class="line">  &#125;;</span><br><span class="line">  runtime.AsyncIterator = AsyncIterator;</span><br><span class="line"></span><br><span class="line">  // Note that simple async functions are implemented on top of</span><br><span class="line">  // AsyncIterator objects; they just return a Promise for the value of</span><br><span class="line">  // the final result produced by the iterator.</span><br><span class="line">  runtime.async = function(innerFn, outerFn, self, tryLocsList) &#123;</span><br><span class="line">    var iter = new AsyncIterator(</span><br><span class="line">      wrap(innerFn, outerFn, self, tryLocsList)</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    return runtime.isGeneratorFunction(outerFn)</span><br><span class="line">      ? iter // If outerFn is a generator, return the full iterator.</span><br><span class="line">      : iter.next().then(function(result) &#123;</span><br><span class="line">          return result.done ? result.value : iter.next();</span><br><span class="line">        &#125;);</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  function makeInvokeMethod(innerFn, self, context) &#123;</span><br><span class="line">    var state = GenStateSuspendedStart;</span><br><span class="line"></span><br><span class="line">    return function invoke(method, arg) &#123;</span><br><span class="line">      if (state === GenStateExecuting) &#123;</span><br><span class="line">        throw new Error(&quot;Generator is already running&quot;);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (state === GenStateCompleted) &#123;</span><br><span class="line">        if (method === &quot;throw&quot;) &#123;</span><br><span class="line">          throw arg;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        // Be forgiving, per 25.3.3.3.3 of the spec:</span><br><span class="line">        // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorresume</span><br><span class="line">        return doneResult();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      context.method = method;</span><br><span class="line">      context.arg = arg;</span><br><span class="line"></span><br><span class="line">      while (true) &#123;</span><br><span class="line">        var delegate = context.delegate;</span><br><span class="line">        if (delegate) &#123;</span><br><span class="line">          var delegateResult = maybeInvokeDelegate(delegate, context);</span><br><span class="line">          if (delegateResult) &#123;</span><br><span class="line">            if (delegateResult === ContinueSentinel) continue;</span><br><span class="line">            return delegateResult;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        if (context.method === &quot;next&quot;) &#123;</span><br><span class="line">          // Setting context._sent for legacy support of Babel&apos;s</span><br><span class="line">          // function.sent implementation.</span><br><span class="line">          context.sent = context._sent = context.arg;</span><br><span class="line"></span><br><span class="line">        &#125; else if (context.method === &quot;throw&quot;) &#123;</span><br><span class="line">          if (state === GenStateSuspendedStart) &#123;</span><br><span class="line">            state = GenStateCompleted;</span><br><span class="line">            throw context.arg;</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          context.dispatchException(context.arg);</span><br><span class="line"></span><br><span class="line">        &#125; else if (context.method === &quot;return&quot;) &#123;</span><br><span class="line">          context.abrupt(&quot;return&quot;, context.arg);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        state = GenStateExecuting;</span><br><span class="line"></span><br><span class="line">        var record = tryCatch(innerFn, self, context);</span><br><span class="line">        if (record.type === &quot;normal&quot;) &#123;</span><br><span class="line">          // If an exception is thrown from innerFn, we leave state ===</span><br><span class="line">          // GenStateExecuting and loop back for another invocation.</span><br><span class="line">          state = context.done</span><br><span class="line">            ? GenStateCompleted</span><br><span class="line">            : GenStateSuspendedYield;</span><br><span class="line"></span><br><span class="line">          if (record.arg === ContinueSentinel) &#123;</span><br><span class="line">            continue;</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          return &#123;</span><br><span class="line">            value: record.arg,</span><br><span class="line">            done: context.done</span><br><span class="line">          &#125;;</span><br><span class="line"></span><br><span class="line">        &#125; else if (record.type === &quot;throw&quot;) &#123;</span><br><span class="line">          state = GenStateCompleted;</span><br><span class="line">          // Dispatch the exception by looping back around to the</span><br><span class="line">          // context.dispatchException(context.arg) call above.</span><br><span class="line">          context.method = &quot;throw&quot;;</span><br><span class="line">          context.arg = record.arg;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // Call delegate.iterator[context.method](context.arg) and handle the</span><br><span class="line">  // result, either by returning a &#123; value, done &#125; result from the</span><br><span class="line">  // delegate iterator, or by modifying context.method and context.arg,</span><br><span class="line">  // setting context.delegate to null, and returning the ContinueSentinel.</span><br><span class="line">  function maybeInvokeDelegate(delegate, context) &#123;</span><br><span class="line">    var method = delegate.iterator[context.method];</span><br><span class="line">    if (method === undefined) &#123;</span><br><span class="line">      // A .throw or .return when the delegate iterator has no .throw</span><br><span class="line">      // method always terminates the yield* loop.</span><br><span class="line">      context.delegate = null;</span><br><span class="line"></span><br><span class="line">      if (context.method === &quot;throw&quot;) &#123;</span><br><span class="line">        if (delegate.iterator.return) &#123;</span><br><span class="line">          // If the delegate iterator has a return method, give it a</span><br><span class="line">          // chance to clean up.</span><br><span class="line">          context.method = &quot;return&quot;;</span><br><span class="line">          context.arg = undefined;</span><br><span class="line">          maybeInvokeDelegate(delegate, context);</span><br><span class="line"></span><br><span class="line">          if (context.method === &quot;throw&quot;) &#123;</span><br><span class="line">            // If maybeInvokeDelegate(context) changed context.method from</span><br><span class="line">            // &quot;return&quot; to &quot;throw&quot;, let that override the TypeError below.</span><br><span class="line">            return ContinueSentinel;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        context.method = &quot;throw&quot;;</span><br><span class="line">        context.arg = new TypeError(</span><br><span class="line">          &quot;The iterator does not provide a &apos;throw&apos; method&quot;);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      return ContinueSentinel;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    var record = tryCatch(method, delegate.iterator, context.arg);</span><br><span class="line"></span><br><span class="line">    if (record.type === &quot;throw&quot;) &#123;</span><br><span class="line">      context.method = &quot;throw&quot;;</span><br><span class="line">      context.arg = record.arg;</span><br><span class="line">      context.delegate = null;</span><br><span class="line">      return ContinueSentinel;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    var info = record.arg;</span><br><span class="line"></span><br><span class="line">    if (! info) &#123;</span><br><span class="line">      context.method = &quot;throw&quot;;</span><br><span class="line">      context.arg = new TypeError(&quot;iterator result is not an object&quot;);</span><br><span class="line">      context.delegate = null;</span><br><span class="line">      return ContinueSentinel;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (info.done) &#123;</span><br><span class="line">      // Assign the result of the finished delegate to the temporary</span><br><span class="line">      // variable specified by delegate.resultName (see delegateYield).</span><br><span class="line">      context[delegate.resultName] = info.value;</span><br><span class="line"></span><br><span class="line">      // Resume execution at the desired location (see delegateYield).</span><br><span class="line">      context.next = delegate.nextLoc;</span><br><span class="line"></span><br><span class="line">      // If context.method was &quot;throw&quot; but the delegate handled the</span><br><span class="line">      // exception, let the outer generator proceed normally. If</span><br><span class="line">      // context.method was &quot;next&quot;, forget context.arg since it has been</span><br><span class="line">      // &quot;consumed&quot; by the delegate iterator. If context.method was</span><br><span class="line">      // &quot;return&quot;, allow the original .return call to continue in the</span><br><span class="line">      // outer generator.</span><br><span class="line">      if (context.method !== &quot;return&quot;) &#123;</span><br><span class="line">        context.method = &quot;next&quot;;</span><br><span class="line">        context.arg = undefined;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125; else &#123;</span><br><span class="line">      // Re-yield the result returned by the delegate method.</span><br><span class="line">      return info;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // The delegate iterator is finished, so forget it and continue with</span><br><span class="line">    // the outer generator.</span><br><span class="line">    context.delegate = null;</span><br><span class="line">    return ContinueSentinel;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  // Define Generator.prototype.&#123;next,throw,return&#125; in terms of the</span><br><span class="line">  // unified ._invoke helper method.</span><br><span class="line">  defineIteratorMethods(Gp);</span><br><span class="line"></span><br><span class="line">  Gp[toStringTagSymbol] = &quot;Generator&quot;;</span><br><span class="line"></span><br><span class="line">  // A Generator should always return itself as the iterator object when the</span><br><span class="line">  // @@iterator function is called on it. Some browsers&apos; implementations of the</span><br><span class="line">  // iterator prototype chain incorrectly implement this, causing the Generator</span><br><span class="line">  // object to not be returned from this call. This ensures that doesn&apos;t happen.</span><br><span class="line">  // See https://github.com/facebook/regenerator/issues/274 for more details.</span><br><span class="line">  Gp[iteratorSymbol] = function() &#123;</span><br><span class="line">    return this;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  Gp.toString = function() &#123;</span><br><span class="line">    return &quot;[object Generator]&quot;;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  function pushTryEntry(locs) &#123;</span><br><span class="line">    var entry = &#123; tryLoc: locs[0] &#125;;</span><br><span class="line"></span><br><span class="line">    if (1 in locs) &#123;</span><br><span class="line">      entry.catchLoc = locs[1];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (2 in locs) &#123;</span><br><span class="line">      entry.finallyLoc = locs[2];</span><br><span class="line">      entry.afterLoc = locs[3];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    this.tryEntries.push(entry);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  function resetTryEntry(entry) &#123;</span><br><span class="line">    var record = entry.completion || &#123;&#125;;</span><br><span class="line">    record.type = &quot;normal&quot;;</span><br><span class="line">    delete record.arg;</span><br><span class="line">    entry.completion = record;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  function Context(tryLocsList) &#123;</span><br><span class="line">    // The root entry object (effectively a try statement without a catch</span><br><span class="line">    // or a finally block) gives us a place to store values thrown from</span><br><span class="line">    // locations where there is no enclosing try statement.</span><br><span class="line">    this.tryEntries = [&#123; tryLoc: &quot;root&quot; &#125;];</span><br><span class="line">    tryLocsList.forEach(pushTryEntry, this);</span><br><span class="line">    this.reset(true);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  runtime.keys = function(object) &#123;</span><br><span class="line">    var keys = [];</span><br><span class="line">    for (var key in object) &#123;</span><br><span class="line">      keys.push(key);</span><br><span class="line">    &#125;</span><br><span class="line">    keys.reverse();</span><br><span class="line"></span><br><span class="line">    // Rather than returning an object with a next method, we keep</span><br><span class="line">    // things simple and return the next function itself.</span><br><span class="line">    return function next() &#123;</span><br><span class="line">      while (keys.length) &#123;</span><br><span class="line">        var key = keys.pop();</span><br><span class="line">        if (key in object) &#123;</span><br><span class="line">          next.value = key;</span><br><span class="line">          next.done = false;</span><br><span class="line">          return next;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      // To avoid creating an additional object, we just hang the .value</span><br><span class="line">      // and .done properties off the next function object itself. This</span><br><span class="line">      // also ensures that the minifier will not anonymize the function.</span><br><span class="line">      next.done = true;</span><br><span class="line">      return next;</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  function values(iterable) &#123;</span><br><span class="line">    if (iterable) &#123;</span><br><span class="line">      var iteratorMethod = iterable[iteratorSymbol];</span><br><span class="line">      if (iteratorMethod) &#123;</span><br><span class="line">        return iteratorMethod.call(iterable);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (typeof iterable.next === &quot;function&quot;) &#123;</span><br><span class="line">        return iterable;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (!isNaN(iterable.length)) &#123;</span><br><span class="line">        var i = -1, next = function next() &#123;</span><br><span class="line">          while (++i &lt; iterable.length) &#123;</span><br><span class="line">            if (hasOwn.call(iterable, i)) &#123;</span><br><span class="line">              next.value = iterable[i];</span><br><span class="line">              next.done = false;</span><br><span class="line">              return next;</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          next.value = undefined;</span><br><span class="line">          next.done = true;</span><br><span class="line"></span><br><span class="line">          return next;</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        return next.next = next;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // Return an iterator with no values.</span><br><span class="line">    return &#123; next: doneResult &#125;;</span><br><span class="line">  &#125;</span><br><span class="line">  runtime.values = values;</span><br><span class="line"></span><br><span class="line">  function doneResult() &#123;</span><br><span class="line">    return &#123; value: undefined, done: true &#125;;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  Context.prototype = &#123;</span><br><span class="line">    constructor: Context,</span><br><span class="line"></span><br><span class="line">    reset: function(skipTempReset) &#123;</span><br><span class="line">      this.prev = 0;</span><br><span class="line">      this.next = 0;</span><br><span class="line">      // Resetting context._sent for legacy support of Babel&apos;s</span><br><span class="line">      // function.sent implementation.</span><br><span class="line">      this.sent = this._sent = undefined;</span><br><span class="line">      this.done = false;</span><br><span class="line">      this.delegate = null;</span><br><span class="line"></span><br><span class="line">      this.method = &quot;next&quot;;</span><br><span class="line">      this.arg = undefined;</span><br><span class="line"></span><br><span class="line">      this.tryEntries.forEach(resetTryEntry);</span><br><span class="line"></span><br><span class="line">      if (!skipTempReset) &#123;</span><br><span class="line">        for (var name in this) &#123;</span><br><span class="line">          // Not sure about the optimal order of these conditions:</span><br><span class="line">          if (name.charAt(0) === &quot;t&quot; &amp;&amp;</span><br><span class="line">              hasOwn.call(this, name) &amp;&amp;</span><br><span class="line">              !isNaN(+name.slice(1))) &#123;</span><br><span class="line">            this[name] = undefined;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    stop: function() &#123;</span><br><span class="line">      this.done = true;</span><br><span class="line"></span><br><span class="line">      var rootEntry = this.tryEntries[0];</span><br><span class="line">      var rootRecord = rootEntry.completion;</span><br><span class="line">      if (rootRecord.type === &quot;throw&quot;) &#123;</span><br><span class="line">        throw rootRecord.arg;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      return this.rval;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    dispatchException: function(exception) &#123;</span><br><span class="line">      if (this.done) &#123;</span><br><span class="line">        throw exception;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      var context = this;</span><br><span class="line">      function handle(loc, caught) &#123;</span><br><span class="line">        record.type = &quot;throw&quot;;</span><br><span class="line">        record.arg = exception;</span><br><span class="line">        context.next = loc;</span><br><span class="line"></span><br><span class="line">        if (caught) &#123;</span><br><span class="line">          // If the dispatched exception was caught by a catch block,</span><br><span class="line">          // then let that catch block handle the exception normally.</span><br><span class="line">          context.method = &quot;next&quot;;</span><br><span class="line">          context.arg = undefined;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        return !! caught;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      for (var i = this.tryEntries.length - 1; i &gt;= 0; --i) &#123;</span><br><span class="line">        var entry = this.tryEntries[i];</span><br><span class="line">        var record = entry.completion;</span><br><span class="line"></span><br><span class="line">        if (entry.tryLoc === &quot;root&quot;) &#123;</span><br><span class="line">          // Exception thrown outside of any try block that could handle</span><br><span class="line">          // it, so set the completion value of the entire function to</span><br><span class="line">          // throw the exception.</span><br><span class="line">          return handle(&quot;end&quot;);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        if (entry.tryLoc &lt;= this.prev) &#123;</span><br><span class="line">          var hasCatch = hasOwn.call(entry, &quot;catchLoc&quot;);</span><br><span class="line">          var hasFinally = hasOwn.call(entry, &quot;finallyLoc&quot;);</span><br><span class="line"></span><br><span class="line">          if (hasCatch &amp;&amp; hasFinally) &#123;</span><br><span class="line">            if (this.prev &lt; entry.catchLoc) &#123;</span><br><span class="line">              return handle(entry.catchLoc, true);</span><br><span class="line">            &#125; else if (this.prev &lt; entry.finallyLoc) &#123;</span><br><span class="line">              return handle(entry.finallyLoc);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">          &#125; else if (hasCatch) &#123;</span><br><span class="line">            if (this.prev &lt; entry.catchLoc) &#123;</span><br><span class="line">              return handle(entry.catchLoc, true);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">          &#125; else if (hasFinally) &#123;</span><br><span class="line">            if (this.prev &lt; entry.finallyLoc) &#123;</span><br><span class="line">              return handle(entry.finallyLoc);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">          &#125; else &#123;</span><br><span class="line">            throw new Error(&quot;try statement without catch or finally&quot;);</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    abrupt: function(type, arg) &#123;</span><br><span class="line">      for (var i = this.tryEntries.length - 1; i &gt;= 0; --i) &#123;</span><br><span class="line">        var entry = this.tryEntries[i];</span><br><span class="line">        if (entry.tryLoc &lt;= this.prev &amp;&amp;</span><br><span class="line">            hasOwn.call(entry, &quot;finallyLoc&quot;) &amp;&amp;</span><br><span class="line">            this.prev &lt; entry.finallyLoc) &#123;</span><br><span class="line">          var finallyEntry = entry;</span><br><span class="line">          break;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (finallyEntry &amp;&amp;</span><br><span class="line">          (type === &quot;break&quot; ||</span><br><span class="line">           type === &quot;continue&quot;) &amp;&amp;</span><br><span class="line">          finallyEntry.tryLoc &lt;= arg &amp;&amp;</span><br><span class="line">          arg &lt;= finallyEntry.finallyLoc) &#123;</span><br><span class="line">        // Ignore the finally entry if control is not jumping to a</span><br><span class="line">        // location outside the try/catch block.</span><br><span class="line">        finallyEntry = null;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      var record = finallyEntry ? finallyEntry.completion : &#123;&#125;;</span><br><span class="line">      record.type = type;</span><br><span class="line">      record.arg = arg;</span><br><span class="line"></span><br><span class="line">      if (finallyEntry) &#123;</span><br><span class="line">        this.method = &quot;next&quot;;</span><br><span class="line">        this.next = finallyEntry.finallyLoc;</span><br><span class="line">        return ContinueSentinel;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      return this.complete(record);</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    complete: function(record, afterLoc) &#123;</span><br><span class="line">      if (record.type === &quot;throw&quot;) &#123;</span><br><span class="line">        throw record.arg;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      if (record.type === &quot;break&quot; ||</span><br><span class="line">          record.type === &quot;continue&quot;) &#123;</span><br><span class="line">        this.next = record.arg;</span><br><span class="line">      &#125; else if (record.type === &quot;return&quot;) &#123;</span><br><span class="line">        this.rval = this.arg = record.arg;</span><br><span class="line">        this.method = &quot;return&quot;;</span><br><span class="line">        this.next = &quot;end&quot;;</span><br><span class="line">      &#125; else if (record.type === &quot;normal&quot; &amp;&amp; afterLoc) &#123;</span><br><span class="line">        this.next = afterLoc;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      return ContinueSentinel;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    finish: function(finallyLoc) &#123;</span><br><span class="line">      for (var i = this.tryEntries.length - 1; i &gt;= 0; --i) &#123;</span><br><span class="line">        var entry = this.tryEntries[i];</span><br><span class="line">        if (entry.finallyLoc === finallyLoc) &#123;</span><br><span class="line">          this.complete(entry.completion, entry.afterLoc);</span><br><span class="line">          resetTryEntry(entry);</span><br><span class="line">          return ContinueSentinel;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    &quot;catch&quot;: function(tryLoc) &#123;</span><br><span class="line">      for (var i = this.tryEntries.length - 1; i &gt;= 0; --i) &#123;</span><br><span class="line">        var entry = this.tryEntries[i];</span><br><span class="line">        if (entry.tryLoc === tryLoc) &#123;</span><br><span class="line">          var record = entry.completion;</span><br><span class="line">          if (record.type === &quot;throw&quot;) &#123;</span><br><span class="line">            var thrown = record.arg;</span><br><span class="line">            resetTryEntry(entry);</span><br><span class="line">          &#125;</span><br><span class="line">          return thrown;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      // The context.catch method must only be called with a location</span><br><span class="line">      // argument that corresponds to a known catch block.</span><br><span class="line">      throw new Error(&quot;illegal catch attempt&quot;);</span><br><span class="line">    &#125;,</span><br><span class="line"></span><br><span class="line">    delegateYield: function(iterable, resultName, nextLoc) &#123;</span><br><span class="line">      this.delegate = &#123;</span><br><span class="line">        iterator: values(iterable),</span><br><span class="line">        resultName: resultName,</span><br><span class="line">        nextLoc: nextLoc</span><br><span class="line">      &#125;;</span><br><span class="line"></span><br><span class="line">      if (this.method === &quot;next&quot;) &#123;</span><br><span class="line">        // Deliberately forget the last sent value so that we don&apos;t</span><br><span class="line">        // accidentally pass it on to the delegate.</span><br><span class="line">        this.arg = undefined;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      return ContinueSentinel;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;)(</span><br><span class="line">  // In sloppy mode, unbound `this` refers to the global object, fallback to</span><br><span class="line">  // Function constructor if we&apos;re in global strict mode. That is sadly a form</span><br><span class="line">  // of indirect eval which violates Content Security Policy.</span><br><span class="line">  (function() &#123;</span><br><span class="line">    return this || (typeof self === &quot;object&quot; &amp;&amp; self);</span><br><span class="line">  &#125;)() || Function(&quot;return this&quot;)()</span><br><span class="line">);</span><br><span class="line"></span><br><span class="line">var _marked =</span><br><span class="line">/*#__PURE__*/</span><br><span class="line">regeneratorRuntime.mark(helloWorldGenerator);</span><br><span class="line"></span><br><span class="line">function helloWorldGenerator() &#123;</span><br><span class="line">  return regeneratorRuntime.wrap(function helloWorldGenerator$(_context) &#123;</span><br><span class="line">    while (1) &#123;</span><br><span class="line">      switch (_context.prev = _context.next) &#123;</span><br><span class="line">        case 0:</span><br><span class="line">          _context.next = 2;</span><br><span class="line">          return &apos;hello&apos;;</span><br><span class="line"></span><br><span class="line">        case 2:</span><br><span class="line">          _context.next = 4;</span><br><span class="line">          return &apos;world&apos;;</span><br><span class="line"></span><br><span class="line">        case 4:</span><br><span class="line">          return _context.abrupt(&quot;return&quot;, &apos;ending&apos;);</span><br><span class="line"></span><br><span class="line">        case 5:</span><br><span class="line">        case &quot;end&quot;:</span><br><span class="line">          return _context.stop();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;, _marked, this);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">var hw = helloWorldGenerator();</span><br><span class="line">console.log(hw.next()); // &#123;value: &quot;hello&quot;, done: false&#125;</span><br><span class="line"></span><br><span class="line">console.log(hw.next()); // &#123;value: &quot;world&quot;, done: false&#125;</span><br><span class="line"></span><br><span class="line">console.log(hw.next()); // &#123;value: &quot;ending&quot;, done: true&#125;</span><br><span class="line"></span><br><span class="line">console.log(hw.next()); // &#123;value: undefined, done: true&#125;</span><br></pre></td></tr></table></figure>
+<p>总之编译后的代码还蛮复杂，我们可以从中抽离出大致的逻辑，至少让简单编译的那段代码能够跑起来。</p>
+<h2 id="mark-函数"><a href="#mark-函数" class="headerlink" title="mark 函数"></a>mark 函数</h2><p>简单编译后的代码第一段是这样的：</p>
+<pre><code>var _marked = /*#__PURE__*/ regeneratorRuntime.mark(helloWorldGenerator);
+</code></pre><p>我们查看完整编译版本中 mark 函数的源码：</p>
+<pre><code>runtime.mark = function(genFun) {
+  genFun.__proto__ = GeneratorFunctionPrototype;
+  genFun.prototype = Object.create(Gp);
+  return genFun;
+};
+</code></pre><p>这其中又涉及了 GeneratorFunctionPrototype 和 Gp 变量，我们也查看下对应的代码：</p>
+<pre><code>functionGenerator() {}
+functionGeneratorFunction() {}
+functionGeneratorFunctionPrototype() {}
+
+...
+
+var Gp = GeneratorFunctionPrototype.prototype =
+  Generator.prototype = Object.create(IteratorPrototype);
+
+GeneratorFunction.prototype = Gp.constructor = GeneratorFunctionPrototype;
+
+GeneratorFunctionPrototype.constructor = GeneratorFunction;
+
+GeneratorFunctionPrototype[toStringTagSymbol] =
+  GeneratorFunction.displayName = &quot;GeneratorFunction&quot;;
+</code></pre><p>这段代码构建了一堆看起来很复杂的关系链，其实这是参照着 <a href="https://link.juejin.im?target=https%3A%2F%2Fwww.ecma-international.org%2Fecma-262%2F6.0%2F%23sec-generatorfunction-constructor" target="_blank" rel="noopener">ES6 规范</a>构建的关系链:<br><img src="/2018/10/05/Babel-将-Generator-编译成了什么/166c52b4064a3c92.webp" alt="regenerator"><br>图中 <code>+@@toStringTag:s = &#39;Generator&#39;</code> 的就是 Gp，<code>+@@toStringTag:s = &#39;GeneratorFunction&#39;</code> 的就是 GeneratorFunctionPrototype。</p>
+<p>构建关系链的目的在于判断关系的时候能够跟原生的保持一致，就比如：</p>
+<pre><code>function* f() {}
+var g = f();
+console.log(g.__proto__ === f.prototype); // trueconsole.log(g.__proto__.__proto__ === f.__proto__.prototype); // true
+</code></pre><p>为了简化起见，我们可以把 Gp 先设置为一个空对象，不过正如你在上图中看到的，next()、 throw()、return() 函数都是挂载在 Gp 对象上，实际上，在完整的编译代码中，确实有为 Gp 添加这三个函数的方法：</p>
+<pre><code>// 117 行functiondefineIteratorMethods(prototype) {
+  [&quot;next&quot;, &quot;throw&quot;, &quot;return&quot;].forEach(function(method) {
+    prototype[method] = function(arg) {
+      returnthis._invoke(method, arg);
+    };
+  });
+}
+
+// 406 行
+defineIteratorMethods(Gp);
+</code></pre><p>为了简单起见，我们将整个 mark 函数简化为：</p>
+<pre><code>runtime.mark = function(genFun) {
+  var generator = Object.create({
+    next: function(arg) {
+      returnthis._invoke(&apos;next&apos;, arg)
+    }
+  });
+  genFun.prototype = generator;
+  return genFun;
+};
+</code></pre><h2 id="wrap-函数"><a href="#wrap-函数" class="headerlink" title="wrap 函数"></a>wrap 函数</h2><p>除了设置关系链之外，mark 函数的返回值 genFun 还作为了 wrap 函数的第二个参数传入：</p>
+<pre><code>functionhelloWorldGenerator() {
+  return regeneratorRuntime.wrap(
+    functionhelloWorldGenerator$(_context) {
+      ...
+    },
+    _marked,
+    this
+  );
+}
+</code></pre><p>我们再看下 wrap 函数：</p>
+<pre><code>functionwrap(innerFn, outerFn, self) {
+  var generator = Object.create(outerFn.prototype);
+  var context = new Context([]);
+  generator._invoke = makeInvokeMethod(innerFn, self, context);
+
+  return generator;
+}
+</code></pre><p>所以当执行 <code>var hw = helloWorldGenerator();</code> 的时候，其实执行的是 wrap 函数，wrap 函数返回了 generator，generator 是一个对象，原型是 <code>outerFn.prototype</code>, <code>outerFn.prototype</code> 其实就是 <code>genFun.prototype</code>， <code>genFun.prototype</code> 是一个空对象，原型上有 next() 方法。</p>
+<p>所以当你执行 <code>hw.next()</code> 的时候，执行的其实是 hw 原型的原型上的 next 函数，next 函数执行的又是 hw 的 _invoke 函数：</p>
+<pre><code>generator._invoke = makeInvokeMethod(innerFn, self, context);
+</code></pre><p>innerFn 就是 wrap 包裹的那个函数，其实就是 helloWordGenerato$ 函数，呐，就是这个函数：</p>
+<pre><code>functionhelloWorldGenerator$(_context) {
+  while (1) {
+    switch ((_context.prev = _context.next)) {
+      case0:
+        _context.next = 2;
+        return&quot;hello&quot;;
+
+      case2:
+        _context.next = 4;
+        return&quot;world&quot;;
+
+      case4:
+        return _context.abrupt(&quot;return&quot;, &quot;ending&quot;);
+
+      case5:
+      case&quot;end&quot;:
+        return _context.stop();
+    }
+  }
+}
+</code></pre><p>而 context 你可以直接理解为这样一个全局对象：</p>
+<pre><code>var ContinueSentinel = {};
+
+var context = {
+  done: false,
+  method: &quot;next&quot;,
+  next: 0,
+  prev: 0,
+  abrupt: function(type, arg) {
+    var record = {};
+    record.type = type;
+    record.arg = arg;
+
+    returnthis.complete(record);
+  },
+  complete: function(record, afterLoc) {
+    if (record.type === &quot;return&quot;) {
+      this.rval = this.arg = record.arg;
+      this.method = &quot;return&quot;;
+      this.next = &quot;end&quot;;
+    }
+
+    return ContinueSentinel;
+  },
+  stop: function() {
+    this.done = true;
+    returnthis.rval;
+  }
+};
+</code></pre><p>每次 <code>hw.next</code> 的时候，就会修改 next 和 prev 属性的值，当在 generator 函数中 return 的时候会执行 abrupt，abrupt 中又会执行 complete，执行完 complete，因为 <code>this.next = end</code> 的缘故，再执行就会执行 stop 函数。</p>
+<p>我们来看下 makeInvokeMethod 函数：</p>
+<pre><code>var ContinueSentinel = {};
+
+functionmakeInvokeMethod(innerFn, self, context) {
+  var state = &apos;start&apos;;
+
+  returnfunctioninvoke(method, arg) {
+
+    if (state === &apos;completed&apos;) {
+      return { value: undefined, done: true };
+    }
+
+    context.method = method;
+    context.arg = arg;
+
+    while (true) {
+
+      state = &apos;executing&apos;;
+
+      var record = {
+        type: &apos;normal&apos;,
+        arg: innerFn.call(self, context)
+      };
+      if (record.type === &quot;normal&quot;) {
+
+        state = context.done
+          ? &apos;completed&apos;
+          : &apos;yield&apos;;
+
+        if (record.arg === ContinueSentinel) {
+          continue;
+        }
+
+        return {
+          value: record.arg,
+          done: context.done
+        };
+
+      }
+    }
+  };
+}
+</code></pre><p>基本的执行过程就不分析了，我们重点看第三次执行 <code>hw.next()</code> 的时候:</p>
+<p>第三次执行 <code>hw.next()</code> 的时候，其实执行了</p>
+<pre><code>this._invoke(&quot;next&quot;, undefined);
+</code></pre><p>我们在 invoke 函数中构建了一个 record 对象：</p>
+<pre><code>var record = {
+  type: &quot;normal&quot;,
+  arg: innerFn.call(self, context)
+};
+</code></pre><p>而在 <code>innerFn.call(self, context)</code> 中，因为 _context.next 为 4 的缘故，其实执行了:</p>
+<pre><code>_context.abrupt(&quot;return&quot;, &apos;ending&apos;);
+</code></pre><p>而在 abrupt 中，我们又构建了一个 record 对象：</p>
+<pre><code>var record = {};
+record.type = &apos;return&apos;;
+record.arg = &apos;ending&apos;;
+</code></pre><p>然后执行了 <code>this.complete(record)</code>，</p>
+<p>在 complete 中，因为 <code>record.type === &quot;return&quot;</code></p>
+<pre><code>this.rval = &apos;ending&apos;;
+this.method = &quot;return&quot;;
+this.next = &quot;end&quot;;
+</code></pre><p>然后返回了全局对象 ContinueSentinel，其实就是一个全局空对象。</p>
+<p>然后在 invoke 函数中，因为 <code>record.arg === ContinueSentinel</code> 的缘故，没有执行后面的 return 语句，就直接进入下一个循环。</p>
+<p>于是又执行了一遍 <code>innerFn.call(self, context)</code>，此时 <code>_context.next</code> 为 end, 执行了 <code>_context.stop()</code>, 在 stop 函数中：</p>
+<pre><code>this.done = true;
+returnthis.rval; // this.rval 其实就是 `ending`
+</code></pre><p>所以最终返回的值为:</p>
+<pre><code>{
+  value: &apos;ending&apos;,
+  done: true
+};
+</code></pre><p>之后，我们再执行 hw.next() 的时候，因为 state 已经是 ‘completed’ 的缘故，直接就返回 <code>{ value: undefined, done: true}</code></p>
+<h2 id="不完整但可用的源码"><a href="#不完整但可用的源码" class="headerlink" title="不完整但可用的源码"></a>不完整但可用的源码</h2><p>当然这个过程，看文字理解起来可能有些难度，不完整但可用的代码如下，你可以断点调试查看具体的过程：</p>
+<pre><code>(function() {
+  var ContinueSentinel = {};
+
+  var mark = function(genFun) {
+    var generator = Object.create({
+      next: function(arg) {
+        returnthis._invoke(&quot;next&quot;, arg);
+      }
+    });
+    genFun.prototype = generator;
+    return genFun;
+  };
+
+  functionwrap(innerFn, outerFn, self) {
+    var generator = Object.create(outerFn.prototype);
+
+    var context = {
+      done: false,
+      method: &quot;next&quot;,
+      next: 0,
+      prev: 0,
+      abrupt: function(type, arg) {
+        var record = {};
+        record.type = type;
+        record.arg = arg;
+
+        returnthis.complete(record);
+      },
+      complete: function(record, afterLoc) {
+        if (record.type === &quot;return&quot;) {
+          this.rval = this.arg = record.arg;
+          this.method = &quot;return&quot;;
+          this.next = &quot;end&quot;;
+        }
+
+        return ContinueSentinel;
+      },
+      stop: function() {
+        this.done = true;
+        returnthis.rval;
+      }
+    };
+
+    generator._invoke = makeInvokeMethod(innerFn, context);
+
+    return generator;
+  }
+
+  functionmakeInvokeMethod(innerFn, context) {
+    var state = &quot;start&quot;;
+
+    returnfunctioninvoke(method, arg) {
+      if (state === &quot;completed&quot;) {
+        return { value: undefined, done: true };
+      }
+
+      context.method = method;
+      context.arg = arg;
+
+      while (true) {
+        state = &quot;executing&quot;;
+
+        var record = {
+          type: &quot;normal&quot;,
+          arg: innerFn.call(self, context)
+        };
+
+        if (record.type === &quot;normal&quot;) {
+          state = context.done ? &quot;completed&quot; : &quot;yield&quot;;
+
+          if (record.arg === ContinueSentinel) {
+            continue;
+          }
+
+          return {
+            value: record.arg,
+            done: context.done
+          };
+        }
+      }
+    };
+  }
+
+  window.regeneratorRuntime = {};
+
+  regeneratorRuntime.wrap = wrap;
+  regeneratorRuntime.mark = mark;
+})();
+
+var _marked = regeneratorRuntime.mark(helloWorldGenerator);
+
+functionhelloWorldGenerator() {
+  return regeneratorRuntime.wrap(
+    functionhelloWorldGenerator$(_context) {
+      while (1) {
+        switch ((_context.prev = _context.next)) {
+          case0:
+            _context.next = 2;
+            return&quot;hello&quot;;
+
+          case2:
+            _context.next = 4;
+            return&quot;world&quot;;
+
+          case4:
+            return _context.abrupt(&quot;return&quot;, &quot;ending&quot;);
+
+          case5:
+          case&quot;end&quot;:
+            return _context.stop();
+        }
+      }
+    },
+    _marked,
+    this
+  );
+}
+
+var hw = helloWorldGenerator();
+
+console.log(hw.next());
+console.log(hw.next());
+console.log(hw.next());
+console.log(hw.next());
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/10/04/简单理解async、await语法实现原理/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3139,428 +3629,6 @@ server.listen(3000)
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/08/28/JSBridge的原理/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/08/28/JSBridge的原理/" itemprop="url">JSBridge的原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-28T10:21:44+08:00">
-                2018-08-28
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>关于 JSBridge，绝大多数同学最早遇到的是微信的 WeiXinJSBridge（现在被封装成 JSSDK），各种 Web 页面可以通过 Bridge 调用微信提供的一些原生功能，为用户提供相关的功能。其实，JSBridge 很早就出现在软件开发中，在一些桌面软件中很早就运用了这样的形式，多用在通知、产品详情、广告等模块中，然后这些模块中，使用的是 Web UI，而相关按钮点击后，调用的是 Native 功能。现在移动端盛行，不管是 Hybrid 应用，还是 React-Native 都离不开 JSBridge，当然也包括在国内举足轻重的微信小程序。那么，JSBridge 到底是什么？它的出现是为了什么？它究竟是怎么实现的？在这篇文章中，会在移动混合开发的范畴内，将给大家带来 JSBridge 的深入剖析。</p>
-<p>当然，这段代码片段只是一个示例，主要用于剖析 JSBridge 的原理和流程，里面存在诸多省略和不完善的代码逻辑，读者们可以自行完善。<br><img src="/2018/08/28/JSBridge的原理/1.webp" alt=""><br><img src="/2018/08/28/JSBridge的原理/2.webp" alt=""></p>
-<h1 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a><strong>1 前言</strong></h1><p>有些童鞋听到 JSBridge 这个名词，就是觉得非常高上大，有了它 Web 和 Native 可以进行交互，就像『进化药水』，让 Web 摇身一变，成为移动战场的『上将一名』。其实并非如此，JSBridge 其实真是一个很简单的东西，更多的是一种形式、一种思想。</p>
-<h1 id="2-JSBridge-的起源"><a href="#2-JSBridge-的起源" class="headerlink" title="2 JSBridge 的起源"></a><strong>2 JSBridge 的起源</strong></h1><p>为什么是 JSBridge ？而不是 PythonBridge 或是 RubyBridge ？</p>
-<p>当然不是因为 JavaScript 语言高人一等（虽然斯坦福大学已经把算法导论的语言从 Java 改成 JavaScript，小得意一下，嘻嘻），主要的原因还是因为 JavaScript 主要载体 Web 是当前世界上的 <strong>最易编写</strong> 、 <strong>最易维护</strong> 、<strong>最易部署</strong> 的 UI 构建方式。工程师可以用很简单的 HTML 标签和 CSS 样式快速的构建出一个页面，并且在服务端部署后，用户不需要主动更新，就能看到最新的 UI 展现。</p>
-<p>因此，<strong>开发维护成本</strong> 和 <strong>更新成本</strong> 较低的 Web 技术成为混合开发中几乎不二的选择，而作为 Web 技术逻辑核心的 JavaScript 也理所应当肩负起与其他技术『桥接』的职责，并且作为移动不可缺少的一部分，任何一个移动操作系统中都包含可运行 JavaScript 的容器，例如 WebView 和 JSCore。所以，运行 JavaScript 不用像运行其他语言时，要额外添加运行环境。因此，基于上面种种原因，JSBridge 应运而生。</p>
-<p>PhoneGap（Codova 的前身）作为 Hybrid 鼻祖框架，应该是最先被开发者广泛认知的 JSBridge 的应用场景；而对于 JSBridge 的应用在国内真正兴盛起来，则是因为杀手级应用微信的出现，主要用途是在网页中通过 JSBridge 设置分享内容。</p>
-<p>移动端混合开发中的 JSBridge，主要被应用在两种形式的技术方案上：</p>
-<p>基于 Web 的 Hybrid 解决方案：例如微信浏览器、各公司的 Hybrid 方案</p>
-<p>非基于 Web UI 但业务逻辑基于 JavaScript 的解决方案：例如 React-Native</p>
-<p>【注】：微信小程序基于 Web UI，但是为了追求运行效率，对 UI 展现逻辑和业务逻辑的 JavaScript 进行了隔离。因此小程序的技术方案介于上面描述的两种方式之间。</p>
-<h1 id="3-JSBridge-的用途"><a href="#3-JSBridge-的用途" class="headerlink" title="3 JSBridge 的用途"></a><strong>3 JSBridge 的用途</strong></h1><p>JSBridge 简单来讲，主要是 <strong>给 JavaScript 提供调用 Native 功能的接口</strong>，让混合开发中的『前端部分』可以方便地使用地址位置、摄像头甚至支付等 Native 功能。</p>
-<p>既然是『简单来讲』，那么 JSBridge 的用途肯定不只『调用 Native 功能』这么简单宽泛。实际上，JSBridge 就像其名称中的『Bridge』的意义一样，是 Native 和非 Native 之间的桥梁，它的核心是 <strong>构建 Native 和非 Native 间消息通信的通道</strong>，而且是 <strong>双向通信的通道</strong>。<br><img src="/2018/08/28/JSBridge的原理/3.webp" alt=""><br>所谓 <strong>双向通信的通道</strong>:</p>
-<ul>
-<li>JS 向 Native 发送消息 : 调用相关功能、通知 Native 当前 JS 的相关状态等。</li>
-<li>Native 向 JS 发送消息 : 回溯调用结果、消息推送、通知 JS 当前 Native 的状态等。</li>
-</ul>
-<p>这里有些同学有疑问了：<em>消息都是单向的，那么调用 Native 功能时 Callback 怎么实现的？</em><br>对于这个问题，在下一节里会给出解释。</p>
-<h1 id="4-JSBridge-的实现原理"><a href="#4-JSBridge-的实现原理" class="headerlink" title="4 JSBridge 的实现原理"></a><strong>4 JSBridge 的实现原理</strong></h1><p>JavaScript 是运行在一个单独的 JS Context 中（例如，WebView 的 Webkit 引擎、JSCore）。由于这些 Context 与原生运行环境的天然隔离，我们可以将这种情况与 RPC（Remote Procedure Call，远程过程调用）通信进行类比，将 Native 与 JavaScript 的每次互相调用看做一次 RPC 调用。</p>
-<p>在 JSBridge 的设计中，可以把前端看做 RPC 的客户端，把 Native 端看做 RPC 的服务器端，从而 JSBridge 要实现的主要逻辑就出现了：<strong>通信调用（Native 与 JS 通信）</strong> 和 <strong>句柄解析调用</strong>。（如果你是个前端，而且并不熟悉 RPC 的话，你也可以把这个流程类比成 JSONP 的流程）</p>
-<p>通过以上的分析，可以清楚地知晓 JSBridge 主要的功能和职责，接下来就以 <strong>Hybrid 方案</strong> 为案例从这几点来剖析 JSBridge 的实现原理。</p>
-<h2 id="4-1-JSBridge-的通信原理"><a href="#4-1-JSBridge-的通信原理" class="headerlink" title="4.1 JSBridge 的通信原理"></a><strong>4.1 JSBridge 的通信原理</strong></h2><p>Hybrid 方案是基于 WebView 的，JavaScript 执行在 WebView 的 Webkit 引擎中。因此，Hybrid 方案中 JSBridge 的通信原理会具有一些 Web 特性。</p>
-<h3 id="4-1-1-JavaScript-调用-Native"><a href="#4-1-1-JavaScript-调用-Native" class="headerlink" title="4.1.1 JavaScript 调用 Native"></a><strong>4.1.1 JavaScript 调用 Native</strong></h3><p>JavaScript 调用 Native 的方式，主要有两种：<font color="#ff0000"><strong>注入 API</strong> </font> 和 <font color="#ff0000"> <strong>拦截 URL SCHEME</strong> </font>。</p>
-<h4 id="4-1-1-1-注入API"><a href="#4-1-1-1-注入API" class="headerlink" title="4.1.1.1 注入API"></a><strong>4.1.1.1 注入API</strong></h4><p>注入 API 方式的主要原理是，通过 WebView 提供的接口，向 JavaScript 的 Context（window）中注入对象或者方法，让 JavaScript 调用时，直接执行相应的 Native 代码逻辑，达到 JavaScript 调用 Native 的目的。</p>
-<p>对于 iOS 的 UIWebView，实例如下：</p>
-<pre><code>JSContext *context = [uiWebView valueForKeyPath:@&quot;documentView.webView.mainFrame.javaScriptContext&quot;];
-
-context[@&quot;postBridgeMessage&quot;] = ^(NSArray&lt;NSArray *&gt; *calls) {
-    // Native 逻辑
-};
-</code></pre><p>前端调用方式：</p>
-<pre><code>window.postBridgeMessage(message);
-</code></pre><p>对于 iOS 的 WKWebView 可以用以下方式：</p>
-<pre><code>@interface WKWebVIewVC ()&lt;WKScriptMessageHandler&gt;
-
-@implementation WKWebVIewVC
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-
-    WKWebViewConfiguration* configuration = [[WKWebViewConfiguration alloc] init];
-    configuration.userContentController = [[WKUserContentController alloc] init];
-    WKUserContentController *userCC = configuration.userContentController;
-    // 注入对象，前端调用其方法时，Native 可以捕获到
-    [userCC addScriptMessageHandler:self name:@&quot;nativeBridge&quot;];
-
-    WKWebView wkWebView = [[WKWebView alloc] initWithFrame:self.view.frame configuration:configuration];
-
-    // TODO 显示 WebView
-}
-
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    if ([message.name isEqualToString:@&quot;nativeBridge&quot;]) {
-        NSLog(@&quot;前端传递的数据 %@: &quot;,message.body);
-        // Native 逻辑
-    }
-}
-</code></pre><p>前端调用方式：</p>
-<pre><code>window.webkit.messageHandlers.nativeBridge.postMessage(message);
-</code></pre><p>对于 Android 可以采用下面的方式：</p>
-<pre><code>publicclassJavaScriptInterfaceDemoActivityextendsActivity{
-private WebView Wv;
-
-    @Override
-    publicvoidonCreate(Bundle savedInstanceState){
-        super.onCreate(savedInstanceState);
-
-        Wv = (WebView)findViewById(R.id.webView);     
-        final JavaScriptInterface myJavaScriptInterface = new JavaScriptInterface(this);         
-
-        Wv.getSettings().setJavaScriptEnabled(true);
-        Wv.addJavascriptInterface(myJavaScriptInterface, &quot;nativeBridge&quot;);
-
-        // TODO 显示 WebView
-
-    }
-
-    publicclassJavaScriptInterface{
-         Context mContext;
-
-         JavaScriptInterface(Context c) {
-             mContext = c;
-         }
-
-         publicvoidpostMessage(String webMessage){            
-             // Native 逻辑
-         }
-     }
-}
-</code></pre><p>前端调用方式：</p>
-<pre><code>window.nativeBridge.postMessage(message);
-</code></pre><p>在 4.2 之前，Android 注入 JavaScript 对象的接口是 addJavascriptInterface，但是这个接口有漏洞，可以被不法分子利用，危害用户的安全，因此在 4.2 中引入新的接口 @JavascriptInterface（上面代码中使用的）来替代这个接口，解决安全问题。所以 Android 注入对对象的方式是 <strong>有兼容性问题的</strong>。（4.2 之前很多方案都采用拦截 prompt 的方式来实现，因为篇幅有限，这里就不展开了。）</p>
-<h4 id="4-1-1-2-拦截-URL-SCHEME"><a href="#4-1-1-2-拦截-URL-SCHEME" class="headerlink" title="4.1.1.2 拦截 URL SCHEME"></a><strong>4.1.1.2 拦截 URL SCHEME</strong></h4><p>先解释一下 URL SCHEME：URL SCHEME是一种类似于url的链接，是为了方便app直接互相调用设计的，形式和普通的 url 近似，主要区别是 protocol 和 host 一般是自定义的，例如: qunarhy://hy/url?url=<a href="https://link.juejin.im?target=http%3A%2F%2Fymfe.tech" target="_blank" rel="noopener">ymfe.tech</a>，protocol 是 qunarhy，host 则是 hy。</p>
-<p>拦截 URL SCHEME 的主要流程是：Web 端通过某种方式（例如 iframe.src）发送 URL Scheme 请求，之后 Native 拦截到请求并根据 URL SCHEME（包括所带的参数）进行相关操作。</p>
-<p>在时间过程中，这种方式有一定的 <strong>缺陷</strong>：</p>
-<ul>
-<li><font color="#dd0000"><strong> 使用 iframe.src 发送 URL SCHEME 会有 url 长度的隐患。</strong></font>
-</li>
-<li><font color="#dd0000"><strong>创建请求，需要一定的耗时，比注入 API 的方式调用同样的功能，耗时会较长。</strong></font>
-
-</li>
-</ul>
-<p>但是之前为什么很多方案使用这种方式呢？因为它 <strong>支持 iOS6</strong>。而现在的大环境下，iOS6 占比很小，基本上可以忽略，所以并不推荐为了 iOS6 使用这种 <strong>并不优雅</strong> 的方式。</p>
-<p>【注】：有些方案为了规避 url 长度隐患的缺陷，在 iOS 上采用了使用 Ajax 发送同域请求的方式，并将参数放到 head 或 body 里。这样，虽然规避了 url 长度的隐患，但是 WKWebView 并不支持这样的方式。</p>
-<p>【注2】：为什么选择 iframe.src 不选择 locaiton.href ？因为如果通过 location.href 连续调用 Native，很容易丢失一些调用。</p>
-<h3 id="4-1-2-Native-调用-JavaScript"><a href="#4-1-2-Native-调用-JavaScript" class="headerlink" title="4.1.2 Native 调用 JavaScript"></a><strong>4.1.2 Native 调用 JavaScript</strong></h3><p>相比于 JavaScript 调用 Native， Native 调用 JavaScript 较为简单，毕竟不管是 iOS 的 UIWebView 还是 WKWebView，还是 Android 的 WebView 组件，都以子组件的形式存在于 View/Activity 中，直接调用相应的 API 即可。</p>
-<p>Native 调用 JavaScript，其实就是执行拼接 JavaScript 字符串，从外部调用 JavaScript 中的方法，因此 JavaScript 的方法必须在全局的 window 上。（闭包里的方法，JavaScript 自己都调用不了，更不用想让 Native 去调用了）</p>
-<p>对于 iOS 的 UIWebView，示例如下：</p>
-<pre><code>result = [uiWebview stringByEvaluatingJavaScriptFromString:javaScriptString];
-</code></pre><p>对于 iOS 的 WKWebView，示例如下：</p>
-<pre><code>[wkWebView evaluateJavaScript:javaScriptString completionHandler:completionHandler];
-</code></pre><p>对于 Android，在 Kitkat（4.4）之前并没有提供 iOS 类似的调用方式，只能用 loadUrl 一段 JavaScript 代码，来实现：</p>
-<pre><code>webView.loadUrl(&quot;javascript:&quot; + javaScriptString);
-</code></pre><p>而 Kitkat 之后的版本，也可以用 evaluateJavascript 方法实现：</p>
-<pre><code>webView.evaluateJavascript(javaScriptString, new ValueCallback&lt;String&gt;() {
-    @Override
-    publicvoidonReceiveValue(String value){
-
-    }
-});
-</code></pre><p>【注】：使用 loadUrl 的方式，并不能获取 JavaScript 执行后的结果。</p>
-<h3 id="4-1-3-通信原理小总结"><a href="#4-1-3-通信原理小总结" class="headerlink" title="4.1.3 通信原理小总结"></a><strong>4.1.3 通信原理小总结</strong></h3><p>通信原理是 JSBridge 实现的核心，实现方式可以各种各样，但是万变不离其宗。这里，笔者推荐的实现方式如下：</p>
-<ul>
-<li><p>JavaScript 调用 Native 推荐使用 <strong>注入 API</strong> 的方式（iOS6 忽略，Android 4.2以下使用 WebViewClient 的 onJsPrompt 方式）。</p>
-</li>
-<li><p>Native 调用 JavaScript 则直接执行拼接好的 JavaScript 代码即可。</p>
-</li>
-</ul>
-<p>对于其他方式，诸如 React Native、微信小程序 的通信方式都与上描述的近似，并根据实际情况进行优化。</p>
-<p>以 React Native 的 iOS 端举例：JavaScript 运行在 JSCore 中，实际上可以与上面的方式一样，利用注入 API 来实现 JavaScript 调用 Native 功能。不过 React Native 并没有设计成 JavaScript 直接调用 Object-C，而是 <strong>为了与 Native 开发里事件响应机制一致</strong>，设计成 <strong>需要在 Object-C 去调 JavaScript 时才通过返回值触发调用</strong>。原理基本一样，只是实现方式不同。</p>
-<p>当然不仅仅 iOS 和 Android，其他手机操作系统也用相应的 API，例如 WMP（Win 10）下可以用 window.external.notify 和 WebView.InvokeScript/InvokeScriptAsync 进行双向通信。其他系统也类似。</p>
-<h2 id="4-2-JSBridge-接口实现"><a href="#4-2-JSBridge-接口实现" class="headerlink" title="4.2 JSBridge 接口实现"></a><strong>4.2 JSBridge 接口实现</strong></h2><p>从上面的剖析中，可以得知，JSBridge 的接口主要功能有两个：<strong>调用 Native（给 Native 发消息）</strong> 和 <strong>接被 Native 调用（接收 Native 消息）</strong>。因此，JSBridge 可以设计如下：</p>
-<pre><code>window.JSBridge = {
-    // 调用 Native
-    invoke: function(msg) {
-        // 判断环境，获取不同的 nativeBridge
-        nativeBridge.postMessage(msg);
-    },
-    receiveMessage: function(msg) {
-        // 处理 msg
-    }
-};
-</code></pre><p>在上面的文章中，提到过 RPC 中有一个非常重要的环节是 <strong>句柄解析调用</strong> ，这点在 JSBridge 中体现为 <strong>句柄与功能对应关系</strong>。同时，我们将句柄抽象为 <strong>桥名（BridgeName）</strong>，最终演化为 <strong>一个 BridgeName 对应一个 Native 功能或者一类 Native 消息</strong>。 基于此点，JSBridge 的实现可以优化为如下：</p>
-<pre><code>window.JSBridge = {
-    // 调用 Native
-    invoke: function(bridgeName, data) {
-        // 判断环境，获取不同的 nativeBridge
-        nativeBridge.postMessage({
-            bridgeName: bridgeName,
-            data: data || {}
-        });
-    },
-    receiveMessage: function(msg) {
-        var bridgeName = msg.bridgeName,
-            data = msg.data || {};
-        // 具体逻辑
-    }
-};
-</code></pre><p>JSBridge 大概的雏形出现了。现在终于可以着手解决这个问题了：<strong>消息都是单向的，那么调用 Native 功能时 Callback 怎么实现的？</strong></p>
-<p>对于 JSBridge 的 Callback ，其实就是 RPC 框架的回调机制。当然也可以用更简单的 JSONP 机制解释：</p>
-<blockquote>
-<p>当发送 JSONP 请求时，url 参数里会有 callback 参数，其值是 <strong>当前页面唯一</strong> 的，而同时以此参数值为 key 将回调函数存到 window 上，随后，服务器返回 script 中，也会以此参数值作为句柄，调用相应的回调函数。</p>
-</blockquote>
-<p>由此可见，callback 参数这个 <strong>唯一标识</strong> 是这个回调逻辑的关键。这样，我们可以参照这个逻辑来实现 JSBridge：用一个自增的唯一 id，来标识并存储回调函数，并把此 id 以参数形式传递给 Native，而 Native 也以此 id 作为回溯的标识。这样，即可实现 Callback 回调逻辑。</p>
-<pre><code>(function () {
-    var id = 0,
-        callbacks = {};
-
-    window.JSBridge = {
-        // 调用 Native
-        invoke: function(bridgeName, callback, data) {
-            // 判断环境，获取不同的 nativeBridge
-            var thisId = id ++; // 获取唯一 id
-            callbacks[thisId] = callback; // 存储 Callback
-            nativeBridge.postMessage({
-                bridgeName: bridgeName,
-                data: data || {},
-                callbackId: thisId // 传到 Native 端
-            });
-        },
-        receiveMessage: function(msg) {
-            var bridgeName = msg.bridgeName,
-                data = msg.data || {},
-                callbackId = msg.callbackId; // Native 将 callbackId 原封不动传回
-            // 具体逻辑
-            // bridgeName 和 callbackId 不会同时存在
-            if (callbackId) {
-                if (callbacks[callbackId]) { // 找到相应句柄
-                    callbacks[callbackId](msg.data); // 执行调用
-                }
-            } elseif (bridgeName) {
-
-            }
-        }
-    };
-})();
-</code></pre><p>最后用同样的方式加上 Native 调用的回调逻辑，同时对代码进行一些优化，就大概实现了一个功能比较完整的 JSBridge。其代码如下：</p>
-<pre><code>(function () {
-    var id = 0,
-        callbacks = {},
-        registerFuncs = {};
-
-    window.JSBridge = {
-        // 调用 Native
-        invoke: function(bridgeName, callback, data) {
-            // 判断环境，获取不同的 nativeBridge
-            var thisId = id ++; // 获取唯一 id
-            callbacks[thisId] = callback; // 存储 Callback
-            nativeBridge.postMessage({
-                bridgeName: bridgeName,
-                data: data || {},
-                callbackId: thisId // 传到 Native 端
-            });
-        },
-        receiveMessage: function(msg) {
-            var bridgeName = msg.bridgeName,
-                data = msg.data || {},
-                callbackId = msg.callbackId, // Native 将 callbackId 原封不动传回
-                responstId = msg.responstId;
-            // 具体逻辑
-            // bridgeName 和 callbackId 不会同时存在
-            if (callbackId) {
-                if (callbacks[callbackId]) { // 找到相应句柄
-                    callbacks[callbackId](msg.data); // 执行调用
-                }
-            } elseif (bridgeName) {
-                if (registerFuncs[bridgeName]) { // 通过 bridgeName 找到句柄
-                    var ret = {},
-                        flag = false;
-                    registerFuncs[bridgeName].forEach(function(callback) =&gt; {
-                        callback(data, function(r) {
-                            flag = true;
-                            ret = Object.assign(ret, r);
-                        });
-                    });
-                    if (flag) {
-                        nativeBridge.postMessage({ // 回调 Native
-                            responstId: responstId,
-                            ret: ret
-                        });
-                    }
-                }
-            }
-        },
-        register: function(bridgeName, callback) {
-            if (!registerFuncs[bridgeName])  {
-                registerFuncs[bridgeName] = [];
-            }
-            registerFuncs[bridgeName].push(callback); // 存储回调
-        }
-    };
-})();
-</code></pre><p>当然，这段代码片段只是一个示例，主要用于剖析 JSBridge 的原理和流程，里面存在诸多省略和不完善的代码逻辑，读者们可以自行完善。</p>
-<p>【注】：这一节主要讲的是，JavaScript 端的 JSBridge 的实现，对于 Native 端涉及的并不多。在 Native 端配合实现 JSBridge 的 JavaScript 调用 Native 逻辑也很简单，主要的代码逻辑是：接收到 JavaScript 消息 =&gt; 解析参数，拿到 bridgeName、data 和 callbackId =&gt; 根据 bridgeName 找到功能方法，以 data 为参数执行 =&gt; 执行返回值和 callbackId 一起回传前端。 Native 调用 JavaScript 也同样简单，直接自动生成一个唯一的 ResponseId，并存储句柄，然后和 data 一起发送给前端即可。</p>
-<h1 id="5-JSBridge-如何引用"><a href="#5-JSBridge-如何引用" class="headerlink" title="5 JSBridge 如何引用"></a><strong>5 JSBridge 如何引用</strong></h1><p>对于 JSBridge 的引用，常用有两种方式，各有利弊。</p>
-<h2 id="5-1-由-Native-端进行注入"><a href="#5-1-由-Native-端进行注入" class="headerlink" title="5.1 由 Native 端进行注入"></a><strong>5.1 由 Native 端进行注入</strong></h2><p>注入方式和 Native 调用 JavaScript 类似，直接执行桥的全部代码。</p>
-<p>它的优点在于：桥的版本很容易与 Native 保持一致，Native 端不用对不同版本的 JSBridge 进行兼容；与此同时，它的缺点是：注入时机不确定，需要实现注入失败后重试的机制，保证注入的成功率，同时 JavaScript 端在调用接口时，需要优先判断 JSBridge 是否已经注入成功。</p>
-<h2 id="5-2-由-JavaScript-端引用"><a href="#5-2-由-JavaScript-端引用" class="headerlink" title="5.2 由 JavaScript 端引用"></a><strong>5.2 由 JavaScript 端引用</strong></h2><p>直接与 JavaScript 一起执行。</p>
-<p>与由 Native 端注入正好相反，它的优点在于：JavaScript 端可以确定 JSBridge 的存在，直接调用即可；缺点是：如果桥的实现方式有更改，JSBridge 需要兼容多版本的 Native Bridge 或者 Native Bridge 兼容多版本的 JSBridge。</p>
-<h1 id="如何调用三种唤端媒介"><a href="#如何调用三种唤端媒介" class="headerlink" title="如何调用三种唤端媒介"></a><strong>如何调用三种唤端媒介</strong></h1><p>无论是 URL Scheme 还是 Intent 或者 Universal Link ，他们都算是 URL ，只是 URL Scheme 和 Intent 算是特殊的 URL。所以我们可以拿使用 URL 的方法来使用它们。</p>
-<blockquote>
-<p>iframe</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;iframe src=&quot;sinaweibo://qrcode&quot;&gt;</span><br></pre></td></tr></table></figure>
-<p>在只有 URL Scheme 的日子里，iframe 是使用最多的了。因为在未安装 app 的情况下，不会去跳转错误页面。但是 iframe 在各个系统以及各个应用中的兼容问题还是挺多的，不能全部使用 URL Scheme。</p>
-<blockquote>
-<p>a 标签</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end&quot;&quot;&gt;扫一扫&lt;/a&gt;</span><br></pre></td></tr></table></figure>
-<p>对于动态生成的 a 标签，使用 dispatch 来模拟触发点击事件，发现很多种 event 传递过去都无效；使用 click() 来模拟触发，部分场景下存在这样的情况，第一次点击过后，回到原先页面，再次点击，点击位置和页面所识别位置有不小的偏移，所以 Intent 协议从 a 标签换成了 window.location。</p>
-<blockquote>
-<p>window.location</p>
-</blockquote>
-<p>URL Scheme 在 ios 9+ 上诸如 safari、UC、QQ浏览器中， iframe 均无法成功唤起 APP，只能通过 window.location 才能成功唤端。<br>当然，如果我们的 app 支持 Universal Link，ios 9+ 就用不到 URL Scheme 了。而 Universal Link 在使用过程中，我发现在 qq 中，无论是 iframe 导航 还是 a 标签打开 又或者 window.location 都无法成功唤端，一开始我以为是 qq 和微信一样禁止了 Universal Link 唤端的功能，其实不然，百般试验下，通过 top.location 唤端成功了。</p>
-<h3 id="判断唤端是否成功"><a href="#判断唤端是否成功" class="headerlink" title="判断唤端是否成功"></a>判断唤端是否成功</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">const initialTime = new Date();</span><br><span class="line">let counter = 0;</span><br><span class="line">let waitTime = 0;</span><br><span class="line"></span><br><span class="line">const checkOpen = setInterval(() =&gt; &#123;</span><br><span class="line">   count++;</span><br><span class="line">   waitTime = new Date() - initialTime;</span><br><span class="line"></span><br><span class="line">   if (waitTime &gt; 2500) &#123;</span><br><span class="line">      clearInterval(checkOpen);</span><br><span class="line">      cb();</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   if (counter &lt; 100) return;</span><br><span class="line"></span><br><span class="line">   clearInterval(checkOpen);</span><br><span class="line"></span><br><span class="line">   const hide = document.hidden || document.webkitHidden;</span><br><span class="line"></span><br><span class="line">   if (!hide) &#123;</span><br><span class="line">      cb(); // 唤端失败的回调函数</span><br><span class="line">   &#125;</span><br><span class="line">&#125;, 20);</span><br></pre></td></tr></table></figure>
-<p>APP 如果被唤起的话，页面就会进入后台运行，setInterval 在 ios 中不会停止运行，在 android 中停止运行。<br>每 20ms 执行一次，执行 100次 在页面中实际耗费与 2000 ms 不会相差多少。<br>我们的判断条件比预期时间多设置了 500ms，所以如果安卓中 setInterval 内的函数执行 100 次以内所费时间超过 2500ms，则说明 APP 唤起成功，反之则代表失败。<br>我们通过 document.hidden 和 document.webkitHidden 属性来判断 APP 在 ios 中是否被正常唤起，2000ms 内，页面转入后台运行，document.hidden 会返回 true，代表唤端成功，反之则代表失败。</p>
-<h1 id="判断是否安装app并打开-否则跳转下载的方法"><a href="#判断是否安装app并打开-否则跳转下载的方法" class="headerlink" title="判断是否安装app并打开,否则跳转下载的方法"></a><strong>判断是否安装app并打开,否则跳转下载的方法</strong></h1><blockquote>
-<p>应用场景</p>
-</blockquote>
-<p>App产品在运营推广上有一个需求，就是要求可以让用户在访问我们的推广网页时，就可以判断出这个用户手机上是否安装了我们的App，如果安装了则可以直接在网页上打开，否则就引导用户前往下载。从而形成一个推广上的闭环。</p>
-<blockquote>
-<p>解决办法</p>
-</blockquote>
-<p>而对于点击链接后，能否直接打开，可以通过下面的代码来实现。前提条件：你得知道你的APP对应的打开协议，如贴吧APP，协议为：com.baidu.tieba:// ，微信的：weixin:// ，等等</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- a标签点击打开的动作，在click事件中注册 --&gt;</span><br><span class="line">&lt;a href=&quot;javascript:;&quot; id=&quot;openApp&quot;&gt;贴吧客户端&lt;/a&gt;</span><br><span class="line">&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">    document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">        // 通过iframe的方式试图打开APP，如果能正常打开，会直接切换到APP，并自动阻止js其他行为</span><br><span class="line">        </span><br><span class="line">        var ifr = document.createElement(&apos;iframe&apos;);</span><br><span class="line">        ifr.src = &apos;com.baidu.tieba://&apos;;//打开app的协议，有app同事提供</span><br><span class="line">        ifr.style.display = &apos;none&apos;;</span><br><span class="line">        document.body.appendChild(ifr);</span><br><span class="line">        window.setTimeout(function()&#123;</span><br><span class="line">            document.body.removeChild(ifr);</span><br><span class="line">　　　　　　　window.location.href = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;//打开app下载地址，有app同事提供</span><br><span class="line">        &#125;,2000)</span><br><span class="line">    &#125;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>此方法有些浏览器不兼容iframe，可以window.location的方法解决<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&lt;a href=&quot;javascript:;&quot; id=&quot;openApp&quot;&gt;贴吧客户端&lt;/a&gt;</span><br><span class="line">&lt;script type=&quot;text/javascript&quot;&gt;</span><br><span class="line">    document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">        window.location.href = &quot;com.baidu.tieba://&quot;;</span><br><span class="line">        window.setTimeout(function()&#123;</span><br><span class="line">            window.location.href = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;//打开app下载地址，有app同事提供</span><br><span class="line">        &#125;,2000)</span><br><span class="line">    &#125;;</span><br><span class="line">&lt;/script&gt;</span><br></pre></td></tr></table></figure></p>
-<h1 id="js判断本地是否安装app"><a href="#js判断本地是否安装app" class="headerlink" title="js判断本地是否安装app"></a><strong>js判断本地是否安装app</strong></h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">&lt;script language=&quot;javascript&quot;&gt;</span><br><span class="line">             document.getElementById(&apos;openApp&apos;).onclick = function(e)&#123;</span><br><span class="line">                if(navigator.userAgent.match(/(iPhone|iPod|iPad);?/i)) &#123;</span><br><span class="line">                var loadDateTime = new Date();</span><br><span class="line">                window.setTimeout(function() &#123;</span><br><span class="line">                        var timeOutDateTime = new Date();</span><br><span class="line">                        if(timeOutDateTime - loadDateTime &lt; 5000) &#123;</span><br><span class="line">                            window.location = &quot;https://itunes.apple.com/cn/app/id477927812&quot;;</span><br><span class="line">                        &#125; else &#123;</span><br><span class="line">                            window.close();</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;,</span><br><span class="line">                    25);</span><br><span class="line">                window.location = &quot;weixin:// &quot;;</span><br><span class="line">            &#125; else if(navigator.userAgent.match(/android/i)) &#123;</span><br><span class="line">                var state = null;</span><br><span class="line">                try &#123;</span><br><span class="line">                    state = window.open(&quot;weixin://&quot;);</span><br><span class="line">                &#125; catch(e) &#123;&#125;</span><br><span class="line">                if(state) &#123;</span><br><span class="line">                    window.close();</span><br><span class="line">                &#125; else &#123;</span><br><span class="line">                    window.location = &quot;http://dldir1.qq.com/weixin/android/weixin656android1020.apk&quot;;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        &lt;/script&gt;</span><br></pre></td></tr></table></figure>
-<p>如果本地安装了app那么直接打开，否则苹果要跳转到app-store，安卓则要跳到对应的市场</p>
-<blockquote>
-<p>解决方案 一</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">//html代码中 的 a 标签，以微信为例，默认的是调用weixin scheme，去打开本机的微信，如果没有则跳转到相应连接</span><br><span class="line">　　　　&lt;a href=&quot;weixin://&quot; class=&quot;btn-download&quot;&gt;立即打开&lt;/a&gt;</span><br><span class="line">　　</span><br><span class="line">　　　　// 为btn-download 绑定事件，如果在500ms内，没有解析到协议，那么就会跳转到下载链接 </span><br><span class="line">　　　　 var appstore, ua = navigator.userAgent;</span><br><span class="line">        if(ua.match(/Android/i))&#123; </span><br><span class="line">            appstore = &apos;market://search?q=com.singtel.travelbuddy.android&apos;;</span><br><span class="line">        &#125;</span><br><span class="line">        if(ua.match(/iphone|ipod|ipad/))&#123;</span><br><span class="line">            appstore = &quot;https://itunes.apple.com/cn/app/wei-xin/id414478124?mt=8&amp;ign-mpt=uo%3D4&quot;; </span><br><span class="line">        &#125;</span><br><span class="line">        function applink(fail)&#123;  </span><br><span class="line">            return function()&#123;  </span><br><span class="line">                var clickedAt = +new Date;  </span><br><span class="line">                // During tests on 3g/3gs this timeout fires immediately if less than 500ms.  </span><br><span class="line">                setTimeout(function()&#123;  </span><br><span class="line">                     // To avoid failing on return to MobileSafari, ensure freshness!  </span><br><span class="line">                      if (+new Date - clickedAt &lt; 2000)&#123;  </span><br><span class="line">                          window.location = fail;  </span><br><span class="line">                      &#125;  </span><br><span class="line">                &#125;, 500);      </span><br><span class="line">            &#125;;  </span><br><span class="line">        &#125;  </span><br><span class="line">        $(&apos;.icon-download, .btn-download&apos;)[0].onclick = applink(appstore);</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>解决方案二 </p>
-</blockquote>
-<p>通过在页面中生成一个隐藏的iframe，iframe的src指向 app 协议，例如 weixin scheme，并监听onerror事件，意思是如果无法解析协议，就会触发onerror事件，但是我尝试了一下，未果。代码如下，可参考一下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">// 页面中有div#iframe-box 用来插入生成的iframe，还是以微信为例</span><br><span class="line">　　　　 var ifm = document.createElement(&apos;iframe&apos;), isInstalled;</span><br><span class="line">        ifm.style.display = &apos;none&apos;;</span><br><span class="line">        ifm.src = &apos;wixin://&apos;;</span><br><span class="line">        ifm.onload = function(e)&#123;</span><br><span class="line">            var e = e || window.event;</span><br><span class="line">            e.preventDefault();</span><br><span class="line">        &#125;</span><br><span class="line">        ifm.onerror = function()&#123;</span><br><span class="line">            //isInstalled = false;</span><br><span class="line">            alert(1);</span><br><span class="line">        &#125;</span><br><span class="line">        document.getElementById(&apos;iframe-box&apos;).appendChild(ifm);</span><br><span class="line"></span><br><span class="line">　　　　// 但这时的问题是，iframe的src成功解析到了协议，则会直接跳转，但是解析不到的话，也不会触发error事件，这个还要继续研究</span><br><span class="line">　　　　// 可以把上面的代码，放到函数中，然后作为某个按钮的响应函数。</span><br></pre></td></tr></table></figure>
-<blockquote>
-<p>解决方案三</p>
-</blockquote>
-<p>对于ios手机，会有如下写法<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;meta name=&quot;apple-itunes-app&quot; content=&quot;app-id=414478124&quot; /&gt;</span><br></pre></td></tr></table></figure></p>
-<p>将上面代码放到head中，根据name也会知道意思，app-id是微信的app-id，用ios手机看会看到提示，andriod比可以，结果自行实验。（ios就是强大）</p>
-<h1 id="H5唤起客户端通用机方案"><a href="#H5唤起客户端通用机方案" class="headerlink" title="H5唤起客户端通用机方案"></a><strong>H5唤起客户端通用机方案</strong></h1><h4 id="H5唤起客户端"><a href="#H5唤起客户端" class="headerlink" title="H5唤起客户端"></a><a href="https://github.com/suanmei/callapp-lib" target="_blank" rel="noopener">H5唤起客户端</a></h4><h1 id="6-总结"><a href="#6-总结" class="headerlink" title="6 总结"></a><strong>6 总结</strong></h1><p>这篇文章主要剖析的 JSBridge 的实现及应用，包括 <strong>JavaScript 与 Native 间的通信原理</strong>，<strong>JSBridge 的 JavaScript 端实现</strong> 以及 <strong>引用方式</strong>，并给出了一些示例代码，希望对读者有一定的帮助。</p>
-<h3 id="JSBridge实战"><a href="#JSBridge实战" class="headerlink" title="JSBridge实战"></a><a href="https://juejin.im/post/5bda6f276fb9a0226d18931f" target="_blank" rel="noopener">JSBridge实战</a></h3>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3613,7 +3681,7 @@ private WebView Wv;
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">155</span>
+                  <span class="site-state-item-count">156</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

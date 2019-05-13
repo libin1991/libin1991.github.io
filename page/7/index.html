@@ -694,6 +694,286 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/02/Vue安全权限控制axios拦截/" itemprop="url">Vue安全权限控制axios拦截</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-02T22:57:53+08:00">
+                2018-07-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>何为权限控制</p>
+<pre><code>//请求失败后的统一拦截，以及ajax的基本设置
+import axios from &apos;axios&apos;;
+import qs from &apos;qs&apos;;
+
+function cleanRequest(req) {
+  for (const i in req) {
+    /* eslint guard-for-in: 0 */
+    if (req[i] !== 0 &amp;&amp; !req[i]) {
+      delete req[i];
+    }
+  }
+}
+
+axios.defaults.withCredentials = true;
+axios.defaults.xsrfCookieName = null;
+axios.defaults.headers.common[&apos;X-Requested-With&apos;] = &apos;XMLHttpRequest&apos;;
+axios.defaults.headers.post[&apos;Content-Type&apos;] = &apos;application/x-www-form-urlencoded&apos;;
+//系统弹层
+import Toast from &apos;mint-ui/lib/toast&apos;;
+import &apos;mint-ui/lib/toast/style.css&apos;;
+
+module.exports.install = function (Vue) {
+  axios.defaults.baseURL=&quot;/&quot;;
+  Vue.prototype.$http = axios;
+  Vue.http = axios;
+
+  axios.interceptors.request.use(
+    function (request) {
+      const params = request.params;
+      if (params) {
+        cleanRequest(params);
+      }
+      if (request.data) {
+        cleanRequest(request.data);
+        request.data=qs.stringify(Object.assign(request.data,Bus.movieConfig))
+      }else{
+        request.data=qs.stringify(Bus.movieConfig)
+      }
+      return request;
+    },
+    function (error) {
+      return Promise.reject(error);
+    }
+  );
+
+  // Add a response interceptor
+  axios.interceptors.response.use(
+    function (response) {
+      return response;
+    },
+    function (error) {
+      Toast(&apos;系统繁忙，请稍后重试!&apos;);
+      // Do something with response error
+      return Promise.reject(error);
+    }
+  );
+};
+</code></pre><p>权限控制大致分为两个维度:</p>
+<ul>
+<li>垂直维度: 控制用户可以访问哪些url的权限</li>
+<li>水平维度: 控制用户访问特定url，获取哪些数据的权限（e.g. 普通用户、管理员、超级管理员访问同一url，获取的数据是不同的）</li>
+</ul>
+<p>Web权限控制方案List</p>
+<ul>
+<li>前后端不分离：以Java为例，后端通过jsp、freemark、thmeleaf等模板来渲染相应权限的数据，渲染完呈现在浏览器端</li>
+<li>前后端分离：<br>▫SPA单页面应用，路由由前端控制，前端通过js控制hash路由的权限<br>▫SSR服务端渲染，Node中间层做代理路由，判断权限渲染特定的路由至浏览器端</li>
+</ul>
+<p>SPA前端权限控制方案</p>
+<p>SPA: 单页Web应用（single page web application）将所有web活动局限于一个html页面中，利用js通过hash或者浏览器history api来实现无刷新路由跳转，前后端通过ajax数据通信，避免了浏览器的刷新重新加载，为用户提供流程的操作体验。这意味着前端接管了路由层，需要通过调用前端自身的MVC模块，来渲染不同的页面。</p>
+<blockquote>
+<p>Base on：</p>
+</blockquote>
+<ul>
+<li>Vue 前端MVVM框架</li>
+<li>Vuex 状态管理机</li>
+<li>Vue-router 路由</li>
+<li>Axios HTTP请求库</li>
+</ul>
+<p>1.登陆事件Login</p>
+<pre><code>// 1.触发登陆事件
+dispatch(&apos;login&apos;)
+
+// actions
+commit(types.LOGIN_SUCCESS, res.data.data)
+...
+</code></pre><p>2.获取Token，经Base64编码后存至sessionStorage</p>
+<pre><code>// mutations
+const mutations = {
+    [types.LOGIN_SUCCESS] (state, data) {
+        state.authlock = false
+    // 2.登陆成功回调拿到token,经Base64 编码后存入本地sessionStorage
+        let token = Base64.encode(data + &apos;:HIKDATAE&apos;)
+        sessionStorage.setItem(&apos;userToken&apos;, token)
+    // 路由跳转至目标页面
+        router.push({name: &apos;xxx&apos;})
+    },
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+        router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>3.所有HTTP Header Authorization 加上编码后的token(前后端可约定规则)</p>
+<pre><code>// Axios 请求钩子（request）
+axios.interceptors.request.use(req =&gt; {
+    let token = sessionStorage.getItem(&apos;user&apos;)     
+    if (token) {         
+        // 3.token 存在,则在之后所有请求的http请求头 Authorization 带上base64编码后的token,后台拿到token后进行验证权限         
+        req.headers.Authorization = `Basic ${token}`     
+    }
+    req.data = qs.stringify(req.data)     
+    return req 
+}, error =&gt; {
+    return Promise.reject(error) 
+})
+</code></pre><p>浏览器http header<br><img src="https://pic4.zhimg.com/v2-48ee52913451d66397f33a47f6af3374_b.jpg" alt=""><img src="https://pic4.zhimg.com/80/v2-48ee52913451d66397f33a47f6af3374_hd.jpg" alt=""></p>
+<p>4.请求拦截：后台拿到token后对每个请求进行校验，若校验失败返回401，前端response钩子里统一catch error 跳转至登陆页面。</p>
+<pre><code>// Axios 请求钩子（response）
+axios.interceptors.response.use(res =&gt; {
+    return res
+}, error =&gt; {
+    if (error.response) {
+        switch (error.response.status) {
+        // 4.所有接口response校验钩子,若token检验失败,后台返回 401 error code, 清除token信息并跳转到登录页面
+            case 401:
+                store.commit(types.LOGOUT)
+                router.replace({
+                    path: &apos;/login&apos;
+        })
+    }
+    }
+    return Promise.reject(error)
+})
+</code></pre><p>5.路由跳转拦截：任意路由跳转时，在路由beforeEach钩子里校验本地是否存在token，若没有，则跳转至登陆页面</p>
+<pre><code>// 路由钩子(每个路由跳转前调起beforeEach钩子)
+router.beforeEach((to, from, next) =&gt; {
+  if (to.path === &apos;/login&apos;) {
+    sessionStorage.removeItem(&apos;userToken&apos;)
+  }
+  let user = sessionStorage.getItem(&apos;userToken&apos;)
+  if (!user &amp;&amp; to.path !== &apos;/login&apos;) {
+    // 若本地token不存在,则任意路由跳转的时候,重定向至login 登陆页面
+    next({ path: &apos;/login&apos; })
+  } else {
+    next()
+  }
+})
+</code></pre><p>6.登出Logout：清楚本地sessionStorage的token信息</p>
+<pre><code>// mutations
+const mutations = {
+    ...
+    [types.LOGOUT_SUCCESS] (state) {
+        state.authlock = true
+    // 登出成功回调,移除本地token
+        sessionStorage.removeItem(&apos;userToken&apos;)
+    router.push({name: &apos;Login&apos;})
+    }
+}
+</code></pre><p>流程示意图如下:<br><img src="https://pic2.zhimg.com/v2-064f7b05f15399ac9ff6aa03ee1cb710_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-064f7b05f15399ac9ff6aa03ee1cb710_hd.jpg" alt=""></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/06/21/移动端设置了overflow-hidden和border-radius，子元素超出部分不隐藏问题？/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3170,15 +3450,15 @@ h2[data-text]::after {
 <li>在每句css选择器的末尾（编译后的生成的css语句）加一个当前组件的data属性选择器（如[data-v-19fca230]）来私有化样式</li>
 <li>如果组件内部包含有其他组件，只会给其他组件的最外层标签加上当前组件的data属性</li>
 </ol>
-<p>上个栗子。转译前：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">    .test &#123;</span></span><br><span class="line"><span class="undefined">        background: blue;</span></span><br><span class="line"><span class="undefined">        span&#123;</span></span><br><span class="line"><span class="undefined">            color:red;</span></span><br><span class="line"><span class="undefined">        &#125;</span></span><br><span class="line"><span class="undefined">    &#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">template</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"test"</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">span</span>&gt;</span>hello world !<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">template</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
-<p>转译后：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"css"</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">    .test[data-v-ff86ae42] &#123;</span></span><br><span class="line"><span class="undefined">        background: blue;</span></span><br><span class="line"><span class="undefined">    &#125;</span></span><br><span class="line"><span class="undefined">    .test span[data-v-ff86ae42]&#123;</span></span><br><span class="line"><span class="undefined">        color: red;</span></span><br><span class="line"><span class="undefined">    &#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">template</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"test"</span> <span class="attr">data-v-ff86ae42</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">span</span> <span class="attr">data-v-ff86ae42</span>&gt;</span>hello world !<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">template</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>上个栗子。转译前：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="css">    <span class="selector-class">.test</span> &#123;</span></span><br><span class="line"><span class="undefined">        background: blue;</span></span><br><span class="line"><span class="undefined">        span&#123;</span></span><br><span class="line"><span class="css">            <span class="selector-tag">color</span><span class="selector-pseudo">:red</span>;</span></span><br><span class="line"><span class="undefined">        &#125;</span></span><br><span class="line"><span class="undefined">    &#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">template</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"test"</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">span</span>&gt;</span>hello world !<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">template</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>转译后：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"css"</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="css">    <span class="selector-class">.test</span><span class="selector-attr">[data-v-ff86ae42]</span> &#123;</span></span><br><span class="line"><span class="undefined">        background: blue;</span></span><br><span class="line"><span class="undefined">    &#125;</span></span><br><span class="line"><span class="css">    <span class="selector-class">.test</span> <span class="selector-tag">span</span><span class="selector-attr">[data-v-ff86ae42]</span>&#123;</span></span><br><span class="line"><span class="undefined">        color: red;</span></span><br><span class="line"><span class="undefined">    &#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">template</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">class</span>=<span class="string">"test"</span> <span class="attr">data-v-ff86ae42</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">span</span> <span class="attr">data-v-ff86ae42</span>&gt;</span>hello world !<span class="tag">&lt;/<span class="name">span</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">template</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
 <p>可以看出：PostCSS会给一个组件中的所有dom添加了一个独一无二的动态属性data-v-xxxx，然后，给CSS选择器额外添加一个对应的属性选择器来选择该组件中dom，这种做法使得样式只作用于含有该属性的dom——组件内部dom, 从而达到了’样式模块化’的效果.</p>
 <h4 id="穿透scoped"><a href="#穿透scoped" class="headerlink" title="穿透scoped"></a>穿透scoped</h4><p>但是，在做项目中，会遇到这么一个问题，即：引用了第三方组件，需要在组件中局部修改第三方组件的样式，而又不想去除scoped属性造成组件之间的样式污染。那么有哪些解决办法呢？</p>
 <ol>
 <li>不使用scoped 省略（个人不推荐）</li>
 <li>在模板中使用两次style标签：</li>
 </ol>
-<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">    /*添加要覆盖的样式*/</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">    /* local styles */</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!--vue官网中提到：一个 .vue 文件可以包含多个style标签。所以上面的写法是没有问题的。--&gt;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="css">    <span class="comment">/*添加要覆盖的样式*/</span></span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="css">    <span class="comment">/* local styles */</span></span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!--vue官网中提到：一个 .vue 文件可以包含多个style标签。所以上面的写法是没有问题的。--&gt;</span></span><br></pre></td></tr></table></figure>
 <blockquote>
 <p>穿透scoped &gt;&gt;&gt;</p>
 </blockquote>
@@ -3186,7 +3466,7 @@ h2[data-text]::after {
 <blockquote>
 <p><strong> <code>&lt;!--使用 &gt;&gt;&gt;或者 /deep/ 操作符（Sass 之类的预处理器无法正确解析 &gt;&gt;&gt;，可以使用/deep/）--&gt;</code> </strong></p>
 </blockquote>
-<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">.box &#123;</span></span><br><span class="line"><span class="undefined">  /deep/ input &#123;</span></span><br><span class="line"><span class="undefined">    width: 166px;</span></span><br><span class="line"><span class="undefined">    text-align: center;</span></span><br><span class="line"><span class="undefined">  &#125;</span></span><br><span class="line"><span class="undefined">&#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line">或者</span><br><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="undefined">.box &gt;&gt;&gt; input &#123;</span></span><br><span class="line"><span class="undefined">    width: 166px;</span></span><br><span class="line"><span class="undefined">    text-align: center;</span></span><br><span class="line"><span class="undefined">  &#125;</span></span><br><span class="line"><span class="undefined">&#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="css"><span class="selector-class">.box</span> &#123;</span></span><br><span class="line"><span class="undefined">  /deep/ input &#123;</span></span><br><span class="line"><span class="undefined">    width: 166px;</span></span><br><span class="line"><span class="undefined">    text-align: center;</span></span><br><span class="line"><span class="undefined">  &#125;</span></span><br><span class="line"><span class="undefined">&#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br><span class="line">或者</span><br><span class="line"><span class="tag">&lt;<span class="name">style</span> <span class="attr">lang</span>=<span class="string">"scss"</span> <span class="attr">scoped</span>&gt;</span><span class="undefined"></span></span><br><span class="line"><span class="css"><span class="selector-class">.box</span> &gt;&gt;&gt; <span class="selector-tag">input</span> &#123;</span></span><br><span class="line"><span class="undefined">    width: 166px;</span></span><br><span class="line"><span class="undefined">    text-align: center;</span></span><br><span class="line"><span class="undefined">  &#125;</span></span><br><span class="line"><span class="undefined">&#125;</span></span><br><span class="line"><span class="undefined"></span><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br></pre></td></tr></table></figure>
 <p>希望能帮助遇到同样问题的你 !</p>
 
           
@@ -3889,445 +4169,6 @@ return {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/03/30/JS继承/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/03/30/JS继承/" itemprop="url">JS继承</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-03-30T20:16:47+08:00">
-                2018-03-30
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p><img src="/2018/03/30/JS继承/1.webp" alt=""><br><img src="/2018/03/30/JS继承/2.webp" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;  </span><br><span class="line">&lt;html&gt;  </span><br><span class="line">  </span><br><span class="line">    &lt;head&gt;  </span><br><span class="line">        &lt;meta charset=&quot;UTF-8&quot;&gt;  </span><br><span class="line">        &lt;title&gt;&lt;/title&gt;  </span><br><span class="line">        &lt;script type=&quot;text/javascript&quot;&gt;  </span><br><span class="line">            function MAN(name, sex, age) &#123;  </span><br><span class="line">                this.name = name;  </span><br><span class="line">                this.sex = sex;  </span><br><span class="line">                this.age = age;  </span><br><span class="line">                this.say = function(school, zhuanye) &#123;  </span><br><span class="line">                    console.log(this.name + &quot;,&quot; + this.sex + &quot;,今年&quot; + this.age + &quot;岁！在&quot; + school + &quot;学习&quot; + zhuanye);  </span><br><span class="line">                &#125;  </span><br><span class="line">            &#125;  </span><br><span class="line">            MAN.prototype.cao = function() &#123;  </span><br><span class="line">                console.log(this.name + &quot;,&quot; + this.sex + &quot;,都已经&quot; + this.age + &quot;了,再不疯狂我们就老了！&quot;)  </span><br><span class="line">            &#125;  </span><br><span class="line">  </span><br><span class="line">            function WOMAN(name, sex, age) &#123;  </span><br><span class="line">                //方法1：对象冒充  </span><br><span class="line">                //this.man = MAN;   </span><br><span class="line">                //this.man(name, sex, age);  </span><br><span class="line">                //方法2：call  </span><br><span class="line">                //MAN.call(this,name, sex, age);  </span><br><span class="line">                //方法3：apply  </span><br><span class="line">                //MAN.apply(this,[name, sex, age]);  </span><br><span class="line">                //方法4：bind  </span><br><span class="line">                //MAN.bind(this)(name, sex, age);  </span><br><span class="line">                MAN.bind(this)(name, sex, age);  </span><br><span class="line">            &#125;  </span><br><span class="line">            //方法5：prototype  </span><br><span class="line">            WOMAN.prototype = new MAN();  </span><br><span class="line">              </span><br><span class="line">              </span><br><span class="line">            //注意：方法1,2,3,4只能继承this.XXX=XXX的属性,不能继承XXX.prototype.xxx==function()&#123;&#125;,注释掉方法5可以看到  </span><br><span class="line">            //方法5只能继承XXX.prototype.xxx==function()&#123;&#125;的属性，不能继承this.XXX=XXX的属性，注释掉方法1,2,3,4可以看到  </span><br><span class="line">              </span><br><span class="line">            var man = new MAN(&quot;张三&quot;, &quot;男&quot;, 26);  </span><br><span class="line">            man.say(&apos;蓝翔技校&apos;, &apos;电气焊&apos;);  </span><br><span class="line">            man.cao();  </span><br><span class="line">            var woman = new WOMAN(&quot;小红&quot;, &quot;女&quot;, 18);  </span><br><span class="line">            woman.say(&apos;清华大学&apos;, &apos;挖掘机&apos;);  </span><br><span class="line">            woman.cao();  </span><br><span class="line">        &lt;/script&gt;  </span><br><span class="line">    &lt;/head&gt;  </span><br><span class="line">  </span><br><span class="line">    &lt;body&gt;  </span><br><span class="line">    &lt;/body&gt;  </span><br><span class="line">  </span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure></p>
-<p><img src="/2018/03/30/JS继承/3.webp" alt=""><br>众所周知，在 ES 6 之前没有类的概念，所以不能像 Java 中一个 extends 关键字就搞定了继承关系，需要一些 tricks 来实现，下面就介绍一些比较常用的方法。</p>
-<h2 id="一-原型链继承："><a href="#一-原型链继承：" class="headerlink" title="(一) 原型链继承："></a>(一) 原型链继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-function Child(name) {
-    this.name = name;
-}
-
-Child.prototype = new Parent(&apos;father&apos;);
-Child.prototype.constructor = Child;
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();    // child name: son
-</code></pre><p>只要是原型链中出现过的原型，都可以说是该原型链派生的实例的原型。</p>
-<p>这种方法存在两个缺点：</p>
-<ol>
-<li>子类型无法给超类型传递参数，在面向对象的继承中，我们总希望通过 var child = new Child(‘son’, ‘father’); 让子类去调用父类的构造器来完成继承。而不是通过像这样 new Parent(‘father’) 去调用父类。</li>
-<li>Child.prototype.sayName 必须写在 Child.prototype = new Parent(‘father’); 之后，不然就会被覆盖掉。</li>
-</ol>
-<h2 id="二-类式继承："><a href="#二-类式继承：" class="headerlink" title="(二) 类式继承："></a>(二) 类式继承：</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomthing = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      // child name: son
-child.doSomthing();   // TypeError: child.doSomthing is not a function
-</code></pre><p>相当于 Parent 这个函数在 Child 函数中执行了一遍，并且将所有与 this 绑定的变量都切换到了 Child 上，这样就克服了第一种方式带来的问题。</p>
-<p>缺点：</p>
-<ol>
-<li>没有原型，每次创建一个 Child 实例对象时候都需要执行一遍 Parent 函数，无法复用一些公用函数。</li>
-</ol>
-<h2 id="三-组合式继承：前两种方式的结合"><a href="#三-组合式继承：前两种方式的结合" class="headerlink" title="(三) 组合式继承：前两种方式的结合"></a>(三) 组合式继承：前两种方式的结合</h2><pre><code>function Parent(name) { 
-    this.name = name;
-}
-
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();      
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();       // child name: son
-child.doSomething();   // parent do something!
-</code></pre><p>组合式继承是比较常用的一种继承方法，其背后的思路是使用原型链实现对原型属性和方法的继承，而通过借用构造函数来实现对实例属性的继承。</p>
-<p>这样，既通过在原型上定义方法实现了函数复用，又保证每个实例都有它自己的属性。</p>
-<p>组合式继承是 JS 最常用的继承模式，但组合继承使用过程中会被调用两次：一次是创建子类型的时候，另一次是在子类型构造函数的内部。</p>
-<pre><code>function Parent(name) { 
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-Parent.prototype.doSomething = function() {
-    console.log(&apos;parent do something!&apos;);
-}
-function Child(name, parentName) {
-    Parent.call(this, parentName);      // 第二次调用
-    this.name = name;
-}
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-Child.prototype = new Parent();         // 第一次调用
-Child.prototype.construtor = Child;
-
-var child = new Child(&apos;son&apos;);
-child.sayName();      
-child.doSomething();   
-</code></pre><p>显然从上述的代码中可以看出，第一次调用构造函数显然是没有必要的，因为第一次调用构造函数时候不需要函数内部的那些实例属性，这么写只是想获得其原型上的方法罢了，所以这时候你可能会这样写：</p>
-<pre><code>Child.prototype = Parent.prototype;
-</code></pre><p>这样写显然是不对的：</p>
-<ol>
-<li>首先，你这样写的话相当于是子类和父类都指向同一个对象，这时候如果你添加了新的方法给 Child 但实际上 Parent 并不需要，相当于强行给 Parent 添加了一个未知的方法。</li>
-<li>其次，仔细想想，这样体现不出继承的多态性，比如此时子类想要重写父类的 getName 的方法，那么父类的方法也就会随之修改，这显然违背了多态性。</li>
-</ol>
-<p>也就是说我们第一次调用构造函数的时候，其实是不管构造函数里面的内容，所以我们何不 new 一个空函数，将其 prototype 指向 Parent.prototype，代码如下：</p>
-<h2 id="四-寄生组合式继承："><a href="#四-寄生组合式继承：" class="headerlink" title="(四) 寄生组合式继承："></a>(四) 寄生组合式继承：</h2><pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function create(proto) {
-    function F(){}
-    F.prototype = proto;
-    F.prototype.construtor = F;
-    return new F();
-}
-
-Child.prototype = create(Parent.prototype);
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-Child.prototype.construtor = Child;
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();    // parent name: father
-
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();     // child name: son
-</code></pre><p>这就是所谓的寄生组合式继承方式，跟组合式继承的区别在于，他不需要在一次实例中调用两次父类的构造函数，假如说父类的构造器代码很多，还需要调用两次的话对系统肯定会有影响，寄生组合式继承的思想在于：用一个 F 空的构造函数去取代执行了 Parent 这个构造函数。</p>
-<p>在上面的代码中，我们手动创建了一个 create 函数，但是其实是存在于 Object 对象中，不需要我们手动去创建，所以上面的代码可以改为：</p>
-<pre><code>function Parent(name) {
-    this.name = name;
-}
-Parent.prototype.sayName = function() {
-    console.log(&apos;parent name:&apos;, this.name);
-}
-
-function Child(name, parentName) {
-    Parent.call(this, parentName);  
-    this.name = name;    
-}
-
-function inheritPrototype(Parent, Child) {
-    Child.prototype = Object.create(Parent.prototype);   //修改
-    Child.prototype.construtor = Child;
-}
-
-inheritPrototype(Parent, Child);
-
-Child.prototype.sayName = function() {
-    console.log(&apos;child name:&apos;, this.name);
-}
-
-var parent = new Parent(&apos;father&apos;);
-parent.sayName();      // parent name: father
-
-var child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();       // child name: son
-</code></pre><h2 id="五-ES-6-继承："><a href="#五-ES-6-继承：" class="headerlink" title="(五) ES 6 继承："></a>(五) ES 6 继承：</h2><p>当然，如果你学习过 ES 6，那么写继承关系就会特别简单，如果你学过 Java 就会发现，ES 6 中的继承跟 Java 太像了，上述的代码可改为：</p>
-<pre><code>class Parent {
-    constructor(name) {
-    this.name = name;
-    }
-    doSomething() {
-    console.log(&apos;parent do something!&apos;);
-    }
-    sayName() {
-    console.log(&apos;parent name:&apos;, this.name);
-    }
-}
-
-class Child extends Parent {
-    constructor(name, parentName) {
-    super(parentName);
-    this.name = name;
-    }
-    sayName() {
-     console.log(&apos;child name:&apos;, this.name);
-    }
-}
-
-const child = new Child(&apos;son&apos;, &apos;father&apos;);
-child.sayName();            // child name: son
-child.doSomething();        // parent do something!
-
-const parent = new Parent(&apos;father&apos;);
-parent.sayName();           // parent name: father
-</code></pre><p>JavaScript前端开发</p>
-<p>JavaScript(ES5)中没有像Java那样类的概念，写法跟传统的面向对象语言（比如C++和Java）差异很大，很容易让新学习这门语言的程序员感到困惑。但是我们可以通过原型链prototype来模拟类，去实现继承的相关功能。下面来看看ES5中实现继承常见的三种方法。代码如下：</p>
-<pre><code>/**
- * JavaScript(ES5)中实现继承的几种方法
- */
-
-// 定义基类Person
-function Person(name, age) {
-  this.name = name;
-  this.age = age;
-}
-
-// 共享数据
-Person.prototype.LEGS_NUM = 2;
-
-// 共享方法
-Person.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos; .I\&apos;m &apos; + this.age + &apos; years old now&apos;);
-};
-
-Person.prototype.walk = function () {
-  console.log(this.name + &apos; is walking...&apos;);
-};
-
-// Student子类
-function Student(name, age, className) {
-  // 调用父类
-  Person.call(this, name, age);
-  this.className = className;
-}
-
-// 1⃣️ 方法一：Person.prototype直接赋值给Student.prototype
-// Student.prototype = Person.prototype;
-
-// 2⃣️ 方法二：Student.prototype为Person的实例
-// Student.prototype = new Person();
-
-// 3⃣️ 方法三：创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype
-Student.prototype = Object.create(Person.prototype);
-
-Student.prototype.constructor = Student;
-
-// 覆盖父类的info方法
-Student.prototype.info = function () {
-  console.log(&apos;My name is &apos; + this.name + &apos;,I\&apos;m &apos; + this.age + &apos; years old now, and from class &apos; + this.className + &apos;.&apos;);
-};
-
-// Student类的共享方法
-Student.prototype.learn = function (subject) {
-  console.log(this.name + &apos; is learning &apos; + subject + &apos;.&apos;);
-};
-
-// 测试,创建一个Student的实例
-var microzz = new Student(&apos;Microzz&apos;, 22, 5);
-microzz.info(); // My name is Microzz,I&apos;m 22 years old now, and from class 5.
-console.log(microzz.LEGS_NUM); // 2
-microzz.walk(); // Microzz is walking...
-microzz.learn(&apos;JavaScript&apos;); // Microzz is learning JavaScript.
-console.log(microzz.__proto__.__proto__ === Person.prototype); // true
-console.log(microzz.__proto__ === Student.prototype); // true
-console.log(microzz.__proto__.constructor === Student); // true
-</code></pre><p>三种方法比较</p>
-<p>上面代码中有三种方法实现继承，现在我们可以来分析一下这几种方法。<br>这种方法中，Person.prototype直接赋值给Student.prototype，但是有一个很严重的问题，如果子类prototype添加新的东西的话也会改写父类。所以这种方法不推荐。<br>第二种方法Student.prototype为Person的实例，这也是可以实现的。但是Person构造函数有参数应该传什么呢？传任何一个都是很奇怪的。所以也不推荐。<br>第三种方法是比较理想的，创建一个空对象，对象的原型指向Person.prototype，赋值给Student.prototype。但是Object.create也有一点小瑕疵，因为它是ES5之后才支持的，不过我们可以通过模拟实现Object.create方法。代码如下：</p>
-<pre><code>if (!Object.create) {
-  Object.prototype.create = function (proto) {
-    function F() {}
-    F.prototype = proto;
-    return new F;
-  }
-}
-</code></pre><p>这样在ES5中就完美实现了继承😄</p>
-<h2 id="ES6中的实现"><a href="#ES6中的实现" class="headerlink" title="ES6中的实现"></a>ES6中的实现</h2><p>概述</p>
-<p>ES6提供了更接近传统语言”类”的写法，引入了Class（类）这个概念，作为对象的模板。通过class关键字，可以定义类。基本上，ES6的class可以看作只是一个语法糖，它的绝大部分功能，ES5都可以做到，新的class写法只是让对象原型的写法更加清晰、更像面向对象编程的语法而已。下面我们用ES6的语法实现类的继承。</p>
-<p>代码</p>
-<pre><code>// 基类 Person
-class Person {
-  // 父类的构造方法
-  constructor(name, age) {
-    this.name = name;
-    this.age = age;
-    // 共享变量
-    this.LEGS_NUM = 2;
-  }
-  // 父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old now.`);
-  }
-
-  // 父类的walk方法
-  walk() {
-    console.log(this.name + &apos; is walking...&apos;);
-  }
-
-}
-
-// 子类 Student
-class Student extends Person {
-  constructor(name, age, className) {
-    // 调用基类的构造方法
-    super(name, age);
-    this.className = className;
-  }
-
-  // 覆盖父类的info方法
-  info() {
-    console.log(`My name is ${this.name}, I\&apos;m ${this.age} years old, and from class ${this.className}.`);
-  }
-}
-
-// 实例化一个Student的实例
-let stu = new Student(&apos;Zhaohui&apos;, 22, 5);
-stu.info(); // My name is Zhaohui, I&apos;m 22 years old, and from class 5.
-stu.walk(); // Zhaohui is walking...
-console.log(stu.LEGS_NUM); // 2
-console.log(stu instanceof Student); // true
-console.log(stu instanceof Person); // true
-</code></pre><p>这样我们就通过ES6中的class实现了“类”的继承了</p>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4380,7 +4221,7 @@ console.log(stu instanceof Person); // true
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">155</span>
+                  <span class="site-state-item-count">156</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
