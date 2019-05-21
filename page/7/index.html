@@ -694,6 +694,366 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/30/关于-ES6-中-Promise-的面试题/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/07/30/关于-ES6-中-Promise-的面试题/" itemprop="url">关于 ES6 中 Promise 的面试题</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-07-30T20:16:20+08:00">
+                2018-07-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="说明"><a href="#说明" class="headerlink" title="说明"></a>说明</h3><p>最近在复习 Promise 的知识，所以就做了一些题，这里挑出几道题，大家一起看看吧。</p>
+<h3 id="题目一"><a href="#题目一" class="headerlink" title="题目一"></a>题目一</h3><pre><code>const promise = newPromise((resolve, reject) =&gt; {
+    console.log(1);
+    resolve();
+    console.log(2);
+})
+
+promise.then(() =&gt; {
+    console.log(3);
+})
+
+console.log(4);
+</code></pre><h3 id="解析"><a href="#解析" class="headerlink" title="解析"></a>解析</h3><p>首先 Promise 新建后立即执行，所以会先输出 1，2，而 <code>Promise.then()</code> 内部的代码在 当次 事件循环的 结尾 立刻执行 ，所以会继续输出4，最后输出3。</p>
+<h3 id="答案"><a href="#答案" class="headerlink" title="答案"></a>答案</h3><pre><code>1243
+</code></pre><h3 id="题目二"><a href="#题目二" class="headerlink" title="题目二"></a>题目二</h3><pre><code>const promise = newPromise((resolve, reject) =&gt; {
+    resolve(&apos;success1&apos;);
+    reject(&apos;error&apos;);
+    resolve(&apos;success2&apos;);
+});
+
+promise.then((res) =&gt; {
+    console.log(&apos;then:&apos;, res);
+}).catch((err) =&gt; {
+    console.log(&apos;catch:&apos;, err);
+})
+</code></pre><h3 id="解析-1"><a href="#解析-1" class="headerlink" title="解析"></a>解析</h3><p><code>resolve 函数</code>将 Promise 对象的状态从<code>“未完成”变为“成功”</code>（即从 <code>pending 变为 resolved</code>），在异步操作成功时调用，并将异步操作的结果，作为参数传递出去；</p>
+<p><code>reject 函数</code>将 Promise 对象的状态从<code>“未完成”变为“失败”</code>（即从 <code>pending 变为 rejected</code>），在异步操作失败时调用，并将异步操作报出的错误，作为参数传递出去。</p>
+<p>而一旦状态改变，就不会再变。<br>所以 代码中的<code>reject(&#39;error&#39;);</code> 不会有作用。</p>
+<p>Promise 只能 resolve 一次，剩下的调用都会被忽略。<br>所以 第二次的 <code>resolve(&#39;success2&#39;);</code> 也不会有作用。</p>
+<h3 id="答案-1"><a href="#答案-1" class="headerlink" title="答案"></a>答案</h3><pre><code>then: success1
+</code></pre><h3 id="题目三"><a href="#题目三" class="headerlink" title="题目三"></a>题目三</h3><pre><code>Promise.resolve(1)
+  .then(2)
+  .then(Promise.resolve(3))
+  .then(console.log)
+</code></pre><h3 id="解析-2"><a href="#解析-2" class="headerlink" title="解析"></a>解析</h3><p><code>Promise.resolve</code> 方法的参数如果是一个原始值，或者是一个不具有 <code>then</code> 方法的对象，则 <code>Promise.resolve</code> 方法返回一个新的 <code>Promise</code> 对象，状态为<code>resolved</code>，<code>Promise.resolve</code> 方法的参数，会同时传给回调函数。</p>
+<p><code>then</code> 方法接受的参数是函数，而如果传递的并非是一个函数，它实际上会将其解释为 <code>then(null)</code>，这就会导致前一个 <code>Promise</code> 的结果会穿透下面。</p>
+<h3 id="答案-2"><a href="#答案-2" class="headerlink" title="答案"></a>答案</h3><pre><code>1
+</code></pre><h3 id="题目四"><a href="#题目四" class="headerlink" title="题目四"></a>题目四</h3><p>红灯三秒亮一次，绿灯一秒亮一次，黄灯2秒亮一次；如何让三个灯不断交替重复亮灯？（用Promse实现）三个亮灯函数已经存在：</p>
+<pre><code>functionred() {
+    console.log(&apos;red&apos;);
+}
+functiongreen() {
+    console.log(&apos;green&apos;);
+}
+functionyellow() {
+    console.log(&apos;yellow&apos;);
+}
+</code></pre><h3 id="解析-3"><a href="#解析-3" class="headerlink" title="解析"></a>解析</h3><p>红灯三秒亮一次，绿灯一秒亮一次，黄灯2秒亮一次，意思就是3秒，执行一次 red 函数，2秒执行一次 green 函数，1秒执行一次 yellow 函数，不断交替重复亮灯，意思就是按照这个顺序一直执行这3个函数，这步可以就利用递归来实现。</p>
+<h3 id="答案-3"><a href="#答案-3" class="headerlink" title="答案"></a>答案</h3><pre><code>functionred() {
+    console.log(&apos;red&apos;);
+}
+functiongreen() {
+    console.log(&apos;green&apos;);
+}
+functionyellow() {
+    console.log(&apos;yellow&apos;);
+}
+
+var light = function (timmer, cb) {
+    returnnewPromise(function (resolve, reject) {
+        setTimeout(function () {
+            cb();
+            resolve();
+        }, timmer);
+    });
+};
+
+var step = function () {
+    Promise.resolve().then(function () {
+        return light(3000, red);
+    }).then(function () {
+        return light(2000, green);
+    }).then(function () {
+        return light(1000, yellow);
+    }).then(function () {
+        step();
+    });
+}
+
+step();
+</code></pre><p>这个答案，看上去已经很不错了，不过经小伙伴提醒，如果一直这么递归下去，会有栈溢出的问题，对于这个问题，其他小伙伴有什么优化建议的话，可以在评论区展示出来。</p>
+<h3 id="题目五"><a href="#题目五" class="headerlink" title="题目五"></a>题目五</h3><p>实现 mergePromise 函数，把传进去的数组按顺序先后执行，并且把返回的数据先后放到数组 data 中。</p>
+<pre><code>const timeout = ms =&gt;newPromise((resolve, reject) =&gt; {
+    setTimeout(() =&gt; {
+        resolve();
+    }, ms);
+});
+
+const ajax1 = () =&gt; timeout(2000).then(() =&gt; {
+    console.log(&apos;1&apos;);
+    return1;
+});
+
+const ajax2 = () =&gt; timeout(1000).then(() =&gt; {
+    console.log(&apos;2&apos;);
+    return2;
+});
+
+const ajax3 = () =&gt; timeout(2000).then(() =&gt; {
+    console.log(&apos;3&apos;);
+    return3;
+});
+
+const mergePromise = ajaxArray =&gt; {
+    // 在这里实现你的代码
+
+};
+
+mergePromise([ajax1, ajax2, ajax3]).then(data =&gt; {
+    console.log(&apos;done&apos;);
+    console.log(data); // data 为 [1, 2, 3]
+});
+
+// 要求分别输出// 1// 2// 3// done// [1, 2, 3]
+</code></pre><h3 id="解析-4"><a href="#解析-4" class="headerlink" title="解析"></a>解析</h3><p>首先 <code>ajax1 、ajax2、ajax3</code> 都是函数，只是这些函数执行后会返回一个 <code>Promise</code>，按题目的要求我们只要顺序执行这三个函数就好了，然后把结果放到 <code>data</code> 中，但是这些函数里都是异步操作，想要按顺序执行，然后输出 1，2，3并没有那么简单，看个例子。</p>
+<pre><code>functionA() {
+    setTimeout(function () {
+        console.log(&apos;a&apos;);
+    }, 3000);
+}
+
+functionB() {
+    setTimeout(function () {
+        console.log(&apos;b&apos;);
+    }, 1000);
+}
+
+A();
+B();
+
+// b// a
+</code></pre><p>例子中我们是按顺序执行的 <code>A</code>，<code>B</code> 但是输出的结果却是 <code>b</code>，<code>a</code> 对于这些异步函数来说，并不会按顺序执行完一个，再执行后一个。<br>这道题就是考用 <code>Promise</code> 控制异步流程，我们要想办法，让这些函数，一个执行完之后，再执行下一个，看答案吧。</p>
+<h3 id="答案-4"><a href="#答案-4" class="headerlink" title="答案"></a>答案</h3><pre><code>// 保存数组中的函数执行后的结果var data = [];
+
+// Promise.resolve方法调用时不带参数，直接返回一个resolved状态的 Promise 对象。var sequence = Promise.resolve();
+
+ajaxArray.forEach(function (item) {
+    // 第一次的 then 方法用来执行数组中的每个函数，// 第二次的 then 方法接受数组中的函数执行后返回的结果，// 并把结果添加到 data 中，然后把 data 返回。
+    sequence = sequence.then(item).then(function (res) {
+        data.push(res);
+        return data;
+    });
+})
+
+// 遍历结束后，返回一个 Promise，也就是 sequence， 他的 [[PromiseValue]] 值就是 data，// 而 data（保存数组中的函数执行后的结果） 也会作为参数，传入下次调用的 then 方法中。return sequence;
+</code></pre><h3 id="题目六"><a href="#题目六" class="headerlink" title="题目六"></a>题目六</h3><p>以下代码最后输出什么？</p>
+<pre><code>const first = () =&gt; (newPromise((resolve, reject) =&gt; {
+    console.log(3);
+    let p = newPromise((resolve, reject) =&gt; {
+        console.log(7);
+        setTimeout(() =&gt; {
+            console.log(5);
+            resolve(6);
+        }, 0)
+        resolve(1);
+    });
+    resolve(2);
+    p.then((arg) =&gt; {
+        console.log(arg);
+    });
+
+}));
+
+first().then((arg) =&gt; {
+    console.log(arg);
+});
+console.log(4);
+</code></pre><h3 id="解析-5"><a href="#解析-5" class="headerlink" title="解析"></a>解析</h3><p>这道题就其实和 <code>Promise</code> 的关系不太大，主要是需要理解 JS执行机制，才能很好的解决这道题，对于 JS 执行机制不了解的朋友推荐看看这篇文章</p>
+<p><a href="https://link.juejin.im?target=https%3A%2F%2Fjuejin.im%2Fpost%2F59e85eebf265da430d571f89" target="_blank" rel="noopener">这一次，彻底弄懂 JavaScript 执行机制</a></p>
+<h4 id="第一轮事件循环"><a href="#第一轮事件循环" class="headerlink" title="第一轮事件循环"></a>第一轮事件循环</h4><p>先执行宏任务，主script ，new Promise立即执行，输出【3】，</p>
+<p>执行 p 这个new Promise 操作，输出【7】，</p>
+<p>发现 setTimeout，将回调放入下一轮任务队列（Event Queue），p 的 then，姑且叫做 then1，放入微任务队列，发现 first 的 then，叫 then2，放入微任务队列。执行<code>console.log(4)</code>，输出【4】，宏任务执行结束。</p>
+<p>再执行微任务，执行 then1，输出【1】，</p>
+<p>执行 then2，输出【2】。</p>
+<p>到此为止，第一轮事件循环结束。开始执行第二轮。</p>
+<h4 id="第二轮事件循环"><a href="#第二轮事件循环" class="headerlink" title="第二轮事件循环"></a>第二轮事件循环</h4><p>先执行宏任务里面的，也就是 setTimeout 的回调，输出【5】。<br><code>resolve(6)</code> 不会生效，因为 p 这个 Promise 的状态一旦改变就不会在改变了。</p>
+<h3 id="答案-5"><a href="#答案-5" class="headerlink" title="答案"></a>答案</h3><pre><code>374125
+</code></pre><h3 id="题目七"><a href="#题目七" class="headerlink" title="题目七"></a>题目七</h3><p>有 8 个图片资源的 url，已经存储在数组 <code>urls</code> 中（即<code>urls = [&#39;http://example.com/1.jpg&#39;, ...., &#39;http://example.com/8.jpg&#39;]）</code>，而且已经有一个函数 <code>function loadImg</code>，输入一个 url 链接，返回一个 Promise，该 Promise 在图片下载完成的时候 resolve，下载失败则 reject。<br>但是我们要求，任意时刻，同时下载的链接数量不可以超过 3 个。<br>请写一段代码实现这个需求，要求尽可能快速地将所有图片下载完成。</p>
+<pre><code>var urls = [&apos;https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/gray.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/Particle.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.png&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic2.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.gif&apos;, &apos;https://user-gold-cdn.xitu.io/2018/10/29/166be40ccc434be0?w=600&amp;h=342&amp;f=png&amp;s=122185&apos;];
+functionloadImg(url) {
+    returnnewPromise((resolve, reject) =&gt; {
+        const img = new Image()
+        img.onload = function () {
+            console.log(&apos;一张图片加载完成&apos;);
+            resolve();
+        }
+        img.onerror = reject
+        img.src = url
+    })
+};
+</code></pre><h3 id="解析-6"><a href="#解析-6" class="headerlink" title="解析"></a>解析</h3><p>题目的意思是需要我们这么做，先并发请求 3 张图片，当一张图片加载完成后，又会继续发起一张图片的请求，让并发数保持在 3 个，直到需要加载的图片都全部发起请求。</p>
+<p>用 Promise 来实现就是，先并发请求3个图片资源，这样可以得到 3 个 Promise，组成一个数组，就叫<code>promises</code> 吧，然后不断的调用 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fpromise%23Promise-race" target="_blank" rel="noopener">Promise.race</a> 来返回最快改变状态的 Promise，然后从数组（<code>promises</code>）中删掉这个 Promise 对象，再加入一个新的 Promise，直到全部的 url 被取完，最后再使用 <a href="https://link.juejin.im?target=http%3A%2F%2Fes6.ruanyifeng.com%2F%23docs%2Fpromise%23Promise-all" target="_blank" rel="noopener">Promise.all</a> 来处理一遍数组（<code>promises</code>）中没有改变状态的 Promise。</p>
+<h3 id="答案-6"><a href="#答案-6" class="headerlink" title="答案"></a>答案</h3><pre><code>var urls = [&apos;https://www.kkkk1000.com/images/getImgData/getImgDatadata.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/gray.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/Particle.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.png&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic2.gif&apos;, &apos;https://www.kkkk1000.com/images/getImgData/getImgDataError.jpg&apos;, &apos;https://www.kkkk1000.com/images/getImgData/arithmetic.gif&apos;, &apos;https://user-gold-cdn.xitu.io/2018/10/29/166be40ccc434be0?w=600&amp;h=342&amp;f=png&amp;s=122185&apos;];
+functionloadImg(url) {
+    returnnewPromise((resolve, reject) =&gt; {
+        const img = new Image()
+        img.onload = function () {
+            console.log(&apos;一张图片加载完成&apos;);
+            resolve();
+        }
+        img.onerror = reject
+        img.src = url
+    })
+};
+
+functionlimitLoad(urls, handler, limit) {
+    // 对数组做一个拷贝const sequence = [].concat(urls)
+    let promises = [];
+
+    //并发请求到最大数
+    promises = sequence.splice(0, limit).map((url, index) =&gt; {
+        // 这里返回的 index 是任务在 promises 的脚标，用于在 Promise.race 之后找到完成的任务脚标return handler(url).then(() =&gt; {
+            return index
+        }); 
+    });
+
+    // 利用数组的 reduce 方法来以队列的形式执行return sequence.reduce((last, url, currentIndex) =&gt; {
+        return last.then(() =&gt; {
+            // 返回最快改变状态的 PromisereturnPromise.race(promises)
+        }).catch(err =&gt; {
+            // 这里的 catch 不仅用来捕获 前面 then 方法抛出的错误// 更重要的是防止中断整个链式调用console.error(err)
+        }).then((res) =&gt; {
+            // 用新的 Promise 替换掉最快改变状态的 Promise
+            promises[res] = handler(sequence[currentIndex]).then(() =&gt; { return res });
+        })
+    }, Promise.resolve()).then(() =&gt; {
+        returnPromise.all(promises)
+    })
+
+}
+limitLoad(urls, loadImg, 3)
+
+/*
+因为 limitLoad 函数也返回一个 Promise，所以当 所有图片加载完成后，可以继续链式调用
+
+limitLoad(urls, loadImg, 3).then(() =&gt; {
+    console.log(&apos;所有图片加载完成&apos;);
+}).catch(err =&gt; {
+    console.error(err);
+})
+*/
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/07/02/Vue安全权限控制axios拦截/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3861,314 +4221,6 @@ computed: {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/04/02/Vue2-0模板渲染底层思想/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/04/02/Vue2-0模板渲染底层思想/" itemprop="url">vue2.0模板渲染底层思想</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-04-02T22:34:21+08:00">
-                2018-04-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>初衷</p>
-<p>在使用vue2.0的过程，有时看API很难理解vue作者的思想，这促使我想要去深入了解vue底层的思想，了解完底层的一些思想，才能更好的用活框架，虽然网上已经有很多源码解析的文档，但我觉得只有自己动手了，才能更加深印象。</p>
-<p>vue2.0和1.0模板渲染的区别</p>
-<p>Vue 2.0 中模板渲染与 Vue 1.0 完全不同，1.0 中采用的 DocumentFragment （<a href="https://link.zhihu.com/?target=https%3A//juejin.im/entry/59116fa6a0bb9f0058aaaa4c" target="_blank" rel="noopener">想了解可以观看这篇文章</a>），而 2.0 中借鉴 React 的 Virtual DOM。基于 Virtual DOM，2.0 还可以支持服务端渲染（SSR），也支持 JSX 语法（改良版的 render 函数）。</p>
-<p>知识普及</p>
-<p>在开始阅读源码之前，先了解一些相关的知识：AST 数据结构，VNode 数据结构，createElement 的问题，render函数。</p>
-<p>AST 数据结构</p>
-<p>AST 的全称是 Abstract Syntax Tree（抽象语法树），是源代码的抽象语法结构的树状表现形式，计算机学科中编译原理的概念。而vue就是将模板代码映射为AST数据结构，进行语法解析。</p>
-<p>我们看一下 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/flow/compiler.js%23L63-L142" target="_blank" rel="noopener">AST 数据结构</a> 的定义：</p>
-<pre><code>declare type ASTNode = ASTElement | ASTText | ASTExpression
-declare type ASTElement = { // 有关元素的一些定义
-  type: 1;
-  tag: string;
-  attrsList: Array&lt;{ name: string; value: string }&gt;;
-  attrsMap: { [key: string]: string | null };
-  parent: ASTElement | void;
-  children: Array&lt;ASTNode&gt;;
-  //......
-}
-declare type ASTExpression = {
-  type: 2;
-  expression: string;
-  text: string;
-  static?: boolean;
-}
-declare type ASTText = {
-  type: 3;
-  text: string;
-  static?: boolean;
-}
-</code></pre><p>我们看到 ASTNode 有三种形式：ASTElement，ASTText，ASTExpression。用属性 type 区分。</p>
-<p>VNode数据结构</p>
-<p>下面是 Vue 2.0 源码中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/vdom/vnode.js%23L23-L50" target="_blank" rel="noopener">VNode 数据结构</a> 的定义 (带注释的跟下面介绍的内容有关)：</p>
-<pre><code>constructor {
-  this.tag = tag   //元素标签
-  this.data = data  //属性
-  this.children = children  //子元素列表
-  this.text = text
-  this.elm = elm  //对应的真实 DOM 元素
-  this.ns = undefined
-  this.context = context 
-  this.functionalContext = undefined
-  this.key = data &amp;&amp; data.key
-  this.componentOptions = componentOptions
-  this.componentInstance = undefined
-  this.parent = undefined
-  this.raw = false
-  this.isStatic = false //是否被标记为静态节点
-  this.isRootInsert = true
-  this.isComment = false
-  this.isCloned = false
-  this.isOnce = false
-}
-</code></pre><p>真实DOM存在什么问题，为什么要用虚拟DOM</p>
-<p>我们为什么不直接使用原生 DOM 元素，而是使用真实 DOM 元素的简化版 VNode，最大的原因就是 document.createElement 这个方法创建的真实 DOM 元素会带来性能上的损失。我们来看一个 document.createElement 方法的例子</p>
-<pre><code>let div = document.createElement(&apos;div&apos;);
-for(let k in div) {
-  console.log(k);
-}
-</code></pre><p>打开 console 运行一下上面的代码，会发现打印出来的属性多达 228 个，而这些属性有 90% 多对我们来说都是无用的。VNode 就是简化版的真实 DOM 元素，关联着真实的dom，比如属性elm，只包括我们需要的属性，并新增了一些在 diff 过程中需要使用的属性，例如 isStatic。</p>
-<p>render函数</p>
-<p>这个函数是通过编译模板文件得到的，其运行结果是 VNode。render 函数 与 JSX 类似，Vue 2.0 中除了 Template 也支持 JSX 的写法。大家可以使用 <a href="https://link.zhihu.com/?target=https%3A//cn.vuejs.org/v2/api/%3F%23Vue-compile" target="_blank" rel="noopener">Vue.compile(template)</a>方法编译下面这段模板。</p>
-<pre><code>&lt;div id=&quot;app&quot;&gt;
-  &lt;header&gt;
-    &lt;h1&gt;I am a template!&lt;/h1&gt;
-  &lt;/header&gt;
-  &lt;p v-if=&quot;message&quot;&gt;
-    {{ message }}
-  &lt;/p&gt;
-  &lt;p v-else&gt;
-    No message.
-  &lt;/p&gt;
-&lt;/div&gt;
-</code></pre><p>方法会返回一个对象，对象中有 render 和 staticRenderFns 两个值。看一下生成的 render函数</p>
-<pre><code>(function() {
-  with(this){
-    return _c(&apos;div&apos;,{   //创建一个 div 元素
-      attrs:{&quot;id&quot;:&quot;app&quot;}  //div 添加属性 id
-      },[
-        _m(0),  //静态节点 header，此处对应 staticRenderFns 数组索引为 0 的 render 函数
-        _v(&quot; &quot;), //空的文本节点
-        (message) //三元表达式，判断 message 是否存在
-         //如果存在，创建 p 元素，元素里面有文本，值为 toString(message)
-        ?_c(&apos;p&apos;,[_v(&quot;\n    &quot;+_s(message)+&quot;\n  &quot;)])
-        //如果不存在，创建 p 元素，元素里面有文本，值为 No message. 
-        :_c(&apos;p&apos;,[_v(&quot;\n    No message.\n  &quot;)])
-      ]
-    )
-  }
-})
-</code></pre><p>要看懂上面的 render函数，只需要了解 _c，_m，_v，_s 这几个函数的定义，其中 _c 是 createElement（创建元素），_m 是 renderStatic（渲染静态节点），_v 是 createTextVNode（创建文本dom），_s 是 toString （转换为字符串）</p>
-<p>除了 render 函数，还有一个 staticRenderFns 数组，这个数组中的函数与 VDOM 中的 diff 算法优化相关，我们会在编译阶段给后面不会发生变化的 VNode 节点打上 static 为 true 的标签，那些被标记为静态节点的 VNode 就会单独生成 staticRenderFns 函数</p>
-<pre><code>(function() { //上面 render 函数 中的 _m(0) 会调用这个方法
-  with(this){
-    return _c(&apos;header&apos;,[_c(&apos;h1&apos;,[_v(&quot;I&apos;m a template!&quot;)])])
-  }
-})
-</code></pre><p>模板渲染过程（重要的函数介绍）</p>
-<p>了解完一些基础知识后，接下来我们讲解下模板的渲染过程</p>
-<p><img src="https://pic2.zhimg.com/v2-4a8793499b4d1a5395f2b5f7d0584a4b_b.jpg" alt=""><img src="https://pic2.zhimg.com/80/v2-4a8793499b4d1a5395f2b5f7d0584a4b_hd.jpg" alt=""><br><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/entries/web-runtime-with-compiler.js%23L14-L67" target="_blank" rel="noopener">$mount</a> 函数，主要是获取 template，然后进入 compileToFunctions 函数。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/platforms/web/compiler/index.js%23L36-L84" target="_blank" rel="noopener">compileToFunctions</a> 函数，主要将 template 编译成 render 函数。首先读缓存，没有缓存就调用 compile 方法拿到 render 函数 的字符串形式，再通过 new Function 的方式生成 render 函数。</p>
-<pre><code>// 有缓存的话就直接在缓存里面拿
-const key = options &amp;&amp; options.delimiters
-            ? String(options.delimiters) + template
-            : template
-if (cache[key]) {
-    return cache[key]
-}
-const res = {}
-const compiled = compile(template, options) // compile 后面会详细讲
-res.render = makeFunction(compiled.render) //通过 new Function 的方式生成 render 函数并缓存
-const l = compiled.staticRenderFns.length
-res.staticRenderFns = new Array(l)
-for (let i = 0; i &lt; l; i++) {
-    res.staticRenderFns[i] = makeFunction(compiled.staticRenderFns[i])
-}
-......
-}
-return (cache[key] = res) // 记录至缓存中
-</code></pre><p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/index.js" target="_blank" rel="noopener">compile</a> 函数就是将 template 编译成 render 函数的字符串形式，后面一小节我们会详细讲到。</p>
-<p>完成render方法的生成后，会进入 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L38-L75" target="_blank" rel="noopener">_mount</a> 中进行DOM更新。该方法的核心逻辑如下：</p>
-<pre><code>// 触发 beforeMount 生命周期钩子
-callHook(vm, &apos;beforeMount&apos;)
-// 重点：新建一个 Watcher 并赋值给 vm._watcher
-vm._watcher = new Watcher(vm, function updateComponent () {
-  vm._update(vm._render(), hydrating)
-}, noop)
-hydrating = false
-// manually mounted instance, call mounted on self
-// mounted is called for render-created child components in its inserted hook
-if (vm.$vnode == null) {
-  vm._isMounted = true
-  callHook(vm, &apos;mounted&apos;)
-}
-return vm
-</code></pre><p>首先会new一个watcher对象（主要是将模板与数据建立联系），在watcher对象创建后，会运行传入的方法 vm._update(vm._render(), hydrating) 。其中的vm._render()主要作用就是运行前面compiler生成的render方法，并返回一个vNode对象。vm.update() 则会对比新的 vdom 和当前 vdom，并把差异的部分渲染到真正的 DOM 树上。<br>（想深入了解watcher的背后实现原理的，可以观看这篇文章 <a href="https://link.zhihu.com/?target=http%3A//zhouweicsu.github.io/blog/2017/03/07/vue-2-0-reactivity/" target="_blank" rel="noopener">Vue2.0 源码阅读：响应式原理</a>）</p>
-<p>compile</p>
-<p>上文中提到 compile 函数就是将 template 编译成 render 函数 的字符串形式。</p>
-<pre><code>export function compile (
-  template: string,
-  options: CompilerOptions
-): CompiledResult {
-  const AST = parse(template.trim(), options) //1. parse
-  optimize(AST, options)  //2.optimize
-  const code = generate(AST, options) //3.generate
-  return {
-    AST,
-    render: code.render,
-    staticRenderFns: code.staticRenderFns
-  }
-}
-</code></pre><p>这个函数主要有三个步骤组成：parse，optimize 和 generate，分别输出一个包含 AST，staticRenderFns 的对象和 render函数 的字符串。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/parser/index.js" target="_blank" rel="noopener">parse</a> 函数，主要功能是将 template字符串解析成 AST。前面定义了ASTElement的数据结构，parse 函数就是将template里的结构（指令，属性，标签等）转换为AST形式存进ASTElement中，最后解析生成AST。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/optimizer.js%23L21-L29" target="_blank" rel="noopener">optimize</a> 函数（src/compiler/optimizer.js）主要功能就是标记静态节点，为后面 patch 过程中对比新旧 VNode 树形结构做优化。被标记为 static 的节点在后面的 diff 算法中会被直接忽略，不做详细的比较。</p>
-<p><a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L22-L47" target="_blank" rel="noopener">generate</a> 函数（src/compiler/codegen/index.js）主要功能就是根据 AST 结构拼接生成 render 函数的字符串。</p>
-<pre><code>const code = AST ? genElement(AST) : &apos;_c(&quot;div&quot;)&apos; 
-staticRenderFns = prevStaticRenderFns
-onceCount = prevOnceCount
-return {
-    render: `with(this){return ${code}}`, //最外层包一个 with(this) 之后返回
-    staticRenderFns: currentStaticRenderFns
-}
-</code></pre><p>其中 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/compiler/codegen/index.js%23L49-L83" target="_blank" rel="noopener">genElement</a> 函数（src/compiler/codegen/index.js）是会根据 AST 的属性调用不同的方法生成字符串返回。</p>
-<pre><code>function genElement (el: ASTElement): string {
-  if (el.staticRoot &amp;&amp; !el.staticProcessed) {
-    return genStatic(el)
-  } else if (el.once &amp;&amp; !el.onceProcessed) {
-    return genOnce(el)
-  } else if (el.for &amp;&amp; !el.forProcessed) {
-    return genFor(el)
-  } else if (el.if &amp;&amp; !el.ifProcessed) {
-    return genIf(el)
-  } else if (el.tag === &apos;template&apos; &amp;&amp; !el.slotTarget) {
-    return genChildren(el) || &apos;void 0&apos;
-  } else if (el.tag === &apos;slot&apos;) {
-  }
-    return code
-  }
-}
-</code></pre><p>以上就是 compile 函数中三个核心步骤的介绍，compile 之后我们得到了 render 函数 的字符串形式，后面通过 new Function 得到真正的渲染函数。数据发现变化后，会执行 Watcher 中的 <a href="https://link.zhihu.com/?target=https%3A//github.com/vuejs/vue/blob/v2.1.10/src/core/instance/lifecycle.js%23L77-L114" target="_blank" rel="noopener">_update</a> 函数（src/core/instance/lifecycle.js），_update 函数会执行这个渲染函数，输出一个新的 VNode 树形结构的数据。然后在调用 patch 函数，拿这个新的 VNode 与旧的 VNode 进行对比，只有发生了变化的节点才会被更新到真实 DOM 树上。</p>
-<p>patch</p>
-<p>patch.js 就是新旧 VNode 对比的 diff 函数，主要是为了优化dom，通过算法使操作dom的行为降到最低，diff 算法来源于 snabbdom，是 VDOM 思想的核心。snabbdom 的算法为了 DOM 操作跨层级增删节点较少的这一目标进行优化，它只会在同层级进行, 不会跨层级比较。</p>
-<p>想更加深入VNode diff算法原理的，可以观看（<a href="https://link.zhihu.com/?target=https%3A//github.com/aooy/blog/issues/2" target="_blank" rel="noopener">解析vue2.0的diff算法</a>）</p>
-<p>总结</p>
-<ul>
-<li>compile 函数主要是将 template 转换为 AST，优化 AST，再将 AST 转换为 render函数；</li>
-<li>render函数 与数据通过 Watcher 产生关联；</li>
-<li>在数据发生变化时调用 patch 函数，执行此 render 函数，生成新 VNode，与旧 VNode 进行 diff，最终更新 DOM 树。</li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -4221,7 +4273,7 @@ return {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">156</span>
+                  <span class="site-state-item-count">157</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>

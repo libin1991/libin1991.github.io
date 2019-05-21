@@ -694,6 +694,313 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/10/01/模拟实现call和apply/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2016/10/01/模拟实现call和apply/" itemprop="url">模拟实现call和apply</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-10-01T20:39:27+08:00">
+                2016-10-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h4 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h4><p>JS 函数 call 和 apply 用来手动改变 this 的指向，call 和 apply  唯一的区别就在于函数参数的传递方式不同，call 是以逗号的形式，apply 是以数组的形式：</p>
+<pre><code>let person1 = {
+    name: &quot;person1&quot;,
+    say: function(age, sex) {
+        console.log(this.name + &apos; age: &apos; + age + &apos; sex: &apos; + sex);
+    }
+}
+
+let person2 = {
+    name: &quot;person&quot;
+}
+
+person1.say.call(person2, 20, &quot;男&quot;);
+
+person1.say.apply(person2, [20, &quot;男&quot;]);
+</code></pre><p>本文就尝试用其他方式来模拟实现 call 和 apply。</p>
+<p>首先观察 call 和 apply 有什么特点？</p>
+<ol>
+<li>被函数调用（函数也是对象），相当于 call 和 apply 是函数的属性</li>
+<li>如果没有传入需要 this 指向对象，那么 this 指向全局对象</li>
+<li>函数执行了</li>
+<li>最后都改变了 this 的指向</li>
+</ol>
+<h4 id="一、初步实现"><a href="#一、初步实现" class="headerlink" title="一、初步实现"></a>一、初步实现</h4><p>基于 call 函数是调用函数的属性的特点，call 的 this 指向调用函数，我们可以尝试把调用函数的作为传入的新对象的一个属性，执行后，再删除这个属性就好了。</p>
+<pre><code>Function.prototype.newCall = function (context) {
+    context.fn = this;  // this 指的是 say 函数
+    context.fn();
+    delete context.fn;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+var say = function() {
+    console.log(this.name);
+}
+
+say.newCall(person);  // jayChou
+</code></pre><p>是不是就初步模拟实现了 call 函数呢，由于 call 还涉及到传参的问题，所以我们进入到下一环节。</p>
+<h4 id="二、eval-方式"><a href="#二、eval-方式" class="headerlink" title="二、eval 方式"></a>二、eval 方式</h4><p>在给对象临时一个函数，并执行时，传入的参数是除了 context 其余的参数。那么我们可以截取 arguments 参数数组的第一个后，将剩余的参数传入临时数组。</p>
+<p>在前面我有讲过函数 arguments 类数组对象的特点，arguments 是不支持数组的大多数方法, 但是支持for 循环来遍历数组。</p>
+<pre><code>Function.prototype.newCall = function (context) {
+    context.fn = this;
+
+    let args = [];
+
+    for(let i=1; i&lt; arguments.length; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+    // args =&gt; [arguments[1], arguments[2], arguments[3], ...]
+
+    context.fn(args.join(&apos;,&apos;));  // ？？？delete context.fn;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+var say = function(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+}
+
+say.newCall(person);
+</code></pre><p>上面传递参数的方式最后肯定是失败的，我们可以尝试 eval 的方式，将参数添加子函数的作用域中。</p>
+<blockquote>
+<p>eval() 函数可计算某个字符串，并执行其中的的 JavaScript 代码</p>
+</blockquote>
+<pre><code>Function.prototype.newCall = function (context) {
+    context.fn = this;
+
+    let args = [];
+
+    for(var i=1; i&lt; arguments.length; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+
+    // args =&gt; [arguments[1], arguments[2], arguments[3], ...]eval(&apos;context.fn(&apos; + args + &apos;)&apos;);
+    delete context.fn;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+functionsay(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+}
+
+say.newCall(person, 18, &apos;男&apos;);  // name: jayChou,age: 18, sex: 男
+</code></pre><p>成功啦！</p>
+<p>实现了函数参数的传递，那么函数返回值怎么处理呢。而且，如果传入的对象是 null，又该如何处理？所以还需要再做一些工作：</p>
+<pre><code>Function.prototype.newCall = function (context) {
+    if (typeof context === &apos;object&apos;) {
+        context = context || window
+    } else {
+        context = Object.create(null);
+    }
+
+    context.fn = this;
+
+    let args = [];
+
+    for(var i=1; i&lt; arguments.length; i++) {
+        args.push(&apos;arguments[&apos; + i + &apos;]&apos;);
+    }
+
+    // args =&gt; [arguments[1], arguments[2], arguments[3], ...]var result = eval(&apos;context.fn(&apos; + args + &apos;)&apos;);  // 处理返回值delete context.fn;
+    return result;  // 返回返回值
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+functionsay(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+    return age + sex;
+}
+
+var check = say.newCall(person, 18, &apos;男&apos;);
+console.log(check); // 18男
+</code></pre><p>判断传入对象的类型，如果为 null 就指向 window 对象。利用 eval 来执行字符串代码，并返回字符串代码执行的结果，就完成了模拟 call。<br>大功告成！</p>
+<h4 id="三、ES-6-实现"><a href="#三、ES-6-实现" class="headerlink" title="三、ES 6 实现"></a>三、ES 6 实现</h4><p>前面我们用的 eval 方式可以用 ES6 的解决还存在的一些问题，有没有注意到，这段代码是有问题的。</p>
+<pre><code>context.fn = this;
+</code></pre><p>假如对象在被 call 调用前，已经有 fn 属性怎么办？</p>
+<p>ES6 中提供了一种新的基本数据类型，Symbol，表示独一无二的值，另外，Symbol 作为属性的时候，不能使用点运算符。所以再加上 ES 的 rest 剩余参数替代 arguments 遍历的工作就有：</p>
+<pre><code>Function.prototype.newCall = function (context,...params) {
+    if (typeof context === &apos;object&apos;) {
+        context = context || window
+    } else {
+        context = Object.create(null);
+    }
+    let fn = Symbol();
+    context[fn] = thisvar result = context[fn](...params);
+
+    delete context.fn;
+    return result;
+}
+
+var person = {
+    name: &quot;jayChou&quot;
+};
+
+functionsay(age, sex) {
+    console.log(`name: ${this.name},age: ${age}, sex: ${sex}`);
+    return age + sex;
+}
+
+var check = say.newCall(person, 18, &apos;男&apos;);
+console.log(check); // 18男
+</code></pre><h4 id="四、apply"><a href="#四、apply" class="headerlink" title="四、apply"></a>四、apply</h4><p>apply 和 call 的实现原理，基本类似，区别在于 apply 的参数是以数组的形式传入。</p>
+<pre><code>Function.prototype.newApply = function (context, arr) {
+    if (typeof context === &apos;object&apos;) {
+        context = context || window
+    } else {
+        context = Object.create(null);
+    }
+    context.fn = this;
+
+    var result;
+    if (!arr) {  // 判断函数参数是否为空
+        result = context.fn();
+    }
+    else {
+        var args = [];
+        for (var i = 0; i &lt; arr.length; i++) {
+            args.push(&apos;arr[&apos; + i + &apos;]&apos;);
+        }
+        result = eval(&apos;context.fn(&apos; + args + &apos;)&apos;);
+    }
+
+    delete context.fn;
+    return result;
+}
+</code></pre><p><strong>es6 实现</strong></p>
+<pre><code>Function.prototype.newApply = function(context, parameter) {
+  if (typeof context === &apos;object&apos;) {
+    context = context || window
+  } else {
+    context = Object.create(null)
+  }
+  let fn = Symbol()
+  context[fn] = this;
+  var result = context[fn](...parameter);
+  delete context[fn];
+  return result;
+}
+</code></pre>
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/09/16/前端代码异常监控实战/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -3570,149 +3877,6 @@ while ( iterator.hasNext() ) {
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2016/01/25/defer和async的区别/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="李斌">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/tx.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="舞动乾坤">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2016/01/25/defer和async的区别/" itemprop="url">defer和async的区别</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-01-25T21:24:11+08:00">
-                2016-01-25
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <p>先来试个一句话解释仨，当浏览器碰到 <code>script</code> 脚本的时候：</p>
-<ol>
-<li><code>&lt;script src=&quot;&quot;&gt;&lt;/script&gt;</code></li>
-</ol>
-<p>没有 <code>defer</code> 或 <code>async</code>，浏览器会立即加载并执行指定的脚本，“立即”指的是在渲染该 <code>script</code> 标签之下的文档元素之前，也就是说不等待后续载入的文档元素，读到就加载并执行。</p>
-<ol start="2">
-<li><code>&lt;script async src=&quot;&quot;&gt;&lt;/script&gt;</code></li>
-</ol>
-<p>有 <code>async</code>，加载和渲染后续文档元素的过程将和 <code>script.js</code> 的加载与执行并行进行（异步）。</p>
-<ol start="3">
-<li><code>&lt;script defer src=&quot;&quot;&gt;&lt;/script&gt;</code></li>
-</ol>
-<p>有 <code>defer</code>，加载后续文档元素的过程将和 <code>script.js</code> 的加载并行进行（异步），但是 <code>script.js</code> 的执行要在所有元素解析完成之后，<code>DOMContentLoaded</code> 事件触发之前完成。</p>
-<p>然后从实用角度来说呢，首先把所有脚本都丢到 <code>&lt;/body&gt;</code> 之前是最佳实践，因为对于旧浏览器来说这是唯一的优化选择，此法可保证非脚本的其他一切元素能够以最快的速度得到加载和解析。</p>
-<p>接着，我们来看一张图咯：</p>
-<p><img src="/2016/01/25/defer和async的区别/1.png" alt=""></p>
-<h4 id="蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表-HTML-解析。【JS-解析会阻塞HTML解析】"><a href="#蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表-HTML-解析。【JS-解析会阻塞HTML解析】" class="headerlink" title="蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表 HTML 解析。【JS 解析会阻塞HTML解析】"></a>蓝色线代表网络读取，红色线代表执行时间，这俩都是针对脚本的；绿色线代表 HTML 解析。【JS 解析会阻塞HTML解析】</h4><p>此图告诉我们以下几个要点：</p>
-<ol>
-<li>defer 和 async 在网络读取（下载）这块儿是一样的，都是异步的（相较于 HTML 解析）</li>
-<li>它俩的差别在于脚本下载完之后何时执行，显然 defer 是最接近我们对于应用脚本加载和执行的要求的</li>
-<li>关于 defer，此图未尽之处在于它是按照加载顺序执行脚本的，这一点要善加利用</li>
-<li>async 则是一个乱序执行的主，反正对它来说脚本的加载和执行是紧紧挨着的，所以不管你声明的顺序如何，只要它加载完了就会立刻执行</li>
-<li>仔细想想，async 对于应用脚本的用处不大，因为它完全不考虑依赖（哪怕是最低级的顺序执行），不过它对于那些可以不依赖任何脚本或不被任何脚本依赖的脚本来说却是非常合适的，最典型的例子：Google Analytics</li>
-</ol>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -3765,7 +3929,7 @@ while ( iterator.hasNext() ) {
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">156</span>
+                  <span class="site-state-item-count">157</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
