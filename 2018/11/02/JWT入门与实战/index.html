@@ -1,4 +1,1301 @@
-<!DOCTYPE html><html class="theme-next muse use-motion" lang="zh-Hans"><head><meta name="generator" content="Hexo 3.8.0"><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="#222"><script src="/lib/pace/pace.min.js?v=1.0.2"></script><link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css"><link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css"><link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css"><link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4"><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4"><link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4"><link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222"><meta name="keywords" content="Hexo, NexT"><meta name="description" content="前面的话实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口 cookie认证 传统的基于 cookie 的认证方式基本有下面几个步骤：  　　1、用户输入用户名和密码，发送给服务器 　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session"><meta property="og:type" content="article"><meta property="og:title" content="JWT入门与实战"><meta property="og:url" content="http://yoursite.com/2018/11/02/JWT入门与实战/index.html"><meta property="og:site_name" content="舞动乾坤"><meta property="og:description" content="前面的话实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口 cookie认证 传统的基于 cookie 的认证方式基本有下面几个步骤：  　　1、用户输入用户名和密码，发送给服务器 　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session"><meta property="og:locale" content="zh-Hans"><meta property="og:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/1.webp"><meta property="og:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/2.webp"><meta property="og:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/3.webp"><meta property="og:updated_time" content="2018-12-17T14:44:58.611Z"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="JWT入门与实战"><meta name="twitter:description" content="前面的话实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口 cookie认证 传统的基于 cookie 的认证方式基本有下面几个步骤：  　　1、用户输入用户名和密码，发送给服务器 　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session"><meta name="twitter:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/1.webp"><script type="text/javascript" id="hexo.configurations">var NexT=window.NexT||{},CONFIG={root:"/",scheme:"Muse",version:"5.1.4",sidebar:{position:"left",display:"post",offset:12,b2t:!1,scrollpercent:!1,onmobile:!1},fancybox:!0,tabs:!0,motion:{enable:!0,async:!1,transition:{post_block:"fadeIn",post_header:"slideDownIn",post_body:"slideDownIn",coll_header:"slideLeftIn",sidebar:"slideUpIn"}},duoshuo:{userId:"0",author:"博主"},algolia:{applicationID:"",apiKey:"",indexName:"",hits:{per_page:10},labels:{input_placeholder:"Search for Posts",hits_empty:"We didn't find any results for the search: ${query}",hits_stats:"${hits} results found in ${time} ms"}}}</script><link rel="canonical" href="http://yoursite.com/2018/11/02/JWT入门与实战/"><title>JWT入门与实战 | 舞动乾坤</title></head><body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans"><div class="container sidebar-position-left page-post-detail"><div class="headband"><div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div></div><header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader"><div id="sky"><div id="background" class="container"><svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400"><defs><g id="bottomShadow"><path fill="#000000" stroke="none" d="M270.5 225.95 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95Z"/></g><g id="Layer52_0_FILL"><path class="topGrass" fill="#B9D668" stroke="none" d="M397.85 229.3 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3Z"/></g><g id="Layer51_0_FILL"><path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="M135.1 229.95 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95Z"/></g><g id="Layer50_0_FILL"><path class="rightGrassTop" fill="#8CB154" stroke="none" d="M397.85 225.95 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95Z"/></g><g id="Layer48_0_FILL"><path class="crustLeftTop" fill="#955541" stroke="none" d="M135.45 282.4 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4Z"/></g><g id="Layer47_0_FILL"><path class="middleLeftCrust" fill="#C77E61" stroke="none" d="M135.1 270.3 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3Z"/></g><g id="Layer46_0_FILL"><path class="crustLeftTop" fill="#955541" stroke="none" d="M135.1 255.15 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15Z"/></g><g id="Layer45_0_FILL"><path class="topRightCrust" fill="#A47237" stroke="none" d="M397.5 294.5 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5Z"/></g><g id="Layer44_0_FILL"><path class="middleRightCrust" fill="#C89451" stroke="none" d="M397.5 269.95 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95Z"/></g><g id="Layer43_0_FILL"><path class="topRightCrust" fill="#A47237" stroke="none" d="M397.5 266.6 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6Z"/></g><g id="Layer41_0_FILL"><path class="greyRoad" fill="#B2B2B1" stroke="none" d="M295.05 283.05Q299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9L268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5Q191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95L241.6 250.45 295.05 283.05Z"/></g><g id="Layer40_0_FILL"><path fill="#FFFFFF" stroke="none" d="M199.95 256.85Q194.55 261.2 191.9 262.2L194.9 263.9 200.95 259.2 199.95 256.85M225.8 243.75 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75M308.15 275.65 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65M275.9 253.5 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5M251.7 227.3 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3M257.05 240.7 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7M277.2 207.8 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8M305.1 192.65 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65Z"/></g><g id="Layer38_0_FILL"><path class="frontFascia" fill="#ECB27B" stroke="none" d="M359.25 187.95 346.4 174.95 333.85 202.9 359.25 187.95Z"/></g><g id="Layer37_0_FILL"><path class="frontWall" fill="#EFA258" stroke="none" d="M334 201.05 334.35 232 359.2 217.55 359.25 187.95 334 201.05Z"/></g><g id="Layer36_0_FILL"><path class="leftWall" fill="#C57F42" stroke="none" d="M334.35 232.3 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3Z"/></g><g id="Layer35_0_FILL"><path class="rightRoof" fill="#EF4427" stroke="none" d="M329.7 167.9 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9Z"/></g><g id="Layer34_0_FILL"><path class="leftRoof" fill="#F2563B" stroke="none" d="M334.05 207.05 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05Z"/></g><g id="Layer30_0_FILL"><path id="windowFour" class="windows" stroke="none" fill="#975A42" d="M341.35 203.3Q340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3M355.85 198.45Q355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45Z"/><path class="door" fill="#B65041" stroke="none" d="M351.95 211.2 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2M351.2 211.2 351.35 211.2 351.35 211.1 351.2 211.2Z"/></g><g><path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="M183.7 215.3 183.7 215.6Q187.25 231.75 212.25 234.35L183.7 215.3Z"/></g><g id="Layer29_0_FILL"><path fill="#000000" fill-opacity="0.4" stroke="none" d="M305.1 216.85 305.15 217.2Q309.45 233.2 334.35 232.3L305.1 216.85Z"/></g><g id="Layer27_0_FILL"><path class="vegetation" fill="#78A950" stroke="none" d="M177.45 231.65Q175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65M236.9 266.6Q235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6M254.7 277Q253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277M315.5 245.75Q313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75M295.35 232.65Q293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65M277.2 171.85Q275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85Z"/></g><g id="Layer26_0_FILL"><path class="treeWood" fill="#AE663D" stroke="none" d="M175.1 177.55 172.05 177.55 172.05 191.1 159.3 172.85Q154.6 171.5 172.05 195.7L172.05 212.5 175.1 212.5 175.1 177.55M252.7 151.35 249 151.35 249 176.9 252.7 176.9 252.7 151.35Z"/></g><g id="Layer25_0_FILL"><path class="vegetation" fill="#77A951" stroke="none" d="M192.55 179.55Q200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55M236.25 106.65Q230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65Z"/></g><g id="Layer24_0_FILL"><path class="vegetation" fill="#77A951" stroke="none" d="M158.3 221.9Q160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9M338.35 240.05Q341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05Z"/></g><g id="Layer22_0_FILL"><path class="rightRoof" fill="#D05041" stroke="none" d="M220 173.85 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85Z"/></g><g id="Layer21_0_FILL"><path class="leftWall" fill="#C57F42" stroke="none" d="M212.25 191.35 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35Z"/></g><g id="Layer20_0_FILL"><path class="rightRoof" fill="#EF4427" stroke="none" d="M192.1 149.85 236.45 174.8 243.1 171.4Q220.05 150.55 196.3 139.95L192.1 149.85Z"/></g><g id="Layer19_0_FILL"><path class="frontFascia" fill="#EBB17B" stroke="none" d="M226.85 160.95 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95Z"/></g><g id="Layer18_0_FILL"><path class="frontWall" fill="#EFA258" stroke="none" d="M240.15 172.65 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65Z"/></g><g id="Layer17_0_FILL"><path class="rightRoof" fill="#EF4427" stroke="none" d="M210.9 142.2 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2Z"/></g><g><path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="M210.25 195.5 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5Z"/></g><g><path id="sun" fill="#E3BD0E" stroke="none" d="M257.05 15.95Q251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95Z"/></g><g id="Layer8_0_FILL"><path fill="#975A42" stroke="none" d="M238.45 189.65Q238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65M220.55 197.55Q220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55Z"/></g><g id="Layer7_0_FILL"><path class="door" fill="#B65041" stroke="none" d="M233.55 206.75 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75Z"/></g><g><path id="windowOne" class="windows" fill="#975A42" stroke="none" d="M188.65 198.4 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4M208.45 216.8 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8M188.8 204.1 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1M208.6 222.5 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5Z"/></g><g><path id="windowThree" class="windows" fill="#975A42" stroke="none" d="M311.7 214.1 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1M325.4 221 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221M318.4 206.2 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2M325.25 215.35 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35Z"/></g><g id="Layer2_0_FILL"><path class="door" fill="#B65041" stroke="none" d="M259.7 183.25 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25Z"/></g><path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="M223.05 200.3Q222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3ZM238.7 191.05Q238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05Z"/><path fill="#F2563B" stroke="none" d="M351.95 211.2 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2Z"/><path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="M198.55 204.75 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8M198.8 216.15 198.65 210.45 188.8 204.1"/><path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="M325.25 215.35 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55M318.4 206.2 318.45 211.9 311.6 208.45"/></defs><g id="shadow"><g transform="matrix( 1, 0, 0, 1, 0,0) "><use xlink:href="#bottomShadow"/></g></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use xlink:href="#sun"/></g><g id="earth"><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer52_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer51_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer50_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer48_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer47_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer46_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer45_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer44_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer43_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer41_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer40_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer38_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer37_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer36_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer35_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer34_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#windowFour"/><use class="element" xlink:href="#Layer32_0_1_STROKES"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer30_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer27_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer26_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer25_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer24_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer22_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer21_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer20_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer19_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer18_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer17_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer16_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer8_0_FILL"/><use class="element" xlink:href="#windowTwo"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer7_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#windowOne"/><use class="element" xlink:href="#Layer6_0_1_STROKES"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#windowThree"/><use class="element" xlink:href="#Layer5_0_1_STROKES"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer2_0_FILL"/></g></g></svg><div id="toggleButton" class="day-toggle"><div class="sun-icon"></div> <label class="switch"><input id="toggleCheckbox" type="checkbox"><div class="slider"></div></label><div class="cloud-icon"></div></div></div></div><div class="header-inner"><div class="site-brand-wrapper"><div class="site-meta"><div class="custom-logo-site-title"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span> <span class="site-title">舞动乾坤</span><span class="logo-line-after"><i></i></span></a></div><p class="site-subtitle">星光不问赶路人 岁月不负有心人</p></div><div class="site-nav-toggle"> <button><span class="btn-bar"></span><span class="btn-bar"></span><span class="btn-bar"></span></button></div></div><nav class="site-nav"><ul id="menu" class="menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i><br> 首页</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i><br> 归档</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i><br> 标签</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i><br> 关于</a></li><li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="menu-item-icon fa fa-search fa-fw"></i><br> 搜索</a></li></ul><div class="site-search"><div class="popup search-popup local-search-popup"><div class="local-search-header clearfix"><span class="search-icon"><i class="fa fa-search"></i></span><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span><div class="local-search-input-wrapper"> <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input"></div></div><div id="local-search-result"></div></div></div></nav></div></header><main id="main" class="main"><div class="main-inner"><div class="content-wrap"><div id="content" class="content"><div id="posts" class="posts-expand"><article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article"><div class="post-block"><link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/02/JWT入门与实战/"><span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person"><meta itemprop="name" content="李斌"><meta itemprop="description" content=""><meta itemprop="image" content="/images/tx.jpg"></span><span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization"><meta itemprop="name" content="舞动乾坤"></span><header class="post-header"><h1 class="post-title" itemprop="name headline">JWT入门与实战</h1><div class="post-meta"><span class="post-time"><span class="post-meta-item-icon"><i class="fa fa-calendar-o"></i></span> <span class="post-meta-item-text">发表于</span> <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-02T22:38:10+08:00">2018-11-02</time></span></div></header><div class="post-body" itemprop="articleBody"><h3 id="前面的话"><a href="#前面的话" class="headerlink" title="前面的话"></a>前面的话</h3><p>实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口</p><h4 id="cookie认证"><a href="#cookie认证" class="headerlink" title="cookie认证"></a>cookie认证</h4><blockquote><p>传统的基于 cookie 的认证方式基本有下面几个步骤：</p></blockquote><p>　　1、用户输入用户名和密码，发送给服务器</p><p>　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session ），同时会把这个会话的 ID 保存到客户端浏览器中，因为保存的地方是浏览器的 cookie ，所以这种认证方式叫做基于 cookie 的认证方式</p><p>　　3、后续的请求中，浏览器会发送会话 ID 到服务器，服务器上如果能找到对应 ID 的会话，那么服务器就会返回需要的数据给浏览器</p><p>　　4、当用户退出登录，会话会同时在客户端和服务器端被销毁</p><blockquote><p>这种认证方式的不足之处有两点</p></blockquote><p>　　1、服务器端要为每个用户保留 session信息，连接用户多了，服务器内存压力巨大</p><p>　　2、适合单一域名，不适合第三方请求cookie认证的后端典型代码如下所示:<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> express = <span class="built_in">require</span>(<span class="string">'express'</span>);</span><br><span class="line"><span class="keyword">const</span> app = express();</span><br><span class="line"><span class="keyword">const</span> bodyParser = <span class="built_in">require</span>(<span class="string">'body-parser'</span>);</span><br><span class="line">app.use(bodyParser.urlencoded(&#123; <span class="attr">extended</span>: <span class="literal">false</span> &#125;));</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> session = <span class="built_in">require</span>(<span class="string">'express-session'</span>)</span><br><span class="line"><span class="keyword">const</span> pug = <span class="built_in">require</span>(<span class="string">'pug'</span>);</span><br><span class="line"></span><br><span class="line">app.set(<span class="string">'view engine'</span>, <span class="string">'pug'</span>);</span><br><span class="line"></span><br><span class="line">app.use(session(&#123;</span><br><span class="line">  secret: <span class="string">'keyboard cat'</span>,</span><br><span class="line">  resave: <span class="literal">false</span>,</span><br><span class="line">  saveUninitialized: <span class="literal">true</span></span><br><span class="line">&#125;))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">app.get(<span class="string">'/'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  <span class="keyword">let</span> currentUser = req.session.username;</span><br><span class="line">  res.render(<span class="string">'index'</span>, &#123;currentUser&#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.get(<span class="string">'/login'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  res.sendFile(<span class="string">'login.html'</span>, &#123;<span class="attr">root</span>: <span class="string">'public'</span>&#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.post(<span class="string">'/login'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  <span class="keyword">let</span> username = req.body.username;</span><br><span class="line">  req.session.username = username;</span><br><span class="line">  res.redirect(<span class="string">'/'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.get(<span class="string">'/logout'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  req.session.destroy();</span><br><span class="line">  res.redirect(<span class="string">'/'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.listen(<span class="number">3006</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'running on port 3006...'</span>);</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure><p></p><h4 id="token认证"><a href="#token认证" class="headerlink" title="token认证"></a>token认证</h4><p>下面来介绍token认证。详细认证过程如下</p><p>　　1、用户输入用户名密码，发送给服务器</p><p>　　2、服务器验证用户名和密码，正确的话就返回一个签名过的 token（ token 可以认为就是个长长的字符串），客户端浏览器拿到这个 token</p><p>　　3、后续每次请求中，浏览器会把 token 作为 http header 发送给服务器，服务器可以验证一下签名是否有效，如果有效那么认证就成功了，可以返回客户端需要的数据</p><p>　　4、一旦用户退出登录，只需要客户端销毁一下 token 即可，服务器端不需要有任何操作</p><p>　　这种方式的特点就是客户端的 token 中自己保留有大量信息，服务器没有存储这些信息，而只负责验证，不必进行数据库查询，执行效率大大提高. 　　</p><h4 id="对比"><a href="#对比" class="headerlink" title="对比"></a>对比</h4><ul><li>传统的 session 流程<ul><li>浏览器发起请求登陆</li><li>服务端验证身份，生成身份验证信息，存储在服务端，并且告诉浏览器写入 Cookie</li><li>浏览器发起请求获取用户资料，此时 Cookie 内容也跟随这发送到服务器</li><li>服务器发现 Cookie 中有身份信息，验明正身</li><li>服务器返回该用户的用户资料</li></ul></li><li><p>JWT 流程</p><ul><li>浏览器发起请求登陆</li><li>服务端验证身份，根据算法，将用户标识符打包生成 token, 并且返回给浏览器</li><li>浏览器发起请求获取用户资料，把刚刚拿到的 token 一起发送给服务器</li><li>服务器发现数据中有 token，验明正身</li><li>服务器返回该用户的用户资料</li></ul></li><li><p>session 存储在服务端占用服务器资源，而 JWT 存储在客户端</p></li><li>session 存储在 Cookie 中，存在伪造跨站请求伪造攻击的风险</li><li>session 只存在一台服务器上，那么下次请求就必须请求这台服务器，不利于分布式应用</li><li>存储在客户端的 JWT 比存储在服务端的 session 更具有扩展性</li></ul><h4 id="如果加强-JWT-的安全性？"><a href="#如果加强-JWT-的安全性？" class="headerlink" title="如果加强 JWT 的安全性？"></a>如果加强 JWT 的安全性？</h4><ul><li>缩短 token 有效时间</li><li>使用安全系数高的加密算法</li><li>token 不要放在 Cookie 中，有 CSRF 风险</li><li>使用 HTTPS 加密协议</li><li>对标准字段 iss、sub、aud、nbf、exp 进行校验</li><li>使用成熟的开源库，不要手贱造轮子</li><li>特殊场景下可以把用户的 UA、IP 放进 payload 进行校验(不推荐)</li></ul><h3 id="JWT-简述"><a href="#JWT-简述" class="headerlink" title="JWT 简述"></a>JWT 简述</h3><blockquote><p>JWT（json web token）是为了在网络应用环境之间传递声明而基于 json 的开放标准，JWT 的声明一般被采用在身份提供者和服务器提供者间传递被认证的身份信息，以便于从资源服务器获取资源。</p></blockquote><h4 id="JWT-的应用场景"><a href="#JWT-的应用场景" class="headerlink" title="JWT 的应用场景"></a>JWT 的应用场景</h4><p>JWT 一般用于用户登录上，身份认证在这种场景下，一旦用户登录完成，在接下来的每个涉及用户权限的请求中都包含 JWT，可以对用户身份、路由、服务和资源的访问权限进行验证。</p><p>举一个例子，假如一个电商网站，在用户登录以后，需要验证用户的地方其实有很多，比如购物车，订单页，个人中心等等，访问这些页面正常的逻辑是先验证用户权限和登录状态，如果验证通过，则进入访问的页面，否则重定向到登录页。</p><p>而在 JWT 之前，这样的验证我们大多都是通过 cookie 和 session 去实现的，我们接下来就来对比以下这两种方式的不同。</p><h4 id="JWT-特点"><a href="#JWT-特点" class="headerlink" title="JWT 特点"></a>JWT 特点</h4><ul><li>体积小，因而传输速度快</li><li>传输方式多样，可以通过URL/POST参数/HTTP头部等方式传输</li><li>严格的结构化。它自身（在 payload 中）就包含了所有与用户相关的验证消息，如用户可访问路由、访问有效期等信息，服务器无需再去连接数据库验证信息的有效性，并且 payload 支持为你的应用而定制化。</li><li>支持跨域验证，可以应用于单点登录。</li></ul><h3 id="JWT-对比-cookie-session"><a href="#JWT-对比-cookie-session" class="headerlink" title="JWT 对比 cookie/session"></a>JWT 对比 cookie/session</h3><h4 id="cookie-session-的过程："><a href="#cookie-session-的过程：" class="headerlink" title="cookie/session 的过程："></a>cookie/session 的过程：</h4><p>由于浏览器的请求是无状态的，cookie 的存在就是为了带给服务器一些状态信息，服务器在接收到请求时会对其进行验证（其实是在登录时，服务器发给浏览器的），如果验证通过则正常返回结果，如果验证不通过则重定向到登录页，而服务器是根据 session 中存储的结果和收到的信息进行对比决定是否验证通过，当然这里只是简述过程。</p><h4 id="cookie-session-的问题："><a href="#cookie-session-的问题：" class="headerlink" title="cookie/session 的问题："></a>cookie/session 的问题：</h4><p>从上面可以看出服务器种植 cookie 后每次请求都会带上 cookie，浪费带宽，而且 cookie 不支持跨域，不方便与其他的系统之间进行跨域访问，而服务器会用 session 来存储这些用户验证的信息，这样浪费了服务器的内存，当多个服务器想要共享 session 需要都拷贝过去。</p><h3 id="JWT-的过程："><a href="#JWT-的过程：" class="headerlink" title="JWT 的过程："></a>JWT 的过程：</h3><p>当用户发送请求，将用户信息带给服务器的时候，服务器不再像过去一样存储在 session 中，而是将浏览器发来的内容通过内部的密钥加上这些信息，使用 sha256 和 RSA 等加密算法生成一个 token 令牌和用户信息一起返回给浏览器，当涉及验证用户的所有请求只需要将这个 token 和用户信息发送给服务器，而服务器将用户信息和自己的密钥通过既定好的算法进行签名，然后将发来的签名和生成的签名比较，严格相等则说明用户信息没被篡改和伪造，验证通过。</p><p>JWT 的过程中，服务器不再需要额外的内存存储用户信息，和多个服务器之间只需要共享密钥就可以让多个服务器都有验证能力，同时也解决了 cookie 不能跨域的问题。</p><h3 id="JWT-的结构-https-jwt-io"><a href="#JWT-的结构-https-jwt-io" class="headerlink" title="JWT 的结构 https://jwt.io/"></a>JWT 的结构 <a href="https://jwt.io/" target="_blank" rel="noopener">https://jwt.io/</a></h3><p><img src="/2018/11/02/JWT入门与实战/1.webp" alt=""><br>JWT 之所以能被作为一种声明传递的标准是因为它有自己的结构，并不是随便的发个 token 就可以的，JWT 用于生成 token 的结构有三个部分，使用 . 隔开。</p><p>1、Header [头部]</p><p>Header 头部中主要包含两部分，token 类型和加密算法，如<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="string">"alg"</span>: <span class="string">"HS256"</span>,</span><br><span class="line">  <span class="string">"typ"</span>: <span class="string">"JWT"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>jwt的头部包含两部分信息：</p><ul><li>声明类型，这里是jwt</li><li>声明加密的算法 通常直接使用 HMAC SHA256</li></ul><p>然后将头部进行base64加密（该加密是可以对称解密的)，构成了第一部分。<br>HS256 就是指 sha256 算法，会将这个对象转成 base64。</p><p>2、Payload（载荷）</p><p><strong>由于这里用的是可逆的base64 编码，所以第二部分的数据实际上是明文的。我们应该避免在这里存放不能公开的隐私信息。</strong></p><p>Payload 负载就是存放有效信息的地方，有效信息被分为标准中注册的声明、公共的声明和私有的声明.</p><p>载荷就是存放有效信息的地方。这些有效信息包含三个部分：</p><p>标准中注册声明</p><ul><li>公共的声名</li><li>私有的声明</li><li>公共的声明 ： 公共的声明可以添加任何的信息，一般添加用户的相关信息或其他业务需要的必要信息.但不建议添加敏感信息，因为该部分在客户端可解密。</li><li>私有的声明 ： 私有声明是提供者和消费者所共同定义的声明，一般不建议存放敏感信息，因为base64是对称解密的，意味着该部分信息可以归类为明文信息。</li></ul><p>下面是一个例子<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="string">"username"</span>: <span class="string">"libin"</span>,</span><br><span class="line">  <span class="string">"id"</span>: <span class="string">"5c170dfb5966f9060d290fe8"</span>,</span><br><span class="line">  <span class="string">"iat"</span>: <span class="number">1545014835</span>,</span><br><span class="line">  <span class="string">"exp"</span>: <span class="number">1545101235</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>(1) 标准中注册的声明<br>下面是标准中注册的声明，建议但不强制使用。<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 包括需要传递的用户信息</span></span><br><span class="line"></span><br><span class="line">&#123; </span><br><span class="line">  <span class="string">"iss"</span>: <span class="string">"Online JWT TEST"</span>, </span><br><span class="line">  <span class="string">"iat"</span>: <span class="number">1416797419</span>, </span><br><span class="line">  <span class="string">"exp"</span>: <span class="number">1448333419</span>, </span><br><span class="line">  <span class="string">"aud"</span>: <span class="string">"www.jwt.io"</span>, </span><br><span class="line">  <span class="string">"sub"</span>: <span class="string">"uid"</span>, </span><br><span class="line">  <span class="string">"nickname"</span>: <span class="string">"jwttest"</span>, </span><br><span class="line">  <span class="string">"username"</span>: <span class="string">"jwttest"</span>, </span><br><span class="line">  <span class="string">"scopes"</span>: [ <span class="string">"admin"</span>, <span class="string">"user"</span> ] </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><ul><li>iss：jwt 签发者；</li><li>sub：jwt 所面向的用户；</li><li>aud：接收 jwt 的一方；</li><li>exp：jwt 的过期时间，这个过期时间必须要大于签发时间，这是一个秒数；</li><li>nbf：定义在什么时间之前，该 jwt 都是不可用的；</li><li>iat：jwt 的签发时间。<br>上面的标准中注册的声明中常用的有 exp 和 nbf。</li></ul><p>其他还有：</p><ul><li>nbf (Not Before)：如果当前时间在nbf里的时间之前，则Token不被接受；一般都会留一些余地，比如几分钟；，是否使用是可选的；</li><li>jti: jwt的唯一身份标识，主要用来作为一次性token，从而回避重放攻击。</li></ul><p>(2) 公共声明</p><p>公共的声明可以添加任何的信息，一般添加用户的相关信息或其他业务需要的必要信息，但不建议添加敏感信息，因为该部分在客户端可解密，如 {“id”, username: “panda”, adress: “Beijing”}，会将这个对象转成 base64。</p><p>(3) 私有声明</p><p>私有声明是提供者和消费者所共同定义的声明，一般不建议存放敏感信息，因为 base64 是对称解密的，意味着该部分信息可以归类为明文信息。</p><p>3、Signature [签名]<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 根据alg算法与私有秘钥进行加密得到的签名字串；</span></span><br><span class="line"><span class="comment">// 这一段是最重要的敏感信息，只能在服务端解密；</span></span><br><span class="line"></span><br><span class="line">HMACSHA256(  </span><br><span class="line">    base64UrlEncode(header) + <span class="string">"."</span> +</span><br><span class="line">    base64UrlEncode(payload),</span><br><span class="line">    your<span class="number">-256</span>-bit-secret</span><br><span class="line">)</span><br></pre></td></tr></table></figure><p></p><p>jwt的第三部分是一个签证信息，这个签证信息由三部分组成：</p><ul><li>header (base64后的)</li><li>payload (base64后的)</li><li>secret</li></ul><p>Signature 这一部分指将 Header 和 Payload 通过密钥 secret 和加盐算法进行加密后生成的签名，secret，密钥保存在服务端，不会发送给任何人，所以 JWT 的传输方式是很安全的。</p><p>最后将三部分使用 . 连接成字符串，就是要返回给浏览器的 token 浏览器一般会将这个 token 存储在 localStorge 以备其他需要验证用户的请求使用。</p><p>将上面的编码后的字符串都用句号.连接在一起（头部在前），就形成了:<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImxpYmluIiwiaWQiOiI1YzE3MGRmYjU5NjZmOTA2MGQyOTBmZTgiLCJpYXQiOjE1NDUwMTQ4MzUsImV4cCI6MTU0NTEwMTIzNX0.FDWkBfas2b-jvXWuzedlNlhZmT4vQBey1w9q8vu2B8Q</span><br></pre></td></tr></table></figure><p></p><p><img src="/2018/11/02/JWT入门与实战/2.webp" alt=""></p><h3 id="JWT-使用场景"><a href="#JWT-使用场景" class="headerlink" title="JWT 使用场景"></a>JWT 使用场景</h3><p>JWT的主要优势在于使用无状态、可扩展的方式处理应用中的用户会话。服务端可以通过内嵌的声明信息，很容易地获取用户的会话信息，而不需要去访问用户或会话的数据库。在一个分布式的面向服务的框架中，这一点非常有用。</p><p>但是，如果系统中需要使用黑名单实现长期有效的token刷新机制，这种无状态的优势就不明显了。</p><blockquote><p>优点:快速开发，json格式简单，不需要cookie JSON在移动端的广泛应用 不依赖于社交登录 相对简单的概念理解，同session相比，性能更好一些，省去了处理分布session的问题；</p></blockquote><ul><li>支持跨域访问: Cookie是不允许垮域访问的，这一点对Token机制是不存在的，前提是传输的用户认证信息通过HTTP头传输.</li><li>无状态(也称：服务端可扩展行):Token机制在服务端不需要存储session信息，因为Token 自身包含了所有登录用户的信息，只需要在客户端的cookie或本地介质存储状态信息.</li><li>更适用CDN: 可以通过内容分发网络请求你服务端的所有资料（如：javascript，HTML,图片等），而你的服务端只要提供API即可.</li><li>去耦: 不需要绑定到一个特定的身份验证方案。Token可以在任何地方生成，只要在你的API被调用的时候，你可以进行Token生成调用即可.</li><li>更适用于移动应用: 当你的客户端是一个原生平台（iOS, Android，Windows 8等）时，Cookie是不被支持的（你需要通过Cookie容器进行处理），这时采用Token认证机制就会简单得多。</li><li>CSRF:因为不再依赖于Cookie，所以你就不需要考虑对CSRF（跨站请求伪造）的防范。- 性能: 一次网络往返时间（通过数据库查询session信息）总比做一次HMACSHA256计算 的Token验证和解析要费时得多.</li><li>不需要为登录页面做特殊处理: 如果你使用Protractor 做功能测试的时候，不再需要为登录页面做特殊处理.</li><li>基于标准化:你的API可以采用标准化的 JSON Web Token (JWT). 这个标准已经存在多个后端库（.NET, Ruby, Java,Python, PHP）和多家公司的支持（如：Firebase,Google, Microsoft）.</li></ul><blockquote><p>缺点:Token有长度限制 Token不能撤销 需要token有失效时间限制(exp)</p></blockquote><p>经过上面对 JWT 的叙述可能还是没有完全的理解什么是 JWT，具体怎么操作的，我们接下来实现一个小的案例，为了方便，服务端使用 express 框架，数据库使用 mongo 来存储用户信息，前端使用 Vue 来实现，做一个登录页登录后进入订单页验证 token 的功能。</p><h3 id="Vue-Koa2-JWT-完整代码"><a href="#Vue-Koa2-JWT-完整代码" class="headerlink" title="Vue+Koa2+JWT 完整代码"></a>Vue+Koa2+JWT <a href="https://github.com/libin1991/webpack4-vue-more-page-cli/tree/master/vue%2Bkoa2%2Bjwt%E5%AE%9E%E7%8E%B0%E5%8D%95%E7%82%B9%E7%99%BB%E5%BD%95%20%2B%20todolist%E5%A2%9E%E5%88%A0%E6%94%B9%E6%9F%A5" target="_blank" rel="noopener">完整代码</a></h3><p><img src="/2018/11/02/JWT入门与实战/3.webp" alt=""></p><h4 id="jsonwebtoken"><a href="#jsonwebtoken" class="headerlink" title="jsonwebtoken"></a>jsonwebtoken</h4><h5 id="jwt-sign-payload-secretOrPrivateKey-options-callback"><a href="#jwt-sign-payload-secretOrPrivateKey-options-callback" class="headerlink" title="jwt.sign(payload, secretOrPrivateKey, [options, callback])"></a>jwt.sign(payload, secretOrPrivateKey, [options, callback])</h5><ul><li>（异步）如果提供回调，则使用err或JWT 调用回调。</li><li>（同步）将JsonWebToken返回为字符串。</li></ul><p>payload必须是一个object, buffer或者string。请注意， exp只有当payload是object字面量时才可以设置。<br>secretOrPrivateKey 是包含HMAC算法的密钥或RSA和ECDSA的PEM编码私钥的string或buffer。</p><p>options:<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">algorithm：加密算法（默认值：HS256）</span><br><span class="line">expiresIn：以秒表示或描述时间跨度zeit / ms的字符串。如60，&quot;2 days&quot;，&quot;10h&quot;，&quot;7d&quot;，Expiration time，过期时间</span><br><span class="line">notBefore：以秒表示或描述时间跨度zeit / ms的字符串。如：60，&quot;2days&quot;，&quot;10h&quot;，&quot;7d&quot;</span><br><span class="line">audience：Audience，观众</span><br><span class="line">issuer：Issuer，发行者</span><br><span class="line">jwtid：JWT ID</span><br><span class="line">subject：Subject，主题</span><br><span class="line">noTimestamp</span><br><span class="line">header</span><br></pre></td></tr></table></figure><p></p><p>如果payload不是buffer或string，它将被强制转换为使用的字符串JSON.stringify()。<br>在expiresIn，notBefore，audience，subject，issuer没有默认值时。也可以直接在payload中用exp，nbf，aud，sub和iss分别表示，但是你不能在这两个地方同时设置。<br>请记住exp，nbf，iat是NumericDate类型。<br>生成的jwts通常会包含一个iat值除非指定了noTimestamp。如果iat插入payload中，则将使用它来代替实际的时间戳来计算其他事情，诸如options.expiresIn给定一个exp这样的时间间隔。<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sign with default (HMAC SHA256)</span></span><br><span class="line"><span class="keyword">var</span> jwt = <span class="built_in">require</span>(<span class="string">'jsonwebtoken'</span>);</span><br><span class="line"><span class="keyword">var</span> token = jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;, <span class="string">'shhhhh'</span>);</span><br><span class="line"><span class="comment">//backdate a jwt 30 seconds</span></span><br><span class="line"><span class="keyword">var</span> older_token = jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span>, <span class="attr">iat</span>: <span class="built_in">Math</span>.floor(<span class="built_in">Date</span>.now() / <span class="number">1000</span>) - <span class="number">30</span> &#125;, <span class="string">'shhhhh'</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// sign with RSA SHA256</span></span><br><span class="line"><span class="keyword">var</span> cert = fs.readFileSync(<span class="string">'private.key'</span>);  <span class="comment">// get private key</span></span><br><span class="line"><span class="keyword">var</span> token = jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;, cert, &#123; <span class="attr">algorithm</span>: <span class="string">'RS256'</span>&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// sign asynchronously</span></span><br><span class="line">jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;, cert, &#123; <span class="attr">algorithm</span>: <span class="string">'RS256'</span> &#125;, <span class="function"><span class="keyword">function</span>(<span class="params">err, token</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(token);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">//签署1小时期限的token:</span></span><br><span class="line">jwt.sign(&#123;</span><br><span class="line">  exp: <span class="built_in">Math</span>.floor(<span class="built_in">Date</span>.now() / <span class="number">1000</span>) + (<span class="number">60</span> * <span class="number">60</span>),</span><br><span class="line">  data: <span class="string">'foobar'</span></span><br><span class="line">&#125;, <span class="string">'secret'</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">//使用此库生成令牌的另一种方法是:</span></span><br><span class="line">jwt.sign(&#123;</span><br><span class="line">  data: <span class="string">'foobar'</span></span><br><span class="line">&#125;, <span class="string">'secret'</span>, &#123; <span class="attr">expiresIn</span>: <span class="number">60</span> * <span class="number">60</span> &#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">//or even better:</span></span><br><span class="line"></span><br><span class="line">jwt.sign(&#123;</span><br><span class="line">  data: <span class="string">'foobar'</span></span><br><span class="line">&#125;, <span class="string">'secret'</span>, &#123; <span class="attr">expiresIn</span>: <span class="string">'1h'</span> &#125;);</span><br></pre></td></tr></table></figure><p></p><h5 id="jwt-verify（token，secretOrPublicKey，-options，callback-）"><a href="#jwt-verify（token，secretOrPublicKey，-options，callback-）" class="headerlink" title="jwt.verify（token，secretOrPublicKey，[options，callback]）"></a>jwt.verify（token，secretOrPublicKey，[options，callback]）</h5><p>验证token的合法性</p><h5 id="wt-decode（token-，options-）"><a href="#wt-decode（token-，options-）" class="headerlink" title="wt.decode（token [，options]）"></a>wt.decode（token [，options]）</h5><p>（同步）返回解码没有验证签名是否有效的payload。<br>警告：这不会验证签名是否有效。你应该不为不可信的消息使用此。你最有可能要使用jwt.verify()。</p><h4 id="Server"><a href="#Server" class="headerlink" title="Server"></a>Server</h4><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> user = <span class="built_in">require</span>(<span class="string">'../models/UserModels'</span>)</span><br><span class="line"><span class="keyword">const</span> jwt = <span class="built_in">require</span>(<span class="string">'jsonwebtoken'</span>)</span><br><span class="line"><span class="keyword">const</span> config = <span class="built_in">require</span>(<span class="string">'../config/config'</span>)</span><br><span class="line"><span class="keyword">const</span> md5 = <span class="built_in">require</span>(<span class="string">'md5'</span>)</span><br><span class="line"><span class="comment">// 密码使用md5加密存储</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//注册</span></span><br><span class="line"><span class="keyword">let</span> addUser =  <span class="keyword">async</span> (ctx, next) =&gt; &#123;</span><br><span class="line">  <span class="keyword">let</span> &#123;username, password&#125; = ctx.request.body</span><br><span class="line">  password = md5(password) <span class="comment">// md5加密处理</span></span><br><span class="line">  <span class="keyword">await</span> user.addUser(username,password) <span class="comment">// 异步处理,因为ctx.body不支持异步回调</span></span><br><span class="line">  .then(<span class="function">(<span class="params">data</span>)=&gt;</span> &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data,</span><br><span class="line">      type: <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">  .catch(<span class="function">(<span class="params">data</span>)=&gt;</span> &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data,</span><br><span class="line">      type: <span class="number">0</span> <span class="comment">// 有毛病 type字段我定于或者不定义 都是type:1 莫名其妙</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//登录</span></span><br><span class="line"><span class="keyword">let</span> verifyUser = <span class="keyword">async</span> (ctx, next) =&gt; &#123;</span><br><span class="line">  <span class="keyword">let</span> &#123;username, password&#125; = ctx.request.body</span><br><span class="line">  password = md5(password)</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">await</span> user.verifyUser(username, password)</span><br><span class="line">  .then(<span class="function">(<span class="params">data</span>)=&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> &#123;text, id&#125; = data</span><br><span class="line">    <span class="comment">// 处理token  </span></span><br><span class="line">    <span class="keyword">let</span> token = jwt.sign(&#123;</span><br><span class="line">      username,</span><br><span class="line">      id</span><br><span class="line">    &#125;, config.secretOrPublicKey, &#123;</span><br><span class="line">      expiresIn: <span class="number">60</span> * <span class="number">60</span> * <span class="number">24</span> <span class="comment">// 24小时过期</span></span><br><span class="line">    &#125;)</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      text,</span><br><span class="line">      token,</span><br><span class="line">      type: <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">  .catch(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data,</span><br><span class="line">      type: <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 验证</span></span><br><span class="line"><span class="keyword">let</span> verification = <span class="keyword">async</span> (ctx, next) =&gt; &#123;</span><br><span class="line">  <span class="keyword">let</span> &#123; token &#125; = ctx.request.body</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">await</span> jwt.verify(token, config.secretOrPublicKey, (err, decoded)=&gt; &#123;</span><br><span class="line">      <span class="keyword">if</span> (err) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          data: <span class="string">'登录信息失效'</span>,</span><br><span class="line">          type: <span class="number">0</span> </span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (decoded) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          type: <span class="number">1</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data: <span class="string">'登录信息出错'</span>,</span><br><span class="line">      type: <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = &#123;</span><br><span class="line">  addUser,</span><br><span class="line">  verifyUser,</span><br><span class="line">  verification</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>生成Token<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">jwt.sign(&#123;</span><br><span class="line">      username,</span><br><span class="line">      id</span><br><span class="line">    &#125;, config.secretOrPublicKey, &#123;</span><br><span class="line">      expiresIn: <span class="number">60</span> * <span class="number">60</span> * <span class="number">24</span> <span class="comment">// 24小时过期</span></span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure><p></p><p>解析Token<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">jwt.verify(token, config.secretOrPublicKey, (err, decoded)=&gt; &#123;</span><br><span class="line">      if (err) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          data: &apos;登录信息失效&apos;,</span><br><span class="line">          type: 0 </span><br><span class="line">        &#125;</span><br><span class="line">        return</span><br><span class="line">      &#125;</span><br><span class="line">      if (decoded) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          type: 1</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure><p></p><h4 id="Client"><a href="#Client" class="headerlink" title="Client"></a>Client</h4><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">router.beforeEach(<span class="function">(<span class="params">to, <span class="keyword">from</span>, next</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">let</span> token = localStorage.getItem(<span class="string">'token'</span>) <span class="comment">// 获取token</span></span><br><span class="line">  <span class="keyword">if</span> (to.name !== <span class="string">'login'</span> &amp;&amp; to.name !== <span class="string">'todoList'</span>) &#123;</span><br><span class="line">    next()</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (to.name == <span class="string">'login'</span>) &#123; <span class="comment">// 假如登录 判断token是不是存在 存在让他跳转到主页面</span></span><br><span class="line">    verification(token, next)</span><br><span class="line">    .then(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (data.data.type) &#123; <span class="comment">// type 为1 直接跳过登录</span></span><br><span class="line">        Message(&#123;</span><br><span class="line">          showClose: <span class="literal">true</span>,</span><br><span class="line">          message: <span class="string">'欢迎回来'</span></span><br><span class="line">        &#125;);</span><br><span class="line">        next(<span class="string">'/todolist'</span>)</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        next()</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (to.name == <span class="string">'todoList'</span>) &#123;</span><br><span class="line">    verification(token, next)</span><br><span class="line">    .then(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (data.data.type) &#123;</span><br><span class="line">        <span class="comment">// type 为1说明token没有失效</span></span><br><span class="line">        <span class="comment">// 跳转到主页面</span></span><br><span class="line">        next()</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// token失效 强制定位到登录页面</span></span><br><span class="line">        <span class="keyword">if</span> (token === <span class="literal">null</span>) &#123; <span class="comment">// 说明从来没有登陆过</span></span><br><span class="line">          Message(&#123;</span><br><span class="line">            showClose: <span class="literal">true</span>,</span><br><span class="line">            message: <span class="string">'您还没有登录'</span>,</span><br><span class="line">            type: <span class="string">'warning'</span></span><br><span class="line">          &#125;)</span><br><span class="line">          next(<span class="string">'/login'</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          Message.error(<span class="string">'登录信息失效'</span>)</span><br><span class="line">          next(<span class="string">'/login'</span>)</span><br><span class="line">          localStorage.removeItem(<span class="string">'token'</span>)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">    .catch(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="built_in">console</span>.log(data);</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (to.meta.title) &#123;</span><br><span class="line">    <span class="built_in">document</span>.title = to.meta.title</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 验证</span></span><br><span class="line"><span class="keyword">let</span> verification = <span class="function">(<span class="params">token, next</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> axios.post(<span class="string">'/api/verification'</span>, &#123; token &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>前端解析Token<br></p><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> jwt <span class="keyword">from</span> <span class="string">'jsonwebtoken'</span></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> &#123;</span><br><span class="line">  mounted() &#123;</span><br><span class="line">    <span class="keyword">let</span> token = localStorage.getItem(<span class="string">'token'</span>)</span><br><span class="line">    <span class="keyword">let</span> Payload = jwt.decode(token)</span><br><span class="line">    <span class="keyword">this</span>.username = Payload.username <span class="comment">// 解密用户名</span></span><br><span class="line">    <span class="keyword">this</span>._id = Payload.id</span><br><span class="line">    <span class="keyword">this</span>.getData() <span class="comment">// 获取待完成时间</span></span><br><span class="line">    <span class="keyword">this</span>.getfulfilData()</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br></pre></td></tr></table></figure><p></p></div><footer class="post-footer"><div class="post-nav"><div class="post-nav-next post-nav-item"><a href="/2018/11/01/Koa2对MongoDB连接的单例模式的封装/" rel="next" title="Koa2对MongoDB连接的单例模式的封装"><i class="fa fa-chevron-left"></i> Koa2对MongoDB连接的单例模式的封装</a></div><span class="post-nav-divider"></span><div class="post-nav-prev post-nav-item"> <a href="/2018/11/05/Redux源码分析/" rel="prev" title="Redux源码分析">Redux源码分析<i class="fa fa-chevron-right"></i></a></div></div></footer></div></article><div class="post-spread"></div></div></div></div><div class="sidebar-toggle"><div class="sidebar-toggle-line-wrap"><span class="sidebar-toggle-line sidebar-toggle-line-first"></span><span class="sidebar-toggle-line sidebar-toggle-line-middle"></span><span class="sidebar-toggle-line sidebar-toggle-line-last"></span></div></div><aside id="sidebar" class="sidebar"><div class="sidebar-inner"><ul class="sidebar-nav motion-element"><li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap"> 文章目录</li><li class="sidebar-nav-overview" data-target="site-overview-wrap"> 站点概览</li></ul><section class="site-overview-wrap sidebar-panel"><div class="site-overview"><div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person"> <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌"><p class="site-author-name" itemprop="name">李斌</p><p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p></div><nav class="site-state motion-element"><div class="site-state-item site-state-posts"> <a href="/archives/"><span class="site-state-item-count">157</span> <span class="site-state-item-name">日志</span></a></div><div class="site-state-item site-state-tags"> <a href="/tags/index.html"><span class="site-state-item-count">1</span> <span class="site-state-item-name">标签</span></a></div></nav><div class="links-of-author motion-element"><span class="links-of-author-item"><a href="https://github.com/libin1991" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i> GitHub</a></span><span class="links-of-author-item"><a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin"><i class="fa fa-fw fa-spinner"></i> juejin</a></span></div></div></section><section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active"><div class="post-toc"><div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#前面的话"><span class="nav-number">1.</span> <span class="nav-text">前面的话</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#cookie认证"><span class="nav-number">1.1.</span> <span class="nav-text">cookie认证</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#token认证"><span class="nav-number">1.2.</span> <span class="nav-text">token认证</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#对比"><span class="nav-number">1.3.</span> <span class="nav-text">对比</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如果加强-JWT-的安全性？"><span class="nav-number">1.4.</span> <span class="nav-text">如果加强 JWT 的安全性？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-简述"><span class="nav-number">2.</span> <span class="nav-text">JWT 简述</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#JWT-的应用场景"><span class="nav-number">2.1.</span> <span class="nav-text">JWT 的应用场景</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JWT-特点"><span class="nav-number">2.2.</span> <span class="nav-text">JWT 特点</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-对比-cookie-session"><span class="nav-number">3.</span> <span class="nav-text">JWT 对比 cookie/session</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#cookie-session-的过程："><span class="nav-number">3.1.</span> <span class="nav-text">cookie/session 的过程：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#cookie-session-的问题："><span class="nav-number">3.2.</span> <span class="nav-text">cookie/session 的问题：</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-的过程："><span class="nav-number">4.</span> <span class="nav-text">JWT 的过程：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-的结构-https-jwt-io"><span class="nav-number">5.</span> <span class="nav-text">JWT 的结构 https://jwt.io/</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-使用场景"><span class="nav-number">6.</span> <span class="nav-text">JWT 使用场景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Vue-Koa2-JWT-完整代码"><span class="nav-number">7.</span> <span class="nav-text">Vue+Koa2+JWT 完整代码</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#jsonwebtoken"><span class="nav-number">7.1.</span> <span class="nav-text">jsonwebtoken</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#jwt-sign-payload-secretOrPrivateKey-options-callback"><span class="nav-number">7.1.1.</span> <span class="nav-text">jwt.sign(payload, secretOrPrivateKey, [options, callback])</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#jwt-verify（token，secretOrPublicKey，-options，callback-）"><span class="nav-number">7.1.2.</span> <span class="nav-text">jwt.verify（token，secretOrPublicKey，[options，callback]）</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#wt-decode（token-，options-）"><span class="nav-number">7.1.3.</span> <span class="nav-text">wt.decode（token [，options]）</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Server"><span class="nav-number">7.2.</span> <span class="nav-text">Server</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Client"><span class="nav-number">7.3.</span> <span class="nav-text">Client</span></a></li></ol></li></ol></div></div></section></div></aside></div></main><footer id="footer" class="footer"><div class="footer-inner"><div class="copyright">&copy; <span itemprop="copyrightYear">2019</span><span class="with-love"><i class="fa fa-user"></i></span> <span class="author" itemprop="copyrightHolder">李斌</span></div><div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div> <span class="post-meta-divider">|</span><div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div></div></footer><div class="back-to-top"><i class="fa fa-arrow-up"></i></div></div><script type="text/javascript">"[object Function]"!==Object.prototype.toString.call(window.Promise)&&(window.Promise=null)</script><script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script><script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script><script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script><script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script><script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script><script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script><script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script><script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script><script type="text/javascript">
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="JWT,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="前面的话实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口 cookie认证 传统的基于 cookie 的认证方式基本有下面几个步骤：  　　1、用户输入用户名和密码，发送给服务器 　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session">
+<meta name="keywords" content="JWT">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JWT入门与实战">
+<meta property="og:url" content="http://yoursite.com/2018/11/02/JWT入门与实战/index.html">
+<meta property="og:site_name" content="舞动乾坤">
+<meta property="og:description" content="前面的话实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口 cookie认证 传统的基于 cookie 的认证方式基本有下面几个步骤：  　　1、用户输入用户名和密码，发送给服务器 　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/1.webp">
+<meta property="og:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/2.webp">
+<meta property="og:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/3.webp">
+<meta property="og:updated_time" content="2018-12-17T14:44:58.611Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="JWT入门与实战">
+<meta name="twitter:description" content="前面的话实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口 cookie认证 传统的基于 cookie 的认证方式基本有下面几个步骤：  　　1、用户输入用户名和密码，发送给服务器 　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session">
+<meta name="twitter:image" content="http://yoursite.com/2018/11/02/JWT入门与实战/1.webp">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2018/11/02/JWT入门与实战/">
+
+
+
+
+
+  <title>JWT入门与实战 | 舞动乾坤</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">舞动乾坤</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">星光不问赶路人 岁月不负有心人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/02/JWT入门与实战/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">JWT入门与实战</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-02T22:38:10+08:00">
+                2018-11-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h3 id="前面的话"><a href="#前面的话" class="headerlink" title="前面的话"></a>前面的话</h3><p>实现用户登录认证的方式常见的有两种：一种是基于 cookie 的认证，另外一种是基于 token 的认证 。本文以基于cookie的认证为参照，详细介绍JWT标准，并实现基于该标签的用户认证接口</p>
+<h4 id="cookie认证"><a href="#cookie认证" class="headerlink" title="cookie认证"></a>cookie认证</h4><blockquote>
+<p>传统的基于 cookie 的认证方式基本有下面几个步骤：</p>
+</blockquote>
+<p>　　1、用户输入用户名和密码，发送给服务器</p>
+<p>　　2、服务器验证用户名和密码，正确的话就创建一个会话（ session ），同时会把这个会话的 ID 保存到客户端浏览器中，因为保存的地方是浏览器的 cookie ，所以这种认证方式叫做基于 cookie 的认证方式</p>
+<p>　　3、后续的请求中，浏览器会发送会话 ID 到服务器，服务器上如果能找到对应 ID 的会话，那么服务器就会返回需要的数据给浏览器</p>
+<p>　　4、当用户退出登录，会话会同时在客户端和服务器端被销毁</p>
+<blockquote>
+<p>这种认证方式的不足之处有两点</p>
+</blockquote>
+<p>　　1、服务器端要为每个用户保留 session信息，连接用户多了，服务器内存压力巨大</p>
+<p>　　2、适合单一域名，不适合第三方请求cookie认证的后端典型代码如下所示:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> express = <span class="built_in">require</span>(<span class="string">'express'</span>);</span><br><span class="line"><span class="keyword">const</span> app = express();</span><br><span class="line"><span class="keyword">const</span> bodyParser = <span class="built_in">require</span>(<span class="string">'body-parser'</span>);</span><br><span class="line">app.use(bodyParser.urlencoded(&#123; <span class="attr">extended</span>: <span class="literal">false</span> &#125;));</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> session = <span class="built_in">require</span>(<span class="string">'express-session'</span>)</span><br><span class="line"><span class="keyword">const</span> pug = <span class="built_in">require</span>(<span class="string">'pug'</span>);</span><br><span class="line"></span><br><span class="line">app.set(<span class="string">'view engine'</span>, <span class="string">'pug'</span>);</span><br><span class="line"></span><br><span class="line">app.use(session(&#123;</span><br><span class="line">  secret: <span class="string">'keyboard cat'</span>,</span><br><span class="line">  resave: <span class="literal">false</span>,</span><br><span class="line">  saveUninitialized: <span class="literal">true</span></span><br><span class="line">&#125;))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">app.get(<span class="string">'/'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  <span class="keyword">let</span> currentUser = req.session.username;</span><br><span class="line">  res.render(<span class="string">'index'</span>, &#123;currentUser&#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.get(<span class="string">'/login'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  res.sendFile(<span class="string">'login.html'</span>, &#123;<span class="attr">root</span>: <span class="string">'public'</span>&#125;);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.post(<span class="string">'/login'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  <span class="keyword">let</span> username = req.body.username;</span><br><span class="line">  req.session.username = username;</span><br><span class="line">  res.redirect(<span class="string">'/'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.get(<span class="string">'/logout'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">req, res</span>)</span>&#123;</span><br><span class="line">  req.session.destroy();</span><br><span class="line">  res.redirect(<span class="string">'/'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">app.listen(<span class="number">3006</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>)</span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'running on port 3006...'</span>);</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure></p>
+<h4 id="token认证"><a href="#token认证" class="headerlink" title="token认证"></a>token认证</h4><p>下面来介绍token认证。详细认证过程如下</p>
+<p>　　1、用户输入用户名密码，发送给服务器</p>
+<p>　　2、服务器验证用户名和密码，正确的话就返回一个签名过的 token（ token 可以认为就是个长长的字符串），客户端浏览器拿到这个 token</p>
+<p>　　3、后续每次请求中，浏览器会把 token 作为 http header 发送给服务器，服务器可以验证一下签名是否有效，如果有效那么认证就成功了，可以返回客户端需要的数据</p>
+<p>　　4、一旦用户退出登录，只需要客户端销毁一下 token 即可，服务器端不需要有任何操作</p>
+<p>　　这种方式的特点就是客户端的 token 中自己保留有大量信息，服务器没有存储这些信息，而只负责验证，不必进行数据库查询，执行效率大大提高.
+　　</p>
+<h4 id="对比"><a href="#对比" class="headerlink" title="对比"></a>对比</h4><ul>
+<li>传统的 session 流程<ul>
+<li>浏览器发起请求登陆</li>
+<li>服务端验证身份，生成身份验证信息，存储在服务端，并且告诉浏览器写入 Cookie</li>
+<li>浏览器发起请求获取用户资料，此时 Cookie 内容也跟随这发送到服务器</li>
+<li>服务器发现 Cookie 中有身份信息，验明正身</li>
+<li>服务器返回该用户的用户资料</li>
+</ul>
+</li>
+<li><p>JWT 流程</p>
+<ul>
+<li>浏览器发起请求登陆</li>
+<li>服务端验证身份，根据算法，将用户标识符打包生成 token, 并且返回给浏览器</li>
+<li>浏览器发起请求获取用户资料，把刚刚拿到的 token 一起发送给服务器</li>
+<li>服务器发现数据中有 token，验明正身</li>
+<li>服务器返回该用户的用户资料</li>
+</ul>
+</li>
+<li><p>session 存储在服务端占用服务器资源，而 JWT 存储在客户端</p>
+</li>
+<li>session 存储在 Cookie 中，存在伪造跨站请求伪造攻击的风险</li>
+<li>session 只存在一台服务器上，那么下次请求就必须请求这台服务器，不利于分布式应用</li>
+<li>存储在客户端的 JWT 比存储在服务端的 session 更具有扩展性</li>
+</ul>
+<h4 id="如果加强-JWT-的安全性？"><a href="#如果加强-JWT-的安全性？" class="headerlink" title="如果加强 JWT 的安全性？"></a>如果加强 JWT 的安全性？</h4><ul>
+<li>缩短 token 有效时间</li>
+<li>使用安全系数高的加密算法</li>
+<li>token 不要放在 Cookie 中，有 CSRF 风险</li>
+<li>使用 HTTPS 加密协议</li>
+<li>对标准字段 iss、sub、aud、nbf、exp 进行校验</li>
+<li>使用成熟的开源库，不要手贱造轮子</li>
+<li>特殊场景下可以把用户的 UA、IP 放进 payload 进行校验(不推荐)</li>
+</ul>
+<h3 id="JWT-简述"><a href="#JWT-简述" class="headerlink" title="JWT 简述"></a>JWT 简述</h3><blockquote>
+<p>JWT（json web token）是为了在网络应用环境之间传递声明而基于 json 的开放标准，JWT 的声明一般被采用在身份提供者和服务器提供者间传递被认证的身份信息，以便于从资源服务器获取资源。</p>
+</blockquote>
+<h4 id="JWT-的应用场景"><a href="#JWT-的应用场景" class="headerlink" title="JWT 的应用场景"></a>JWT 的应用场景</h4><p>JWT 一般用于用户登录上，身份认证在这种场景下，一旦用户登录完成，在接下来的每个涉及用户权限的请求中都包含 JWT，可以对用户身份、路由、服务和资源的访问权限进行验证。</p>
+<p>举一个例子，假如一个电商网站，在用户登录以后，需要验证用户的地方其实有很多，比如购物车，订单页，个人中心等等，访问这些页面正常的逻辑是先验证用户权限和登录状态，如果验证通过，则进入访问的页面，否则重定向到登录页。</p>
+<p>而在 JWT 之前，这样的验证我们大多都是通过 cookie 和 session 去实现的，我们接下来就来对比以下这两种方式的不同。</p>
+<h4 id="JWT-特点"><a href="#JWT-特点" class="headerlink" title="JWT 特点"></a>JWT 特点</h4><ul>
+<li>体积小，因而传输速度快</li>
+<li>传输方式多样，可以通过URL/POST参数/HTTP头部等方式传输</li>
+<li>严格的结构化。它自身（在 payload 中）就包含了所有与用户相关的验证消息，如用户可访问路由、访问有效期等信息，服务器无需再去连接数据库验证信息的有效性，并且 payload 支持为你的应用而定制化。</li>
+<li>支持跨域验证，可以应用于单点登录。</li>
+</ul>
+<h3 id="JWT-对比-cookie-session"><a href="#JWT-对比-cookie-session" class="headerlink" title="JWT 对比 cookie/session"></a>JWT 对比 cookie/session</h3><h4 id="cookie-session-的过程："><a href="#cookie-session-的过程：" class="headerlink" title="cookie/session 的过程："></a>cookie/session 的过程：</h4><p>由于浏览器的请求是无状态的，cookie 的存在就是为了带给服务器一些状态信息，服务器在接收到请求时会对其进行验证（其实是在登录时，服务器发给浏览器的），如果验证通过则正常返回结果，如果验证不通过则重定向到登录页，而服务器是根据 session 中存储的结果和收到的信息进行对比决定是否验证通过，当然这里只是简述过程。</p>
+<h4 id="cookie-session-的问题："><a href="#cookie-session-的问题：" class="headerlink" title="cookie/session 的问题："></a>cookie/session 的问题：</h4><p>从上面可以看出服务器种植 cookie 后每次请求都会带上 cookie，浪费带宽，而且 cookie 不支持跨域，不方便与其他的系统之间进行跨域访问，而服务器会用 session 来存储这些用户验证的信息，这样浪费了服务器的内存，当多个服务器想要共享 session 需要都拷贝过去。</p>
+<h3 id="JWT-的过程："><a href="#JWT-的过程：" class="headerlink" title="JWT 的过程："></a>JWT 的过程：</h3><p>当用户发送请求，将用户信息带给服务器的时候，服务器不再像过去一样存储在 session 中，而是将浏览器发来的内容通过内部的密钥加上这些信息，使用 sha256 和 RSA 等加密算法生成一个 token 令牌和用户信息一起返回给浏览器，当涉及验证用户的所有请求只需要将这个 token 和用户信息发送给服务器，而服务器将用户信息和自己的密钥通过既定好的算法进行签名，然后将发来的签名和生成的签名比较，严格相等则说明用户信息没被篡改和伪造，验证通过。</p>
+<p>JWT 的过程中，服务器不再需要额外的内存存储用户信息，和多个服务器之间只需要共享密钥就可以让多个服务器都有验证能力，同时也解决了 cookie 不能跨域的问题。</p>
+<h3 id="JWT-的结构-https-jwt-io"><a href="#JWT-的结构-https-jwt-io" class="headerlink" title="JWT 的结构 https://jwt.io/"></a>JWT 的结构 <a href="https://jwt.io/" target="_blank" rel="noopener">https://jwt.io/</a></h3><p><img src="/2018/11/02/JWT入门与实战/1.webp" alt=""><br>JWT 之所以能被作为一种声明传递的标准是因为它有自己的结构，并不是随便的发个 token 就可以的，JWT 用于生成 token 的结构有三个部分，使用 . 隔开。</p>
+<p>1、Header [头部]</p>
+<p>Header 头部中主要包含两部分，token 类型和加密算法，如<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="string">"alg"</span>: <span class="string">"HS256"</span>,</span><br><span class="line">  <span class="string">"typ"</span>: <span class="string">"JWT"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>jwt的头部包含两部分信息：</p>
+<ul>
+<li>声明类型，这里是jwt</li>
+<li>声明加密的算法 通常直接使用 HMAC SHA256</li>
+</ul>
+<p>然后将头部进行base64加密（该加密是可以对称解密的)，构成了第一部分。<br>HS256 就是指 sha256 算法，会将这个对象转成 base64。</p>
+<p>2、Payload（载荷）</p>
+<p><strong>由于这里用的是可逆的base64 编码，所以第二部分的数据实际上是明文的。我们应该避免在这里存放不能公开的隐私信息。</strong></p>
+<p>Payload 负载就是存放有效信息的地方，有效信息被分为标准中注册的声明、公共的声明和私有的声明.</p>
+<p>载荷就是存放有效信息的地方。这些有效信息包含三个部分：</p>
+<p>标准中注册声明</p>
+<ul>
+<li>公共的声名</li>
+<li>私有的声明</li>
+<li>公共的声明 ： 公共的声明可以添加任何的信息，一般添加用户的相关信息或其他业务需要的必要信息.但不建议添加敏感信息，因为该部分在客户端可解密。</li>
+<li>私有的声明 ： 私有声明是提供者和消费者所共同定义的声明，一般不建议存放敏感信息，因为base64是对称解密的，意味着该部分信息可以归类为明文信息。</li>
+</ul>
+<p>下面是一个例子<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="string">"username"</span>: <span class="string">"libin"</span>,</span><br><span class="line">  <span class="string">"id"</span>: <span class="string">"5c170dfb5966f9060d290fe8"</span>,</span><br><span class="line">  <span class="string">"iat"</span>: <span class="number">1545014835</span>,</span><br><span class="line">  <span class="string">"exp"</span>: <span class="number">1545101235</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>(1) 标准中注册的声明<br>下面是标准中注册的声明，建议但不强制使用。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 包括需要传递的用户信息</span></span><br><span class="line"></span><br><span class="line">&#123; </span><br><span class="line">  <span class="string">"iss"</span>: <span class="string">"Online JWT TEST"</span>, </span><br><span class="line">  <span class="string">"iat"</span>: <span class="number">1416797419</span>, </span><br><span class="line">  <span class="string">"exp"</span>: <span class="number">1448333419</span>, </span><br><span class="line">  <span class="string">"aud"</span>: <span class="string">"www.jwt.io"</span>, </span><br><span class="line">  <span class="string">"sub"</span>: <span class="string">"uid"</span>, </span><br><span class="line">  <span class="string">"nickname"</span>: <span class="string">"jwttest"</span>, </span><br><span class="line">  <span class="string">"username"</span>: <span class="string">"jwttest"</span>, </span><br><span class="line">  <span class="string">"scopes"</span>: [ <span class="string">"admin"</span>, <span class="string">"user"</span> ] </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>iss：jwt 签发者；</li>
+<li>sub：jwt 所面向的用户；</li>
+<li>aud：接收 jwt 的一方；</li>
+<li>exp：jwt 的过期时间，这个过期时间必须要大于签发时间，这是一个秒数；</li>
+<li>nbf：定义在什么时间之前，该 jwt 都是不可用的；</li>
+<li>iat：jwt 的签发时间。<br>上面的标准中注册的声明中常用的有 exp 和 nbf。</li>
+</ul>
+<p>其他还有：</p>
+<ul>
+<li>nbf (Not Before)：如果当前时间在nbf里的时间之前，则Token不被接受；一般都会留一些余地，比如几分钟；，是否使用是可选的；</li>
+<li>jti: jwt的唯一身份标识，主要用来作为一次性token，从而回避重放攻击。</li>
+</ul>
+<p>(2) 公共声明</p>
+<p>公共的声明可以添加任何的信息，一般添加用户的相关信息或其他业务需要的必要信息，但不建议添加敏感信息，因为该部分在客户端可解密，如 {“id”, username: “panda”, adress: “Beijing”}，会将这个对象转成 base64。</p>
+<p>(3) 私有声明</p>
+<p>私有声明是提供者和消费者所共同定义的声明，一般不建议存放敏感信息，因为 base64 是对称解密的，意味着该部分信息可以归类为明文信息。</p>
+<p>3、Signature [签名]<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 根据alg算法与私有秘钥进行加密得到的签名字串；</span></span><br><span class="line"><span class="comment">// 这一段是最重要的敏感信息，只能在服务端解密；</span></span><br><span class="line"></span><br><span class="line">HMACSHA256(  </span><br><span class="line">    base64UrlEncode(header) + <span class="string">"."</span> +</span><br><span class="line">    base64UrlEncode(payload),</span><br><span class="line">    your<span class="number">-256</span>-bit-secret</span><br><span class="line">)</span><br></pre></td></tr></table></figure></p>
+<p>jwt的第三部分是一个签证信息，这个签证信息由三部分组成：</p>
+<ul>
+<li>header (base64后的)</li>
+<li>payload (base64后的)</li>
+<li>secret</li>
+</ul>
+<p>Signature 这一部分指将 Header 和 Payload 通过密钥 secret 和加盐算法进行加密后生成的签名，secret，密钥保存在服务端，不会发送给任何人，所以 JWT 的传输方式是很安全的。</p>
+<p>最后将三部分使用 . 连接成字符串，就是要返回给浏览器的 token 浏览器一般会将这个 token 存储在 localStorge 以备其他需要验证用户的请求使用。</p>
+<p>将上面的编码后的字符串都用句号.连接在一起（头部在前），就形成了:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImxpYmluIiwiaWQiOiI1YzE3MGRmYjU5NjZmOTA2MGQyOTBmZTgiLCJpYXQiOjE1NDUwMTQ4MzUsImV4cCI6MTU0NTEwMTIzNX0.FDWkBfas2b-jvXWuzedlNlhZmT4vQBey1w9q8vu2B8Q</span><br></pre></td></tr></table></figure></p>
+<p><img src="/2018/11/02/JWT入门与实战/2.webp" alt=""></p>
+<h3 id="JWT-使用场景"><a href="#JWT-使用场景" class="headerlink" title="JWT 使用场景"></a>JWT 使用场景</h3><p>JWT的主要优势在于使用无状态、可扩展的方式处理应用中的用户会话。服务端可以通过内嵌的声明信息，很容易地获取用户的会话信息，而不需要去访问用户或会话的数据库。在一个分布式的面向服务的框架中，这一点非常有用。</p>
+<p>但是，如果系统中需要使用黑名单实现长期有效的token刷新机制，这种无状态的优势就不明显了。</p>
+<blockquote>
+<p>优点:快速开发，json格式简单，不需要cookie JSON在移动端的广泛应用 不依赖于社交登录 相对简单的概念理解，同session相比，性能更好一些，省去了处理分布session的问题；</p>
+</blockquote>
+<ul>
+<li>支持跨域访问: Cookie是不允许垮域访问的，这一点对Token机制是不存在的，前提是传输的用户认证信息通过HTTP头传输.</li>
+<li>无状态(也称：服务端可扩展行):Token机制在服务端不需要存储session信息，因为Token 自身包含了所有登录用户的信息，只需要在客户端的cookie或本地介质存储状态信息.</li>
+<li>更适用CDN: 可以通过内容分发网络请求你服务端的所有资料（如：javascript，HTML,图片等），而你的服务端只要提供API即可.</li>
+<li>去耦: 不需要绑定到一个特定的身份验证方案。Token可以在任何地方生成，只要在你的API被调用的时候，你可以进行Token生成调用即可.</li>
+<li>更适用于移动应用: 当你的客户端是一个原生平台（iOS, Android，Windows 8等）时，Cookie是不被支持的（你需要通过Cookie容器进行处理），这时采用Token认证机制就会简单得多。</li>
+<li>CSRF:因为不再依赖于Cookie，所以你就不需要考虑对CSRF（跨站请求伪造）的防范。- 性能: 一次网络往返时间（通过数据库查询session信息）总比做一次HMACSHA256计算 的Token验证和解析要费时得多.</li>
+<li>不需要为登录页面做特殊处理: 如果你使用Protractor 做功能测试的时候，不再需要为登录页面做特殊处理.</li>
+<li>基于标准化:你的API可以采用标准化的 JSON Web Token (JWT). 这个标准已经存在多个后端库（.NET, Ruby, Java,Python, PHP）和多家公司的支持（如：Firebase,Google, Microsoft）.</li>
+</ul>
+<blockquote>
+<p>缺点:Token有长度限制 Token不能撤销 需要token有失效时间限制(exp)</p>
+</blockquote>
+<p>经过上面对 JWT 的叙述可能还是没有完全的理解什么是 JWT，具体怎么操作的，我们接下来实现一个小的案例，为了方便，服务端使用 express 框架，数据库使用 mongo 来存储用户信息，前端使用 Vue 来实现，做一个登录页登录后进入订单页验证 token 的功能。</p>
+<h3 id="Vue-Koa2-JWT-完整代码"><a href="#Vue-Koa2-JWT-完整代码" class="headerlink" title="Vue+Koa2+JWT 完整代码"></a>Vue+Koa2+JWT <a href="https://github.com/libin1991/webpack4-vue-more-page-cli/tree/master/vue%2Bkoa2%2Bjwt%E5%AE%9E%E7%8E%B0%E5%8D%95%E7%82%B9%E7%99%BB%E5%BD%95%20%2B%20todolist%E5%A2%9E%E5%88%A0%E6%94%B9%E6%9F%A5" target="_blank" rel="noopener">完整代码</a></h3><p><img src="/2018/11/02/JWT入门与实战/3.webp" alt=""></p>
+<h4 id="jsonwebtoken"><a href="#jsonwebtoken" class="headerlink" title="jsonwebtoken"></a>jsonwebtoken</h4><h5 id="jwt-sign-payload-secretOrPrivateKey-options-callback"><a href="#jwt-sign-payload-secretOrPrivateKey-options-callback" class="headerlink" title="jwt.sign(payload, secretOrPrivateKey, [options, callback])"></a>jwt.sign(payload, secretOrPrivateKey, [options, callback])</h5><ul>
+<li>（异步）如果提供回调，则使用err或JWT 调用回调。</li>
+<li>（同步）将JsonWebToken返回为字符串。</li>
+</ul>
+<p>payload必须是一个object, buffer或者string。请注意， exp只有当payload是object字面量时才可以设置。<br>secretOrPrivateKey 是包含HMAC算法的密钥或RSA和ECDSA的PEM编码私钥的string或buffer。</p>
+<p>options:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">algorithm：加密算法（默认值：HS256）</span><br><span class="line">expiresIn：以秒表示或描述时间跨度zeit / ms的字符串。如60，&quot;2 days&quot;，&quot;10h&quot;，&quot;7d&quot;，Expiration time，过期时间</span><br><span class="line">notBefore：以秒表示或描述时间跨度zeit / ms的字符串。如：60，&quot;2days&quot;，&quot;10h&quot;，&quot;7d&quot;</span><br><span class="line">audience：Audience，观众</span><br><span class="line">issuer：Issuer，发行者</span><br><span class="line">jwtid：JWT ID</span><br><span class="line">subject：Subject，主题</span><br><span class="line">noTimestamp</span><br><span class="line">header</span><br></pre></td></tr></table></figure></p>
+<p>如果payload不是buffer或string，它将被强制转换为使用的字符串JSON.stringify()。<br>在expiresIn，notBefore，audience，subject，issuer没有默认值时。也可以直接在payload中用exp，nbf，aud，sub和iss分别表示，但是你不能在这两个地方同时设置。<br>请记住exp，nbf，iat是NumericDate类型。<br>生成的jwts通常会包含一个iat值除非指定了noTimestamp。如果iat插入payload中，则将使用它来代替实际的时间戳来计算其他事情，诸如options.expiresIn给定一个exp这样的时间间隔。<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sign with default (HMAC SHA256)</span></span><br><span class="line"><span class="keyword">var</span> jwt = <span class="built_in">require</span>(<span class="string">'jsonwebtoken'</span>);</span><br><span class="line"><span class="keyword">var</span> token = jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;, <span class="string">'shhhhh'</span>);</span><br><span class="line"><span class="comment">//backdate a jwt 30 seconds</span></span><br><span class="line"><span class="keyword">var</span> older_token = jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span>, <span class="attr">iat</span>: <span class="built_in">Math</span>.floor(<span class="built_in">Date</span>.now() / <span class="number">1000</span>) - <span class="number">30</span> &#125;, <span class="string">'shhhhh'</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// sign with RSA SHA256</span></span><br><span class="line"><span class="keyword">var</span> cert = fs.readFileSync(<span class="string">'private.key'</span>);  <span class="comment">// get private key</span></span><br><span class="line"><span class="keyword">var</span> token = jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;, cert, &#123; <span class="attr">algorithm</span>: <span class="string">'RS256'</span>&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// sign asynchronously</span></span><br><span class="line">jwt.sign(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;, cert, &#123; <span class="attr">algorithm</span>: <span class="string">'RS256'</span> &#125;, <span class="function"><span class="keyword">function</span>(<span class="params">err, token</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(token);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">//签署1小时期限的token:</span></span><br><span class="line">jwt.sign(&#123;</span><br><span class="line">  exp: <span class="built_in">Math</span>.floor(<span class="built_in">Date</span>.now() / <span class="number">1000</span>) + (<span class="number">60</span> * <span class="number">60</span>),</span><br><span class="line">  data: <span class="string">'foobar'</span></span><br><span class="line">&#125;, <span class="string">'secret'</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">//使用此库生成令牌的另一种方法是:</span></span><br><span class="line">jwt.sign(&#123;</span><br><span class="line">  data: <span class="string">'foobar'</span></span><br><span class="line">&#125;, <span class="string">'secret'</span>, &#123; <span class="attr">expiresIn</span>: <span class="number">60</span> * <span class="number">60</span> &#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">//or even better:</span></span><br><span class="line"></span><br><span class="line">jwt.sign(&#123;</span><br><span class="line">  data: <span class="string">'foobar'</span></span><br><span class="line">&#125;, <span class="string">'secret'</span>, &#123; <span class="attr">expiresIn</span>: <span class="string">'1h'</span> &#125;);</span><br></pre></td></tr></table></figure></p>
+<h5 id="jwt-verify（token，secretOrPublicKey，-options，callback-）"><a href="#jwt-verify（token，secretOrPublicKey，-options，callback-）" class="headerlink" title="jwt.verify（token，secretOrPublicKey，[options，callback]）"></a>jwt.verify（token，secretOrPublicKey，[options，callback]）</h5><p>验证token的合法性</p>
+<h5 id="wt-decode（token-，options-）"><a href="#wt-decode（token-，options-）" class="headerlink" title="wt.decode（token [，options]）"></a>wt.decode（token [，options]）</h5><p>（同步）返回解码没有验证签名是否有效的payload。<br>警告：这不会验证签名是否有效。你应该不为不可信的消息使用此。你最有可能要使用jwt.verify()。</p>
+<h4 id="Server"><a href="#Server" class="headerlink" title="Server"></a>Server</h4><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> user = <span class="built_in">require</span>(<span class="string">'../models/UserModels'</span>)</span><br><span class="line"><span class="keyword">const</span> jwt = <span class="built_in">require</span>(<span class="string">'jsonwebtoken'</span>)</span><br><span class="line"><span class="keyword">const</span> config = <span class="built_in">require</span>(<span class="string">'../config/config'</span>)</span><br><span class="line"><span class="keyword">const</span> md5 = <span class="built_in">require</span>(<span class="string">'md5'</span>)</span><br><span class="line"><span class="comment">// 密码使用md5加密存储</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//注册</span></span><br><span class="line"><span class="keyword">let</span> addUser =  <span class="keyword">async</span> (ctx, next) =&gt; &#123;</span><br><span class="line">  <span class="keyword">let</span> &#123;username, password&#125; = ctx.request.body</span><br><span class="line">  password = md5(password) <span class="comment">// md5加密处理</span></span><br><span class="line">  <span class="keyword">await</span> user.addUser(username,password) <span class="comment">// 异步处理,因为ctx.body不支持异步回调</span></span><br><span class="line">  .then(<span class="function">(<span class="params">data</span>)=&gt;</span> &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data,</span><br><span class="line">      type: <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">  .catch(<span class="function">(<span class="params">data</span>)=&gt;</span> &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data,</span><br><span class="line">      type: <span class="number">0</span> <span class="comment">// 有毛病 type字段我定于或者不定义 都是type:1 莫名其妙</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//登录</span></span><br><span class="line"><span class="keyword">let</span> verifyUser = <span class="keyword">async</span> (ctx, next) =&gt; &#123;</span><br><span class="line">  <span class="keyword">let</span> &#123;username, password&#125; = ctx.request.body</span><br><span class="line">  password = md5(password)</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">await</span> user.verifyUser(username, password)</span><br><span class="line">  .then(<span class="function">(<span class="params">data</span>)=&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> &#123;text, id&#125; = data</span><br><span class="line">    <span class="comment">// 处理token  </span></span><br><span class="line">    <span class="keyword">let</span> token = jwt.sign(&#123;</span><br><span class="line">      username,</span><br><span class="line">      id</span><br><span class="line">    &#125;, config.secretOrPublicKey, &#123;</span><br><span class="line">      expiresIn: <span class="number">60</span> * <span class="number">60</span> * <span class="number">24</span> <span class="comment">// 24小时过期</span></span><br><span class="line">    &#125;)</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      text,</span><br><span class="line">      token,</span><br><span class="line">      type: <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">  .catch(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data,</span><br><span class="line">      type: <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 验证</span></span><br><span class="line"><span class="keyword">let</span> verification = <span class="keyword">async</span> (ctx, next) =&gt; &#123;</span><br><span class="line">  <span class="keyword">let</span> &#123; token &#125; = ctx.request.body</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">await</span> jwt.verify(token, config.secretOrPublicKey, (err, decoded)=&gt; &#123;</span><br><span class="line">      <span class="keyword">if</span> (err) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          data: <span class="string">'登录信息失效'</span>,</span><br><span class="line">          type: <span class="number">0</span> </span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (decoded) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          type: <span class="number">1</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    ctx.body = &#123;</span><br><span class="line">      data: <span class="string">'登录信息出错'</span>,</span><br><span class="line">      type: <span class="number">0</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = &#123;</span><br><span class="line">  addUser,</span><br><span class="line">  verifyUser,</span><br><span class="line">  verification</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>生成Token<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">jwt.sign(&#123;</span><br><span class="line">      username,</span><br><span class="line">      id</span><br><span class="line">    &#125;, config.secretOrPublicKey, &#123;</span><br><span class="line">      expiresIn: <span class="number">60</span> * <span class="number">60</span> * <span class="number">24</span> <span class="comment">// 24小时过期</span></span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure></p>
+<p>解析Token<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">jwt.verify(token, config.secretOrPublicKey, (err, decoded)=&gt; &#123;</span><br><span class="line">      if (err) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          data: &apos;登录信息失效&apos;,</span><br><span class="line">          type: 0 </span><br><span class="line">        &#125;</span><br><span class="line">        return</span><br><span class="line">      &#125;</span><br><span class="line">      if (decoded) &#123;</span><br><span class="line">        ctx.body = &#123;</span><br><span class="line">          type: 1</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure></p>
+<h4 id="Client"><a href="#Client" class="headerlink" title="Client"></a>Client</h4><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line">router.beforeEach(<span class="function">(<span class="params">to, <span class="keyword">from</span>, next</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">let</span> token = localStorage.getItem(<span class="string">'token'</span>) <span class="comment">// 获取token</span></span><br><span class="line">  <span class="keyword">if</span> (to.name !== <span class="string">'login'</span> &amp;&amp; to.name !== <span class="string">'todoList'</span>) &#123;</span><br><span class="line">    next()</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (to.name == <span class="string">'login'</span>) &#123; <span class="comment">// 假如登录 判断token是不是存在 存在让他跳转到主页面</span></span><br><span class="line">    verification(token, next)</span><br><span class="line">    .then(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (data.data.type) &#123; <span class="comment">// type 为1 直接跳过登录</span></span><br><span class="line">        Message(&#123;</span><br><span class="line">          showClose: <span class="literal">true</span>,</span><br><span class="line">          message: <span class="string">'欢迎回来'</span></span><br><span class="line">        &#125;);</span><br><span class="line">        next(<span class="string">'/todolist'</span>)</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        next()</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (to.name == <span class="string">'todoList'</span>) &#123;</span><br><span class="line">    verification(token, next)</span><br><span class="line">    .then(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (data.data.type) &#123;</span><br><span class="line">        <span class="comment">// type 为1说明token没有失效</span></span><br><span class="line">        <span class="comment">// 跳转到主页面</span></span><br><span class="line">        next()</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// token失效 强制定位到登录页面</span></span><br><span class="line">        <span class="keyword">if</span> (token === <span class="literal">null</span>) &#123; <span class="comment">// 说明从来没有登陆过</span></span><br><span class="line">          Message(&#123;</span><br><span class="line">            showClose: <span class="literal">true</span>,</span><br><span class="line">            message: <span class="string">'您还没有登录'</span>,</span><br><span class="line">            type: <span class="string">'warning'</span></span><br><span class="line">          &#125;)</span><br><span class="line">          next(<span class="string">'/login'</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          Message.error(<span class="string">'登录信息失效'</span>)</span><br><span class="line">          next(<span class="string">'/login'</span>)</span><br><span class="line">          localStorage.removeItem(<span class="string">'token'</span>)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">    .catch(<span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="built_in">console</span>.log(data);</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (to.meta.title) &#123;</span><br><span class="line">    <span class="built_in">document</span>.title = to.meta.title</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 验证</span></span><br><span class="line"><span class="keyword">let</span> verification = <span class="function">(<span class="params">token, next</span>) =&gt;</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> axios.post(<span class="string">'/api/verification'</span>, &#123; token &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>前端解析Token<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> jwt <span class="keyword">from</span> <span class="string">'jsonwebtoken'</span></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> &#123;</span><br><span class="line">  mounted() &#123;</span><br><span class="line">    <span class="keyword">let</span> token = localStorage.getItem(<span class="string">'token'</span>)</span><br><span class="line">    <span class="keyword">let</span> Payload = jwt.decode(token)</span><br><span class="line">    <span class="keyword">this</span>.username = Payload.username <span class="comment">// 解密用户名</span></span><br><span class="line">    <span class="keyword">this</span>._id = Payload.id</span><br><span class="line">    <span class="keyword">this</span>.getData() <span class="comment">// 获取待完成时间</span></span><br><span class="line">    <span class="keyword">this</span>.getfulfilData()</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br></pre></td></tr></table></figure></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/JWT/" rel="tag"># JWT</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/11/01/Koa2对MongoDB连接的单例模式的封装/" rel="next" title="Koa2对MongoDB连接的单例模式的封装">
+                <i class="fa fa-chevron-left"></i> Koa2对MongoDB连接的单例模式的封装
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/11/05/Redux源码分析/" rel="prev" title="Redux源码分析">
+                Redux源码分析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">158</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">111</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#前面的话"><span class="nav-number">1.</span> <span class="nav-text">前面的话</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#cookie认证"><span class="nav-number">1.1.</span> <span class="nav-text">cookie认证</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#token认证"><span class="nav-number">1.2.</span> <span class="nav-text">token认证</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#对比"><span class="nav-number">1.3.</span> <span class="nav-text">对比</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如果加强-JWT-的安全性？"><span class="nav-number">1.4.</span> <span class="nav-text">如果加强 JWT 的安全性？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-简述"><span class="nav-number">2.</span> <span class="nav-text">JWT 简述</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#JWT-的应用场景"><span class="nav-number">2.1.</span> <span class="nav-text">JWT 的应用场景</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JWT-特点"><span class="nav-number">2.2.</span> <span class="nav-text">JWT 特点</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-对比-cookie-session"><span class="nav-number">3.</span> <span class="nav-text">JWT 对比 cookie/session</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#cookie-session-的过程："><span class="nav-number">3.1.</span> <span class="nav-text">cookie/session 的过程：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#cookie-session-的问题："><span class="nav-number">3.2.</span> <span class="nav-text">cookie/session 的问题：</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-的过程："><span class="nav-number">4.</span> <span class="nav-text">JWT 的过程：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-的结构-https-jwt-io"><span class="nav-number">5.</span> <span class="nav-text">JWT 的结构 https://jwt.io/</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JWT-使用场景"><span class="nav-number">6.</span> <span class="nav-text">JWT 使用场景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Vue-Koa2-JWT-完整代码"><span class="nav-number">7.</span> <span class="nav-text">Vue+Koa2+JWT 完整代码</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#jsonwebtoken"><span class="nav-number">7.1.</span> <span class="nav-text">jsonwebtoken</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#jwt-sign-payload-secretOrPrivateKey-options-callback"><span class="nav-number">7.1.1.</span> <span class="nav-text">jwt.sign(payload, secretOrPrivateKey, [options, callback])</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#jwt-verify（token，secretOrPublicKey，-options，callback-）"><span class="nav-number">7.1.2.</span> <span class="nav-text">jwt.verify（token，secretOrPublicKey，[options，callback]）</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#wt-decode（token-，options-）"><span class="nav-number">7.1.3.</span> <span class="nav-text">wt.decode（token [，options]）</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Server"><span class="nav-number">7.2.</span> <span class="nav-text">Server</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Client"><span class="nav-number">7.3.</span> <span class="nav-text">Client</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
     // Popup Window;
     var isfetched = false;
     var isXml = true;
@@ -313,4 +1610,38 @@
         onPopupClose();
       }
     });
-  </script><script type="text/javascript" src="/js/src/clicklove.js"></script><script type="text/javascript" src="/js/src/clipboard.min.js"></script><script type="text/javascript" src="/js/src/clipboard-use.js"></script></body></html>
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+  <!--
+  	描述：点击红心
+  -->
+  <script type="text/javascript" src="/js/src/clicklove.js"></script>
+  <!--
+  	描述：复制代码
+  -->
+  <script type="text/javascript" src="/js/src/clipboard.min.js"></script>
+  <script type="text/javascript" src="/js/src/clipboard-use.js"></script>
+</body>
+</html>
+
+

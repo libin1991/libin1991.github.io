@@ -1,6 +1,1225 @@
-<!DOCTYPE html><html class="theme-next muse use-motion" lang="zh-Hans"><head><meta name="generator" content="Hexo 3.8.0"><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="#222"><script src="/lib/pace/pace.min.js?v=1.0.2"></script><link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet"><meta http-equiv="Cache-Control" content="no-transform"><meta http-equiv="Cache-Control" content="no-siteapp"><link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css"><link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css"><link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css"><link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4"><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4"><link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4"><link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222"><meta name="keywords" content="Hexo, NexT"><meta name="description" content="virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。目录： 1 前言 2 对前端应用状态管理思考 3 Virtual DOM 算法 4 算法实现 4.1 步骤一：用JS对象模拟DOM树 4.2 步骤二：比较两棵虚拟DOM树的差异 4.3 步骤三：把差异应用到真正的DOM树上   5 结语 6 References  1 前言本文会在教你怎么用 300~40"><meta property="og:type" content="article"><meta property="og:title" content="实现一个 Virtual DOM 算法[转]"><meta property="og:url" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/index.html"><meta property="og:site_name" content="舞动乾坤"><meta property="og:description" content="virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。目录： 1 前言 2 对前端应用状态管理思考 3 Virtual DOM 算法 4 算法实现 4.1 步骤一：用JS对象模拟DOM树 4.2 步骤二：比较两棵虚拟DOM树的差异 4.3 步骤三：把差异应用到真正的DOM树上   5 结语 6 References  1 前言本文会在教你怎么用 300~40"><meta property="og:locale" content="zh-Hans"><meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/1.png"><meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/2.png"><meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/3.png"><meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/4.png"><meta property="og:updated_time" content="2018-11-04T11:37:20.770Z"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="实现一个 Virtual DOM 算法[转]"><meta name="twitter:description" content="virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。目录： 1 前言 2 对前端应用状态管理思考 3 Virtual DOM 算法 4 算法实现 4.1 步骤一：用JS对象模拟DOM树 4.2 步骤二：比较两棵虚拟DOM树的差异 4.3 步骤三：把差异应用到真正的DOM树上   5 结语 6 References  1 前言本文会在教你怎么用 300~40"><meta name="twitter:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/1.png"><script type="text/javascript" id="hexo.configurations">var NexT=window.NexT||{},CONFIG={root:"/",scheme:"Muse",version:"5.1.4",sidebar:{position:"left",display:"post",offset:12,b2t:!1,scrollpercent:!1,onmobile:!1},fancybox:!0,tabs:!0,motion:{enable:!0,async:!1,transition:{post_block:"fadeIn",post_header:"slideDownIn",post_body:"slideDownIn",coll_header:"slideLeftIn",sidebar:"slideUpIn"}},duoshuo:{userId:"0",author:"博主"},algolia:{applicationID:"",apiKey:"",indexName:"",hits:{per_page:10},labels:{input_placeholder:"Search for Posts",hits_empty:"We didn't find any results for the search: ${query}",hits_stats:"${hits} results found in ${time} ms"}}}</script><link rel="canonical" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/"><title>实现一个 Virtual DOM 算法[转] | 舞动乾坤</title></head><body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans"><div class="container sidebar-position-left page-post-detail"><div class="headband"><div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div></div><header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader"><div id="sky"><div id="background" class="container"><svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400"><defs><g id="bottomShadow"><path fill="#000000" stroke="none" d="M270.5 225.95 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95Z"/></g><g id="Layer52_0_FILL"><path class="topGrass" fill="#B9D668" stroke="none" d="M397.85 229.3 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3Z"/></g><g id="Layer51_0_FILL"><path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="M135.1 229.95 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95Z"/></g><g id="Layer50_0_FILL"><path class="rightGrassTop" fill="#8CB154" stroke="none" d="M397.85 225.95 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95Z"/></g><g id="Layer48_0_FILL"><path class="crustLeftTop" fill="#955541" stroke="none" d="M135.45 282.4 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4Z"/></g><g id="Layer47_0_FILL"><path class="middleLeftCrust" fill="#C77E61" stroke="none" d="M135.1 270.3 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3Z"/></g><g id="Layer46_0_FILL"><path class="crustLeftTop" fill="#955541" stroke="none" d="M135.1 255.15 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15Z"/></g><g id="Layer45_0_FILL"><path class="topRightCrust" fill="#A47237" stroke="none" d="M397.5 294.5 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5Z"/></g><g id="Layer44_0_FILL"><path class="middleRightCrust" fill="#C89451" stroke="none" d="M397.5 269.95 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95Z"/></g><g id="Layer43_0_FILL"><path class="topRightCrust" fill="#A47237" stroke="none" d="M397.5 266.6 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6Z"/></g><g id="Layer41_0_FILL"><path class="greyRoad" fill="#B2B2B1" stroke="none" d="M295.05 283.05Q299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9L268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5Q191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95L241.6 250.45 295.05 283.05Z"/></g><g id="Layer40_0_FILL"><path fill="#FFFFFF" stroke="none" d="M199.95 256.85Q194.55 261.2 191.9 262.2L194.9 263.9 200.95 259.2 199.95 256.85M225.8 243.75 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75M308.15 275.65 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65M275.9 253.5 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5M251.7 227.3 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3M257.05 240.7 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7M277.2 207.8 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8M305.1 192.65 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65Z"/></g><g id="Layer38_0_FILL"><path class="frontFascia" fill="#ECB27B" stroke="none" d="M359.25 187.95 346.4 174.95 333.85 202.9 359.25 187.95Z"/></g><g id="Layer37_0_FILL"><path class="frontWall" fill="#EFA258" stroke="none" d="M334 201.05 334.35 232 359.2 217.55 359.25 187.95 334 201.05Z"/></g><g id="Layer36_0_FILL"><path class="leftWall" fill="#C57F42" stroke="none" d="M334.35 232.3 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3Z"/></g><g id="Layer35_0_FILL"><path class="rightRoof" fill="#EF4427" stroke="none" d="M329.7 167.9 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9Z"/></g><g id="Layer34_0_FILL"><path class="leftRoof" fill="#F2563B" stroke="none" d="M334.05 207.05 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05Z"/></g><g id="Layer30_0_FILL"><path id="windowFour" class="windows" stroke="none" fill="#975A42" d="M341.35 203.3Q340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3M355.85 198.45Q355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45Z"/><path class="door" fill="#B65041" stroke="none" d="M351.95 211.2 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2M351.2 211.2 351.35 211.2 351.35 211.1 351.2 211.2Z"/></g><g><path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="M183.7 215.3 183.7 215.6Q187.25 231.75 212.25 234.35L183.7 215.3Z"/></g><g id="Layer29_0_FILL"><path fill="#000000" fill-opacity="0.4" stroke="none" d="M305.1 216.85 305.15 217.2Q309.45 233.2 334.35 232.3L305.1 216.85Z"/></g><g id="Layer27_0_FILL"><path class="vegetation" fill="#78A950" stroke="none" d="M177.45 231.65Q175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65M236.9 266.6Q235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6M254.7 277Q253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277M315.5 245.75Q313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75M295.35 232.65Q293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65M277.2 171.85Q275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85Z"/></g><g id="Layer26_0_FILL"><path class="treeWood" fill="#AE663D" stroke="none" d="M175.1 177.55 172.05 177.55 172.05 191.1 159.3 172.85Q154.6 171.5 172.05 195.7L172.05 212.5 175.1 212.5 175.1 177.55M252.7 151.35 249 151.35 249 176.9 252.7 176.9 252.7 151.35Z"/></g><g id="Layer25_0_FILL"><path class="vegetation" fill="#77A951" stroke="none" d="M192.55 179.55Q200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55M236.25 106.65Q230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65Z"/></g><g id="Layer24_0_FILL"><path class="vegetation" fill="#77A951" stroke="none" d="M158.3 221.9Q160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9M338.35 240.05Q341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05Z"/></g><g id="Layer22_0_FILL"><path class="rightRoof" fill="#D05041" stroke="none" d="M220 173.85 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85Z"/></g><g id="Layer21_0_FILL"><path class="leftWall" fill="#C57F42" stroke="none" d="M212.25 191.35 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35Z"/></g><g id="Layer20_0_FILL"><path class="rightRoof" fill="#EF4427" stroke="none" d="M192.1 149.85 236.45 174.8 243.1 171.4Q220.05 150.55 196.3 139.95L192.1 149.85Z"/></g><g id="Layer19_0_FILL"><path class="frontFascia" fill="#EBB17B" stroke="none" d="M226.85 160.95 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95Z"/></g><g id="Layer18_0_FILL"><path class="frontWall" fill="#EFA258" stroke="none" d="M240.15 172.65 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65Z"/></g><g id="Layer17_0_FILL"><path class="rightRoof" fill="#EF4427" stroke="none" d="M210.9 142.2 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2Z"/></g><g><path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="M210.25 195.5 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5Z"/></g><g><path id="sun" fill="#E3BD0E" stroke="none" d="M257.05 15.95Q251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95Z"/></g><g id="Layer8_0_FILL"><path fill="#975A42" stroke="none" d="M238.45 189.65Q238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65M220.55 197.55Q220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55Z"/></g><g id="Layer7_0_FILL"><path class="door" fill="#B65041" stroke="none" d="M233.55 206.75 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75Z"/></g><g><path id="windowOne" class="windows" fill="#975A42" stroke="none" d="M188.65 198.4 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4M208.45 216.8 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8M188.8 204.1 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1M208.6 222.5 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5Z"/></g><g><path id="windowThree" class="windows" fill="#975A42" stroke="none" d="M311.7 214.1 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1M325.4 221 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221M318.4 206.2 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2M325.25 215.35 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35Z"/></g><g id="Layer2_0_FILL"><path class="door" fill="#B65041" stroke="none" d="M259.7 183.25 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25Z"/></g><path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="M223.05 200.3Q222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3ZM238.7 191.05Q238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05Z"/><path fill="#F2563B" stroke="none" d="M351.95 211.2 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2Z"/><path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="M198.55 204.75 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8M198.8 216.15 198.65 210.45 188.8 204.1"/><path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="M325.25 215.35 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55M318.4 206.2 318.45 211.9 311.6 208.45"/></defs><g id="shadow"><g transform="matrix( 1, 0, 0, 1, 0,0) "><use xlink:href="#bottomShadow"/></g></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use xlink:href="#sun"/></g><g id="earth"><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer52_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer51_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer50_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer48_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer47_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer46_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer45_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer44_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer43_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer41_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer40_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer38_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer37_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer36_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer35_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer34_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#windowFour"/><use class="element" xlink:href="#Layer32_0_1_STROKES"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer30_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer27_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer26_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer25_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer24_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer22_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer21_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer20_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer19_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer18_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer17_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer16_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer8_0_FILL"/><use class="element" xlink:href="#windowTwo"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer7_0_FILL"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#windowOne"/><use class="element" xlink:href="#Layer6_0_1_STROKES"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#windowThree"/><use class="element" xlink:href="#Layer5_0_1_STROKES"/></g><g transform="matrix( 1, 0, 0, 1, 0,0) "><use class="element" xlink:href="#Layer2_0_FILL"/></g></g></svg><div id="toggleButton" class="day-toggle"><div class="sun-icon"></div> <label class="switch"><input id="toggleCheckbox" type="checkbox"><div class="slider"></div></label><div class="cloud-icon"></div></div></div></div><div class="header-inner"><div class="site-brand-wrapper"><div class="site-meta"><div class="custom-logo-site-title"><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span> <span class="site-title">舞动乾坤</span><span class="logo-line-after"><i></i></span></a></div><p class="site-subtitle">星光不问赶路人 岁月不负有心人</p></div><div class="site-nav-toggle"> <button><span class="btn-bar"></span><span class="btn-bar"></span><span class="btn-bar"></span></button></div></div><nav class="site-nav"><ul id="menu" class="menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i><br> 首页</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i><br> 归档</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i><br> 标签</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i><br> 关于</a></li><li class="menu-item menu-item-search"><a href="javascript:;" class="popup-trigger"><i class="menu-item-icon fa fa-search fa-fw"></i><br> 搜索</a></li></ul><div class="site-search"><div class="popup search-popup local-search-popup"><div class="local-search-header clearfix"><span class="search-icon"><i class="fa fa-search"></i></span><span class="popup-btn-close"><i class="fa fa-times-circle"></i></span><div class="local-search-input-wrapper"> <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input"></div></div><div id="local-search-result"></div></div></div></nav></div></header><main id="main" class="main"><div class="main-inner"><div class="content-wrap"><div id="content" class="content"><div id="posts" class="posts-expand"><article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article"><div class="post-block"><link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/"><span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person"><meta itemprop="name" content="李斌"><meta itemprop="description" content=""><meta itemprop="image" content="/images/tx.jpg"></span><span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization"><meta itemprop="name" content="舞动乾坤"></span><header class="post-header"><h1 class="post-title" itemprop="name headline">实现一个 Virtual DOM 算法[转]</h1><div class="post-meta"><span class="post-time"><span class="post-meta-item-icon"><i class="fa fa-calendar-o"></i></span> <span class="post-meta-item-text">发表于</span> <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:04:50+08:00">2017-05-01</time></span></div></header><div class="post-body" itemprop="articleBody"><h2 id="virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"><a href="#virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。" class="headerlink" title=" virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"></a> <font color="#dd0000"><strong>virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。</strong></font></h2><h2 id="目录："><a href="#目录：" class="headerlink" title="目录："></a>目录：</h2><ul><li>1 前言</li><li>2 对前端应用状态管理思考</li><li>3 Virtual DOM 算法</li><li>4 算法实现<ul><li>4.1 步骤一：用JS对象模拟DOM树</li><li>4.2 步骤二：比较两棵虚拟DOM树的差异</li><li>4.3 步骤三：把差异应用到真正的DOM树上</li></ul></li><li>5 结语</li><li>6 References</li></ul><h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a>1 前言</h2><p>本文会在教你怎么用 300~400 行代码实现一个基本的 Virtual DOM 算法，并且尝试尽量把 Virtual DOM 的算法思路阐述清楚。希望在阅读本文后，能让你深入理解 Virtual DOM 算法，给你现有前端的编程提供一些新的思考。</p><h2 id="2-对前端应用状态管理的思考"><a href="#2-对前端应用状态管理的思考" class="headerlink" title="2 对前端应用状态管理的思考"></a>2 对前端应用状态管理的思考</h2><p>假如现在你需要写一个像下面一样的表格的应用程序，这个表格可以根据不同的字段进行升序或者降序的展示。<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/1.png" alt=""><br>这个应用程序看起来很简单，你可以想出好几种不同的方式来写。最容易想到的可能是，在你的 JavaScript 代码里面存储这样的数据：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var sortKey = &quot;new&quot; // 排序的字段，新增（new）、取消（cancel）、净关注（gain）、累积（cumulate）人数</span><br><span class="line">var sortType = 1 // 升序还是逆序</span><br><span class="line">var data = [&#123;...&#125;, &#123;...&#125;, &#123;..&#125;, ..] // 表格数据</span><br></pre></td></tr></table></figure><p></p><p>用三个字段分别存储当前排序的字段、排序方向、还有表格数据；然后给表格头部加点击事件：当用户点击特定的字段的时候，根据上面几个字段存储的内容来对内容进行排序，然后用 JS 或者 jQuery 操作 DOM，更新页面的排序状态（表头的那几个箭头表示当前排序状态，也需要更新）和表格内容。</p><p>这样做会导致的后果就是，随着应用程序越来越复杂，需要在JS里面维护的字段也越来越多，需要监听事件和在事件回调用更新页面的DOM操作也越来越多，应用程序会变得非常难维护。后来人们使用了 MVC、MVP 的架构模式，希望能从代码组织方式来降低维护这种复杂应用程序的难度。但是 MVC 架构没办法减少你所维护的状态，也没有降低状态更新你需要对页面的更新操作（前端来说就是DOM操作），你需要操作的DOM还是需要操作，只是换了个地方。</p><p>既然状态改变了要操作相应的DOM元素，为什么不做一个东西可以让视图和状态进行绑定，状态变更了视图自动变更，就不用手动更新页面了。这就是后来人们想出了 MVVM 模式，只要在模版中声明视图组件是和什么状态进行绑定的，双向绑定引擎就会在状态更新的时候自动更新视图（关于MV*模式的内容，可以看<a href="https://github.com/livoras/blog/issues/11" target="_blank" rel="noopener">这篇介绍</a>）。</p><p>MVVM 可以很好的降低我们维护状态 -&gt; 视图的复杂程度（大大减少代码中的视图更新逻辑）。但是这不是唯一的办法，还有一个非常直观的方法，可以大大降低视图更新的操作：一旦状态发生了变化，就用模版引擎重新渲染<strong>整个视图</strong>，然后用新的视图更换掉旧的视图。就像上面的表格，当用户点击的时候，还是在JS里面更新状态，但是页面更新就不用手动操作 DOM 了，直接把整个表格用模版引擎重新渲染一遍，然后设置一下<code>innerHTML</code>就完事了。</p><p>听到这样的做法，经验丰富的你一定第一时间意识这样的做法会导致很多的问题。最大的问题就是这样做会很慢，因为即使一个小小的状态变更都要重新构造整棵 DOM，性价比太低；而且这样做的话，<code>input</code>和<code>textarea</code>的会失去原有的焦点。最后的结论会是：对于局部的小视图的更新，没有问题（Backbone就是这么干的）；但是对于大型视图，如全局应用状态变更的时候，需要更新页面较多局部视图的时候，这样的做法不可取。</p><p><strong>但是这里要明白和记住这种做法</strong>，因为后面你会发现，<strong>其实 Virtual DOM 就是这么做的，只是加了一些特别的步骤来避免了整棵 DOM 树变更</strong>。</p><p>另外一点需要注意的就是，上面提供的几种方法，其实都在解决同一个问题：<strong>维护状态，更新视图</strong>。在一般的应用当中，如果能够很好方案来应对这个问题，那么就几乎降低了大部分复杂性。</p><h2 id="3-Virtual-DOM算法"><a href="#3-Virtual-DOM算法" class="headerlink" title="3 Virtual DOM算法"></a>3 Virtual DOM算法</h2><p>DOM是很慢的。如果我们把一个简单的<code>div</code>元素的属性都打印出来，你会看到：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/2.png" alt=""><br>而这仅仅是第一层。真正的 DOM 元素非常庞大，这是因为标准就是这么设计的。而且操作它们的时候你要小心翼翼，轻微的触碰可能就会导致页面重排，这可是杀死性能的罪魁祸首。</p><p>相对于 DOM 对象，原生的 JavaScript 对象处理起来更快，而且更简单。DOM 树上的结构、属性信息我们都可以很容易地用 JavaScript 对象表示出来：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">var element = &#123;</span><br><span class="line">  tagName:&apos;ul&apos;, // 节点标签名</span><br><span class="line">  props: &#123; // DOM的属性，用一个对象存储键值对</span><br><span class="line">    id:&apos;list&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  children: [ // 该节点的子节点</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 1&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 2&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 3&quot;]&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>上面对应的HTML写法是：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure><p></p><p>既然原来 DOM 树的信息都可以用 JavaScript 对象来表示，反过来，你就可以根据这个用 JavaScript 对象表示的树结构来构建一棵真正的DOM树。</p><p>之前的章节所说的，状态变更-&gt;重新渲染整个视图的方式可以稍微修改一下：用 JavaScript 对象表示 DOM 信息和结构，当状态变更的时候，重新渲染这个 JavaScript 的对象结构。当然这样做其实没什么卵用，因为真正的页面其实没有改变。</p><p>但是可以用新渲染的对象树去和旧的树进行对比，记录这两棵树差异。记录下来的不同就是我们需要对页面真正的 DOM 操作，然后把它们应用在真正的 DOM 树上，页面就变更了。这样就可以做到：视图的结构确实是整个全新渲染了，但是最后操作DOM的时候确实只变更有不同的地方。</p><p>这就是所谓的 Virtual DOM 算法。包括几个步骤：</p><ol><li>用 JavaScript 对象结构表示 DOM 树的结构；然后用这个树构建一个真正的 DOM 树，插到文档当中</li><li>当状态变更的时候，重新构造一棵新的对象树。然后用新的树和旧的树进行比较，记录两棵树差异</li><li>把2所记录的差异应用到步骤1所构建的真正的DOM树上，视图就更新了</li></ol><p>Virtual DOM 本质上就是在 JS 和 DOM 之间做了一个缓存。可以类比 CPU 和硬盘，既然硬盘这么慢，我们就在它们之间加个缓存：既然 DOM 这么慢，我们就在它们 JS 和 DOM 之间加个缓存。CPU（JS）只操作内存（Virtual DOM），最后的时候再把变更写入硬盘（DOM）。</p><h2 id="4-算法实现"><a href="#4-算法实现" class="headerlink" title="4 算法实现"></a>4 算法实现</h2><h3 id="4-1-步骤一：用JS对象模拟DOM树"><a href="#4-1-步骤一：用JS对象模拟DOM树" class="headerlink" title="4.1 步骤一：用JS对象模拟DOM树"></a>4.1 步骤一：用JS对象模拟DOM树</h3><p>用 JavaScript 来表示一个 DOM 节点是很简单的事情，你只需要记录它的节点类型、属性，还有子节点：</p><p>element.js<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">functionElement (tagName, props, children) &#123;</span><br><span class="line">  this.tagName= tagName</span><br><span class="line">  this.props= props</span><br><span class="line">  this.children= children</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports=function (tagName, props, children) &#123;</span><br><span class="line">  returnnewElement(tagName, props, children)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>例如上面的 DOM 结构就可以简单的表示：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var el =require(&apos;./element&apos;)</span><br><span class="line"></span><br><span class="line">var ul =el(&apos;ul&apos;, &#123;id:&apos;list&apos;&#125;, [</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 1&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 2&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 3&apos;])</span><br><span class="line">])</span><br></pre></td></tr></table></figure><p></p><p>现在<code>ul</code>只是一个 JavaScript 对象表示的 DOM 结构，页面上并没有这个结构。我们可以根据这个<code>ul</code>构建真正的<code>&lt;ul&gt;</code>：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Element.prototype.render=function () &#123;</span><br><span class="line">  var el =document.createElement(this.tagName) // 根据tagName构建var props =this.propsfor (var propName in props) &#123; // 设置节点的DOM属性var propValue = props[propName]</span><br><span class="line">    el.setAttribute(propName, propValue)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var children =this.children|| []</span><br><span class="line"></span><br><span class="line">  children.forEach(function (child) &#123;</span><br><span class="line">    var childEl = (child instanceofElement)</span><br><span class="line">      ?child.render() // 如果子节点也是虚拟DOM，递归构建DOM节点:document.createTextNode(child) // 如果字符串，只构建文本节点el.appendChild(childEl)</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line">  return el</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p><code>render</code>方法会根据<code>tagName</code>构建一个真正的DOM节点，然后设置这个节点的属性，最后递归地把自己的子节点也构建起来。所以只需要：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">var ulRoot =ul.render()</span><br><span class="line">document.body.appendChild(ulRoot)</span><br></pre></td></tr></table></figure><p></p><p>上面的<code>ulRoot</code>是真正的DOM节点，把它塞入文档中，这样<code>body</code>里面就有了真正的<code>&lt;ul&gt;</code>的DOM结构：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure><p></p><p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element.js</a>。</p><h3 id="4-2-步骤二：比较两棵虚拟DOM树的差异"><a href="#4-2-步骤二：比较两棵虚拟DOM树的差异" class="headerlink" title="4.2 步骤二：比较两棵虚拟DOM树的差异"></a>4.2 步骤二：比较两棵虚拟DOM树的差异</h3><p>正如你所预料的，比较两棵DOM树的差异是 Virtual DOM 算法最核心的部分，这也是所谓的 Virtual DOM 的 diff 算法。两个树的完全的 diff 算法是一个时间复杂度为 O(n^3) 的问题。但是在前端当中，你很少会跨越层级地移动DOM元素。所以 Virtual DOM 只会对同一个层级的元素进行对比：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/3.png" alt=""><br>上面的<code>div</code>只会和同一层级的<code>div</code>对比，第二层级的只会跟第二层级对比。这样算法复杂度就可以达到 O(n)。</p><h4 id="4-2-1-深度优先遍历，记录差异"><a href="#4-2-1-深度优先遍历，记录差异" class="headerlink" title="4.2.1 深度优先遍历，记录差异"></a>4.2.1 深度优先遍历，记录差异</h4><p>在实际的代码中，会对新旧两棵树进行一个深度优先的遍历，这样每个节点都会有一个唯一的标记：</p><p> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/4.png" alt=""></p><p>在深度优先遍历的时候，每遍历到一个节点就把该节点和新的的树进行对比。如果有差异的话就记录到一个对象里面。<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// diff 函数，对比两棵树functiondiff (oldTree, newTree) &#123;</span><br><span class="line">  var index =0// 当前节点的标志var patches = &#123;&#125; // 用来记录每个节点差异的对象dfsWalk(oldTree, newTree, index, patches)</span><br><span class="line">  return patches</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 对两棵树进行深度优先遍历functiondfsWalk (oldNode, newNode, index, patches) &#123;</span><br><span class="line">  // 对比oldNode和newNode的不同，记录下来</span><br><span class="line">  patches[index] = [...]</span><br><span class="line"></span><br><span class="line">  diffChildren(oldNode.children, newNode.children, index, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 遍历子节点functiondiffChildren (oldChildren, newChildren, index, patches) &#123;</span><br><span class="line">  var leftNode =nullvar currentNodeIndex = index</span><br><span class="line">  oldChildren.forEach(function (child, i) &#123;</span><br><span class="line">    var newChild = newChildren[i]</span><br><span class="line">    currentNodeIndex = (leftNode &amp;&amp;leftNode.count) // 计算节点的标识? currentNodeIndex +leftNode.count+1: currentNodeIndex +1dfsWalk(child, newChild, currentNodeIndex, patches) // 深度遍历子节点</span><br><span class="line">    leftNode = child</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>例如，上面的<code>div</code>和新的<code>div</code>有差异，当前的标记是0，那么：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;difference&#125;, &#123;difference&#125;, ...] // 用数组存储新旧节点的不同</span><br></pre></td></tr></table></figure><p></p><p>同理<code>p</code>是<code>patches[1]</code>，<code>ul</code>是<code>patches[3]</code>，类推。</p><h4 id="4-2-2-差异类型"><a href="#4-2-2-差异类型" class="headerlink" title="4.2.2 差异类型"></a>4.2.2 差异类型</h4><p>上面说的节点的差异指的是什么呢？对 DOM 操作可能会：</p><ol><li>替换掉原来的节点，例如把上面的<code>div</code>换成了<code>section</code></li><li>移动、删除、新增子节点，例如上面<code>div</code>的子节点，把<code>p</code>和<code>ul</code>顺序互换</li><li>修改了节点的属性</li><li>对于文本节点，文本内容可能会改变。例如修改上面的文本节点2内容为<code>Virtual DOM 2</code>。</li></ol><p>所以我们定义了几种差异类型：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var REPLACE = 0</span><br><span class="line">var REORDER = 1</span><br><span class="line">var PROPS = 2</span><br><span class="line">var TEXT = 3</span><br></pre></td></tr></table></figure><p></p><p>对于节点替换，很简单。判断新旧节点的<code>tagName</code>和是不是一样的，如果不一样的说明需要替换掉。如<code>div</code>换成<code>section</code>，就记录下：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure><p></p><p>如果给<code>div</code>新增了属性<code>id</code>为<code>container</code>，就记录下：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;, &#123;</span><br><span class="line">  type:PROPS,</span><br><span class="line">  props: &#123;</span><br><span class="line">    id:&quot;container&quot;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure><p></p><p>如果是文本节点，如上面的文本节点2，就记录下：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[2] = [&#123;</span><br><span class="line">  type:TEXT,</span><br><span class="line">  content:&quot;Virtual DOM2&quot;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure><p></p><p>那如果把我<code>div</code>的子节点重新排序呢？例如<code>p, ul, div</code>的顺序换成了<code>div, p, ul</code>。这个该怎么对比？如果按照同层级进行顺序对比的话，它们都会被替换掉。如<code>p</code>和<code>div</code>的<code>tagName</code>不同，<code>p</code>会被<code>div</code>所替代。最终，三个节点都会被替换，这样DOM开销就非常大。而实际上是不需要替换节点，而只需要经过节点移动就可以达到，我们只需知道怎么进行移动。</p><p>这牵涉到两个列表的对比算法，需要另外起一个小节来讨论。</p><h4 id="4-2-3-列表对比算法"><a href="#4-2-3-列表对比算法" class="headerlink" title="4.2.3 列表对比算法"></a>4.2.3 列表对比算法</h4><p>假设现在可以英文字母唯一地标识每一个子节点：<br>旧的节点顺序：</p><pre><code>a b c d e f g h i
-</code></pre><p>现在对节点进行了删除、插入、移动的操作。新增<code>j</code>节点，删除<code>e</code>节点，移动<code>h</code>节点：<br>新的节点顺序：</p><pre><code>a b c h d f g i j
-</code></pre><p>现在知道了新旧的顺序，求最小的插入、删除操作（移动可以看成是删除和插入操作的结合）。这个问题抽象出来其实是字符串的最小编辑距离问题（<a href="https://en.wikipedia.org/wiki/Edit_distance" target="_blank" rel="noopener">Edition Distance</a>），最常见的解决算法是 <a href="https://en.wikipedia.org/wiki/Levenshtein_distance" target="_blank" rel="noopener">Levenshtein Distance</a>，通过动态规划求解，时间复杂度为 O(M * N)。但是我们并不需要真的达到最小的操作，我们只需要优化一些比较常见的移动情况，牺牲一定DOM操作，让算法时间复杂度达到线性的（O(max(M, N))。具体算法细节比较多，这里不累述，有兴趣可以参考<a href="https://github.com/livoras/list-diff/blob/master/lib/diff.js" target="_blank" rel="noopener">代码</a>。</p><p>我们能够获取到某个父节点的子节点的操作，就可以记录下来：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REORDER,</span><br><span class="line">  moves: [&#123;remove or insert&#125;, &#123;remove or insert&#125;, ...]</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure><p></p><p>但是要注意的是，因为<code>tagName</code>是可重复的，不能用这个来进行对比。所以需要给子节点加上唯一标识<code>key</code>，列表对比的时候，使用<code>key</code>进行对比，这样才能复用老的 DOM 树上的节点。</p><p>这样，我们就可以通过深度优先遍历两棵树，每层的节点进行对比，记录下每个节点的差异了。完整 diff 算法代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff.js</a>。</p><h3 id="4-3-步骤三：把差异应用到真正的DOM树上"><a href="#4-3-步骤三：把差异应用到真正的DOM树上" class="headerlink" title="4.3 步骤三：把差异应用到真正的DOM树上"></a>4.3 步骤三：把差异应用到真正的DOM树上</h3><p>因为步骤一所构建的 JavaScript 对象树和<code>render</code>出来真正的DOM树的信息、结构是一样的。所以我们可以对那棵DOM树也进行深度优先的遍历，遍历的时候从步骤二生成的<code>patches</code>对象中找出当前遍历的节点差异，然后进行 DOM 操作。<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">functionpatch (node, patches) &#123;</span><br><span class="line">  var walker = &#123;index:0&#125;</span><br><span class="line">  dfsWalk(node, walker, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">functiondfsWalk (node, walker, patches) &#123;</span><br><span class="line">  var currentPatches = patches[walker.index] // 从patches拿出当前节点的差异var len =node.childNodes?node.childNodes.length:0for (var i =0; i &lt; len; i++) &#123; // 深度遍历子节点var child =node.childNodes[i]</span><br><span class="line">    walker.index++dfsWalk(child, walker, patches)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (currentPatches) &#123;</span><br><span class="line">    applyPatches(node, currentPatches) // 对当前节点进行DOM操作</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>applyPatches，根据不同类型的差异对当前节点进行 DOM 操作：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">functionapplyPatches (node, currentPatches) &#123;</span><br><span class="line">  currentPatches.forEach(function (currentPatch) &#123;</span><br><span class="line">    switch (currentPatch.type) &#123;</span><br><span class="line">      caseREPLACE:</span><br><span class="line">        node.parentNode.replaceChild(currentPatch.node.render(), node)</span><br><span class="line">        breakcaseREORDER:</span><br><span class="line">        reorderChildren(node, currentPatch.moves)</span><br><span class="line">        breakcasePROPS:</span><br><span class="line">        setProps(node, currentPatch.props)</span><br><span class="line">        breakcaseTEXT:</span><br><span class="line">        node.textContent=currentPatch.contentbreakdefault:</span><br><span class="line">        thrownewError(&apos;Unknown patch type &apos;+currentPatch.type)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p></p><p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch.js</a>。</p><h2 id="5-结语"><a href="#5-结语" class="headerlink" title="5 结语"></a>5 结语</h2><p>Virtual DOM 算法主要是实现上面步骤的三个函数：<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch</a>。然后就可以实际的进行使用：<br></p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// 1. 构建虚拟DOM</span><br><span class="line">var tree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: blue&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 2. 通过虚拟DOM构建真正的DOM</span><br><span class="line">var root =tree.render()</span><br><span class="line">document.body.appendChild(root)</span><br><span class="line"></span><br><span class="line">// 3. 生成新的虚拟DOMvar newTree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: red&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;), el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 4. 比较两棵虚拟DOM树的不同</span><br><span class="line">var patches =diff(tree, newTree)</span><br><span class="line"></span><br><span class="line">// 5. 在真正的DOM元素上应用变更</span><br><span class="line">patch(root, patches)</span><br></pre></td></tr></table></figure><p></p><p>当然这是非常粗糙的实践，实际中还需要处理事件监听等；生成虚拟 DOM 的时候也可以加入 JSX 语法。这些事情都做了的话，就可以构造一个简单的ReactJS了。</p><p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>，仅供学习。</p><p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>。</p></div><footer class="post-footer"><div class="post-nav"><div class="post-nav-next post-nav-item"><a href="/2017/04/23/Vue自适应滚动条触底更新/" rel="next" title="Vue自适应滚动条触底更新"><i class="fa fa-chevron-left"></i> Vue自适应滚动条触底更新</a></div><span class="post-nav-divider"></span><div class="post-nav-prev post-nav-item"> <a href="/2017/05/03/你不知道的-Promise-对象黑科技/" rel="prev" title="你不知道的 Promise 对象黑科技">你不知道的 Promise 对象黑科技<i class="fa fa-chevron-right"></i></a></div></div></footer></div></article><div class="post-spread"></div></div></div></div><div class="sidebar-toggle"><div class="sidebar-toggle-line-wrap"><span class="sidebar-toggle-line sidebar-toggle-line-first"></span><span class="sidebar-toggle-line sidebar-toggle-line-middle"></span><span class="sidebar-toggle-line sidebar-toggle-line-last"></span></div></div><aside id="sidebar" class="sidebar"><div class="sidebar-inner"><ul class="sidebar-nav motion-element"><li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap"> 文章目录</li><li class="sidebar-nav-overview" data-target="site-overview-wrap"> 站点概览</li></ul><section class="site-overview-wrap sidebar-panel"><div class="site-overview"><div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person"> <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌"><p class="site-author-name" itemprop="name">李斌</p><p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p></div><nav class="site-state motion-element"><div class="site-state-item site-state-posts"> <a href="/archives/"><span class="site-state-item-count">157</span> <span class="site-state-item-name">日志</span></a></div><div class="site-state-item site-state-tags"> <a href="/tags/index.html"><span class="site-state-item-count">1</span> <span class="site-state-item-name">标签</span></a></div></nav><div class="links-of-author motion-element"><span class="links-of-author-item"><a href="https://github.com/libin1991" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i> GitHub</a></span><span class="links-of-author-item"><a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin"><i class="fa fa-fw fa-spinner"></i> juejin</a></span></div></div></section><section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active"><div class="post-toc"><div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"><span class="nav-number">1.</span> <span class="nav-text">virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#目录："><span class="nav-number">2.</span> <span class="nav-text">目录：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-前言"><span class="nav-number">3.</span> <span class="nav-text">1 前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-对前端应用状态管理的思考"><span class="nav-number">4.</span> <span class="nav-text">2 对前端应用状态管理的思考</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Virtual-DOM算法"><span class="nav-number">5.</span> <span class="nav-text">3 Virtual DOM算法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-算法实现"><span class="nav-number">6.</span> <span class="nav-text">4 算法实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-步骤一：用JS对象模拟DOM树"><span class="nav-number">6.1.</span> <span class="nav-text">4.1 步骤一：用JS对象模拟DOM树</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-步骤二：比较两棵虚拟DOM树的差异"><span class="nav-number">6.2.</span> <span class="nav-text">4.2 步骤二：比较两棵虚拟DOM树的差异</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-1-深度优先遍历，记录差异"><span class="nav-number">6.2.1.</span> <span class="nav-text">4.2.1 深度优先遍历，记录差异</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-2-差异类型"><span class="nav-number">6.2.2.</span> <span class="nav-text">4.2.2 差异类型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-3-列表对比算法"><span class="nav-number">6.2.3.</span> <span class="nav-text">4.2.3 列表对比算法</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-步骤三：把差异应用到真正的DOM树上"><span class="nav-number">6.3.</span> <span class="nav-text">4.3 步骤三：把差异应用到真正的DOM树上</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-结语"><span class="nav-number">7.</span> <span class="nav-text">5 结语</span></a></li></ol></div></div></section></div></aside></div></main><footer id="footer" class="footer"><div class="footer-inner"><div class="copyright">&copy; <span itemprop="copyrightYear">2019</span><span class="with-love"><i class="fa fa-user"></i></span> <span class="author" itemprop="copyrightHolder">李斌</span></div><div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div> <span class="post-meta-divider">|</span><div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div></div></footer><div class="back-to-top"><i class="fa fa-arrow-up"></i></div></div><script type="text/javascript">"[object Function]"!==Object.prototype.toString.call(window.Promise)&&(window.Promise=null)</script><script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script><script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script><script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script><script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script><script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script><script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script><script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script><script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script><script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script><script type="text/javascript">
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Virtual DOM,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。目录： 1 前言 2 对前端应用状态管理思考 3 Virtual DOM 算法 4 算法实现 4.1 步骤一：用JS对象模拟DOM树 4.2 步骤二：比较两棵虚拟DOM树的差异 4.3 步骤三：把差异应用到真正的DOM树上   5 结语 6 References  1 前言本文会在教你怎么用 300~40">
+<meta name="keywords" content="Virtual DOM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="实现一个 Virtual DOM 算法[转]">
+<meta property="og:url" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/index.html">
+<meta property="og:site_name" content="舞动乾坤">
+<meta property="og:description" content="virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。目录： 1 前言 2 对前端应用状态管理思考 3 Virtual DOM 算法 4 算法实现 4.1 步骤一：用JS对象模拟DOM树 4.2 步骤二：比较两棵虚拟DOM树的差异 4.3 步骤三：把差异应用到真正的DOM树上   5 结语 6 References  1 前言本文会在教你怎么用 300~40">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/1.png">
+<meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/2.png">
+<meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/3.png">
+<meta property="og:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/4.png">
+<meta property="og:updated_time" content="2018-11-04T11:37:20.770Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="实现一个 Virtual DOM 算法[转]">
+<meta name="twitter:description" content="virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。目录： 1 前言 2 对前端应用状态管理思考 3 Virtual DOM 算法 4 算法实现 4.1 步骤一：用JS对象模拟DOM树 4.2 步骤二：比较两棵虚拟DOM树的差异 4.3 步骤三：把差异应用到真正的DOM树上   5 结语 6 References  1 前言本文会在教你怎么用 300~40">
+<meta name="twitter:image" content="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/">
+
+
+
+
+
+  <title>实现一个 Virtual DOM 算法[转] | 舞动乾坤</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">舞动乾坤</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">星光不问赶路人 岁月不负有心人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/05/01/实现一个-Virtual-DOM-算法/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">实现一个 Virtual DOM 算法[转]</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-05-01T20:04:50+08:00">
+                2017-05-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"><a href="#virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。" class="headerlink" title=" virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"></a><font color="#dd0000"><strong> virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。</strong></font></h2><h2 id="目录："><a href="#目录：" class="headerlink" title="目录："></a>目录：</h2><ul>
+<li>1 前言</li>
+<li>2 对前端应用状态管理思考</li>
+<li>3 Virtual DOM 算法</li>
+<li>4 算法实现<ul>
+<li>4.1 步骤一：用JS对象模拟DOM树</li>
+<li>4.2 步骤二：比较两棵虚拟DOM树的差异</li>
+<li>4.3 步骤三：把差异应用到真正的DOM树上</li>
+</ul>
+</li>
+<li>5 结语</li>
+<li>6 References</li>
+</ul>
+<h2 id="1-前言"><a href="#1-前言" class="headerlink" title="1 前言"></a>1 前言</h2><p>本文会在教你怎么用 300~400 行代码实现一个基本的 Virtual DOM 算法，并且尝试尽量把 Virtual DOM 的算法思路阐述清楚。希望在阅读本文后，能让你深入理解 Virtual DOM 算法，给你现有前端的编程提供一些新的思考。</p>
+<h2 id="2-对前端应用状态管理的思考"><a href="#2-对前端应用状态管理的思考" class="headerlink" title="2 对前端应用状态管理的思考"></a>2 对前端应用状态管理的思考</h2><p>假如现在你需要写一个像下面一样的表格的应用程序，这个表格可以根据不同的字段进行升序或者降序的展示。<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/1.png" alt=""><br>这个应用程序看起来很简单，你可以想出好几种不同的方式来写。最容易想到的可能是，在你的 JavaScript 代码里面存储这样的数据：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var sortKey = &quot;new&quot; // 排序的字段，新增（new）、取消（cancel）、净关注（gain）、累积（cumulate）人数</span><br><span class="line">var sortType = 1 // 升序还是逆序</span><br><span class="line">var data = [&#123;...&#125;, &#123;...&#125;, &#123;..&#125;, ..] // 表格数据</span><br></pre></td></tr></table></figure></p>
+<p>用三个字段分别存储当前排序的字段、排序方向、还有表格数据；然后给表格头部加点击事件：当用户点击特定的字段的时候，根据上面几个字段存储的内容来对内容进行排序，然后用 JS 或者 jQuery 操作 DOM，更新页面的排序状态（表头的那几个箭头表示当前排序状态，也需要更新）和表格内容。</p>
+<p>这样做会导致的后果就是，随着应用程序越来越复杂，需要在JS里面维护的字段也越来越多，需要监听事件和在事件回调用更新页面的DOM操作也越来越多，应用程序会变得非常难维护。后来人们使用了 MVC、MVP 的架构模式，希望能从代码组织方式来降低维护这种复杂应用程序的难度。但是 MVC 架构没办法减少你所维护的状态，也没有降低状态更新你需要对页面的更新操作（前端来说就是DOM操作），你需要操作的DOM还是需要操作，只是换了个地方。</p>
+<p>既然状态改变了要操作相应的DOM元素，为什么不做一个东西可以让视图和状态进行绑定，状态变更了视图自动变更，就不用手动更新页面了。这就是后来人们想出了 MVVM 模式，只要在模版中声明视图组件是和什么状态进行绑定的，双向绑定引擎就会在状态更新的时候自动更新视图（关于MV*模式的内容，可以看<a href="https://github.com/livoras/blog/issues/11" target="_blank" rel="noopener">这篇介绍</a>）。</p>
+<p>MVVM 可以很好的降低我们维护状态 -&gt; 视图的复杂程度（大大减少代码中的视图更新逻辑）。但是这不是唯一的办法，还有一个非常直观的方法，可以大大降低视图更新的操作：一旦状态发生了变化，就用模版引擎重新渲染<strong>整个视图</strong>，然后用新的视图更换掉旧的视图。就像上面的表格，当用户点击的时候，还是在JS里面更新状态，但是页面更新就不用手动操作 DOM 了，直接把整个表格用模版引擎重新渲染一遍，然后设置一下<code>innerHTML</code>就完事了。</p>
+<p>听到这样的做法，经验丰富的你一定第一时间意识这样的做法会导致很多的问题。最大的问题就是这样做会很慢，因为即使一个小小的状态变更都要重新构造整棵 DOM，性价比太低；而且这样做的话，<code>input</code>和<code>textarea</code>的会失去原有的焦点。最后的结论会是：对于局部的小视图的更新，没有问题（Backbone就是这么干的）；但是对于大型视图，如全局应用状态变更的时候，需要更新页面较多局部视图的时候，这样的做法不可取。</p>
+<p><strong>但是这里要明白和记住这种做法</strong>，因为后面你会发现，<strong>其实 Virtual DOM 就是这么做的，只是加了一些特别的步骤来避免了整棵 DOM 树变更</strong>。</p>
+<p>另外一点需要注意的就是，上面提供的几种方法，其实都在解决同一个问题：<strong>维护状态，更新视图</strong>。在一般的应用当中，如果能够很好方案来应对这个问题，那么就几乎降低了大部分复杂性。</p>
+<h2 id="3-Virtual-DOM算法"><a href="#3-Virtual-DOM算法" class="headerlink" title="3 Virtual DOM算法"></a>3 Virtual DOM算法</h2><p>DOM是很慢的。如果我们把一个简单的<code>div</code>元素的属性都打印出来，你会看到：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/2.png" alt=""><br>而这仅仅是第一层。真正的 DOM 元素非常庞大，这是因为标准就是这么设计的。而且操作它们的时候你要小心翼翼，轻微的触碰可能就会导致页面重排，这可是杀死性能的罪魁祸首。</p>
+<p>相对于 DOM 对象，原生的 JavaScript 对象处理起来更快，而且更简单。DOM 树上的结构、属性信息我们都可以很容易地用 JavaScript 对象表示出来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">var element = &#123;</span><br><span class="line">  tagName:&apos;ul&apos;, // 节点标签名</span><br><span class="line">  props: &#123; // DOM的属性，用一个对象存储键值对</span><br><span class="line">    id:&apos;list&apos;</span><br><span class="line">  &#125;,</span><br><span class="line">  children: [ // 该节点的子节点</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 1&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 2&quot;]&#125;,</span><br><span class="line">    &#123;tagName:&apos;li&apos;, props: &#123;class:&apos;item&apos;&#125;, children: [&quot;Item 3&quot;]&#125;,</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>上面对应的HTML写法是：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
+<p>既然原来 DOM 树的信息都可以用 JavaScript 对象来表示，反过来，你就可以根据这个用 JavaScript 对象表示的树结构来构建一棵真正的DOM树。</p>
+<p>之前的章节所说的，状态变更-&gt;重新渲染整个视图的方式可以稍微修改一下：用 JavaScript 对象表示 DOM 信息和结构，当状态变更的时候，重新渲染这个 JavaScript 的对象结构。当然这样做其实没什么卵用，因为真正的页面其实没有改变。</p>
+<p>但是可以用新渲染的对象树去和旧的树进行对比，记录这两棵树差异。记录下来的不同就是我们需要对页面真正的 DOM 操作，然后把它们应用在真正的 DOM 树上，页面就变更了。这样就可以做到：视图的结构确实是整个全新渲染了，但是最后操作DOM的时候确实只变更有不同的地方。</p>
+<p>这就是所谓的 Virtual DOM 算法。包括几个步骤：</p>
+<ol>
+<li>用 JavaScript 对象结构表示 DOM 树的结构；然后用这个树构建一个真正的 DOM 树，插到文档当中</li>
+<li>当状态变更的时候，重新构造一棵新的对象树。然后用新的树和旧的树进行比较，记录两棵树差异</li>
+<li>把2所记录的差异应用到步骤1所构建的真正的DOM树上，视图就更新了</li>
+</ol>
+<p>Virtual DOM 本质上就是在 JS 和 DOM 之间做了一个缓存。可以类比 CPU 和硬盘，既然硬盘这么慢，我们就在它们之间加个缓存：既然 DOM 这么慢，我们就在它们 JS 和 DOM 之间加个缓存。CPU（JS）只操作内存（Virtual DOM），最后的时候再把变更写入硬盘（DOM）。</p>
+<h2 id="4-算法实现"><a href="#4-算法实现" class="headerlink" title="4 算法实现"></a>4 算法实现</h2><h3 id="4-1-步骤一：用JS对象模拟DOM树"><a href="#4-1-步骤一：用JS对象模拟DOM树" class="headerlink" title="4.1 步骤一：用JS对象模拟DOM树"></a>4.1 步骤一：用JS对象模拟DOM树</h3><p>用 JavaScript 来表示一个 DOM 节点是很简单的事情，你只需要记录它的节点类型、属性，还有子节点：</p>
+<p>element.js<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">functionElement (tagName, props, children) &#123;</span><br><span class="line">  this.tagName= tagName</span><br><span class="line">  this.props= props</span><br><span class="line">  this.children= children</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">module.exports=function (tagName, props, children) &#123;</span><br><span class="line">  returnnewElement(tagName, props, children)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>例如上面的 DOM 结构就可以简单的表示：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var el =require(&apos;./element&apos;)</span><br><span class="line"></span><br><span class="line">var ul =el(&apos;ul&apos;, &#123;id:&apos;list&apos;&#125;, [</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 1&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 2&apos;]),</span><br><span class="line">  el(&apos;li&apos;, &#123;class:&apos;item&apos;&#125;, [&apos;Item 3&apos;])</span><br><span class="line">])</span><br></pre></td></tr></table></figure></p>
+<p>现在<code>ul</code>只是一个 JavaScript 对象表示的 DOM 结构，页面上并没有这个结构。我们可以根据这个<code>ul</code>构建真正的<code>&lt;ul&gt;</code>：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Element.prototype.render=function () &#123;</span><br><span class="line">  var el =document.createElement(this.tagName) // 根据tagName构建var props =this.propsfor (var propName in props) &#123; // 设置节点的DOM属性var propValue = props[propName]</span><br><span class="line">    el.setAttribute(propName, propValue)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  var children =this.children|| []</span><br><span class="line"></span><br><span class="line">  children.forEach(function (child) &#123;</span><br><span class="line">    var childEl = (child instanceofElement)</span><br><span class="line">      ?child.render() // 如果子节点也是虚拟DOM，递归构建DOM节点:document.createTextNode(child) // 如果字符串，只构建文本节点el.appendChild(childEl)</span><br><span class="line">  &#125;)</span><br><span class="line"></span><br><span class="line">  return el</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>render</code>方法会根据<code>tagName</code>构建一个真正的DOM节点，然后设置这个节点的属性，最后递归地把自己的子节点也构建起来。所以只需要：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">var ulRoot =ul.render()</span><br><span class="line">document.body.appendChild(ulRoot)</span><br></pre></td></tr></table></figure></p>
+<p>上面的<code>ulRoot</code>是真正的DOM节点，把它塞入文档中，这样<code>body</code>里面就有了真正的<code>&lt;ul&gt;</code>的DOM结构：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&lt;ulid=&apos;list&apos;&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 1&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 2&lt;/li&gt;</span><br><span class="line">  &lt;liclass=&apos;item&apos;&gt;Item 3&lt;/li&gt;</span><br><span class="line">&lt;/ul&gt;</span><br></pre></td></tr></table></figure></p>
+<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element.js</a>。</p>
+<h3 id="4-2-步骤二：比较两棵虚拟DOM树的差异"><a href="#4-2-步骤二：比较两棵虚拟DOM树的差异" class="headerlink" title="4.2 步骤二：比较两棵虚拟DOM树的差异"></a>4.2 步骤二：比较两棵虚拟DOM树的差异</h3><p>正如你所预料的，比较两棵DOM树的差异是 Virtual DOM 算法最核心的部分，这也是所谓的 Virtual DOM 的 diff 算法。两个树的完全的 diff 算法是一个时间复杂度为 O(n^3) 的问题。但是在前端当中，你很少会跨越层级地移动DOM元素。所以 Virtual DOM 只会对同一个层级的元素进行对比：<br> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/3.png" alt=""><br>上面的<code>div</code>只会和同一层级的<code>div</code>对比，第二层级的只会跟第二层级对比。这样算法复杂度就可以达到 O(n)。</p>
+<h4 id="4-2-1-深度优先遍历，记录差异"><a href="#4-2-1-深度优先遍历，记录差异" class="headerlink" title="4.2.1 深度优先遍历，记录差异"></a>4.2.1 深度优先遍历，记录差异</h4><p>在实际的代码中，会对新旧两棵树进行一个深度优先的遍历，这样每个节点都会有一个唯一的标记：</p>
+<p> <img src="/2017/05/01/实现一个-Virtual-DOM-算法/4.png" alt=""></p>
+<p>在深度优先遍历的时候，每遍历到一个节点就把该节点和新的的树进行对比。如果有差异的话就记录到一个对象里面。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">// diff 函数，对比两棵树functiondiff (oldTree, newTree) &#123;</span><br><span class="line">  var index =0// 当前节点的标志var patches = &#123;&#125; // 用来记录每个节点差异的对象dfsWalk(oldTree, newTree, index, patches)</span><br><span class="line">  return patches</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 对两棵树进行深度优先遍历functiondfsWalk (oldNode, newNode, index, patches) &#123;</span><br><span class="line">  // 对比oldNode和newNode的不同，记录下来</span><br><span class="line">  patches[index] = [...]</span><br><span class="line"></span><br><span class="line">  diffChildren(oldNode.children, newNode.children, index, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 遍历子节点functiondiffChildren (oldChildren, newChildren, index, patches) &#123;</span><br><span class="line">  var leftNode =nullvar currentNodeIndex = index</span><br><span class="line">  oldChildren.forEach(function (child, i) &#123;</span><br><span class="line">    var newChild = newChildren[i]</span><br><span class="line">    currentNodeIndex = (leftNode &amp;&amp;leftNode.count) // 计算节点的标识? currentNodeIndex +leftNode.count+1: currentNodeIndex +1dfsWalk(child, newChild, currentNodeIndex, patches) // 深度遍历子节点</span><br><span class="line">    leftNode = child</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>例如，上面的<code>div</code>和新的<code>div</code>有差异，当前的标记是0，那么：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;difference&#125;, &#123;difference&#125;, ...] // 用数组存储新旧节点的不同</span><br></pre></td></tr></table></figure></p>
+<p>同理<code>p</code>是<code>patches[1]</code>，<code>ul</code>是<code>patches[3]</code>，类推。</p>
+<h4 id="4-2-2-差异类型"><a href="#4-2-2-差异类型" class="headerlink" title="4.2.2 差异类型"></a>4.2.2 差异类型</h4><p>上面说的节点的差异指的是什么呢？对 DOM 操作可能会：</p>
+<ol>
+<li>替换掉原来的节点，例如把上面的<code>div</code>换成了<code>section</code></li>
+<li>移动、删除、新增子节点，例如上面<code>div</code>的子节点，把<code>p</code>和<code>ul</code>顺序互换</li>
+<li>修改了节点的属性</li>
+<li>对于文本节点，文本内容可能会改变。例如修改上面的文本节点2内容为<code>Virtual DOM 2</code>。</li>
+</ol>
+<p>所以我们定义了几种差异类型：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var REPLACE = 0</span><br><span class="line">var REORDER = 1</span><br><span class="line">var PROPS = 2</span><br><span class="line">var TEXT = 3</span><br></pre></td></tr></table></figure></p>
+<p>对于节点替换，很简单。判断新旧节点的<code>tagName</code>和是不是一样的，如果不一样的说明需要替换掉。如<code>div</code>换成<code>section</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>如果给<code>div</code>新增了属性<code>id</code>为<code>container</code>，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REPALCE,</span><br><span class="line">  node: newNode // el(&apos;section&apos;, props, children)</span><br><span class="line">&#125;, &#123;</span><br><span class="line">  type:PROPS,</span><br><span class="line">  props: &#123;</span><br><span class="line">    id:&quot;container&quot;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>如果是文本节点，如上面的文本节点2，就记录下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[2] = [&#123;</span><br><span class="line">  type:TEXT,</span><br><span class="line">  content:&quot;Virtual DOM2&quot;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>那如果把我<code>div</code>的子节点重新排序呢？例如<code>p, ul, div</code>的顺序换成了<code>div, p, ul</code>。这个该怎么对比？如果按照同层级进行顺序对比的话，它们都会被替换掉。如<code>p</code>和<code>div</code>的<code>tagName</code>不同，<code>p</code>会被<code>div</code>所替代。最终，三个节点都会被替换，这样DOM开销就非常大。而实际上是不需要替换节点，而只需要经过节点移动就可以达到，我们只需知道怎么进行移动。</p>
+<p>这牵涉到两个列表的对比算法，需要另外起一个小节来讨论。</p>
+<h4 id="4-2-3-列表对比算法"><a href="#4-2-3-列表对比算法" class="headerlink" title="4.2.3 列表对比算法"></a>4.2.3 列表对比算法</h4><p>假设现在可以英文字母唯一地标识每一个子节点：<br>旧的节点顺序：</p>
+<pre><code>a b c d e f g h i
+</code></pre><p>现在对节点进行了删除、插入、移动的操作。新增<code>j</code>节点，删除<code>e</code>节点，移动<code>h</code>节点：<br>新的节点顺序：</p>
+<pre><code>a b c h d f g i j
+</code></pre><p>现在知道了新旧的顺序，求最小的插入、删除操作（移动可以看成是删除和插入操作的结合）。这个问题抽象出来其实是字符串的最小编辑距离问题（<a href="https://en.wikipedia.org/wiki/Edit_distance" target="_blank" rel="noopener">Edition Distance</a>），最常见的解决算法是 <a href="https://en.wikipedia.org/wiki/Levenshtein_distance" target="_blank" rel="noopener">Levenshtein Distance</a>，通过动态规划求解，时间复杂度为 O(M * N)。但是我们并不需要真的达到最小的操作，我们只需要优化一些比较常见的移动情况，牺牲一定DOM操作，让算法时间复杂度达到线性的（O(max(M, N))。具体算法细节比较多，这里不累述，有兴趣可以参考<a href="https://github.com/livoras/list-diff/blob/master/lib/diff.js" target="_blank" rel="noopener">代码</a>。</p>
+<p>我们能够获取到某个父节点的子节点的操作，就可以记录下来：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">patches[0] = [&#123;</span><br><span class="line">  type:REORDER,</span><br><span class="line">  moves: [&#123;remove or insert&#125;, &#123;remove or insert&#125;, ...]</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>但是要注意的是，因为<code>tagName</code>是可重复的，不能用这个来进行对比。所以需要给子节点加上唯一标识<code>key</code>，列表对比的时候，使用<code>key</code>进行对比，这样才能复用老的 DOM 树上的节点。</p>
+<p>这样，我们就可以通过深度优先遍历两棵树，每层的节点进行对比，记录下每个节点的差异了。完整 diff 算法代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff.js</a>。</p>
+<h3 id="4-3-步骤三：把差异应用到真正的DOM树上"><a href="#4-3-步骤三：把差异应用到真正的DOM树上" class="headerlink" title="4.3 步骤三：把差异应用到真正的DOM树上"></a>4.3 步骤三：把差异应用到真正的DOM树上</h3><p>因为步骤一所构建的 JavaScript 对象树和<code>render</code>出来真正的DOM树的信息、结构是一样的。所以我们可以对那棵DOM树也进行深度优先的遍历，遍历的时候从步骤二生成的<code>patches</code>对象中找出当前遍历的节点差异，然后进行 DOM 操作。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">functionpatch (node, patches) &#123;</span><br><span class="line">  var walker = &#123;index:0&#125;</span><br><span class="line">  dfsWalk(node, walker, patches)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">functiondfsWalk (node, walker, patches) &#123;</span><br><span class="line">  var currentPatches = patches[walker.index] // 从patches拿出当前节点的差异var len =node.childNodes?node.childNodes.length:0for (var i =0; i &lt; len; i++) &#123; // 深度遍历子节点var child =node.childNodes[i]</span><br><span class="line">    walker.index++dfsWalk(child, walker, patches)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  if (currentPatches) &#123;</span><br><span class="line">    applyPatches(node, currentPatches) // 对当前节点进行DOM操作</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>applyPatches，根据不同类型的差异对当前节点进行 DOM 操作：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">functionapplyPatches (node, currentPatches) &#123;</span><br><span class="line">  currentPatches.forEach(function (currentPatch) &#123;</span><br><span class="line">    switch (currentPatch.type) &#123;</span><br><span class="line">      caseREPLACE:</span><br><span class="line">        node.parentNode.replaceChild(currentPatch.node.render(), node)</span><br><span class="line">        breakcaseREORDER:</span><br><span class="line">        reorderChildren(node, currentPatch.moves)</span><br><span class="line">        breakcasePROPS:</span><br><span class="line">        setProps(node, currentPatch.props)</span><br><span class="line">        breakcaseTEXT:</span><br><span class="line">        node.textContent=currentPatch.contentbreakdefault:</span><br><span class="line">        thrownewError(&apos;Unknown patch type &apos;+currentPatch.type)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>完整代码可见 <a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch.js</a>。</p>
+<h2 id="5-结语"><a href="#5-结语" class="headerlink" title="5 结语"></a>5 结语</h2><p>Virtual DOM 算法主要是实现上面步骤的三个函数：<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/element.js" target="_blank" rel="noopener">element</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/diff.js" target="_blank" rel="noopener">diff</a>，<a href="https://github.com/livoras/simple-virtual-dom/blob/master/lib/patch.js" target="_blank" rel="noopener">patch</a>。然后就可以实际的进行使用：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">// 1. 构建虚拟DOM</span><br><span class="line">var tree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: blue&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 2. 通过虚拟DOM构建真正的DOM</span><br><span class="line">var root =tree.render()</span><br><span class="line">document.body.appendChild(root)</span><br><span class="line"></span><br><span class="line">// 3. 生成新的虚拟DOMvar newTree =el(&apos;div&apos;, &#123;&apos;id&apos;:&apos;container&apos;&#125;, [</span><br><span class="line">    el(&apos;h1&apos;, &#123;style:&apos;color: red&apos;&#125;, [&apos;simple virtal dom&apos;]),</span><br><span class="line">    el(&apos;p&apos;, [&apos;Hello, virtual-dom&apos;]),</span><br><span class="line">    el(&apos;ul&apos;, [el(&apos;li&apos;), el(&apos;li&apos;)])</span><br><span class="line">])</span><br><span class="line"></span><br><span class="line">// 4. 比较两棵虚拟DOM树的不同</span><br><span class="line">var patches =diff(tree, newTree)</span><br><span class="line"></span><br><span class="line">// 5. 在真正的DOM元素上应用变更</span><br><span class="line">patch(root, patches)</span><br></pre></td></tr></table></figure></p>
+<p>当然这是非常粗糙的实践，实际中还需要处理事件监听等；生成虚拟 DOM 的时候也可以加入 JSX 语法。这些事情都做了的话，就可以构造一个简单的ReactJS了。</p>
+<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>，仅供学习。</p>
+<p>本文所实现的完整代码存放在 <a href="https://github.com/livoras/simple-virtual-dom" target="_blank" rel="noopener">Github</a>。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Virtual-DOM/" rel="tag"># Virtual DOM</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/04/23/Vue自适应滚动条触底更新/" rel="next" title="Vue自适应滚动条触底更新">
+                <i class="fa fa-chevron-left"></i> Vue自适应滚动条触底更新
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/05/03/你不知道的-Promise-对象黑科技/" rel="prev" title="你不知道的 Promise 对象黑科技">
+                你不知道的 Promise 对象黑科技 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">158</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">111</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#virtual-dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。"><span class="nav-number">1.</span> <span class="nav-text"> virtual dom很多时候都不是最优的操作，但它具有普适性，在效率、可维护性之间达平衡。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#目录："><span class="nav-number">2.</span> <span class="nav-text">目录：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-前言"><span class="nav-number">3.</span> <span class="nav-text">1 前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-对前端应用状态管理的思考"><span class="nav-number">4.</span> <span class="nav-text">2 对前端应用状态管理的思考</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Virtual-DOM算法"><span class="nav-number">5.</span> <span class="nav-text">3 Virtual DOM算法</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-算法实现"><span class="nav-number">6.</span> <span class="nav-text">4 算法实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-步骤一：用JS对象模拟DOM树"><span class="nav-number">6.1.</span> <span class="nav-text">4.1 步骤一：用JS对象模拟DOM树</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-步骤二：比较两棵虚拟DOM树的差异"><span class="nav-number">6.2.</span> <span class="nav-text">4.2 步骤二：比较两棵虚拟DOM树的差异</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-1-深度优先遍历，记录差异"><span class="nav-number">6.2.1.</span> <span class="nav-text">4.2.1 深度优先遍历，记录差异</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-2-差异类型"><span class="nav-number">6.2.2.</span> <span class="nav-text">4.2.2 差异类型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-3-列表对比算法"><span class="nav-number">6.2.3.</span> <span class="nav-text">4.2.3 列表对比算法</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-步骤三：把差异应用到真正的DOM树上"><span class="nav-number">6.3.</span> <span class="nav-text">4.3 步骤三：把差异应用到真正的DOM树上</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-结语"><span class="nav-number">7.</span> <span class="nav-text">5 结语</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
     // Popup Window;
     var isfetched = false;
     var isXml = true;
@@ -315,4 +1534,38 @@
         onPopupClose();
       }
     });
-  </script><script type="text/javascript" src="/js/src/clicklove.js"></script><script type="text/javascript" src="/js/src/clipboard.min.js"></script><script type="text/javascript" src="/js/src/clipboard-use.js"></script></body></html>
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+  <!--
+  	描述：点击红心
+  -->
+  <script type="text/javascript" src="/js/src/clicklove.js"></script>
+  <!--
+  	描述：复制代码
+  -->
+  <script type="text/javascript" src="/js/src/clipboard.min.js"></script>
+  <script type="text/javascript" src="/js/src/clipboard-use.js"></script>
+</body>
+</html>
+
+
