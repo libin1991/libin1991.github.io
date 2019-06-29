@@ -89,11 +89,11 @@
 <meta name="description" content="Reactreact核心思想：内存中维护一颗虚拟DOM树，数据变化时（setState），自动更新虚拟DOM，得到一颗新树，然后diff新老虚拟DOM树，找到有变化的部分，得到一个change(patch)，将这个patch加入队列，最终批量更新这些path到DOM中。简单说就是：diff + patch。 react 执行render()和setState()进行渲染时主要有两个阶段：调度阶段">
 <meta property="og:type" content="article">
 <meta property="og:title" content="理解 React Fiber 架构">
-<meta property="og:url" content="http://yoursite.com/2019/06/26/理解-React-Fiber-架构/index.html">
+<meta property="og:url" content="http://yoursite.com/2019/07/01/理解-React-Fiber-架构/index.html">
 <meta property="og:site_name" content="舞动乾坤">
 <meta property="og:description" content="Reactreact核心思想：内存中维护一颗虚拟DOM树，数据变化时（setState），自动更新虚拟DOM，得到一颗新树，然后diff新老虚拟DOM树，找到有变化的部分，得到一个change(patch)，将这个patch加入队列，最终批量更新这些path到DOM中。简单说就是：diff + patch。 react 执行render()和setState()进行渲染时主要有两个阶段：调度阶段">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-06-26T15:53:46.466Z">
+<meta property="og:updated_time" content="2019-06-29T16:10:38.626Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="理解 React Fiber 架构">
 <meta name="twitter:description" content="Reactreact核心思想：内存中维护一颗虚拟DOM树，数据变化时（setState），自动更新虚拟DOM，得到一颗新树，然后diff新老虚拟DOM树，找到有变化的部分，得到一个change(patch)，将这个patch加入队列，最终批量更新这些path到DOM中。简单说就是：diff + patch。 react 执行render()和setState()进行渲染时主要有两个阶段：调度阶段">
@@ -126,7 +126,7 @@
 
 
 
-  <link rel="canonical" href="http://yoursite.com/2019/06/26/理解-React-Fiber-架构/">
+  <link rel="canonical" href="http://yoursite.com/2019/07/01/理解-React-Fiber-架构/">
 
 
 
@@ -694,7 +694,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/06/26/理解-React-Fiber-架构/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/01/理解-React-Fiber-架构/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
       <meta itemprop="name" content="李斌">
@@ -723,8 +723,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-06-26T23:36:33+08:00">
-                2019-06-26
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-07-01T23:36:33+08:00">
+                2019-07-01
               </time>
             
 
@@ -784,7 +784,8 @@
 </ul>
 <p>为了做到这些，我们首先需要一种方法将任务分解为单元。从某种意义上说，这就是 Fiber，Fiber 代表一种<font color="#ff0000"><strong>工作单元【时间切片】</strong></font>。<br>但是仅仅是分解为单元也无法做到中断任务，因为函数调用栈就是这样，每个函数为一个工作，每个工作被称为堆栈帧，它会一直工作，直到堆栈为空，无法中断。</p>
 <p>Fiber之前的Reconciler阶段采用的是Stack Reconciler， 其自顶向下遍历vdom tree, 递归组件执行任务，过程无法中断。<br>假设有一个层级很复杂的组件，在顶层组件内执行setState, 那么调用栈可能会很长。由于调用栈过长，中间可能还有一些复杂操作，这些任务无法中断，就导致主线程被长时间阻塞。由于浏览器里渲染和js执行共一个主线程，在对响应要求高的场景，比如手势，动画等，就容易造成卡顿，延迟等现象，从而影响用户体验。</p>
-<p>Fiber的出现就是为了解决这个问题。<br>Fiber 的解决思路：把渲染更新过程拆分成多个子任务，每次只做一小部分，做完看是否还有剩余时间，如果有继续下一个任务；如果没有，挂起当前任务，将时间控制权交给主线程，等主线程不忙的时候在继续执行。</p>
+<p>Fiber的出现就是为了解决这个问题。</p>
+<p>Fiber 的解决思路：<span style="border-bottom:2px solid red;">把渲染更新过程拆分成多个子任务，每次只做一小部分，做完看是否还有剩余时间，如果有继续下一个任务；如果没有，挂起当前任务，将时间控制权交给主线程，等主线程不忙的时候在继续执行。</span></p>
 <h2 id="what-Fiber是什么"><a href="#what-Fiber是什么" class="headerlink" title="what Fiber是什么"></a>what Fiber是什么</h2><p>时间切片,也可以理解为</p>
 <p>计算机通常追踪程序执行的方式是使用调用堆栈。执行函数时，不断的把堆栈帧加入到堆栈中，一个堆栈帧就表示一个要执行的工作。<br>在处理UI时，如果执行太多的工作，就可能导致动画丢帧。</p>
 <p>新版本的浏览器实现了有助于解决这个问题的API：<font color="#ff0000"><strong> requestIdleCallback </strong></font> 和 <font color="#ff0000"><strong> requestAnimationFrame </strong></font>.</p>
@@ -795,7 +796,7 @@
 </li>
 </ul>
 <p>问题是，为了使用这些API，就需要一种方法将渲染工作分解为增量单元。如果仅依赖于调用堆栈，它将继续工作直到堆栈为空，无法中断。<br>为了实现增量渲染的调度，就必须重新实现这个堆栈帧，以便可以将堆栈帧保留在内存中，然后按照自己的调度算法执行他们。同时由于这些堆栈栈是我们手动处理的，我们还可以加入并发或者错误边界等功能。</p>
-<p><u>因此Fiber就是重新实现的堆栈帧，本质上Fiber也可以理解为是一个虚拟的堆栈帧，将可中断的任务拆分成多个子任务，通过按照优先级来自由调度子任务，分段更新，从而将之前的同步渲染改为异步渲染。<br>react内部有自己的优先级判断逻辑，比如动画，用户交互等任务优先级就明显要高。</u></p>
+<p><span style="border-bottom:2px solid red;">因此Fiber就是重新实现的堆栈帧，本质上Fiber也可以理解为是一个虚拟的堆栈帧，将可中断的任务拆分成多个子任务，通过按照优先级来自由调度子任务，分段更新，从而将之前的同步渲染改为异步渲染。<br>react内部有自己的优先级判断逻辑，比如动画，用户交互等任务优先级就明显要高。</span></p>
 <h3 id="Fiber的目标"><a href="#Fiber的目标" class="headerlink" title="Fiber的目标"></a>Fiber的目标</h3><ul>
 <li>将耗时长可中断的任务拆分成多个子任务</li>
 <li>对正在做的工作调整优先级，可以重做，复用上次的结果</li>
