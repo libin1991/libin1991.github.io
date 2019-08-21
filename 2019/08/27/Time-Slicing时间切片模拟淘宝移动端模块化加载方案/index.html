@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="性能优化的目的我们每一次的界面变化，都要经历以下步骤：  我们都知道像素管道有五步，JavaScript-&amp;gt;样式计算-&amp;gt;布局-&amp;gt;绘制-&amp;gt;合成。 人的眼睛大约每秒可以看到 60 帧，那么就代表我们每 16.7ms 就要看到 1 帧，一帧就要经历上图的 5 步，说明我们的每一个任务（task） 不宜过长，这样就会导致用户对于界面感知的不友好性  fps 是指页面每秒帧数 fps">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Time-Slicing时间切片模拟淘宝移动端模块化加载方案">
+<meta property="og:url" content="http://yoursite.com/2019/08/27/Time-Slicing时间切片模拟淘宝移动端模块化加载方案/index.html">
+<meta property="og:site_name" content="舞动乾坤">
+<meta property="og:description" content="性能优化的目的我们每一次的界面变化，都要经历以下步骤：  我们都知道像素管道有五步，JavaScript-&amp;gt;样式计算-&amp;gt;布局-&amp;gt;绘制-&amp;gt;合成。 人的眼睛大约每秒可以看到 60 帧，那么就代表我们每 16.7ms 就要看到 1 帧，一帧就要经历上图的 5 步，说明我们的每一个任务（task） 不宜过长，这样就会导致用户对于界面感知的不友好性  fps 是指页面每秒帧数 fps">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/63415487-66949a80-c430-11e9-88fb-9ff971005f4b.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/63415095-c3dc1c00-c42f-11e9-9bdb-dc0ed09eb4c9.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/63416875-e28fe200-c432-11e9-9797-efd2589169c4.gif">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/63415153-da827300-c42f-11e9-9fea-1567262a2e30.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/63416318-cccded00-c431-11e9-9a3b-84f5353569a9.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/63416141-7a8ccc00-c431-11e9-86e5-d68979f95150.png">
+<meta property="og:image" content="https://camo.githubusercontent.com/6bdbe4a497e849ef9ddb630535a615b552771c15/68747470733a2f2f70342e73736c2e7168696d672e636f6d2f743031636630636162386363353566393339392e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/4e8d9dd335e89208e02b38e3237755723bff6ceb/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f7735356848326669704c49376e316f5a2e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/95e09556adabed7b28b38c7f5c2ae2f1724938a1/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f7870676934435446744d414c347a41572e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/8fc59b0fe0acf3773972e928ed474e118a8d2bed/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f74694865575148316349495a676773342e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/1068a7755e5597cf55544077309336100e22bd8c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4e325877324c514a4f4b41797550546d2e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/5271ec6a5f4ed35705a6203fe07d45f6271f08cb/68747470733a2f2f70302e73736c2e7168696d672e636f6d2f743031366432393838613766333761353039352e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/b6c53ed93683fa4223e782ca38dd533ea4648a42/68747470733a2f2f70352e73736c2e7168696d672e636f6d2f743031616265386664316636656437366363302e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/6350e5021a7b30ae2554088b13bcaba6e9c1ef83/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f6b654d4e45766b6d4a326752433074592e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/0bc09b9fee19b184bf55d9140b156633ec1189b9/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f466c766d6d746b3530743873624b61712e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/308b6f4426bc6455bef55172cc90e6de99dab9f9/68747470733a2f2f70342e73736c2e7168696d672e636f6d2f743031636264643035306465313735336438302e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/0247a22b0563fecf75110361a59ca7e1543b1233/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f6d653549526137484670594971556a702e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/1127da1d2b2972925e716a6ac302274ae6ae79de/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f547252506442415262487774503273682e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/675f518366491c62ca4413d8a91fc255a78fa9f6/68747470733a2f2f70312e73736c2e7168696d672e636f6d2f743031616135383837636661353532343237652e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/7e33c15ce997d876d5b08c7fb2ed833a0a65eb86/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f69706c56675135397a4b4131354a69392e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/1bca8548107c58889657b077cef863554bcde5f5/68747470733a2f2f70322e73736c2e7168696d672e636f6d2f743031633338336132626364663431376333662e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/f8cfb940a227076e24d74492e0c88d9ad4df2ebf/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f64576a76386979447a785175686b44672e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/4bbba832e47d7c932605448ec810b8b87834fd82/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f714a7248306a7a6139463830536963742e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/d28c401d843b8c5907e16281ffbe0d78e28431ec/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f423034783043616651765554735844792e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/b07a59b185c6fdadd7b2b2e8751fd435cf3db7db/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4e41386e68593265384a6330754f4a622e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/1dd7c765bd9d4d244483e51bf4983b1ae7e13db4/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f524462514a5a397478597342703349502e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/bda9e89ed0125fcb78fa3801186b97964075dbb4/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f66366d5347764b70616767647331475a2e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/8f8bb69c52c0451a3f72ac772a3e6ff49695c82c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f6c67767339534e5a6e7438383443497a2e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/af684d32a61d7b58ef6a2e30399934acbfdb978d/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f384e36666d7039714c344d43466e6d432e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/41f0a7f845a9a4a11b48f110ffeacd99f3f72e9c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f636c4b585249343530664532644358762e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/eb2661d331c9e3fa264f2e2386f3dfa6501b2ac5/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f526632687730754838736f4c454a46672e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/f778d3124e3cd36ad5f8d9347ca08be46163c91b/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f774f356466773241365177414a4b4c642e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/03451582d4bf593ca3d527a3e2d5f46a3d379ca6/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f48313342334e5435653973735158366f2e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/cf97b17cbe1a8d8b0ce41b8a8c979c3093abcb7a/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f48554d6b39744943327045364d516c752e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/d099d649eb233fdbab00b5df6da436e5a392e213/68747470733a2f2f70342e73736c2e7168696d672e636f6d2f743031393265306136316262386136663835662e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/4c85be850f05337451b94d6285b1da643afbb3b6/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f50786850365a746b724a5578467873652e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/697dbbb49f6e2dfad0e39e81a78f198c8ca335ba/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4238737748483449714d4d76365958362e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/d369044e382aafec9f849f43785b2169a8c9a39c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f53544b5563706d565a44414d4677426e2e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/7d497080eeb637e74b5dab03ab73c3dacb41daa8/68747470733a2f2f70312e73736c2e7168696d672e636f6d2f743031356531353066356465633964303339332e676966">
+<meta property="og:image" content="https://camo.githubusercontent.com/d98bc1cef0905a66a84843ecac8a31af8253540c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4b66386b4f694f555635774b7a7843772e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/a2927720ce8c5c199304e77e1820ac6f8bafd490/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f313344656e4b7431646359444e6b57752e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/fa5030bae7039f87bafc5af086e3c11efb410b3f/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4a7454453970584764696f6c30636b712e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/b45c5432289af02f44ffbd45070e061ca7e89b43/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f755333677331517154613851656f55652e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/8d5f3f971f41ccaa7551905147bff0cc170b093b/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f5a496e5478395346577777474f6439572e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/4ff62abd3a30667171c3c7dcba79c710be3689a8/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f514c5375316a56464a6b55754f3448682e706e67217468756d626e61696c">
+<meta property="og:image" content="https://camo.githubusercontent.com/4eb11326e81db95aed9b6faaa0259ea952f421ce/68747470733a2f2f702e73736c2e7168696d672e636f6d2f743031386634613963383030336461393766642e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/32466b50643f5a2dad54d655694657c549d33644/68747470733a2f2f702e73736c2e7168696d672e636f6d2f743031363534363936363864363163383566362e706e67">
+<meta property="og:image" content="https://camo.githubusercontent.com/032c741aa5b518df500327a0e492cb7ea8191d70/68747470733a2f2f702e73736c2e7168696d672e636f6d2f743031336434383132343633383635303038372e706e67">
+<meta property="og:updated_time" content="2019-08-21T13:49:55.860Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Time-Slicing时间切片模拟淘宝移动端模块化加载方案">
+<meta name="twitter:description" content="性能优化的目的我们每一次的界面变化，都要经历以下步骤：  我们都知道像素管道有五步，JavaScript-&amp;gt;样式计算-&amp;gt;布局-&amp;gt;绘制-&amp;gt;合成。 人的眼睛大约每秒可以看到 60 帧，那么就代表我们每 16.7ms 就要看到 1 帧，一帧就要经历上图的 5 步，说明我们的每一个任务（task） 不宜过长，这样就会导致用户对于界面感知的不友好性  fps 是指页面每秒帧数 fps">
+<meta name="twitter:image" content="https://user-images.githubusercontent.com/16753554/63415487-66949a80-c430-11e9-88fb-9ff971005f4b.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/08/27/Time-Slicing时间切片模拟淘宝移动端模块化加载方案/">
+
+
+
+
+
+  <title>Time-Slicing时间切片模拟淘宝移动端模块化加载方案 | 舞动乾坤</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">舞动乾坤</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">星光不问赶路人 岁月不负有心人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/08/27/Time-Slicing时间切片模拟淘宝移动端模块化加载方案/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Time-Slicing时间切片模拟淘宝移动端模块化加载方案</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-08-27T21:40:58+08:00">
+                2019-08-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="性能优化的目的"><a href="#性能优化的目的" class="headerlink" title="性能优化的目的"></a>性能优化的目的</h2><p>我们每一次的界面变化，都要经历以下步骤：</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/63415487-66949a80-c430-11e9-88fb-9ff971005f4b.png" alt="image"></p>
+<p>我们都知道像素管道有五步，<strong>JavaScript-&gt;样式计算-&gt;布局-&gt;绘制-&gt;合成</strong>。</p>
+<p>人的眼睛大约每秒可以看到 60 帧，那么就代表我们每 16.7ms 就要看到 1 帧，一帧就要经历上图的 5 步，说明我们的每一个任务（task） 不宜过长，这样就会导致用户对于界面感知的不友好性</p>
+<ul>
+<li>fps 是指页面每秒帧数</li>
+<li>fps = 60 性能极佳</li>
+<li>fps &lt; 24 会让用户感觉到卡顿，因为人眼的识别主要是24帧</li>
+</ul>
+<p>根据谷歌统计的数据，用户在不同时间段内接收到的反馈，可能直接影响到对于网站的用户留存，如下图：</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/63415095-c3dc1c00-c42f-11e9-9bdb-dc0ed09eb4c9.png" alt="image"></p>
+<p>在这里我们不深入讲对于这方面的一些细节，这篇文章主要是给大家讲一下，如果做任务切片，如何优化界面的渲染速度和响应速度</p>
+<h2 id="分析淘宝"><a href="#分析淘宝" class="headerlink" title="分析淘宝"></a>分析淘宝</h2><h3 id="淘宝的渲染方式"><a href="#淘宝的渲染方式" class="headerlink" title="淘宝的渲染方式"></a>淘宝的渲染方式</h3><p>我们先看一下淘宝的渲染方式<br><img src="https://user-images.githubusercontent.com/16753554/63416875-e28fe200-c432-11e9-9797-efd2589169c4.gif" alt="1"></p>
+<p>通过图片和 <code>Performance</code> 的 <code>main</code> 部分，我们可以看得出来淘宝移动端的加载方式，是一块一块去加载的，暂时我们称之为 <strong>模块化加载</strong></p>
+<p><code>performance</code> 的使用和如何查看性能优化的数据，可通过 <a href="https://juejin.im/post/5c8fa71d5188252d785f0ea3" target="_blank" rel="noopener">性能优化篇 - Performance（工具 &amp; api）</a> 来了解 <code>performance</code></p>
+<h3 id="淘宝的任务切片"><a href="#淘宝的任务切片" class="headerlink" title="淘宝的任务切片"></a>淘宝的任务切片</h3><p><img src="https://user-images.githubusercontent.com/16753554/63415153-da827300-c42f-11e9-9fea-1567262a2e30.png" alt="image"></p>
+<p>我们放大以后可以看的出来，淘宝网在每一次的任务完成后，都会进行上面的 5 步进行界面的渲染，这样可能不如把所有的界面全部渲染完毕后，在进行样式计算、布局、绘制、计算位置等的速度快，但是这样可以保证，让用户在最短的时间内，可以看到我们的网站内容</p>
+<p>简单的介绍一下渲染的步骤和对用户的影响，及淘宝的渲染方式，接下来我们开始实现一个任务切片的工具</p>
+<h2 id="任务切片源码介绍"><a href="#任务切片源码介绍" class="headerlink" title="任务切片源码介绍"></a>任务切片源码介绍</h2><p>任务切片，顾名思义就是我们要把每一个任务去做切片，缩短任务的执行时长，加快任务的渲染</p>
+<p>这里要使用 es6 的 <code>generator</code> 的特性去实现任务切片</p>
+<h3 id="初始化任务"><a href="#初始化任务" class="headerlink" title="初始化任务"></a>初始化任务</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">init</span>(<span class="params">&#123; sliceList, callback &#125;</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">if</span> (!isFunction(callback)) &#123;</span><br><span class="line">		<span class="built_in">console</span>.error(<span class="string">'callback 为必传参数并为 function'</span>);</span><br><span class="line">		<span class="keyword">return</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// 添加切片队列this.generator = this.sliceQueue(&#123;</span></span><br><span class="line">		sliceList,</span><br><span class="line">		callback</span><br><span class="line">	&#125;);</span><br><span class="line">	<span class="comment">// 开始切片this.next();</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在一开始的时候，我们需要至少两个参数:</p>
+<p><code>sliceList</code> 或者 <code>sliceCount</code> : 可以是数组，也可以是数字，数组就是用来切对应的内容去分块，数字就是按次去切片</p>
+<p><code>callback</code> : 这里需要使用者传一个回调函数，用来通知使用者切片到什么位置</p>
+<h3 id="切片队列"><a href="#切片队列" class="headerlink" title="切片队列"></a>切片队列</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span>* <span class="title">sliceQueue</span>(<span class="params">&#123; sliceList, callback &#125;</span>) </span>&#123;</span><br><span class="line">	<span class="keyword">let</span> listOrNum = (isNum(sliceList) &amp;&amp; sliceList) || (isArray(sliceList) &amp;&amp; sliceList.length);</span><br><span class="line">	<span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; listOrNum; ++i) &#123;</span><br><span class="line">		<span class="keyword">const</span> start = performance.now();</span><br><span class="line">		callback(i);</span><br><span class="line">		<span class="keyword">while</span> (performance.now() - start &lt; <span class="number">16.7</span>) &#123;</span><br><span class="line">			<span class="keyword">yield</span>;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由于可以接收数组和数字，所以要先做兼容处理</p>
+<p>接下来就是核心代码其中之一了：</p>
+<p>我们要记录回调的执行时间，如果执行需要的时间少于 16.7ms，就停止继续执行下去，释放主线程让主线程可以利用这个时间再去做别的事情</p>
+<p>如果大于的话，就在下一次绘制的时候去执行</p>
+<p>这个时候大家可能会比较好奇，我们为什么要对任务执行时间短的去做切片，时间长的就不切呢？</p>
+<p>其实这个要结合下一段代码来看，大家就会了解的比较清楚了</p>
+<h3 id="何时执行下一个切片任务"><a href="#何时执行下一个切片任务" class="headerlink" title="何时执行下一个切片任务"></a>何时执行下一个切片任务</h3><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">next</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">	<span class="keyword">const</span> &#123; generator &#125; = <span class="keyword">this</span>;</span><br><span class="line">	<span class="keyword">const</span> start = performance.now();</span><br><span class="line">	<span class="keyword">let</span> res = <span class="literal">null</span>;</span><br><span class="line">	<span class="keyword">do</span> &#123;</span><br><span class="line">		res = generator.next();</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (!res.done &amp;&amp; performance.now() - start &lt; <span class="number">16.7</span>);</span><br><span class="line">	<span class="keyword">if</span> (res.done) <span class="keyword">return</span>;</span><br><span class="line">	raf(<span class="keyword">this</span>.next.bind(<span class="keyword">this</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有了这段代码，上面最后的长任务的执行没有打断就很好理解了</p>
+<p>还是一样，任务执行的时间少于 16.7ms 就继续执行下一个切片任务</p>
+<p>如果要是大于的话，我们就不需要执行下一个切片了，我们就要在下一次绘制（requestAnimFrame）的时候，去执行该任务，这样就可以把每一个任务给切开了</p>
+<h2 id="完整代码"><a href="#完整代码" class="headerlink" title="完整代码"></a>完整代码</h2><figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">template</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">div</span> <span class="attr">id</span>=<span class="string">"app"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">div</span> <span class="attr">v-for</span>=<span class="string">"(item, index) in arr"</span> <span class="attr">:key</span>=<span class="string">"index"</span>&gt;</span>这里是测试数据:&#123;&#123;index&#125;&#125;<span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">div</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">template</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="javascript"><span class="keyword">import</span> TaskSlice <span class="keyword">from</span> <span class="string">"./index.js"</span>;</span></span><br><span class="line"><span class="javascript"><span class="keyword">import</span> &#123; setTimeout &#125; <span class="keyword">from</span> <span class="string">"timers"</span>;</span></span><br><span class="line"><span class="javascript"><span class="keyword">export</span> <span class="keyword">default</span> &#123;</span></span><br><span class="line"><span class="javascript">  name: <span class="string">"app"</span>,</span></span><br><span class="line">  data() &#123;</span><br><span class="line"><span class="javascript">    <span class="keyword">return</span> &#123;</span></span><br><span class="line">      arr: []</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;,</span><br><span class="line"><span class="javascript">  mounted() &#123;     <span class="comment">// 对比</span></span></span><br><span class="line"><span class="javascript">    <span class="comment">// before</span></span></span><br><span class="line"><span class="javascript">    <span class="comment">// var arr = [...new Array(5000).keys()]; //模仿接口请求返回的数据</span></span></span><br><span class="line"><span class="javascript">    <span class="comment">// this.arr = arr;</span></span></span><br><span class="line"></span><br><span class="line"><span class="javascript">    <span class="comment">// after;</span></span></span><br><span class="line">    TaskSlice.init(&#123;</span><br><span class="line">      sliceList: 500,</span><br><span class="line"><span class="javascript">      callback: <span class="function"><span class="params">i</span> =&gt;</span> &#123;</span></span><br><span class="line"><span class="javascript">        <span class="keyword">this</span>.arr.push(i);</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">style</span>&gt;</span></span><br><span class="line"><span class="css"><span class="selector-id">#app</span> &#123;</span></span><br><span class="line">  font-family: "Avenir", Helvetica, Arial, sans-serif;</span><br><span class="line">  -webkit-font-smoothing: antialiased;</span><br><span class="line">  -moz-osx-font-smoothing: grayscale;</span><br><span class="line">  text-align: center;</span><br><span class="line"><span class="css">  <span class="selector-tag">color</span>: <span class="selector-id">#2c3e50</span>;</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="tag">&lt;/<span class="name">style</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * @name 任务切片</span></span><br><span class="line"><span class="comment"> * @description 一个用来做性能优化的工具</span></span><br><span class="line"><span class="comment"> * @author xichen Liu</span></span><br><span class="line"><span class="comment"> * @version 1.0.0</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> raf = <span class="built_in">window</span>.requestAnimationFrame ? <span class="built_in">window</span>.requestAnimationFrame.bind(<span class="built_in">window</span>) : setTimeout;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> isArray = <span class="function"><span class="params">arg</span> =&gt;</span> arg <span class="keyword">instanceof</span> <span class="built_in">Array</span> &amp;&amp; arg.constructor === <span class="built_in">Array</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> isFunction = <span class="function"><span class="params">arg</span> =&gt;</span> arg <span class="keyword">instanceof</span> <span class="built_in">Function</span> &amp;&amp; arg.constructor === <span class="built_in">Function</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">TaskSlice</span>(<span class="params"></span>) </span>&#123; &#125;</span><br><span class="line"></span><br><span class="line">TaskSlice.prototype = &#123;</span><br><span class="line">	init(&#123; sliceList, callback &#125;) &#123;</span><br><span class="line">		<span class="keyword">if</span> (!isFunction(callback)) &#123;</span><br><span class="line">			<span class="built_in">console</span>.error(<span class="string">'callback 为必传参数并为 function'</span>);</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 添加切片队列</span></span><br><span class="line">		<span class="keyword">this</span>.generator = <span class="keyword">this</span>.sliceQueue(&#123;</span><br><span class="line">			sliceList,</span><br><span class="line">			callback</span><br><span class="line">		&#125;);</span><br><span class="line">		<span class="comment">// 开始切片</span></span><br><span class="line">		<span class="keyword">this</span>.next();</span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * next [执行下次队列]</span></span><br><span class="line"><span class="comment">	 * 依次执行切片，理想状态下每一个任务的执行时间不应该超过 16.7ms，如果超过了 16.7ms，就在启一个任务</span></span><br><span class="line"><span class="comment">	 * 详情：https://developers.google.com/web/fundamentals/performance/rail</span></span><br><span class="line"><span class="comment">	*/</span></span><br><span class="line">	next() &#123;</span><br><span class="line">		<span class="keyword">const</span> &#123; generator &#125; = <span class="keyword">this</span>;</span><br><span class="line">		<span class="keyword">const</span> start = performance.now();</span><br><span class="line">		<span class="keyword">let</span> res = <span class="literal">null</span>;</span><br><span class="line">		res = generator.next();</span><br><span class="line">		<span class="comment">// do &#123;</span></span><br><span class="line">		<span class="comment">// &#125;</span></span><br><span class="line">		<span class="comment">// while (!res.done &amp;&amp; performance.now() - start &lt; 16.7);</span></span><br><span class="line">		<span class="keyword">if</span> (res.done) <span class="keyword">return</span>;</span><br><span class="line">		raf(<span class="keyword">this</span>.next.bind(<span class="keyword">this</span>));</span><br><span class="line">	&#125;,</span><br><span class="line">	<span class="comment">/**</span></span><br><span class="line"><span class="comment">	 * sliceQueue [切片]</span></span><br><span class="line"><span class="comment">	 * @param &#123; number &#125; sliceList [切片次数]</span></span><br><span class="line"><span class="comment">	 * @param &#123; function &#125; callback [切片回调]</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	* sliceQueue(&#123; sliceList, callback &#125;) &#123;</span><br><span class="line">		<span class="comment">// 处理次数</span></span><br><span class="line">		<span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; sliceList; ++i) &#123;</span><br><span class="line">			<span class="comment">// const start = performance.now();   // 返回一个表示从性能测量时刻开始经过的毫秒数</span></span><br><span class="line">			<span class="keyword">yield</span> callback(i);</span><br><span class="line">			<span class="comment">// 如果执行需要的时间少于 16.7ms，就停止继续执行下去</span></span><br><span class="line">			<span class="comment">// 如果大于的话，就在下一次绘制的时候去执行</span></span><br><span class="line">			<span class="comment">// while (performance.now() - start &lt; 16.7) &#123;   // 1000/60=16.666666666666668</span></span><br><span class="line">			<span class="comment">// 	yield;</span></span><br><span class="line">			<span class="comment">// &#125;</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">default</span> <span class="keyword">new</span> TaskSlice();</span><br></pre></td></tr></table></figure>
+<h2 id="before"><a href="#before" class="headerlink" title="before"></a>before</h2><p><img src="https://user-images.githubusercontent.com/16753554/63416318-cccded00-c431-11e9-9a3b-84f5353569a9.png" alt="image"></p>
+<h2 id="after"><a href="#after" class="headerlink" title="after"></a>after</h2><p> <img src="https://user-images.githubusercontent.com/16753554/63416141-7a8ccc00-c431-11e9-86e5-d68979f95150.png" alt="image"></p>
+<h2 id="让你的网页更丝滑"><a href="#让你的网页更丝滑" class="headerlink" title="让你的网页更丝滑"></a>让你的网页更丝滑</h2><p>PPT地址：<a href="https://ppt.baomitu.com/d/b267a4a3" target="_blank" rel="noopener">https://ppt.baomitu.com/d/b267a4a3</a></p>
+<h2 id="什么样的网页是流畅的"><a href="#什么样的网页是流畅的" class="headerlink" title="什么样的网页是流畅的"></a>什么样的网页是流畅的</h2><p>在讨论如何让网页更流畅之前，需要先思考一个问题就是什么样的网页是流畅的？</p>
+<p>这个问题我总结了一句话：<strong>在网页与用户产生交互的过程中，让用户感觉流畅</strong>。</p>
+<p><img src="https://camo.githubusercontent.com/6bdbe4a497e849ef9ddb630535a615b552771c15/68747470733a2f2f70342e73736c2e7168696d672e636f6d2f743031636630636162386363353566393339392e706e67" alt="图片"></p>
+<p>你的网页不一定要有多快，它没有一个标准，你的标准就是让用户感觉流畅就够了。另一个重点就是说在<strong>交互</strong>过程中，让用户感到流畅。所以延伸出一个问题，如何通过<strong>交互</strong>让用户感觉流畅。这里面我把交互总结为两种类型，一种是被动的，一种是主动的。</p>
+<p><img src="https://camo.githubusercontent.com/4e8d9dd335e89208e02b38e3237755723bff6ceb/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f7735356848326669704c49376e316f5a2e706e67217468756d626e61696c" alt="图片"></p>
+<p>所谓被动交互就是不需要用户主动去触发什么，就可以让网页在视觉上与用户产生交互。<br>比如说：Animation（动画）、开屏广告、自动播放的轮播图等都算被动交互。与之相反，需要用户主动去触发某些行为从而产生的反馈，我称它为主动交互，比如说用鼠标点某一个按纽产生的反馈，或使用键盘按下了某个键位产生的反馈。这个反馈可以是动画，任何东西都可以。那么被动交互如何让用户感觉流畅？这是今天第一个关于优化的话题。</p>
+<h3 id="被动交互如何让用户感觉流畅"><a href="#被动交互如何让用户感觉流畅" class="headerlink" title="被动交互如何让用户感觉流畅"></a>被动交互如何让用户感觉流畅</h3><p>我在京东上搜索显示器，发现有一个筛选条件叫刷新率，最低的是60HZ，高的可以达到165HZ以上。</p>
+<p>这个60HZ是什么意思？就是指屏幕每秒钟刷新60次。所以我们可以通过屏幕作为参考，如果我们的网页也可以每秒钟往屏幕传输60个画面，用户就会觉得这个网页是流畅的，有一个单位叫做FPS，意思就是每秒钟往屏幕上传输的图像数量。FPS达到60，用户就会觉得这个网页比较流程，换算下来，每一帧是16.7毫秒。</p>
+<p><img src="https://camo.githubusercontent.com/95e09556adabed7b28b38c7f5c2ae2f1724938a1/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f7870676934435446744d414c347a41572e706e67217468756d626e61696c" alt="图片"></p>
+<h3 id="主动交互如何让用户感觉流畅"><a href="#主动交互如何让用户感觉流畅" class="headerlink" title="主动交互如何让用户感觉流畅"></a>主动交互如何让用户感觉流畅</h3><p>主动交互如何让用户感觉流畅？我也把它总结成一句话，这句话叫：“通过响应的时间影响用户的感觉”。就是说我们可以通过操控这个时间来影响用户对网页的感觉。</p>
+<p><img src="https://camo.githubusercontent.com/8fc59b0fe0acf3773972e928ed474e118a8d2bed/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f74694865575148316349495a676773342e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们看一个演示（Demo），这个演示很简单，就是我点击按纽的时候，我让这个函数延迟多少秒，然后把这个方块改变一下颜色。这下面是八个按纽，分别是10毫秒、30毫秒、50毫秒、100毫秒、200毫秒、300毫秒、500毫秒、1秒。（文章无法演示，可以到在线PPT里去体验，或者访问<a href="https://code.h5jun.com/pojob）" target="_blank" rel="noopener">https://code.h5jun.com/pojob）</a></p>
+<p><img src="https://camo.githubusercontent.com/1068a7755e5597cf55544077309336100e22bd8c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4e325877324c514a4f4b41797550546d2e706e67217468756d626e61696c" alt="图片"></p>
+<p>你会发现当我点击200毫秒的按钮时，这个反馈速度，用户会觉得这个东西有一点卡，当我点击100毫秒的按钮时，已经感觉不卡了，当然更快更好。所以你会发现<strong>100毫秒是一个临界点</strong>，从我们的输入，包括键盘按键和鼠标点击到最终输出到眼睛里，这个时间100毫秒是临界点。超过这个时间，用户就会觉得有点卡，所以100毫秒是关键点。</p>
+<p><img src="https://camo.githubusercontent.com/5271ec6a5f4ed35705a6203fe07d45f6271f08cb/68747470733a2f2f70302e73736c2e7168696d672e636f6d2f743031366432393838613766333761353039352e706e67" alt="图片"></p>
+<p>我们再看一个例子，代码和刚才是一样的，现在只有一个按纽是100毫秒，刚才我说100毫秒，用户就会觉得很流畅。其实你会发现还是卡一下，但是不是说每次都卡，有的时候不卡，为什么有的时候卡有的时候不卡？</p>
+<p>因为我们的目标是从输入到输出总时间是100毫秒以内，用户才会觉得流畅。但其实我这个代码有一个问题是这个函数的执行时间是100毫秒，所以如果当我点击这个按纽一瞬间，如果有其他任务在执行，就会把我这个函数堵塞住，被阻塞的时间加上函数执行的100毫秒，现在整体时间已经超过100毫秒，所以我刚才点击这个按纽，你会发现有时候卡，有时候不卡，不卡的时候是因为我点击这个按纽的时候，恰巧没有其他的任务在执行。</p>
+<p>所以为什么会有这个问题？因为大家都知道JS是单线程的，浏览器同一时间内只能执行一个任务，所以为了避免这个问题，解决方案就是说所有的任务执行时间不能超过50毫秒。如果我所有的任务都不超过50毫秒，假设最糟糕的情况下，我点击这个按纽的一瞬间，有其他的任务在执行，但其实他的任务执行时间最多是50毫秒，我的任务执行时间也是保持在50毫秒以内，其实总共也不会超过100毫秒，所以用户依然会觉得很流畅，即便是最糟糕的情况下。</p>
+<p><img src="https://camo.githubusercontent.com/b6c53ed93683fa4223e782ca38dd533ea4648a42/68747470733a2f2f70352e73736c2e7168696d672e636f6d2f743031616265386664316636656437366363302e706e67" alt="图片"></p>
+<p>可以看一下这个粉色的地方，从input到response总时间是100毫秒，红色区域是被阻塞的部分，黄色是函数执行的时间和时机，你会发现我这两个任务都保持在50毫秒以内的情况下，我可以保证我的总时间是100毫秒以内完成的，这个50毫秒不是我定的，W3C性能工作组有一个Longtask规范也对这种情况做了规定。</p>
+<p><img src="https://camo.githubusercontent.com/6350e5021a7b30ae2554088b13bcaba6e9c1ef83/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f6b654d4e45766b6d4a326752433074592e706e67217468756d626e61696c" alt="图片"></p>
+<p>这个规范就规定所有的任务，包括函数执行，包括什么都算上，不能超过50毫秒，超过50毫秒就被定义为长任务，所谓长任务就是执行时间过长的任务，这是不合理的，应该被解决的任务。性能监控一般都会通过图中的代码来监控与捕获长任务，可以看到这个entryType是longtask的。</p>
+<p><img src="https://camo.githubusercontent.com/0bc09b9fee19b184bf55d9140b156633ec1189b9/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f466c766d6d746b3530743873624b61712e706e67217468756d626e61696c" alt="图片"></p>
+<p>总结一下，如何让用户感觉流畅？就是响应时间保持在100毫秒以内，动画要16.7毫秒传输一帧到屏幕上，空闲任务不能超过50毫秒，其实不只是空闲任务，所有任务都不能超过50毫秒，加载时间是1000毫秒，所谓的页面秒开就是从这里来的。这四个单词的首字母加在一起组成一个单词叫RAIL，这是一个术语，它代表以用户为中心的性能模型，我们刚才讲的也是这个话题，感兴趣大家可以回去查一下。</p>
+<h2 id="像素管道"><a href="#像素管道" class="headerlink" title="像素管道"></a>像素管道</h2><p>今天讲第二个概念叫像素管道。所谓像素管道，就是说我们通常会在网页触发一些视觉变化，你用JS改了颜色和宽度等等，随后浏览器就会做样式计算，浏览器还会做布局、绘制，合并图层等，这个过程叫做像素管道。</p>
+<p><img src="https://camo.githubusercontent.com/308b6f4426bc6455bef55172cc90e6de99dab9f9/68747470733a2f2f70342e73736c2e7168696d672e636f6d2f743031636264643035306465313735336438302e706e67" alt="图片"></p>
+<p>但是有的时候，不是所有的样式都会触发布局，有的时候不需要布局的，我们通过一些优化手段也可以取消Paint（绘制）这一步。有一个网站叫 csstriggers，可以看哪些属性触发了布局，哪些触发了Paint，这个网站有列表可以看。</p>
+<h2 id="避免长任务"><a href="#避免长任务" class="headerlink" title="避免长任务"></a>避免长任务</h2><p>今天第一个关于如何优化的话题叫<strong>如何保证主动交互让用户感觉流畅</strong>，其实刚才我们介绍说想保证主动交互让用户感觉流畅需要<strong>避免长任务</strong>，所以这个副标题叫<strong>如何避免长任务</strong>。</p>
+<p><img src="https://camo.githubusercontent.com/0247a22b0563fecf75110361a59ca7e1543b1233/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f6d653549526137484670594971556a702e706e67217468756d626e61696c" alt="图片"></p>
+<p>如何避免长任务，有两种方案：一种叫 Web Worker ，还有一种方案叫 Time Slicing（时间切片）。</p>
+<p><img src="https://camo.githubusercontent.com/1127da1d2b2972925e716a6ac302274ae6ae79de/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f547252506442415262487774503273682e706e67217468756d626e61696c" alt="图片"></p>
+<h3 id="Web-Worker"><a href="#Web-Worker" class="headerlink" title="Web Worker"></a>Web Worker</h3><p>先说Web Worker，我们看一段代码，我的网页里面有一个while循环，通常来讲这个循环会把浏览器卡死一秒钟，因为循环了一秒，现在我把它移动到 worker中 执行，就不会卡死浏览器了，它在worker线层中工作，就不会卡死主线程。这是一种解决方案，可以看一下效果。（由于文章无法演示效果，感兴趣的小伙伴可以到在线PPT里观察 <a href="https://ppt.baomitu.com/d/b267a4a3#/14）" target="_blank" rel="noopener">https://ppt.baomitu.com/d/b267a4a3#/14）</a></p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> testWorker = <span class="keyword">new</span> Worker(<span class="string">'./worker.js'</span>)</span><br><span class="line">setTimeout(_ =&#123;</span><br><span class="line">  testWorker.postMessage(&#123;&#125;)</span><br><span class="line">  testWorker.onmessage = <span class="function"><span class="keyword">function</span> (<span class="params">ev</span>) </span>&#123;</span><br><span class="line">    <span class="built_in">console</span>.log(ev.data)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;, <span class="number">5000</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">// worker.js</span></span><br><span class="line">self.onmessage = <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">const</span> start = performance.now()</span><br><span class="line">  <span class="keyword">while</span> (performance.now() - start &lt; <span class="number">1000</span>) &#123;&#125;</span><br><span class="line">  postMessage(<span class="string">'done!'</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到现在浏览器没有被堵塞掉。</p>
+<p><img src="https://camo.githubusercontent.com/675f518366491c62ca4413d8a91fc255a78fa9f6/68747470733a2f2f70312e73736c2e7168696d672e636f6d2f743031616135383837636661353532343237652e706e67" alt="图片"></p>
+<p>我们通过捕获火焰图，发现优化前其实长任务是主线程中工作，优化之后是放在 Worker 来进行的，所以我的主线依然可以处理其他的任务。</p>
+<p>Web Worker虽然好，但是它有一个缺陷，就是它没有办法摸DOM。如果你想操作DOM，那么就没法在Worker中执行。我就是要循环超过100毫秒，我又想在循环中操作DOM，这时候怎么办？有一个方案叫 Time Slicing。</p>
+<h3 id="Time-Slicing"><a href="#Time-Slicing" class="headerlink" title="Time Slicing"></a>Time Slicing</h3><p>Time Slicing就是把一个长任务给切割成无数个执行时间很短的任务。</p>
+<p><img src="https://camo.githubusercontent.com/7e33c15ce997d876d5b08c7fb2ed833a0a65eb86/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f69706c56675135397a4b4131354a69392e706e67217468756d626e61696c" alt="图片"></p>
+<p>可以看到中间用户红框框起来的，内部有很多黄颜色的小竖线，其实每一个都是任务，放大之后，就是图中最下面的火焰图，可以看到中间是有空隙的。因为中间有空隙，浏览器就可以在这些空隙中做其他的事，比方说布局、样式计算、UI事件，所有事情都可以做。</p>
+<p>实现时间切片功能的代码也并不是很复杂，就是下面这段代码，其实核心代码只有三四行。代码虽然不多，但是可能理解起来也没有那么容易，我为大家简单介绍一下。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">block</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  ts(<span class="function"><span class="keyword">function</span>* (<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> start = performance.now()</span><br><span class="line">    <span class="keyword">while</span> (performance.now() - start &lt; <span class="number">1000</span>) &#123;</span><br><span class="line">      <span class="built_in">console</span>.log(<span class="number">11</span>)</span><br><span class="line">      <span class="keyword">yield</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'done!'</span>)</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">setTimeout(block, <span class="number">5000</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">ts</span> (<span class="params">gen</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">typeof</span> gen === <span class="string">'function'</span>) gen = gen()</span><br><span class="line">  <span class="keyword">if</span> (!gen || <span class="keyword">typeof</span> gen.next !== <span class="string">'function'</span>) <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">  (<span class="function"><span class="keyword">function</span> <span class="title">next</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> res = gen.next()</span><br><span class="line">    <span class="keyword">if</span> (res.done) <span class="keyword">return</span></span><br><span class="line">    setTimeout(next)</span><br><span class="line">  &#125;)()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这些代码首先有两个点，第一个点就是我利用 <code>yield</code> 关键字，让函数暂停执行，大家都知道在Generator函数中有一个 <code>yield</code> 关键字，这个关键字可以让函数暂停执行，这是很关键的特性。我利用的另一个特性就是 <code>setTimeout</code> 的能力，它可以将任务丢到宏任务队列里面排队让我的任务恢复执行，所以我结合这两个特性，用这个代码就可以实现Time Slicing的功能。</p>
+<p>代码中我下面这个ts函数其实是我封装的工具函数，我上面其实是我的案例。案例中我这个循环其实正常来说是同步的，循环时会把我的浏览器卡死一秒钟，但是我在里面加了一个 <code>yield</code> 关键字。所以每次执行都会停一下，停止这一瞬间，其实就是把浏览器的主线程给让出来，或者说叫释放出来了，如果不停的执行，在这一秒钟内浏览器干不了别的事，现在我的这个任务执行了一会就停了，浏览器就可以去执行别的任务。然后我在后面的宏任务中再让我这个任务恢复执行。这个代码可能不是那么好理解，可以自己回去慢慢研究。</p>
+<p>（关于Time Slicing后来我写了一篇文章进行了更详细与全面的介绍，文章地址：#38）</p>
+<p>我这里有一个例子（观看文章的同学可以通过在线PPT来查看视频，地址：<a href="https://ppt.baomitu.com/d/b267a4a3#/19），我们会看到浏览器并没有卡死，通过捕获出的火焰图可以看到每个被切割的小任务中间有很多空隙。" target="_blank" rel="noopener">https://ppt.baomitu.com/d/b267a4a3#/19），我们会看到浏览器并没有卡死，通过捕获出的火焰图可以看到每个被切割的小任务中间有很多空隙。</a></p>
+<h2 id="保证被动交互让用户感觉流畅"><a href="#保证被动交互让用户感觉流畅" class="headerlink" title="保证被动交互让用户感觉流畅"></a>保证被动交互让用户感觉流畅</h2><p>现在我们聊下一个话题，<strong>保证被动交互让用户感觉流畅</strong>。</p>
+<p>前面我们讲，若想保证被动交互让用户感觉流畅，我们需要保证每16.7毫秒传输新的一帧到屏幕上，所以我们这个标题应该改成 <strong>如何保障动画每16.7毫秒传输新的一帧到屏幕上</strong> 。</p>
+<p>这张图是前面我们讲的管道，这个只是图变了一下，若想保证每16.7毫秒传输新的一帧到屏幕上，我们需要保障这个像素管道的总时间在16.7毫秒之内。</p>
+<p><img src="https://camo.githubusercontent.com/1bca8548107c58889657b077cef863554bcde5f5/68747470733a2f2f70322e73736c2e7168696d672e636f6d2f743031633338336132626364663431376333662e706e67" alt="图片"></p>
+<p>所以为了保障这个总时间在16.7毫秒之内，我们首先需要保障的事情就是JavaScript的执行时间一定要小于10毫秒，因为浏览器去执行渲染也是有时间消耗的，所以我们应该给浏览器预留出来6.7毫秒。</p>
+<p>但其实像素管道的每一步，都有可能导致总时间超过16.7毫秒，所以只是保障JavaScript执行时间小于10毫秒是不够的。我们要针对每一步进行更细致的优化，来保证总时间小于16.7毫秒。</p>
+<h2 id="更快的样式计算"><a href="#更快的样式计算" class="headerlink" title="更快的样式计算"></a>更快的样式计算</h2><p>我们先讨论样式计算，关于样式计算有一个重要的话题是选择器匹配。</p>
+<h3 id="选择器匹配"><a href="#选择器匹配" class="headerlink" title="选择器匹配"></a>选择器匹配</h3><p><img src="https://camo.githubusercontent.com/f8cfb940a227076e24d74492e0c88d9ad4df2ebf/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f64576a76386979447a785175686b44672e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们这里有两个选择器，其实选择的是同一个元素，但其实在浏览器里，处理选择器匹配的时候，时间是不一样的，下面更简单的选择器速度更快一点。我在Chrome文档中看到他们说计算某元素的样式时，有50%的时间是用于选择器匹配。</p>
+<p>通常如果只是用选择器匹配了一个元素或很少的元素，那么再复杂的选择器，时间上也没有什么太多的影响。但是当选择器匹配到的元素越多的时候，选择器之间的性能差异就体现出来了。</p>
+<p><img src="https://camo.githubusercontent.com/4bbba832e47d7c932605448ec810b8b87834fd82/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f714a7248306a7a6139463830536963742e706e67217468756d626e61696c" alt="图片"></p>
+<p>下面有三个圈，和三个选择器，我们可以看到第一个选择器是稍微复杂一点的，第二个选择器就是普通的选择器，第三个选择器也比较复杂。我点击这个按纽看三个选择器的执行时间是多少。</p>
+<p><img src="https://camo.githubusercontent.com/d28c401d843b8c5907e16281ffbe0d78e28431ec/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f423034783043616651765554735844792e706e67217468756d626e61696c" alt="图片"></p>
+<p>可以看到第一个是1.28毫秒，第二个是0.5毫秒，第三个是4.9毫秒，结果虽然在数量上没差太多，但是第三个比第二个慢了9.8倍。</p>
+<p>所以我们会发现选择器越简单速度越快，其实这个差距在元素越来越多的情况下，它就会越来越严重，但通常绝大部分的项目其实并没有那么多的元素，所以这个问题也没有暴露的这么明显，了解一下就可以了。</p>
+<h3 id="布局抖动"><a href="#布局抖动" class="headerlink" title="布局抖动"></a>布局抖动</h3><p>第二个问题是布局抖动，它是新手写代码最容易出现的问题，一不小心就犯错了。</p>
+<p>我们还是回到像素管道，其实像素管道的每一步都是异步的，js改了样式，其实它是异步的去计算样式，布局，绘制，图层合并，每一步都是异步的。</p>
+<p>但是有时候一不小心就会出现一个词叫做强制同步布局，通过这个名就知道，这个布局变成了同步的布局。</p>
+<p><img src="https://camo.githubusercontent.com/b07a59b185c6fdadd7b2b2e8751fd435cf3db7db/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4e41386e68593265384a6330754f4a622e706e67217468756d626e61696c" alt="图片"></p>
+<p>浏览器本应是异步的去执行布局操作，但现在却跑到了JS里面去同步的执行了。为什么会导致强制同步布局呢？我们来看一段代码。</p>
+<p><img src="https://camo.githubusercontent.com/1dd7c765bd9d4d244483e51bf4983b1ae7e13db4/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f524462514a5a397478597342703349502e706e67217468756d626e61696c" alt="图片"></p>
+<p>第一行代码是设置一个元素的宽度，第二行代码是获取元素的宽度，仔细思考一下会发现第一行代码设置了元素的宽，但其实布局操作是异步的，所以我执行第二行代码的时候，浏览器没有还没有进行布局。因为我第二行代码是想获取这个元素的宽，但是这时候浏览器还没有布局，那么浏览器为了回答我这个问题（宽度是多少），它必须要在此时此刻做一次布局，这个时候这个布局是同步的。</p>
+<p><img src="https://camo.githubusercontent.com/bda9e89ed0125fcb78fa3801186b97964075dbb4/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f66366d5347764b70616767647331475a2e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们将火焰图捕获出来也验证了这一点，布局在我们这个js的里面执行，因为JS里面执行了布局所以把JS的执行时间拉长了。这样是不对的，解决方案很简单，只是调换一下顺序，我如果先获取一个元素出来，其实获取的是上次布局的宽度，我并没有改变布局，所以直接读就可以了，我第二行代码才会改宽度，然后再异步触发布局，这样捕获出来的火焰图布局就跑到JS后面去了。</p>
+<p><img src="https://camo.githubusercontent.com/8f8bb69c52c0451a3f72ac772a3e6ff49695c82c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f6c67767339534e5a6e7438383443497a2e706e67217468756d626e61696c" alt="图片"></p>
+<p><img src="https://camo.githubusercontent.com/af684d32a61d7b58ef6a2e30399934acbfdb978d/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f384e36666d7039714c344d43466e6d432e706e67217468756d626e61696c" alt="图片"></p>
+<p>但是通常如果只是这个案例（Demo），其实很简单，你这个再怎么写，也不会有什么问题，因为影响就是很小，但是如果这个问题发生在循环里面，你的元素很多的情况下，这个问题就被放大。</p>
+<p><img src="https://camo.githubusercontent.com/41f0a7f845a9a4a11b48f110ffeacd99f3f72e9c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f636c4b585249343530664532644358762e706e67217468756d626e61696c" alt="图片"></p>
+<p>这个案例（Demo）也比较简单，代码右边有很多DIV，粉红色的框是这些DIV的父容器，可以看到父容器比这些DIV窄，当我点击“走你~”按钮时，让所有子元素的宽度等于父元素的宽度。（观看文章的同学可以通过在线PPT来操作DEMO，地址：<a href="https://ppt.baomitu.com/d/b267a4a3#/27）" target="_blank" rel="noopener">https://ppt.baomitu.com/d/b267a4a3#/27）</a></p>
+<p>通过这个案例（Demo）我们会看到当我点击按钮时，延迟了一会，子元素的宽度才缩小。这是为什么呢？</p>
+<p>仔细观察这段代码，我们会发现，循环中的这行代码，其实是两个操作，一个是读取元素的宽度，另一个操作是设置元素的宽度。因为它是在循环里面执行，所以会导致一个现象，每次循环到读取元素宽度时，都会触发一次布局操作。</p>
+<p><img src="https://camo.githubusercontent.com/eb2661d331c9e3fa264f2e2386f3dfa6501b2ac5/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f526632687730754838736f4c454a46672e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们来看这张图，当执行 <code>container.offsetWidth</code> 时浏览器由于不知道元素的宽度是多少，但我现在马上就要知道这个元素的宽度是多少，所以这个布局不能异步，那么为了告诉我这个元素有多宽，必须马上执行一次同步的布局操作，而随后的代码中又设置了元素的宽度，这其实就是要把刚刚执行的布局给否定掉，让布局失效。当下一轮循环又执行到 <code>container.offsetWidth</code> 读取元素的宽时，由于刚刚执行了设置元素的宽，所以浏览器又不知道当前元素的宽度是多少，所以它又要做一次强制同步布局。所以浏览器在不停的布局，让布局失效，布局，让布局失效直到循环结束。</p>
+<p>我们将火焰图捕获出来之后，我们会在下面看到一排密密麻麻很多个任务。</p>
+<p><img src="https://camo.githubusercontent.com/f778d3124e3cd36ad5f8d9347ca08be46163c91b/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f774f356466773241365177414a4b4c642e706e67217468756d626e61696c" alt="图片"></p>
+<p>放大之后是下面这张图，我们可以看到这些任务全是样式计算和布局。这个问题严重就严重在，同一个页面内，两个没有任何关联的元素之间，也会存在这个问题，比如说我的logo改了宽，我再读取其他不相干的元素的宽，两个元素没有任何关系，但是也会有这个影响，只要他们在同一个文档内，所以有时候我们一不小心就会犯错。</p>
+<p>解决方案比较简单，就是我把会触发布局的操作踢出去，踢到循环的外面，这时候只读一次宽度，并且由于之前并没有改变任何元素的几何属性，所以浏览器不需要做同步的布局，直接使用之前布局的结果就可以，然后用循环只设置子元素的宽度，就会避免刚才的问题。同样的案例（Demo），只是改了这一行代码，我们点击按钮看一下效果（观看文章的同学可以通过在线PPT来操作DEMO，地址：<a href="https://ppt.baomitu.com/d/b267a4a3#/28），已经看不到任何的延迟了。" target="_blank" rel="noopener">https://ppt.baomitu.com/d/b267a4a3#/28），已经看不到任何的延迟了。</a></p>
+<p><img src="https://camo.githubusercontent.com/03451582d4bf593ca3d527a3e2d5f46a3d379ca6/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f48313342334e5435653973735158366f2e706e67217468756d626e61696c" alt="图片"></p>
+<p><img src="https://camo.githubusercontent.com/cf97b17cbe1a8d8b0ce41b8a8c979c3093abcb7a/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f48554d6b39744943327045364d516c752e706e67217468756d626e61696c" alt="图片"></p>
+<p>最终我们捕获出的火焰图就比较正常，就是一个常规的管道应该有的样子，我们先用 js 来触发样式计算，然后浏览器再去布局，再执行绿色的Paint和图层合并，每一步都是异步的。</p>
+<h2 id="绘制与合成"><a href="#绘制与合成" class="headerlink" title="绘制与合成"></a>绘制与合成</h2><p><img src="https://camo.githubusercontent.com/d099d649eb233fdbab00b5df6da436e5a392e213/68747470733a2f2f70342e73736c2e7168696d672e636f6d2f743031393265306136316262386136663835662e706e67" alt="图片"></p>
+<p>下一个话题是绘制与合成，你会发现前面我们讲的，就是 JavaScript 和样式计算，还有布局都是单独讲的，但是绘制与合成我们放在一起讲，等下我们再讲为什么。</p>
+<h3 id="合成"><a href="#合成" class="headerlink" title="合成"></a>合成</h3><p><img src="https://camo.githubusercontent.com/4c85be850f05337451b94d6285b1da643afbb3b6/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f50786850365a746b724a5578467873652e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们先讲什么是合成，所谓合成就是浏览器和PhotoShop一样，都有图层的概念，可以看到我这张图最左侧有三个图层，我们从侧面观察这个图层，你会发现眼睛在上面，鼻子在中间，最下面是脸，其实是三个图层是叠加在一起的，这三个图层合并成一张图之后，就是我们最右边的这张图，就是一个人的脸。</p>
+<p><strong>图层有一个最大的特点就是如果图层的位置变了，浏览器只需要重新去合成，就可以得到一张新的图</strong>。注意，如果图层的位置变了，但是图层的内容没变，那么浏览器只需要重新合并图层，就可以得到一张新的图，这个过程是不需要绘制（Paint）的。</p>
+<h3 id="绘制（Paint）"><a href="#绘制（Paint）" class="headerlink" title="绘制（Paint）"></a>绘制（Paint）</h3><p><img src="https://camo.githubusercontent.com/697dbbb49f6e2dfad0e39e81a78f198c8ca335ba/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4238737748483449714d4d76365958362e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们在说说绘制的意思。图中白色的框是一个图层，这个框里面有一个黄色的方框；右边的与左边的是同一张图层，但是右边这个图层里面的黄色方块跑右边去了。注意，我同一张图层，但是内容变了，这时候浏览器要做一个事情就是“绘制”，通过重新绘制图层，才能让图层里面的内容发生变化。可以理解为，你有一个画板，你想把方框移到右面，那只能把之前的擦掉然后重新在右面画一个上去。</p>
+<h3 id="添加图层可以取消Paint"><a href="#添加图层可以取消Paint" class="headerlink" title="添加图层可以取消Paint"></a>添加图层可以取消Paint</h3><p><strong>所以你发现绘制产生的效果和图层合并产生的效果是一样的</strong>，我通过改变图层的位置能实现和我重新绘制的效果是一样的。</p>
+<p>实际上我想说明什么？我想告诉大家告诉大家添加图层可以取消Paint。</p>
+<p><img src="https://camo.githubusercontent.com/d369044e382aafec9f849f43785b2169a8c9a39c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f53544b5563706d565a44414d4677426e2e706e67217468756d626e61696c" alt="图片"></p>
+<p>我们都知道像素管道有五步，<strong>JavaScript-&gt;样式计算-&gt;布局-&gt;绘制-&gt;合成</strong>，但是通过添加图层可以取消绘制这步，五步变成四步，那其实这个时间要更简短一些。</p>
+<p><img src="https://camo.githubusercontent.com/7d497080eeb637e74b5dab03ab73c3dacb41daa8/68747470733a2f2f70312e73736c2e7168696d672e636f6d2f743031356531353066356465633964303339332e676966" alt="图片"></p>
+<p>可以看到这个图，主要看右边的图，就是图层这个位置，这张图的图层在不停的变，浏览器通过合并图层就可以实现方框移动的效果。这个过程不需要绘制的，你用这个火焰图捕获也是捕获不到绘制的。</p>
+<h3 id="如何创建图层？"><a href="#如何创建图层？" class="headerlink" title="如何创建图层？"></a>如何创建图层？</h3><p>图层这么好，如何创建图层？</p>
+<p>我们可以使用CSS的will-change来创建图层，在<code>will-change</code>不兼容的情况下，你可以用 <code>transform: translateZ(0);</code>来代替。</p>
+<p>你会发现图层这东西这么好，可以把像素管道从五步变成四步，我们是不是可以这样操作，所有元素都设置<code>will-change</code>，浏览器是不是就没有绘制了？</p>
+<p><img src="https://camo.githubusercontent.com/d98bc1cef0905a66a84843ecac8a31af8253540c/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4b66386b4f694f555635774b7a7843772e706e67217468756d626e61696c" alt="图片"></p>
+<p>这其实是不行的，因为浏览器做图层管理也是需要消耗的，如果你这样做，其实带来的效果反而是负面的，所以这个是不推荐的。</p>
+<h2 id="避免丢帧"><a href="#避免丢帧" class="headerlink" title="避免丢帧"></a>避免丢帧</h2><p>现在我们从 JavaScript 到图层合并，我们通过一系列的手段已经可以保证每一帧的像素管道总时间在 16.7 毫秒以内，那么就可以保证每 16.7 毫秒给屏幕传输新的一帧吗？</p>
+<p>还不够。</p>
+<p>图中这是一个时间轴，每个时间节点之间的间隔是 16 毫秒，我们通常会使用Timer触发一个函数改变一些样式，从而实现视觉的效果。</p>
+<p><img src="https://camo.githubusercontent.com/a2927720ce8c5c199304e77e1820ac6f8bafd490/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f313344656e4b7431646359444e6b57752e706e67217468756d626e61696c" alt="图片"></p>
+<p><img src="https://camo.githubusercontent.com/fa5030bae7039f87bafc5af086e3c11efb410b3f/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f4a7454453970584764696f6c30636b712e706e67217468756d626e61696c" alt="图片"></p>
+<p>你会发现中间有一个16毫秒没有输出的，这 16 毫秒丢帧了，这一帧在屏幕上并没有传输任何图像，因为我这个Timer不能保证函数在每一帧最开始执行，保证不了函数的执行频率，所以就会导致这个问题。</p>
+<p><img src="https://camo.githubusercontent.com/b45c5432289af02f44ffbd45070e061ca7e89b43/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f755333677331517154613851656f55652e706e67217468756d626e61696c" alt="图片"></p>
+<p><strong>现在整个Web平台，只有一个API可以解决这个问题，可以让我们的函数在每一帧最开始执行。这个API叫做requestAnimationFrame，使用它触发函数可以保证函数在每一帧的最开始执行，同时只有我们保证函数总体时间在 16.7 毫秒以内，现在就可以下图的效果，我第一帧、第二帧、第三帧、第四帧很均匀，从时间轴上也看不到丢帧的现象存在。现在我们终于可以保证不丢帧的情况下达到 60 FPS。</strong></p>
+<p><img src="https://camo.githubusercontent.com/8d5f3f971f41ccaa7551905147bff0cc170b093b/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f5a496e5478395346577777474f6439572e706e67217468756d626e61696c" alt="图片"></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p><img src="https://camo.githubusercontent.com/4ff62abd3a30667171c3c7dcba79c710be3689a8/68747470733a2f2f75706c6f616465722e7368696d6f2e696d2f662f514c5375316a56464a6b55754f3448682e706e67217468756d626e61696c" alt="图片"></p>
+<p>最后做一个总结，首先我们讲了什么样的网页是用户觉得比较流畅的，我们讲的第二个概念叫像素管道，通过后面的介绍，你会发现像素管道还是很重要的。</p>
+<p>然后我们讲了优化主动交互，有两种方案，一个是web-worker，还有一个是 time-slicing。</p>
+<p>我们还介绍了如何优化被动交互，保证 JS 执行时间 10 毫秒以为，样式计算（选择器）与性能，布局抖动以及如何避免布局抖动，做好图层管理和绘制的权衡，和requestAnimationFrame。</p>
+<h2 id="时间切片（Time-Slicing）"><a href="#时间切片（Time-Slicing）" class="headerlink" title="时间切片（Time Slicing）"></a>时间切片（Time Slicing）</h2><p>从用户的输入，再到显示器在视觉上给用户的输出，这一过程如果超过100ms，那么用户会察觉到网页的卡顿，所以为了解决这个问题，每个任务不能超过50ms，W3C性能工作组在LongTask规范中也将超过50ms的任务定义为长任务。</p>
+<p>关于这50毫秒我在FDConf的分享中进行了很详细的讲解，没有听到的小伙伴也不用着急，后续我会针对这次分享的内容补一篇文章。</p>
+<p>所以为了避免长任务，一种方案是使用Web Worker，将长任务放在Worker线程中执行，缺点是无法访问DOM，而另一种方案是使用时间切片。</p>
+<h2 id="什么是时间切片"><a href="#什么是时间切片" class="headerlink" title="什么是时间切片"></a>什么是时间切片</h2><p>时间切片的核心思想是：如果任务不能在50毫秒内执行完，那么为了不阻塞主线程，这个任务应该<strong>让出主线程的控制权</strong>，使浏览器可以处理其他任务。让出控制权意味着停止执行当前任务，让浏览器去执行其他任务，随后再回来继续执行没有执行完的任务。</p>
+<p>所以时间切片的目的是不阻塞主线程，而实现目的的技术手段是将一个长任务拆分成很多个不超过50ms的小任务分散在宏任务队列中执行。</p>
+<p><img src="https://camo.githubusercontent.com/4eb11326e81db95aed9b6faaa0259ea952f421ce/68747470733a2f2f702e73736c2e7168696d672e636f6d2f743031386634613963383030336461393766642e706e67" alt="LongTask"></p>
+<p>上图可以看到主线程中有一个长任务，这个任务会阻塞主线程。使用时间切片将它切割成很多个小任务后，如下图所示。</p>
+<p><img src="https://camo.githubusercontent.com/32466b50643f5a2dad54d655694657c549d33644/68747470733a2f2f702e73736c2e7168696d672e636f6d2f743031363534363936363864363163383566362e706e67" alt="task"></p>
+<p>可以看到现在的主线程有很多密密麻麻的小任务，我们将它放大后如下图所示。</p>
+<p><img src="https://camo.githubusercontent.com/032c741aa5b518df500327a0e492cb7ea8191d70/68747470733a2f2f702e73736c2e7168696d672e636f6d2f743031336434383132343633383635303038372e706e67" alt="task2"></p>
+<p>可以看到每个小任务中间是有空隙的，代表着任务执行了一小段时间后，将让出主线程的控制权，让浏览器执行其他的任务。</p>
+<p>使用时间切片的缺点是，任务运行的总时间变长了，这是因为它每处理完一个小任务后，主线程会空闲出来，并且在下一个小任务开始处理之前有一小段延迟。<br>但是为了避免卡死浏览器，这种取舍是很有必要的。</p>
+<h2 id="如何使用时间切片"><a href="#如何使用时间切片" class="headerlink" title="如何使用时间切片"></a>如何使用时间切片</h2><p>时间切片是一种概念，也可以理解为一种技术方案，它不是某个API的名字，也不是某个工具的名字。</p>
+<p>事实上，时间切片充分利用了“异步”，在早期，可以使用定时器来实现，例如：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">btn.onclick = <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  someThing(); <span class="comment">// 执行了50毫秒</span></span><br><span class="line">  setTimeout(<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    otherThing(); <span class="comment">// 执行了50毫秒</span></span><br><span class="line">  &#125;);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>上面代码当按钮被点击时，本应执行100毫秒的任务现在被拆分成了两个50毫秒的任务。</p>
+<p>在实际应用中，我们可以进行一些封装，封装后的使用效果类似下面这样：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">btn.onclick = ts([someThing, otherThing], <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'done~'</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>当然，关于<code>ts</code>这个函数的API的设计并不是本文的重点，这里想说明的是，在早期可以利用定时器来实现“时间切片”。</p>
+<p>ES6带来了迭代器的概念，并提供了生成器Generator函数用来生成迭代器对象，虽然Generator函数最正统的用法是生成迭代器对象，但这不妨我们利用它的特性做一些其他的事情。</p>
+<p>Generator函数提供了<code>yield</code>关键字，这个关键字可以让函数暂停执行。然后通过迭代器对象的<code>next</code>方法让函数继续执行。</p>
+<p>对Generator函数不熟悉的同学，需要先学习Generator函数的用法。</p>
+<p>利用这个特性，我们可以设计出更方便使用的时间切片，例如：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">btn.onclick = ts(<span class="function"><span class="keyword">function</span>* (<span class="params"></span>) </span>&#123;</span><br><span class="line">  someThing(); <span class="comment">// 执行了50毫秒</span></span><br><span class="line">  <span class="keyword">yield</span>;</span><br><span class="line">  otherThing(); <span class="comment">// 执行了50毫秒</span></span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>可以看到，我们只需要使用<code>yield</code>这个关键字就可以将本应执行100毫秒的任务拆分成了两个50毫秒的任务。</p>
+<p>我们甚至可以将yield关键字放在循环里：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">btn.onclick = ts(<span class="function"><span class="keyword">function</span>* (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">    someThing(); <span class="comment">// 执行了50毫秒</span></span><br><span class="line">    <span class="keyword">yield</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>上面代码我们写了一个死循环，但依然不会阻塞主线程，浏览器也不会卡死。</p>
+<h2 id="基于生成器的ts实现原理"><a href="#基于生成器的ts实现原理" class="headerlink" title="基于生成器的ts实现原理"></a>基于生成器的ts实现原理</h2><p>通过前面的例子，我们会发现基于Generator的时间切片非常好用，但其实ts函数的实现原理非常简单，一个最简单的ts函数<strong>只需要九行代码</strong>。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">ts</span> (<span class="params">gen</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">typeof</span> gen === <span class="string">'function'</span>) gen = gen()</span><br><span class="line">  <span class="keyword">if</span> (!gen || <span class="keyword">typeof</span> gen.next !== <span class="string">'function'</span>) <span class="keyword">return</span></span><br><span class="line">  <span class="keyword">return</span> <span class="function"><span class="keyword">function</span> <span class="title">next</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> res = gen.next()</span><br><span class="line">    <span class="keyword">if</span> (res.done) <span class="keyword">return</span></span><br><span class="line">    setTimeout(next)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>代码虽然全部只有9行，关键代码只有3、4行，但这几行代码充分利用了事件循环机制以及Generator函数的特性。</p>
+<p>创造出这样的代码我还是很开心的。</p>
+<p>上面代码核心思想是：通过<code>yield</code>关键字可以将任务暂停执行，从而让出主线程的控制权；通过定时器可以将“未完成的任务”重新放在任务队列中继续执行。</p>
+<h2 id="避免把任务分解的过于零碎"><a href="#避免把任务分解的过于零碎" class="headerlink" title="避免把任务分解的过于零碎"></a>避免把任务分解的过于零碎</h2><p>使用<code>yield</code>来切割任务非常方便，但如果切割的粒度特别细，反而效率不高。假设我们的任务执行<code>100ms</code>，最好的方式是切割成两个执行<code>50ms</code>的任务，而不是切割成100个执行<code>1ms</code>的任务。假设被切割的任务之间的间隔为<code>4ms</code>，那么切割成100个执行<code>1ms</code>的任务的总执行时间为：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">1</span> + <span class="number">4</span>) * <span class="number">100</span> = <span class="number">500</span>ms</span><br></pre></td></tr></table></figure>
+<p>如果切割成两个执行时间为<code>50ms</code>的任务，那么总执行时间为：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(<span class="number">50</span> + <span class="number">4</span>) * <span class="number">2</span> = <span class="number">108</span>ms</span><br></pre></td></tr></table></figure>
+<p>可以看到，在不影响用户体验的情况下，下面的总执行时间要比前面的少了4.6倍。</p>
+<p>保证切割的任务刚好接近<code>50ms</code>，可以在用户使用<code>yield</code>时自行评估，也可以在<code>ts</code>函数中根据任务的执行时间判断是否应该一次性执行多个任务。</p>
+<p>我们将<code>ts</code>函数稍微改进一下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">ts</span> (<span class="params">gen</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="keyword">typeof</span> gen === <span class="string">'function'</span>) gen = gen()</span><br><span class="line">  <span class="keyword">if</span> (!gen || <span class="keyword">typeof</span> gen.next !== <span class="string">'function'</span>) <span class="keyword">return</span></span><br><span class="line">  <span class="keyword">return</span> <span class="function"><span class="keyword">function</span> <span class="title">next</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> start = performance.now()</span><br><span class="line">    <span class="keyword">let</span> res = <span class="literal">null</span></span><br><span class="line">    <span class="keyword">do</span> &#123;</span><br><span class="line">      res = gen.next()</span><br><span class="line">    &#125; <span class="keyword">while</span>(!res.done &amp;&amp; performance.now() - start &lt; <span class="number">25</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (res.done) <span class="keyword">return</span></span><br><span class="line">    setTimeout(next)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>现在我们测试下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">ts(<span class="function"><span class="keyword">function</span>* (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">const</span> start = performance.now()</span><br><span class="line">  <span class="keyword">while</span> (performance.now() - start &lt; <span class="number">1000</span>) &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="number">11</span>)</span><br><span class="line">    <span class="keyword">yield</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'done!'</span>)</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+<p>这段代码在之前的版本中，在我的电脑上可以打印出 215 次 <code>11</code>，在后面的版本中可以打印出 6300 次 <code>11</code>，说明在总时间相同的情况下，可以执行更多的任务。</p>
+<p>再看另一个例子：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">ts(<span class="function"><span class="keyword">function</span>* (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="number">10000</span>; i++) &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="number">11</span>)</span><br><span class="line">    <span class="keyword">yield</span></span><br><span class="line">  &#125;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'done!'</span>)</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+<p>在我的电脑上，这段代码在之前的版本中，被切割成一万个小任务，总执行时间为 <code>46</code>秒，在之后的版本中，被切割成 52 个小任务，总执行时间为 <code>1.5</code>秒。</p>
+<h2 id="总结-1"><a href="#总结-1" class="headerlink" title="总结"></a>总结</h2><p>我将时间切片的代码放在了我的Github上，感兴趣的可以参观下：<a href="https://github.com/berwin/time-slicing" target="_blank" rel="noopener">https://github.com/berwin/time-slicing</a></p>
+<h2 id="原文转自"><a href="#原文转自" class="headerlink" title="原文转自"></a>原文转自</h2><ul>
+<li><a href="https://github.com/berwin/Blog/issues/39" target="_blank" rel="noopener">让你的网页更丝滑（全） </a></li>
+<li><a href="https://juejin.im/post/5d33fd0f5188256e820c80d4" target="_blank" rel="noopener">实战篇 - 如何实现和淘宝移动端一样的模块化加载 （task-silce）</a></li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/12/WebAssembly上手把玩体验/" rel="next" title="WebAssembly上手把玩体验">
+                <i class="fa fa-chevron-left"></i> WebAssembly上手把玩体验
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">想要飞得高，那就把地平线忘掉</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">170</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">118</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#性能优化的目的"><span class="nav-number">1.</span> <span class="nav-text">性能优化的目的</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#分析淘宝"><span class="nav-number">2.</span> <span class="nav-text">分析淘宝</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#淘宝的渲染方式"><span class="nav-number">2.1.</span> <span class="nav-text">淘宝的渲染方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#淘宝的任务切片"><span class="nav-number">2.2.</span> <span class="nav-text">淘宝的任务切片</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#任务切片源码介绍"><span class="nav-number">3.</span> <span class="nav-text">任务切片源码介绍</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#初始化任务"><span class="nav-number">3.1.</span> <span class="nav-text">初始化任务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#切片队列"><span class="nav-number">3.2.</span> <span class="nav-text">切片队列</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#何时执行下一个切片任务"><span class="nav-number">3.3.</span> <span class="nav-text">何时执行下一个切片任务</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#完整代码"><span class="nav-number">4.</span> <span class="nav-text">完整代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#before"><span class="nav-number">5.</span> <span class="nav-text">before</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#after"><span class="nav-number">6.</span> <span class="nav-text">after</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#让你的网页更丝滑"><span class="nav-number">7.</span> <span class="nav-text">让你的网页更丝滑</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#什么样的网页是流畅的"><span class="nav-number">8.</span> <span class="nav-text">什么样的网页是流畅的</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#被动交互如何让用户感觉流畅"><span class="nav-number">8.1.</span> <span class="nav-text">被动交互如何让用户感觉流畅</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#主动交互如何让用户感觉流畅"><span class="nav-number">8.2.</span> <span class="nav-text">主动交互如何让用户感觉流畅</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#像素管道"><span class="nav-number">9.</span> <span class="nav-text">像素管道</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#避免长任务"><span class="nav-number">10.</span> <span class="nav-text">避免长任务</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Web-Worker"><span class="nav-number">10.1.</span> <span class="nav-text">Web Worker</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Time-Slicing"><span class="nav-number">10.2.</span> <span class="nav-text">Time Slicing</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#保证被动交互让用户感觉流畅"><span class="nav-number">11.</span> <span class="nav-text">保证被动交互让用户感觉流畅</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#更快的样式计算"><span class="nav-number">12.</span> <span class="nav-text">更快的样式计算</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#选择器匹配"><span class="nav-number">12.1.</span> <span class="nav-text">选择器匹配</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#布局抖动"><span class="nav-number">12.2.</span> <span class="nav-text">布局抖动</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#绘制与合成"><span class="nav-number">13.</span> <span class="nav-text">绘制与合成</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#合成"><span class="nav-number">13.1.</span> <span class="nav-text">合成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#绘制（Paint）"><span class="nav-number">13.2.</span> <span class="nav-text">绘制（Paint）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#添加图层可以取消Paint"><span class="nav-number">13.3.</span> <span class="nav-text">添加图层可以取消Paint</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#如何创建图层？"><span class="nav-number">13.4.</span> <span class="nav-text">如何创建图层？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#避免丢帧"><span class="nav-number">14.</span> <span class="nav-text">避免丢帧</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">15.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#时间切片（Time-Slicing）"><span class="nav-number">16.</span> <span class="nav-text">时间切片（Time Slicing）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#什么是时间切片"><span class="nav-number">17.</span> <span class="nav-text">什么是时间切片</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#如何使用时间切片"><span class="nav-number">18.</span> <span class="nav-text">如何使用时间切片</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#基于生成器的ts实现原理"><span class="nav-number">19.</span> <span class="nav-text">基于生成器的ts实现原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#避免把任务分解的过于零碎"><span class="nav-number">20.</span> <span class="nav-text">避免把任务分解的过于零碎</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结-1"><span class="nav-number">21.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#原文转自"><span class="nav-number">22.</span> <span class="nav-text">原文转自</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+  <!--
+  	描述：点击红心
+  -->
+  <script type="text/javascript" src="/js/src/clicklove.js"></script>
+  <!--
+  	描述：复制代码
+  -->
+  <script type="text/javascript" src="/js/src/clipboard.min.js"></script>
+  <script type="text/javascript" src="/js/src/clipboard-use.js"></script>
+</body>
+</html>
+
+
