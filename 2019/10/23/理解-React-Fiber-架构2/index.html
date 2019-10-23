@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="react,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="单处理进程调度: Fiber 不是一个新的东西这个黑乎乎的界面应该就是微软的 DOS 操作系统 微软 DOS 是一个单任务操作系统, 也称为’单工操作系统‘. 这种操作系统同一个时间只允许运行一个程序. invalid s在《在没有GUI的时代(只有一个文本界面），人们是怎么运行多个程序的？》 的回答中将其称为: ‘一种压根没有任务调度的“残疾”操作系统‘. 在这种系统中，你想执行多个任务，只能等">
+<meta name="keywords" content="react">
+<meta property="og:type" content="article">
+<meta property="og:title" content="理解 React Fiber 架构2">
+<meta property="og:url" content="http://yoursite.com/2019/10/23/理解-React-Fiber-架构2/index.html">
+<meta property="og:site_name" content="舞动乾坤">
+<meta property="og:description" content="单处理进程调度: Fiber 不是一个新的东西这个黑乎乎的界面应该就是微软的 DOS 操作系统 微软 DOS 是一个单任务操作系统, 也称为’单工操作系统‘. 这种操作系统同一个时间只允许运行一个程序. invalid s在《在没有GUI的时代(只有一个文本界面），人们是怎么运行多个程序的？》 的回答中将其称为: ‘一种压根没有任务调度的“残疾”操作系统‘. 在这种系统中，你想执行多个任务，只能等">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352761-755c1280-f583-11e9-89e1-2efc78cca4a7.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352099-9f143a00-f581-11e9-8e0e-f3bdba6e9500.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352835-a9373800-f583-11e9-8d1a-a4c6360dc86b.png">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2019/10/21/16deecc24dfd080c?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352875-c23fe900-f583-11e9-8d74-4e8ad64d44b7.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352331-472a0300-f582-11e9-9e2e-c3fb190697af.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352455-9d974180-f582-11e9-9ea1-7066cd966dfb.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67352989-0f23bf80-f584-11e9-94f5-8bcc74c7a855.gif">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67353038-295d9d80-f584-11e9-919b-8a6e8c0ebb5e.gif">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67353407-11d2e480-f585-11e9-8cfb-f6c1664d636f.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67353612-81e16a80-f585-11e9-9eb4-40344cff3234.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67353663-a63d4700-f585-11e9-9a22-d5572ed22421.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67353752-f1575a00-f585-11e9-8ea7-ed8c54425da6.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67353799-0e8c2880-f586-11e9-8f2b-b299de71ed49.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67354445-adfdeb00-f587-11e9-8bff-fd316c181007.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67354445-adfdeb00-f587-11e9-8bff-fd316c181007.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67354496-da196c00-f587-11e9-8f2a-6a62e2c8e94b.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67354576-0af9a100-f588-11e9-956b-4a6d6931ecb3.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358143-0803ae00-f592-11e9-9c6b-1d9b126cd878.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358165-194cba80-f592-11e9-8716-d619fc8fe25b.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358367-bf98c000-f592-11e9-8c1c-2da683711801.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358414-db9c6180-f592-11e9-8cf4-bdeecf0e1744.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358452-038bc500-f593-11e9-8e3a-3a0d67377616.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358456-0ab2d300-f593-11e9-8ca9-05273d224993.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358459-10101d80-f593-11e9-93cc-8ef9bd4e0a65.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358472-18685880-f593-11e9-8f8a-e0a2e113e7f1.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358490-2f0eaf80-f593-11e9-8da3-53dc61954f85.png">
+<meta property="og:image" content="https://user-images.githubusercontent.com/16753554/67358490-2f0eaf80-f593-11e9-8da3-53dc61954f85.png">
+<meta property="og:updated_time" content="2019-10-23T13:52:09.996Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="理解 React Fiber 架构2">
+<meta name="twitter:description" content="单处理进程调度: Fiber 不是一个新的东西这个黑乎乎的界面应该就是微软的 DOS 操作系统 微软 DOS 是一个单任务操作系统, 也称为’单工操作系统‘. 这种操作系统同一个时间只允许运行一个程序. invalid s在《在没有GUI的时代(只有一个文本界面），人们是怎么运行多个程序的？》 的回答中将其称为: ‘一种压根没有任务调度的“残疾”操作系统‘. 在这种系统中，你想执行多个任务，只能等">
+<meta name="twitter:image" content="https://user-images.githubusercontent.com/16753554/67352761-755c1280-f583-11e9-89e1-2efc78cca4a7.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/10/23/理解-React-Fiber-架构2/">
+
+
+
+
+
+  <title>理解 React Fiber 架构2 | 舞动乾坤</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">舞动乾坤</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">星光不问赶路人 岁月不负有心人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/10/23/理解-React-Fiber-架构2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="舞动乾坤">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">理解 React Fiber 架构2</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-10-23T21:49:01+08:00">
+                2019-10-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="单处理进程调度-Fiber-不是一个新的东西"><a href="#单处理进程调度-Fiber-不是一个新的东西" class="headerlink" title="单处理进程调度: Fiber 不是一个新的东西"></a>单处理进程调度: Fiber 不是一个新的东西</h2><p><img src="https://user-images.githubusercontent.com/16753554/67352761-755c1280-f583-11e9-89e1-2efc78cca4a7.png" alt="image"><br>这个黑乎乎的界面应该就是微软的 <code>DOS</code> 操作系统</p>
+<p>微软 <a href="https://zh.wikipedia.org/zh-cn/DOS" target="_blank" rel="noopener"><code>DOS</code></a> 是一个<code>单任务操作系统</code>, 也称为’单工操作系统‘. 这种操作系统同一个时间只允许运行一个程序. <a href="https://www.zhihu.com/people/s.invalid" target="_blank" rel="noopener">invalid s</a>在<a href="https://www.zhihu.com/question/319595914/answer/683541635" target="_blank" rel="noopener">《在没有GUI的时代(只有一个文本界面），人们是怎么运行多个程序的？》</a> 的回答中将其称为: ‘<strong>一种压根没有任务调度的“残疾”操作系统</strong>‘.</p>
+<p>在这种系统中，你想执行多个任务，只能等待前一个进程退出，然后再载入一个新的进程。</p>
+<p>直到 Windows 3.x，它才有了真正意义的进程调度器，实现了多进程并发执行。</p>
+<blockquote>
+<p>注意并发和并行不是同一个概念。</p>
+</blockquote>
+<p>现代操作系统都是<strong>多任务操作系统</strong>. 进程的调度策略如果按照CPU核心数来划分，可以分为<strong>单处理器调度</strong>和<strong>多处理器调度</strong>。本文只关注的是单处理器调度，因为它可以类比JavaScript的运行机制。</p>
+<p><strong> 说白了，为了实现进程的并发，操作系统会按照一定的调度策略，将CPU的执行权分配给多个进程，多个进程都有被执行的机会，让它们交替执行，形成一种“同时在运行”假象, 因为CPU速度太快，人类根本感觉不到。实际上在单核的物理环境下同时只能有一个程序在运行</strong>。</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67352099-9f143a00-f581-11e9-8e0e-f3bdba6e9500.png" alt="image"></p>
+<p>这让我想起了“龙珠”中的分身术(小时候看过，说错了别喷)，实质上是一个人，只不过是他运动速度太快，看起来就像分身了. 这就是所谓的<strong>并发(Concurrent)</strong>(单处理器)。</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67352835-a9373800-f583-11e9-8d1a-a4c6360dc86b.png" alt="image"></p>
+<p>相比而言, 火影忍者中的分身术，是物理存在的，他们可以真正实现同时处理多个任务，这就是<strong>并行</strong>(严格地讲这是<code>Master-Slave</code>架构，分身虽然物理存在，但应该没有独立的意志)。</p>
+<p>所以说<strong>并行可以是并发，而并发不一定是并行，两种不能划等号, 并行一般需要物理层面的支持</strong>。 关于并发和并行，Go 之父 Rob Pike 有一个非常著名的演讲<a href="https://blog.golang.org/concurrency-is-not-parallelism" target="_blank" rel="noopener">Concurrency is not parallelism</a></p>
+<p>扯远了，接下来进程怎么调度就是教科书的内容了。如果读者在大学认真学过<strong>操作系统原理</strong>, 你可以很快理解以下几种单处理器进程<strong>调度策略</strong>(我就随便科普一下，算送的, 如果你很熟悉这块，可以跳过)：</p>
+<h3 id="先到先得-First-Come-First-Served-FCFS"><a href="#先到先得-First-Come-First-Served-FCFS" class="headerlink" title="先到先得(First-Come-First-Served, FCFS)"></a>先到先得(First-Come-First-Served, FCFS)</h3><p>这是最简单的调度策略, 简单说就是<strong>没有调度</strong>。谁先来谁就先执行，执行完毕后就执行下一个。不过如果中间某些进程因为I/O阻塞了，这些进程会挂起移回就绪队列(说白了就是重新排队).</p>
+<p><code>FCFS</code> 上面 <code>DOS</code> 的单任务操作系统没有太大的区别。所以非常好理解，因为生活中到处是这样的例子:。</p>
+<ul>
+<li><p><strong>FCFS 对<code>短进程</code>不利</strong>。 短进程即执行时间非常短的进程，可以用饭堂排队来比喻: <em>在饭堂排队打饭的时候，最烦那些一个人打包好好几份的人，这些人就像<code>长进程</code>一样，霸占着CPU资源，后面排队只打一份的人会觉得很吃亏，打一份的人会觉得他们优先级应该更高，毕竟他们花的时间很短，反正你打包那么多份再等一会也是可以的，何必让后面那么多人等这么久…</em></p>
+</li>
+<li><p><strong>FCFS 对<code>I/O密集</code>不利</strong>。I/O密集型进程(这里特指同步I/O)在进行I/O操作时，会阻塞休眠，这会导致进程重新被放入就绪队列，等待下一次被宠幸。 可以类比ZF部门办业务: <em>假设 CPU 一个窗口、I/O 一个窗口。在CPU窗口好不容易排到你了，这时候发现一个不符合条件或者漏办了, 需要去I/O搞一下，Ok 去 I/O窗口排队，I/O执行完了，到CPU窗口又得重新排队。对于这些丢三落四的人很不公平…</em></p>
+</li>
+</ul>
+<p>所以 FCFS 这种原始的策略在单处理器进程调度中并不受欢迎。</p>
+<h3 id="轮转"><a href="#轮转" class="headerlink" title="轮转"></a>轮转</h3><p>这是一种基于时钟的<strong>抢占策略</strong>，这也是抢占策略中最简单的一种: <strong>公平地给每一个进程一定的执行时间，当时间消耗完毕或阻塞，操作系统就会调度其他进程，将执行权抢占过来</strong>。</p>
+<blockquote>
+<p><strong>决策模式</strong>: <code>抢占策略</code>相对应的有<code>非抢占策略</code>，非抢占策略指的是让进程运行直到结束、阻塞(如I/O或睡眠)、或者主动让出控制权；抢占策略支持中断正在运行的进程，将主动权掌握在操作系统这里，不过通常开销会比较大。</p>
+</blockquote>
+<p>这种调度策略的要点是<strong>确定合适的时间片长度</strong>: 太长了，长进程霸占太久资源，其他进程会得不到响应(等待执行时间过长)，这时候就跟上述的 <code>FCFS</code> 没什么区别了;  太短了也不好，因为进程抢占和切换都是需要成本的, 而且成本不低，时间片太短，时间可能都浪费在上下文切换上了，导致进程干不了什么实事。</p>
+<p>因此<strong>时间片的长度最好符合大部分进程完成一次典型交互所需的时间</strong>.</p>
+<p>轮转策略非常容易理解，只不过确定时间片长度需要伤点脑筋；另外和<code>FCFS</code>一样，轮转策略对I/O进程还是不公平。</p>
+<h3 id="最短进程优先-Shortest-Process-Next-SPN"><a href="#最短进程优先-Shortest-Process-Next-SPN" class="headerlink" title="最短进程优先(Shortest Process Next, SPN)"></a>最短进程优先(Shortest Process Next, SPN)</h3><p>上面说了<code>先到先得</code>策略对<code>短进程</code>不公平，<code>最短进程优先</code>索性就让’最短’的进程优先执行，也就是说: <strong>按照进程的预估执行时间对进程进行优先级排序，先执行完短进程，后执行长进程。这是一种非抢占策略</strong>。</p>
+<p>这样可以让短进程能得到较快的响应。但是怎么获取或者<strong>评估进程执行时间</strong>呢？一是让程序的提供者提供，这不太靠谱；二是由操作系统来收集进程运行数据，并对它们进程统计分析。例如最简单的是计算它们的平均运行时间。不管怎么说都比上面两种策略要复杂一点。</p>
+<p><code>SPN</code> 的缺陷是: 如果系统有大量的短进程，那么长进程可能会饥饿得不到响应。</p>
+<p>另外因为它不是抢占性策略, 尽管现在短进程可以得到更多的执行机会，但是还是没有解决 <code>FCFS</code> 的问题: 一旦长进程得到CPU资源，得等它执行完，导致后面的进程得不到响应。</p>
+<h3 id="最短剩余时间-Shortest-Remaining-Time-SRT"><a href="#最短剩余时间-Shortest-Remaining-Time-SRT" class="headerlink" title="最短剩余时间(Shortest Remaining Time, SRT)"></a>最短剩余时间(Shortest Remaining Time, SRT)</h3><p><strong>SRT 进一步优化了SPN，增加了抢占机制</strong>。在 SPN 的基础上，当一个进程添加到就绪队列时，操作系统会比较<em>刚添加的新进程</em>和<em>当前正在执行的老进程</em>的‘剩余时间’，如果新进程剩余时间更短，新进程就会抢占老进程。</p>
+<p>相比轮转的抢占，SRT 没有中断处理的开销。但是在 SPN 的基础上，操作系统需要记录进程的历史执行时间，这是新增的开销。<strong>另外长进程饥饿问题还是没有解决</strong>。</p>
+<h3 id="最高响应比优先-HRRN"><a href="#最高响应比优先-HRRN" class="headerlink" title="最高响应比优先(HRRN)"></a>最高响应比优先(HRRN)</h3><p><strong>为了解决长进程饥饿问题，同时提高进程的响应速率</strong>。还有一种<code>最高响应比优先的</code>策略，首先了解什么是响应比:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">响应比 = （等待执行时间 + 进程执行时间） / 进程执行时间</span><br></pre></td></tr></table></figure>
+<p><strong>这种策略会选择响应比最高的进程优先执行</strong>：</p>
+<ul>
+<li>对于短进程来说，因为执行时间很短，分母很小，所以响应比比较高，会被优先执行</li>
+<li>对于长进程来说，执行时间长，一开始响应比小，但是随着等待时间增长，它的优先级会越来越高，最终可以被执行</li>
+</ul>
+<h3 id="反馈法"><a href="#反馈法" class="headerlink" title="反馈法"></a>反馈法</h3><p>SPN、SRT、HRRN都需要对进程时间进行评估和统计，实现比较复杂且需要一定开销。而反馈法采取的是<strong>事后反馈</strong>的方式。这种策略下: <strong>每个进程一开始都有相同的优先级，每次被抢占(需要配合其他抢占策略使用，如轮转)，优先级就会降低一级。因此通常它会根据优先级划分多个队列</strong>。</p>
+<p>举个例子:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">队列1</span><br><span class="line">队列2</span><br><span class="line">...</span><br><span class="line">队列N</span><br></pre></td></tr></table></figure></p>
+<p>新增的任务会推入<code>队列1</code>，<code>队列1</code>会按照<code>轮转策略</code>以一个时间片为单位进行调度。短进程可以很快得到响应，而对于长进程可能一个时间片处理不完，就会被抢占，放入<code>队列2</code>。</p>
+<p><code>队列2</code>会在<code>队列1</code>任务清空后被执行，有时候低优先级队列可能会等待很久才被执行，所以一般会给予一定的补偿，例如增加执行时间，所以<code>队列2</code>的轮转时间片长度是2。</p>
+<p>反馈法仍然可能导致长进程饥饿，所以操作系统可以统计长进程的等待时间，当等待时间超过一定的阈值，可以选择提高它们的优先级。</p>
+<p><img src="https://user-gold-cdn.xitu.io/2019/10/21/16deecc24dfd080c?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt></p>
+<p>没有一种调度策略是万能的, 它需要考虑很多因素:</p>
+<ul>
+<li>响应速率。进程等待被执行的时间</li>
+<li>公平性。兼顾短进程、长进程、I/O进程</li>
+</ul>
+<p>这两者在某些情况下是对立的，提高了响应，可能会减低公平性，导致饥饿。短进程、长进程、I/O进程之间要取得平衡也非常难。</p>
+<p>上面这些知识对本文来说已经足够了，现实世界操作系统的进程调度算法比教科书上说的要复杂的多，有兴趣读者可以去研究一下 <code>Linux</code> 相关的进程调度算法，这方面的资料也非常多, 例如<a href="https://blog.csdn.net/gatieme/article/details/51456569" target="_blank" rel="noopener">《Linux进程调度策略的发展和演变》</a>。</p>
+<h2 id="类比浏览器JavaScript执行环境"><a href="#类比浏览器JavaScript执行环境" class="headerlink" title="类比浏览器JavaScript执行环境"></a>类比浏览器JavaScript执行环境</h2><p><img src="https://user-images.githubusercontent.com/16753554/67352875-c23fe900-f583-11e9-8d74-4e8ad64d44b7.png" alt="image"><br>JavaScript 就像单行道</p>
+<p>JavaScript 是<a href="https://juejin.im/post/5a6547d0f265da3e283a1df7" target="_blank" rel="noopener">单线程运行</a>的，而且在浏览器环境屁事非常多，它要负责页面的JS解析和执行、绘制、事件处理、静态资源加载和处理, 这些任务可以类比上面’进程‘。</p>
+<blockquote>
+<p>这里特指Javascript 引擎是单线程运行的。 严格来说，页面绘制由单独的<code>GUI渲染进程</code>负责，只不过<code>GUI渲染线程</code>和<code>Javascript线程</code>是互斥的. 另外底层的异步操作实际上也是多线程的。</p>
+</blockquote>
+<p><img src="https://user-images.githubusercontent.com/16753554/67352331-472a0300-f582-11e9-9e2e-c3fb190697af.png" alt="image"></p>
+<p><strong>它只是一个’JavaScript’，同时只能做一件事情，这个和 <code>DOS</code> 的单任务操作系统一样的，事情只能一件一件的干。要是前面有一个傻叉任务长期霸占CPU，后面什么事情都干不了，浏览器会呈现卡死的状态，这样的用户体验就会非常差。</strong></p>
+<p><strong>对于’前端框架‘来说，解决这种问题有三个方向</strong>:</p>
+<ul>
+<li>1.优化每个任务，让它有多快就多快。挤压CPU运算量</li>
+<li>2.快速响应用户，让用户觉得够快，不能阻塞用户的交互</li>
+<li>3.尝试 Worker 多线程</li>
+</ul>
+<p>Vue 选择的是第1, 因为对于Vue来说，使用<code>模板</code>让它有了很多优化的空间，配合响应式机制可以让Vue可以精确地进行节点更新, 读者可以去看一下<a href="https://www.yuque.com/vueconf/2019/gwn1z0" target="_blank" rel="noopener">今年Vue Conf 尤雨溪的演讲</a>，非常棒!；而 React 选择了2 。对于Worker 多线程渲染方案也有人尝试，要保证状态和视图的一致性相当麻烦。</p>
+<p>React 为什么要引入 Fiber 架构？ 看看下面的火焰图，这是React V15 下面的一个列表渲染资源消耗情况。整个渲染花费了130ms, <strong>在这里面 React 会递归比对VirtualDOM树，找出需要变动的节点，然后同步更新它们, 一气呵成。这个过程 React 称为 <code>Reconcilation</code>(中文可以译为<code>协调</code>)</strong>.</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67352455-9d974180-f582-11e9-9ea1-7066cd966dfb.png" alt="image"></p>
+<p><strong>在 Reconcilation 期间，React 会霸占着浏览器资源，一则会导致用户触发的事件得不到响应, 二则会导致掉帧，用户可以感知到这些卡顿。</strong></p>
+<p>这样说，你可能没办法体会到，通过下面两个图片来体会一下(<em>图片来源于：<a href="https://twitter.com/dan_abramov" target="_blank" rel="noopener">Dan Abramov</a> 的 <a href="https://reactjs.org/blog/2018/03/01/sneak-peek-beyond-react-16.html" target="_blank" rel="noopener">Beyond React 16</a> 演讲, 推荐看一下👍. 另外非常感谢<a href="https://www.zhihu.com/people/BlackGanglion/activities" target="_blank" rel="noopener">淡苍</a> 将一个<a href="https://codesandbox.io/s/koyz664q35" target="_blank" rel="noopener">类似的DEMO 分享在了 CodeSandbox</a>上🎉，大家自行体验</em>):</p>
+<p>同步模式下的 React:</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67352989-0f23bf80-f584-11e9-94f5-8bcc74c7a855.gif" alt="16deecc3acaf5689"></p>
+<p>优化后的 <code>Concurrent</code> 模式下的 React:</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67353038-295d9d80-f584-11e9-919b-8a6e8c0ebb5e.gif" alt="26deecc385cc0286"></p>
+<p>React 的 Reconcilation 是CPU密集型的操作, 它就相当于我们上面说的’长进程‘。所以初衷和进程调度一样，我们要让高优先级的进程或者短进程优先运行，不能让长进程长期霸占资源。</p>
+<p>所以React 是怎么优化的？ 划重点， <strong>为了给用户制造一种应用很快的’假象’，我们不能让一个程序长期霸占着资源. 你可以将浏览器的渲染、布局、绘制、资源加载(例如HTML解析)、事件响应、脚本执行视作操作系统的’进程’，我们需要通过某些调度策略合理地分配CPU资源，从而提高浏览器的用户响应速率, 同时兼顾任务执行效率</strong>。</p>
+<p><strong>所以 React 通过Fiber 架构，让自己的Reconcilation 过程变成可被中断。 ‘适时’地让出CPU执行权，除了可以让浏览器及时地响应用户的交互，还有其他好处</strong>:</p>
+<ul>
+<li>与其一次性操作大量 DOM 节点相比, 分批延时对DOM进行操作，可以得到更好的用户体验。这个在<a href="https://juejin.im/post/5d76f469f265da039a28aff7#heading-1" target="_blank" rel="noopener">《「前端进阶」高性能渲染十万条数据(时间分片)》</a> 以及司徒正美的<a href="https://zhuanlan.zhihu.com/p/37095662" target="_blank" rel="noopener">《React Fiber架构》</a> 都做了相关实验</li>
+<li>司徒正美在<a href="https://zhuanlan.zhihu.com/p/37095662" target="_blank" rel="noopener">《React Fiber架构》</a> 也提到：<strong>🔴给浏览器一点喘息的机会，他会对代码进行编译优化（JIT）及进行热代码优化，或者对reflow进行修正</strong>.</li>
+</ul>
+<p>这就是为什么React 需要 Fiber 😏。</p>
+<h2 id="何为-Fiber"><a href="#何为-Fiber" class="headerlink" title="何为 Fiber"></a>何为 Fiber</h2><p>对于 React 来说，Fiber 可以从两个角度理解:</p>
+<h3 id="1-一种流程控制原语"><a href="#1-一种流程控制原语" class="headerlink" title="1. 一种流程控制原语"></a>1. 一种流程控制原语</h3><p>Fiber 也称<a href="https://www.liaoxuefeng.com/wiki/897692888725344/923057403198272" target="_blank" rel="noopener">协程</a>、或者纤程。 笔者第一次接触这个概念是在学习 Ruby 的时候，Ruby就将协程称为 Fiber。后来发现很多语言都有类似的机制，例如Lua 的<code>Coroutine</code>, 还有前端开发者比较熟悉的 <code>ES6</code> 新增的<a href="https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Generator" target="_blank" rel="noopener"><code>Generator</code></a>。</p>
+<blockquote>
+<p>本文不纠结 <a href="https://stackoverflow.com/questions/3324643/processes-threads-green-threads-protothreads-fibers-coroutines-whats-the/16375591#16375591" target="_blank" rel="noopener">Processes, threads, green threads, protothreads, fibers, coroutines: what’s the difference?</a></p>
+</blockquote>
+<p><strong> 其实协程和线程并不一样，协程本身是没有并发或者并行能力的（需要配合线程），它只是一种控制流程的让出机制</strong>。要理解协程，你得和普通函数一起来看, 以Generator为例:</p>
+<p>普通函数执行的过程中无法<strong>被中断和恢复</strong>：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> tasks = []</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">run</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> task</span><br><span class="line">  <span class="keyword">while</span> (task = tasks.shift()) &#123;</span><br><span class="line">    execute(task)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>而 <code>Generator</code> 可以:</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> tasks = []</span><br><span class="line"><span class="function"><span class="keyword">function</span> * <span class="title">run</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> task</span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (task = tasks.shift()) &#123;</span><br><span class="line">    <span class="comment">// 🔴 判断是否有高优先级事件需要处理, 有的话让出控制权</span></span><br><span class="line">    <span class="keyword">if</span> (hasHighPriorityEvent()) &#123;</span><br><span class="line">      <span class="keyword">yield</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 处理完高优先级事件后，恢复函数调用栈，继续执行...</span></span><br><span class="line">    execute(task)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>React Fiber 的思想和协程的概念是契合的: <strong>React 渲染的过程可以被中断，可以将控制权交回浏览器，让位给高优先级的任务，浏览器空闲后再恢复渲染</strong>。</p>
+<p>那么现在你应该有以下疑问:</p>
+<ul>
+<li>1.浏览器没有抢占的条件, 所以React只能用让出机制?</li>
+<li>2.怎么确定有高优先任务要处理，即什么时候让出？</li>
+<li>3.React 那为什么不使用 Generator？</li>
+</ul>
+<blockquote>
+<p>答1: 没错, <strong>主动让出机制</strong></p>
+</blockquote>
+<p>一是浏览器中没有类似进程的概念，’任务‘之间的界限很模糊，没有上下文，所以不具备中断/恢复的条件。二是没有抢占的机制，我们无法中断一个正在执行的程序。</p>
+<p>所以我们只能采用类似协程这样控制权让出机制。这个和上文提到的进程调度策略都不同，它有更一个专业的名词：<a href="https://juejin.im/post/5d12c907f265da1b6d4033c5#heading-7" target="_blank" rel="noopener"><strong>合作式调度(Cooperative Scheduling)</strong></a>, 相对应的有<strong>抢占式调度(Preemptive Scheduling)</strong></p>
+<p><strong>这是一种’契约‘调度，要求我们的程序和浏览器紧密结合，互相信任</strong>。比如可以由浏览器给我们分配执行时间片(通过<code>requestIdleCallback</code>实现, 下文会介绍)，我们要按照约定在这个时间内执行完毕，并将控制权还给浏览器。</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67353407-11d2e480-f585-11e9-8cfb-f6c1664d636f.png" alt="image"></p>
+<p>这种调度方式很有趣，你会发现<strong>这是一种身份的对调</strong>，以前我们是老子，想怎么执行就怎么执行，执行多久就执行多久; 现在为了我们共同的用户体验统一了战线, 一切听由浏览器指挥调度，浏览器是老子，我们要跟浏览器申请执行权，而且这个执行权有期限，借了后要按照约定归还给浏览器。</p>
+<p>当然你超时不还浏览器也拿你没办法 🤷&zwj;… 合作式调度的缺点就在于此，全凭自律，用户要挖大坑，谁都拦不住。</p>
+<hr>
+<p><strong>答2: requestIdleCallback API</strong></p>
+<p>上面代码示例中的 <code>hasHighPriorityEvent()</code> 在目前浏览器中是无法实现的，我们没办法判断当前是否有更高优先级的任务等待被执行。</p>
+<p>只能换一种思路，通过<strong>超时检查的机制来让出控制权</strong>。解决办法是: <em>确定一个合理的运行时长，然后在合适的检查点检测是否超时(比如每执行一个小任务)，如果超时就停止执行，将控制权交换给浏览器</em>。</p>
+<p>举个例子，为了让视图流畅地运行，可以按照人类能感知到最低限度每秒60帧的频率划分时间片，这样每个时间片就是 <strong>16ms</strong>。</p>
+<p>其实浏览器提供了相关的接口 —— <a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback" target="_blank" rel="noopener"><code>requestIdleCallback</code></a> API：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">window</span>.requestIdleCallback(</span><br><span class="line">  callback: <span class="function">(<span class="params">dealine: IdleDeadline</span>) =&gt;</span> <span class="keyword">void</span>,</span><br><span class="line">  option?: &#123;<span class="attr">timeout</span>: number&#125;</span><br><span class="line">  )</span><br></pre></td></tr></table></figure>
+<p><code>IdleDeadline</code>的接口如下：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">interface IdleDealine &#123;</span><br><span class="line">  didTimeout: boolean         <span class="comment">// 表示任务执行是否超过约定时间</span></span><br><span class="line">  timeRemaining(): DOMHighResTimeStamp        <span class="comment">// 任务可供执行的剩余时间</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>单从名字上理解的话, <code>requestIdleCallback</code>的意思是<strong>让浏览器在’有空’的时候就执行我们的回调，这个回调会传入一个期限，表示浏览器有多少时间供我们执行, 为了不耽误事，我们最好在这个时间范围内执行完毕</strong>。</p>
+<p><strong>那浏览器什么时候有空？</strong></p>
+<p>我们先来看一下浏览器在一帧(Frame，可以认为事件循环的一次循环)内可能会做什么事情:</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67353612-81e16a80-f585-11e9-9eb4-40344cff3234.png" alt="image"></p>
+<p>你可以打开 Chrome 开发者工具的Performance标签，这里可以详细看到Javascript的每一帧都执行了什么任务(Task), 花费了多少时间。</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67353663-a63d4700-f585-11e9-9a22-d5572ed22421.png" alt="image"></p>
+<p>图片来源: <a href="https://juejin.im/post/5ad71f39f265da239f07e862" target="_blank" rel="noopener">你应该知道的requestIdleCallback</a><br>浏览器在一帧内可能会做执行下列任务，而且它们的执行顺序基本是固定的:</p>
+<ul>
+<li>处理用户输入事件</li>
+<li>Javascript执行</li>
+<li>requestAnimation 调用</li>
+<li>布局 Layout</li>
+<li>绘制 Paint</li>
+</ul>
+<p>上面说理想的一帧时间是 <code>16ms</code> (1000ms / 60)，如果浏览器处理完上述的任务(布局和绘制之后)，还有盈余时间，浏览器就会调用 <code>requestIdleCallback</code> 的回调。例如</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67353752-f1575a00-f585-11e9-8ea7-ed8c54425da6.png" alt="image"></p>
+<p><strong>但是在浏览器繁忙的时候，可能不会有盈余时间，这时候<code>requestIdleCallback</code>回调可能就不会被执行。 为了避免饿死，可以通过requestIdleCallback的第二个参数指定一个超时时间</strong>。</p>
+<blockquote>
+<p>另外不建议在<code>requestIdleCallback</code>中进行<code>DOM</code>操作，因为这可能导致样式重新计算或重新布局(比如操作DOM后马上调用 <code>getBoundingClientRect</code>)，这些时间很难预估的，很有可能导致回调执行超时，从而掉帧。</p>
+</blockquote>
+<p>目前 <code>requestIdleCallback</code> 目前只有Chrome支持。所以目前 React <a href="https://github.com/facebook/react/blob/master/packages/scheduler/src/forks/SchedulerHostConfig.default.js" target="_blank" rel="noopener">自己实现了一个</a>。它利用<a href="https://developer.mozilla.org/zh-CN/docs/Web/API/MessageChannel" target="_blank" rel="noopener"><code>MessageChannel</code></a> 模拟将回调延迟到’绘制操作’之后执行:</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67353799-0e8c2880-f586-11e9-8f2b-b299de71ed49.png" alt="image"></p>
+<p>简单看一下代码<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> el = <span class="built_in">document</span>.getElementById(<span class="string">'root'</span>)</span><br><span class="line"><span class="keyword">const</span> btn = <span class="built_in">document</span>.getElementById(<span class="string">'btn'</span>)</span><br><span class="line"><span class="keyword">const</span> ch = <span class="keyword">new</span> MessageChannel()</span><br><span class="line"><span class="keyword">let</span> pendingCallback</span><br><span class="line"><span class="keyword">let</span> startTime</span><br><span class="line"><span class="keyword">let</span> timeout</span><br><span class="line"></span><br><span class="line">ch.port2.onmessage = <span class="function"><span class="keyword">function</span> <span class="title">work</span>(<span class="params"></span>)  </span>&#123;</span><br><span class="line">  <span class="comment">// 在绘制之后被执行</span></span><br><span class="line">  <span class="keyword">if</span> (pendingCallback) &#123;</span><br><span class="line">    <span class="keyword">const</span> now = performance.now()</span><br><span class="line">    <span class="comment">// 通过now - startTime可以计算出requestAnimationFrame到绘制结束的执行时间</span></span><br><span class="line">    <span class="comment">// 通过这些数据来计算剩余时间</span></span><br><span class="line">    <span class="comment">// 另外还要处理超时(timeout)，避免任务被饿死</span></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">if</span> (hasRemain &amp;&amp; noTimeout) &#123;</span><br><span class="line">      pendingCallback(deadline)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">simpleRequestIdleCallback</span>(<span class="params">callback, timeout</span>) </span>&#123;</span><br><span class="line">  requestAnimationFrame(<span class="function"><span class="keyword">function</span> <span class="title">animation</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="comment">// 在绘制之前被执行</span></span><br><span class="line">    <span class="comment">// 记录开始时间</span></span><br><span class="line">    startTime = performance.now()</span><br><span class="line">    timeout = timeout</span><br><span class="line">    dosomething()</span><br><span class="line">    <span class="comment">// 调度回调到绘制结束后执行</span></span><br><span class="line">    pendingCallback = callback</span><br><span class="line">    ch.port1.postMessage(<span class="string">'hello'</span>)</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong>任务优先级</strong></p>
+<p>上面说了，为了避免任务被饿死，可以设置一个超时时间. <strong>这个超时时间不是死的，低优先级的可以慢慢等待, 高优先级的任务应该率先被执行</strong>. 目前 React 预定义了 5 个优先级, 这个我在[《谈谈React事件机制和未来(react-events)》]中也介绍过:</p>
+<ul>
+<li><code>Immediate</code>(-1) - 这个优先级的任务会同步执行, 或者说要马上执行且不能中断</li>
+<li><code>UserBlocking</code>(250ms) 这些任务一般是用户交互的结果, 需要即时得到反馈</li>
+<li><code>Normal</code> (5s) 应对哪些不需要立即感受到的任务，例如网络请求</li>
+<li><code>Low</code> (10s) 这些任务可以放后，但是最终应该得到执行. 例如分析通知</li>
+<li><code>Idle</code> (没有超时时间) 一些没有必要做的任务 (e.g. 比如隐藏的内容), 可能会被饿死</li>
+</ul>
+<p><strong>答3: 太麻烦</strong></p>
+<p>官方在<a href="https://github.com/facebook/react/issues/7942" target="_blank" rel="noopener">《Fiber Principles: Contributing To Fiber》</a> 也作出了解答。主要有两个原因：</p>
+<ol>
+<li>Generator 不能在栈中间让出。比如你想在嵌套的函数调用中间让出, 首先你需要将这些函数都包装成Generator，另外这种栈中间的让出处理起来也比较麻烦，难以理解。除了语法开销，现有的生成器实现开销比较大，所以不如不用。</li>
+<li>Generator 是有状态的, 很难在中间恢复这些状态。</li>
+</ol>
+<blockquote>
+<p>上面理解可能有出入，建议看一下原文</p>
+</blockquote>
+<p>可能都没看懂，简单就是 React 尝试过用 Generator 实现，后来发现很麻烦，就放弃了。</p>
+<h3 id="一个执行单元"><a href="#一个执行单元" class="headerlink" title="一个执行单元"></a>一个执行单元</h3><p>Fiber的另外一种解读是’纤维‘: <strong>这是一种数据结构或者说执行单元</strong>。我们暂且不管这个数据结构长什么样，<strong>将它视作一个执行单元，每次执行完一个’执行单元’,  React 就会检查现在还剩多少时间，如果没有时间就将控制权让出去</strong>.</p>
+<p>上文说了，React 没有使用 Generator 这些语言/语法层面的让出机制，而是实现了自己的调度让出机制。这个机制就是基于’Fiber‘这个执行单元的，它的过程如下：</p>
+<p>假设用户调用 <code>setState</code> 更新组件, 这个待更新的任务会先放入队列中, 然后通过 <code>requestIdleCallback</code> 请求浏览器调度：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">updateQueue.push(updateTask);</span><br><span class="line">requestIdleCallback(performWork, &#123;timeout&#125;);</span><br></pre></td></tr></table></figure></p>
+<p>现在浏览器有空闲或者超时了就会调用<code>performWork</code>来执行任务：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. performWork 会拿到一个Deadline，表示剩余时间</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">performWork</span>(<span class="params">deadline</span>) </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 2. 循环取出updateQueue中的任务</span></span><br><span class="line">  <span class="keyword">while</span> (updateQueue.length &gt; <span class="number">0</span> &amp;&amp; deadline.timeRemaining() &gt; ENOUGH_TIME) &#123;</span><br><span class="line">    workLoop(deadline);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 3. 如果在本次执行中，未能将所有任务执行完毕，那就再请求浏览器调度</span></span><br><span class="line">  <span class="keyword">if</span> (updateQueue.length &gt; <span class="number">0</span>) &#123;</span><br><span class="line">    requestIdleCallback(performWork);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><strong><code>workLoop</code> 的工作大概猜到了，它会从更新队列(updateQueue)中弹出更新任务来执行，每执行完一个‘<code>执行单元</code>‘，就检查一下剩余时间是否充足，如果充足就进行执行下一个<code>执行单元</code>，反之则停止执行，保存现场，等下一次有执行权时恢复</strong>:</p>
+ <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 保存当前的处理现场</span></span><br><span class="line"><span class="keyword">let</span> nextUnitOfWork: Fiber | <span class="literal">undefined</span> <span class="comment">// 保存下一个需要处理的工作单元</span></span><br><span class="line"><span class="keyword">let</span> topWork: Fiber | <span class="literal">undefined</span>        <span class="comment">// 保存第一个工作单元</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">workLoop</span>(<span class="params">deadline: IdleDeadline</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// updateQueue中获取下一个或者恢复上一次中断的执行单元</span></span><br><span class="line">  <span class="keyword">if</span> (nextUnitOfWork == <span class="literal">null</span>) &#123;</span><br><span class="line">    nextUnitOfWork = topWork = getNextUnitOfWork();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">//  每执行完一个执行单元，检查一次剩余时间</span></span><br><span class="line">  <span class="comment">// 如果被中断，下一次执行还是从 nextUnitOfWork 开始处理</span></span><br><span class="line">  <span class="keyword">while</span> (nextUnitOfWork &amp;&amp; deadline.timeRemaining() &gt; ENOUGH_TIME) &#123;</span><br><span class="line">    <span class="comment">// 下文我们再看performUnitOfWork</span></span><br><span class="line">    nextUnitOfWork = performUnitOfWork(nextUnitOfWork, topWork);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 提交工作，下文会介绍</span></span><br><span class="line">  <span class="keyword">if</span> (pendingCommit) &#123;</span><br><span class="line">    commitAllWork(pendingCommit);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>画个流程图吧！</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67354445-adfdeb00-f587-11e9-8bff-fd316c181007.png" alt="image"></p>
+<h2 id="React-的Fiber改造"><a href="#React-的Fiber改造" class="headerlink" title="React 的Fiber改造"></a>React 的Fiber改造</h2><p>Fiber 的核心内容已经介绍完了，现在来进一步看看React 为 Fiber 架构做了哪些改造, 如果你对这部分内容不感兴趣可以跳过。</p>
+<h3 id="1-数据结构的调整"><a href="#1-数据结构的调整" class="headerlink" title="1. 数据结构的调整"></a>1. 数据结构的调整</h3><p><img src="https://user-images.githubusercontent.com/16753554/67354445-adfdeb00-f587-11e9-8bff-fd316c181007.png" alt="image"><br>左侧是Virtual DOM，右侧可以看作diff的递归调用栈</p>
+<p>上文中提到 React 16 之前，Reconcilation 是同步的、递归执行的。也就是说这是基于函数’调用栈‘的Reconcilation算法，因此通常也称它为<code>Stack Reconcilation</code>. 你可以通过这篇文章<a href="https://juejin.im/post/5cfa29e151882539c33e4f5e" target="_blank" rel="noopener">《从Preact中了解React组件和hooks基本原理》</a> 来回顾一下历史。</p>
+<p>栈挺好的，代码量少，递归容易理解, 至少比现在的 React Fiber架构好理解😂, 递归非常适合树这种嵌套数据结构的处理。</p>
+<p>只不过这种依赖于调用栈的方式不能随意中断、也很难被恢复, 不利于异步处理。 这种调用栈，不是程序所能控制的， 如果你要恢复递归现场，可能需要从头开始, 恢复到之前的调用栈。</p>
+<p>因此<strong>首先我们需要对React现有的数据结构进行调整，<a href="https://zhuanlan.zhihu.com/p/36425839" target="_blank" rel="noopener"><code>模拟函数调用栈</code></a>, 将之前需要递归进行处理的事情分解成增量的执行单元，将递归转换成迭代</strong>.</p>
+<p>React 目前的做法是使用<code>链表</code>, 每个 VirtualDOM 节点内部现在使用 <code>Fiber</code>表示, 它的结构大概如下:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">export</span> type Fiber = &#123;</span><br><span class="line">  <span class="comment">// Fiber 类型信息</span></span><br><span class="line">  type: any,</span><br><span class="line">  <span class="comment">// ...// ⚛️ 链表结构// 指向父节点，或者render该节点的组件return: Fiber | null,</span></span><br><span class="line">  <span class="comment">// 指向第一个子节点</span></span><br><span class="line">  child: Fiber | <span class="literal">null</span>,</span><br><span class="line">  <span class="comment">// 指向下一个兄弟节点</span></span><br><span class="line">  sibling: Fiber | <span class="literal">null</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>用图片来展示这种关系会更直观一些：</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67354496-da196c00-f587-11e9-8f2a-6a62e2c8e94b.png" alt="image"></p>
+<p><strong>使用链表结构只是一个结果，而不是目的，React 开发者一开始的目的是冲着模拟调用栈去的</strong>。这个很多关于Fiber 的文章都有提及, 关于调用栈的详细定义参见[Wiki]<br><img src="https://user-images.githubusercontent.com/16753554/67354576-0af9a100-f588-11e9-956b-4a6d6931ecb3.png" alt="image"></p>
+<blockquote>
+<p>调用栈最经常被用于存放子程序的<strong>返回地址</strong>。在调用任何子程序时，主程序都必须暂存子程序运行完毕后应该返回到的地址。因此，如果被调用的子程序还要调用其他的子程序，其自身的返回地址就必须存入调用栈，在其自身运行完毕后再行取回。除了返回地址，还会保存<code>本地变量</code>、<code>函数参数</code>、<code>环境传递</code>(Scope?)</p>
+</blockquote>
+<p>React Fiber 也被称为虚拟栈帧(Virtual Stack Frame), 你可以拿它和函数调用栈类比一下, 两者结构非常像:<br>函数调用栈Fiber基本单位函数Virtual DOM 节点输入函数参数Props本地状态本地变量State输出函数返回值React Element下级嵌套函数调用子节点(child)上级引用返回地址父节点(return)</p>
+<p>Fiber 和调用栈帧一样, 保存了节点处理的上下文信息，因为是手动实现的，所以更为可控，我们可以保存在内存中，随时中断和恢复。</p>
+<p>有了这个数据结构调整，现在可以以迭代的方式来处理这些节点了。来看看 <code>performUnitOfWork</code> 的实现, 它其实就是一个深度优先的遍历：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"> <span class="comment">/**</span></span><br><span class="line"><span class="comment"> * @params fiber 当前需要处理的节点</span></span><br><span class="line"><span class="comment"> * @params topWork 本次更新的根节点</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">performUnitOfWork</span>(<span class="params">fiber: Fiber, topWork: Fiber</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 对该节点进行处理</span></span><br><span class="line">  beginWork(fiber);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 如果存在子节点，那么下一个待处理的就是子节点</span></span><br><span class="line">  <span class="keyword">if</span> (fiber.child) &#123;</span><br><span class="line">    <span class="keyword">return</span> fiber.child;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 没有子节点了，上溯查找兄弟节点</span></span><br><span class="line">  <span class="keyword">let</span> temp = fiber;</span><br><span class="line">  <span class="keyword">while</span> (temp) &#123;</span><br><span class="line">    completeWork(temp);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 到顶层节点了, 退出</span></span><br><span class="line">    <span class="keyword">if</span> (temp === topWork) &#123;</span><br><span class="line">      <span class="keyword">break</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 找到，下一个要处理的就是兄弟节点</span></span><br><span class="line">    <span class="keyword">if</span> (temp.sibling) &#123;</span><br><span class="line">      <span class="keyword">return</span> temp.sibling;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 没有, 继续上溯</span></span><br><span class="line">    temp = temp.return;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>你可以配合上文的 <code>workLoop</code> 一起看，<strong>Fiber 就是我们所说的工作单元，<code>performUnitOfWork</code> 负责对 <code>Fiber</code> 进行操作，并按照深度遍历的顺序返回下一个 Fiber</strong>。</p>
+<p><strong>因为使用了链表结构，即使处理流程被中断了，我们随时可以从上次未处理完的<code>Fiber</code>继续遍历下去</strong>。</p>
+<p>整个迭代顺序和之前递归的一样, 下图假设在 <code>div.app</code> 进行了更新：</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358143-0803ae00-f592-11e9-9c6b-1d9b126cd878.png" alt="image"></p>
+<p>比如你在<code>text(hello)</code>中断了，那么下一次就会从 <code>p</code> 节点开始处理</p>
+<p>这个数据结构调整还有一个好处，就是某些节点异常时，我们可以打印出完整的’节点栈‘，只需要沿着节点的<code>return</code>回溯即可。</p>
+<h3 id="两个阶段的拆分"><a href="#两个阶段的拆分" class="headerlink" title="两个阶段的拆分"></a>两个阶段的拆分</h3><p><img src="https://user-images.githubusercontent.com/16753554/67358165-194cba80-f592-11e9-8716-d619fc8fe25b.png" alt="image"></p>
+<p>如果你现在使用最新的 React 版本(v16), 使用 Chrome 的 Performance 工具，可以很清晰地看到每次渲染有两个阶段：<code>Reconciliation</code>(协调阶段) 和 <code>Commit</code>(提交阶段).</p>
+<blockquote>
+<p>我在之前的多篇文章中都有提及: <a href="https://juejin.im/post/5d8395646fb9a06ad16faa57" target="_blank" rel="noopener">《自己写个React渲染器: 以 Remax 为例(用React写小程序)》</a></p>
+</blockquote>
+<p>除了Fiber 工作单元的拆分，两阶段的拆分也是一个非常重要的改造，在此之前都是一边Diff一边提交的。先来看看这两者的区别:</p>
+<ul>
+<li><p><strong> 协调阶段</strong>: 可以认为是 Diff 阶段, <strong>这个阶段可以被中断</strong>, 这个阶段会找出所有节点变更，例如节点新增、删除、属性变更等等, 这些变更React 称之为’<code>副作用</code>(Effect)’ . 以下生命周期钩子会在协调阶段被调用：</p>
+</li>
+<li><p>constructor</p>
+</li>
+<li>componentWillMount 废弃</li>
+<li>componentWillReceiveProps 废弃</li>
+<li>static getDerivedStateFromProps</li>
+<li>shouldComponentUpdate</li>
+<li>componentWillUpdate 废弃</li>
+<li>render</li>
+<li>getSnapshotBeforeUpdate()</li>
+</ul>
+<hr>
+<ul>
+<li><p><strong> 提交阶段</strong>: 将上一个阶段计算出来的需要处理的<strong>副作用(Effects)</strong>一次性执行了。<strong>这个阶段必须同步执行，不能被打断</strong>. 这些生命周期钩子在提交阶段被执行:</p>
+</li>
+<li><p>componentDidMount</p>
+</li>
+<li>componentDidUpdate</li>
+<li>componentWillUnmount</li>
+</ul>
+<p>也就是说，在协调阶段如果时间片用完，React就会选择让出控制权。因为协调阶段执行的工作不会导致任何用户可见的变更，所以在这个阶段让出控制权不会有什么问题。</p>
+<p>需要注意的是：因为协调阶段可能被中断、恢复，甚至重做，<strong>⚠️React 协调阶段的生命周期钩子可能会被调用多次!</strong>, 例如 <code>componentWillMount</code> 可能会被调用两次。</p>
+<p>因此建议 <strong>协调阶段的生命周期钩子不要包含副作用</strong>. 索性 React 就废弃了这部分可能包含副作用的生命周期方法，例如<code>componentWillMount</code>、<code>componentWillMount</code>. v17后我们就不能再用它们了, 所以现有的应用应该尽快迁移.</p>
+<p>现在你应该知道为什么’提交阶段’必须同步执行，不能中断的吧？ 因为我们要正确地处理各种副作用，包括DOM变更、还有你在<code>componentDidMount</code>中发起的异步请求、useEffect 中定义的副作用… 因为有副作用，所以必须保证按照次序只调用一次，况且会有用户可以察觉到的变更, 不容差池。</p>
+<p>关于为什么要拆分两个阶段，<a href="https://github.com/facebook/react/issues/13186#issuecomment-403959161" target="_blank" rel="noopener">这里</a>有更详细的解释。</p>
+<h3 id="Reconcilation"><a href="#Reconcilation" class="headerlink" title="Reconcilation"></a>Reconcilation</h3><p>接下来就是就是我们熟知的<code>Reconcilation</code>(为了方便理解，本文不区分Diff和Reconcilation, 两者是同一个东西)阶段了. <strong>思路和 Fiber 重构之前差别不大, 只不过这里不会再递归去比对、而且不会马上提交变更</strong>。</p>
+<p>首先再进一步看一下<code>Fiber</code>的结构:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"> interface Fiber &#123;</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * ⚛️ 节点的类型信息</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="comment">// 标记 Fiber 类型, 例如函数组件、类组件、宿主组件</span></span><br><span class="line">  tag: WorkTag,</span><br><span class="line">  <span class="comment">// 节点元素类型, 是具体的类组件、函数组件、宿主组件(字符串)</span></span><br><span class="line">  type: any,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * ⚛️ 结构信息</span></span><br><span class="line"><span class="comment">   */</span> </span><br><span class="line">  <span class="keyword">return</span>: Fiber | <span class="literal">null</span>,</span><br><span class="line">  child: Fiber | <span class="literal">null</span>,</span><br><span class="line">  sibling: Fiber | <span class="literal">null</span>,</span><br><span class="line">  <span class="comment">// 子节点的唯一键, 即我们渲染列表传入的key属性</span></span><br><span class="line">  key: <span class="literal">null</span> | string,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * ⚛️ 节点的状态</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="comment">// 节点实例(状态)：</span></span><br><span class="line">  <span class="comment">//        对于宿主组件，这里保存宿主组件的实例, 例如DOM节点。</span></span><br><span class="line">  <span class="comment">//        对于类组件来说，这里保存类组件的实例</span></span><br><span class="line">  <span class="comment">//        对于函数组件说，这里为空，因为函数组件没有实例</span></span><br><span class="line">  stateNode: any,</span><br><span class="line">  <span class="comment">// 新的、待处理的props</span></span><br><span class="line">  pendingProps: any,</span><br><span class="line">  <span class="comment">// 上一次渲染的props</span></span><br><span class="line">  memoizedProps: any, <span class="comment">// The props used to create the output.</span></span><br><span class="line">  <span class="comment">// 上一次渲染的组件状态</span></span><br><span class="line">  memoizedState: any,</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * ⚛️ 副作用</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="comment">// 当前节点的副作用类型，例如节点更新、删除、移动</span></span><br><span class="line">  effectTag: SideEffectTag,</span><br><span class="line">  <span class="comment">// 和节点关系一样，React 同样使用链表来将所有有副作用的Fiber连接起来</span></span><br><span class="line">  nextEffect: Fiber | <span class="literal">null</span>,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * ⚛️ 替身</span></span><br><span class="line"><span class="comment">   * 指向旧树中的节点</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  alternate: Fiber | <span class="literal">null</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Fiber 包含的属性可以划分为 5 个部分:</p>
+<ul>
+<li><strong> 结构信息</strong> - 这个上文我们已经见过了，Fiber 使用链表的形式来表示节点在树中的定位</li>
+<li><strong>节点类型信息</strong> - 这个也容易理解，tag表示节点的分类、type 保存具体的类型值，如div、MyComp</li>
+<li><strong>节点的状态</strong> - 节点的组件实例、props、state等，它们将影响组件的输出</li>
+<li><p><strong> 副作用</strong> - 这个也是新东西. 在 Reconciliation 过程中发现的’副作用’(变更需求)就保存在节点的<code>effectTag</code> 中(想象为打上一个标记).<br>那么怎么将本次渲染的所有节点副作用都收集起来呢？ 这里也使用了链表结构，在遍历过程中React会将所有有‘副作用’的节点都通过<code>nextEffect</code>连接起来</p>
+</li>
+<li><p><strong> 替身</strong> - React 在 Reconciliation 过程中会构建一颗新的树(官方称为workInProgress tree，<strong>WIP树</strong>)，可以认为是一颗表示当前工作进度的树。还有一颗表示已渲染界面的<strong>旧树</strong>，React就是一边和旧树比对，一边构建WIP树的。 alternate 指向旧树的同等节点。</p>
+</li>
+</ul>
+<p>现在可以放大看看<code>beginWork</code>  是如何对 Fiber 进行比对的:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"> <span class="function"><span class="keyword">function</span> <span class="title">beginWork</span>(<span class="params">fiber: Fiber</span>): <span class="title">Fiber</span> | <span class="title">undefined</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (fiber.tag === WorkTag.HostComponent) &#123;</span><br><span class="line">    <span class="comment">// 宿主节点diff</span></span><br><span class="line">    diffHostComponent(fiber)</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (fiber.tag === WorkTag.ClassComponent) &#123;</span><br><span class="line">    <span class="comment">// 类组件节点diff</span></span><br><span class="line">    diffClassComponent(fiber)</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (fiber.tag === WorkTag.FunctionComponent) &#123;</span><br><span class="line">    <span class="comment">// 函数组件节点diff</span></span><br><span class="line">    diffFunctionalComponent(fiber)</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// ... 其他类型节点，省略</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>宿主节点比对:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"> <span class="function"><span class="keyword">function</span> <span class="title">diffHostComponent</span>(<span class="params">fiber: Fiber</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 新增节点</span></span><br><span class="line">  <span class="keyword">if</span> (fiber.stateNode == <span class="literal">null</span>) &#123;</span><br><span class="line">    fiber.stateNode = createHostComponent(fiber)</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    updateHostComponent(fiber)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">const</span> newChildren = fiber.pendingProps.children;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 比对子节点</span></span><br><span class="line">  diffChildren(fiber, newChildren);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>类组件节点比对也差不多:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">diffClassComponent</span>(<span class="params">fiber: Fiber</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 创建组件实例</span></span><br><span class="line">  <span class="keyword">if</span> (fiber.stateNode == <span class="literal">null</span>) &#123;</span><br><span class="line">    fiber.stateNode = createInstance(fiber);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (fiber.hasMounted) &#123;</span><br><span class="line">    <span class="comment">// 调用更新前生命周期钩子</span></span><br><span class="line">    applybeforeUpdateHooks(fiber)</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// 调用挂载前生命周期钩子</span></span><br><span class="line">    applybeforeMountHooks(fiber)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 渲染新节点</span></span><br><span class="line">  <span class="keyword">const</span> newChildren = fiber.stateNode.render();</span><br><span class="line">  <span class="comment">// 比对子节点</span></span><br><span class="line">  diffChildren(fiber, newChildren);</span><br><span class="line"></span><br><span class="line">  fiber.memoizedState = fiber.stateNode.state</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>子节点比对:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">diffChildren</span>(<span class="params">fiber: Fiber, newChildren: React.ReactNode</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> oldFiber = fiber.alternate ? fiber.alternate.child : <span class="literal">null</span>;</span><br><span class="line">  <span class="comment">// 全新节点，直接挂载</span></span><br><span class="line">  <span class="keyword">if</span> (oldFiber == <span class="literal">null</span>) &#123;</span><br><span class="line">    mountChildFibers(fiber, newChildren)</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">let</span> index = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">let</span> newFiber = <span class="literal">null</span>;</span><br><span class="line">  <span class="comment">// 新子节点</span></span><br><span class="line">  <span class="keyword">const</span> elements = extraElements(newChildren)</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 比对子元素</span></span><br><span class="line">  <span class="keyword">while</span> (index &lt; elements.length || oldFiber != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">const</span> prevFiber = newFiber;</span><br><span class="line">    <span class="keyword">const</span> element = elements[index]</span><br><span class="line">    <span class="keyword">const</span> sameType = isSameType(element, oldFiber)</span><br><span class="line">    <span class="keyword">if</span> (sameType) &#123;</span><br><span class="line">      newFiber = cloneFiber(oldFiber, element)</span><br><span class="line">      <span class="comment">// 更新关系</span></span><br><span class="line">      newFiber.alternate = oldFiber</span><br><span class="line">      <span class="comment">// 打上Tag</span></span><br><span class="line">      newFiber.effectTag = UPDATE</span><br><span class="line">      newFiber.return = fiber</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 新节点</span></span><br><span class="line">    <span class="keyword">if</span> (element &amp;&amp; !sameType) &#123;</span><br><span class="line">      newFiber = createFiber(element)</span><br><span class="line">      newFiber.effectTag = PLACEMENT</span><br><span class="line">      newFiber.return = fiber</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 删除旧节点</span></span><br><span class="line">    <span class="keyword">if</span> (oldFiber &amp;&amp; !sameType) &#123;</span><br><span class="line">      oldFiber.effectTag = DELETION;</span><br><span class="line">      oldFiber.nextEffect = fiber.nextEffect</span><br><span class="line">      fiber.nextEffect = oldFiber</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (oldFiber) &#123;</span><br><span class="line">      oldFiber = oldFiber.sibling;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (index == <span class="number">0</span>) &#123;</span><br><span class="line">      fiber.child = newFiber;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (prevFiber &amp;&amp; element) &#123;</span><br><span class="line">      prevFiber.sibling = newFiber;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    index++</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>上面的代码很粗糙地还原了 Reconciliation 的过程, 但是对于我们理解React的基本原理已经足够了.</p>
+<p>这里引用一下<a href="https://www.youtube.com/watch?v=ZCuYPiUIONs" target="_blank" rel="noopener">Youtube: Lin Clark presentation in ReactConf 2017</a> 的Slide，来还原 Reconciliation 的过程. Lin Clark 这个演讲太经典了，几乎所有介绍 React Fiber 的文章都会引用它的Slide. 偷个懒，我也用下:</p>
+<blockquote>
+<p>这篇文章<a href="https://juejin.im/post/5ab7b3a2f265da2378403e57" target="_blank" rel="noopener">《React Fiber》</a> 用文字版解释了Link Clark Slide.</p>
+</blockquote>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358367-bf98c000-f592-11e9-8c1c-2da683711801.png" alt="image"></p>
+<p>上图是 Reconciliation 完成后的状态，左边是旧树，右边是WIP树。对于需要变更的节点，都打上了’标签’。 在提交阶段，React 就会将这些打上标签的节点应用变更。</p>
+<h3 id="双缓冲"><a href="#双缓冲" class="headerlink" title="双缓冲"></a>双缓冲</h3><p><code>WIP 树</code>构建这种技术类似于图形化领域的’<strong>双缓存(Double Buffering)</strong>‘技术, 图形绘制引擎一般会使用双缓冲技术，先将图片绘制到一个缓冲区，再一次性传递给屏幕进行显示，这样可以防止屏幕抖动，优化渲染性能。</p>
+<p>放到React 中，WIP树就是一个缓冲，它在Reconciliation 完毕后一次性提交给浏览器进行渲染。它可以减少内存分配和垃圾回收，WIP 的节点不完全是新的，比如某颗子树不需要变动，React会克隆复用旧树中的子树。</p>
+<p>双缓存技术还有另外一个重要的场景就是异常的处理，比如当一个节点抛出异常，仍然可以继续沿用旧树的节点，避免整棵树挂掉。</p>
+<p>Dan 在 <a href="https://reactjs.org/blog/2018/03/01/sneak-peek-beyond-react-16.html" target="_blank" rel="noopener">Beyond React 16</a> 演讲中用了一个非常恰当的比喻，那就是Git 功能分支，<strong>你可以将 WIP 树想象成从旧树中 Fork 出来的功能分支，你在这新分支中添加或移除特性，即使是操作失误也不会影响旧的分支。当你这个分支经过了测试和完善，就可以合并到旧分支，将其替换掉. 这或许就是’提交(commit)阶段‘的提交一词的来源吧？</strong>:</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358414-db9c6180-f592-11e9-8cf4-bdeecf0e1744.png" alt="image"></p>
+<h3 id="副作用的收集和提交"><a href="#副作用的收集和提交" class="headerlink" title="副作用的收集和提交"></a>副作用的收集和提交</h3><p>接下来就是将所有打了 Effect 标记的节点串联起来，这个可以在<code>completeWork</code>中做, 例如:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"> <span class="function"><span class="keyword">function</span> <span class="title">completeWork</span>(<span class="params">fiber</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">const</span> parent = fiber.return</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 到达顶端</span></span><br><span class="line">  <span class="keyword">if</span> (parent == <span class="literal">null</span> || fiber === topWork) &#123;</span><br><span class="line">    pendingCommit = fiber</span><br><span class="line">    <span class="keyword">return</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (fiber.effectTag != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (parent.nextEffect) &#123;</span><br><span class="line">      parent.nextEffect.nextEffect = fiber</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      parent.nextEffect = fiber</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (fiber.nextEffect) &#123;</span><br><span class="line">    parent.nextEffect = fiber.nextEffect</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>最后了，将所有副作用提交了:<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"> <span class="function"><span class="keyword">function</span> <span class="title">commitAllWork</span>(<span class="params">fiber</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">let</span> next = fiber</span><br><span class="line">  <span class="keyword">while</span>(next) &#123;</span><br><span class="line">    <span class="keyword">if</span> (fiber.effectTag) &#123;</span><br><span class="line">      <span class="comment">// 提交，偷一下懒，这里就不展开了</span></span><br><span class="line">      commitWork(fiber)</span><br><span class="line">    &#125;</span><br><span class="line">    next = fiber.nextEffect</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 清理现场</span></span><br><span class="line">  pendingCommit = nextUnitOfWork = topWork = <span class="literal">null</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="未展开部分-–-中断和恢复"><a href="#未展开部分-–-中断和恢复" class="headerlink" title="未展开部分  –  中断和恢复"></a>未展开部分  –  中断和恢复</h2><p>上文只是介绍了简单的中断和恢复机制，我们从哪里跌倒就从哪里站起来，在哪个节点中断就从哪个节点继续处理下去。 也就是说，到目前为止：<strong>⚠️更新任务还是串行执行的，我们只是将整个过程碎片化了. 对于那些需要优先处理的更新任务还是会被阻塞</strong>。我个人觉得这才是 React Fiber 中最难处理的一部分。</p>
+<p><strong>实际情况是，在 React 得到控制权后，应该优先处理高优先级的任务</strong>。也就是说中断时正在处理的任务，在恢复时会让位给高优先级任务，原本中断的任务可能会被放弃或者重做。</p>
+<p><strong>但是如果不按顺序执行任务，可能会导致前后的状态不一致</strong>。 比如低优先级任务将 <code>a</code> 设置为0，而高优先级任务将 <code>a</code> 递增1, 两个任务的执行顺序会影响最终的渲染结果。因此<strong>要让高优先级任务插队, 首先要保证状态更新的时序</strong>。</p>
+<p>解决办法是: <strong>所有更新任务按照顺序插入一个队列, 状态必须按照插入顺序进行计算，但任务可以按优先级顺序执行</strong>, 例如：</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358452-038bc500-f593-11e9-8e3a-3a0d67377616.png" alt="image"></p>
+<p>红色表示高优先级任务。要计算它的状态必须基于前序任务计算出来的状态, 从而保证<strong>状态的最终一致性</strong>：</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358456-0ab2d300-f593-11e9-8ca9-05273d224993.png" alt="image"></p>
+<p>最终红色的高优先级任务 <code>C</code> 执行时的状态值是<code>a=5,b=3</code>. 在恢复控制权时，会按照优先级先执行 <code>C</code>, 前面的<code>A</code>、 <code>B</code>暂时跳过</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358459-10101d80-f593-11e9-93cc-8ef9bd4e0a65.png" alt="image"></p>
+<p>上面被跳过任务不会被移除，在执行完高优先级任务后它们还是会被执行的。因为不同的更新任务影响的节点树范围可能是不一样的，举个例子 <code>a</code>、<code>b</code> 可能会影响 <code>Foo</code> 组件树，而 <code>c</code> 会影响 <code>Bar</code> 组件树。所以为了保证<strong>视图的最终一致性</strong>, 所有更新任务都要被执行。</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358472-18685880-f593-11e9-8f8a-e0a2e113e7f1.png" alt="image"></p>
+<p>首先 <code>C</code> 先被执行，它更新了 <code>Foo</code> 组件</p>
+<p>接着执行 <code>A</code> 任务，它更新了<code>Foo</code> 和 <code>Bar</code> 组件，由于 <code>C</code> 已经以最终状态<code>a=5, b=3</code>更新了<code>Foo</code>组件，这里可以做一下性能优化，直接复用C的更新结果， 不必触发重新渲染。因此 <code>A</code> 仅需更新 <code>Bar</code> 组件即可。</p>
+<p>接着执行 <code>B</code>，同理可以复用 Foo 更新结果。</p>
+<p>道理讲起来都很简单，React Fiber 实际上非常复杂，不管执行的过程怎样拆分、以什么顺序执行，最重要的是保证<strong>状态的一致性</strong>和<strong>视图的一致性</strong>，这给了 React 团队很大的考验，以致于现在都没有正式release出来。</p>
+<h2 id="凌波微步"><a href="#凌波微步" class="headerlink" title="凌波微步"></a>凌波微步</h2><p><img src="https://user-images.githubusercontent.com/16753554/67358490-2f0eaf80-f593-11e9-8da3-53dc61954f85.png" alt="image"></p>
+<p>同样来自Link Clark 的 Slider<br>前面说了一大堆，从操作系统进程调度、到浏览器原理、再到合作式调度、最后谈了React的基本改造工作, 地老天荒… 就是为了上面的小人可以在练就凌波微步, 它脚下的坑是浏览器的调用栈。</p>
+<p>React 开启 <code>Concurrent Mode</code> 之后就不会挖大坑了，而是一小坑一坑的挖，挖一下休息一下，有紧急任务就优先去做。</p>
+<p><img src="https://user-images.githubusercontent.com/16753554/67358490-2f0eaf80-f593-11e9-8da3-53dc61954f85.png" alt="image"></p>
+<p>来源：<a href="https://www.youtube.com/watch?v=V1Ly-8Z1wQA&amp;t=207s" target="_blank" rel="noopener">Flarnie Marchan - Ready for Concurrent Mode?</a></p>
+<p>开启 <code>Concurrent Mode</code> 后，我们可以得到以下好处(详见<a href="https://www.youtube.com/watch?v=ByBPyMBTzM0" target="_blank" rel="noopener">Concurrent Rendering in React</a>):</p>
+<ul>
+<li>快速响应用户操作和输入，提升用户交互体验</li>
+<li>让动画更加流畅，通过调度，可以让应用保持高帧率</li>
+<li>利用好I/O 操作空闲期或者CPU空闲期，进行一些预渲染。 比如离屏(offscreen)不可见的内容，优先级最低，可以让 React 等到CPU空闲时才去渲染这部分内容。这和浏览器的preload等预加载技术差不多。</li>
+<li>用<code>Suspense</code> 降低加载状态(load state)的优先级，减少闪屏。 比如数据很快返回时，可以不必显示加载状态，而是直接显示出来，避免闪屏；如果超时没有返回才显式加载状态。</li>
+</ul>
+<p>但是它肯定不是完美的，因为浏览器无法实现抢占式调度，无法阻止开发者做傻事的，开发者可以随心所欲，想挖多大的坑，就挖多大的坑。</p>
+<p>为了共同创造美好的世界，我们要严律于己，该做的优化还需要做: 纯组件、虚表、简化组件、缓存…</p>
+<p>尤雨溪在今年的<a href="https://www.yuque.com/vueconf/2019" target="_blank" rel="noopener">Vue Conf</a>一个观点让我印象深刻：<strong>如果我们可以把更新做得足够快的话，理论上就不需要时间分片了</strong>。</p>
+<p><strong>时间分片并没有降低整体的工作量，该做的还是要做</strong>, 因此React 也在考虑利用CPU空闲或者I/O空闲期间做一些预渲染。所以跟尤雨溪说的一样：React Fiber 本质上是为了解决 React 更新低效率的问题，<strong>不要期望 Fiber 能给你现有应用带来质的提升, 如果性能问题是自己造成的，自己的锅还是得自己背</strong>.</p>
+<h2 id="站在巨人的肩膀上"><a href="#站在巨人的肩膀上" class="headerlink" title="站在巨人的肩膀上"></a>站在巨人的肩膀上</h2><p>本文之所以能成文，离不开社区上优质的开源项目和资料。</p>
+<p><strong>迷你 Fiber 实现</strong>:</p>
+<p>React 现在的代码库太复杂了! 而且一直在变动和推翻自己，<a href="https://www.zhihu.com/people/he-shi-jun" target="_blank" rel="noopener">Hax</a> 在 <a href="https://www.zhihu.com/question/270428598/answer/354017709" target="_blank" rel="noopener">《为什么社区里那些类 React 库至今没有选择实现 Fiber 架构？》 </a> 就开玩笑说: Fiber 性价比略低… 到了这个阶段，竞品太多，facebook 就搞一个 fiber 来作为护城河……</p>
+<p>这种工程量不是一般团队能Hold住的， 如果你只是想了解 Fiber，去读 React 的源码性价比也很低，不妨看看这些 Mini 版实现, 感受其精髓，不求甚解:</p>
+<ul>
+<li><a href="https://github.com/RubyLouvre/anu" target="_blank" rel="noopener">anu</a><a href="https://github.com/RubyLouvre" target="_blank" rel="noopener">司徒正美</a> 开发的类React框架</li>
+<li><a href="https://github.com/132yse/fre" target="_blank" rel="noopener">Fre</a><a href="https://www.zhihu.com/people/132yse" target="_blank" rel="noopener">伊撒尔</a> 开发的类React框架，代码很精简⁉️</li>
+<li><a href="https://github.com/Foveluy/Luy" target="_blank" rel="noopener">Luy</a></li>
+<li><a href="https://github.com/pomber/didact" target="_blank" rel="noopener">didact</a></li>
+</ul>
+<p><strong>优秀的文章 &amp; 演讲</strong></p>
+<p>本文只是对React Fiber进行了简单的科普，实际上React 的实现比本文复杂的多，如果你想深入理解React Fiber的，下面这些文章不容错过:</p>
+<ul>
+<li><a href="https://www.youtube.com/watch?v=ZCuYPiUIONs" target="_blank" rel="noopener">Lin Clark - A Cartoon Intro to Fiber - React Conf 2017 👍🎦</a> React Fiber 启蒙，YouTube</li>
+<li><a href="https://reactjs.org/blog/2018/03/01/sneak-peek-beyond-react-16.html" target="_blank" rel="noopener">Beyond React 16 - Dan Abramov 👍🎦</a></li>
+<li><a href="https://www.youtube.com/watch?v=ByBPyMBTzM0&amp;t=151s" target="_blank" rel="noopener">Concurrent Rendering in React - Andrew Clark and Brian Vaughn 👍🎦</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/37095662" target="_blank" rel="noopener">司徒正美: React Fiber架构 👍</a> 看不如写</li>
+<li><a href="https://www.zhihu.com/people/NE_SmallTown/posts" target="_blank" rel="noopener">展望 React 17，回顾 React 往事 👍</a> 看完 <a href="https://www.zhihu.com/people/NE_SmallTown" target="_blank" rel="noopener">Heaven</a> 的相关文章，会觉得你了解的React 知识真的只是<a href="https://zhuanlan.zhihu.com/jheaven" target="_blank" rel="noopener">冰山一角</a>，我们都没资格说我们懂 React。</li>
+<li><a href="https://zhuanlan.zhihu.com/p/36425839" target="_blank" rel="noopener">浅入 React16/fiber 系列 👍</a> 同样来自 Heaven</li>
+<li><a href="https://www.zhihu.com/search?type=content&amp;q=requestIdleCallback" target="_blank" rel="noopener">淡苍：深入剖析 React Concurrent 👍</a></li>
+<li><a href="https://engineering.hexacta.com/didact-fiber-incremental-reconciliation-b2fe028dcaec" target="_blank" rel="noopener">Didact Fiber: Incremental reconciliation  👍</a> 实现了简单的 React Fiber</li>
+<li><a href="https://zhuanlan.zhihu.com/p/26027085" target="_blank" rel="noopener">程墨: React Fiber是什么</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/57346388" target="_blank" rel="noopener">译 深入React fiber架构及源码</a></li>
+<li><a href="http://www.ayqy.net/blog/dive-into-react-fiber/" target="_blank" rel="noopener">黯羽轻扬: 完全理解React Fiber</a></li>
+<li><a href="https://github.com/facebook/react/issues/7942" target="_blank" rel="noopener">Fiber Principles: Contributing To Fiber</a></li>
+<li><a href="https://philippspiess.com/scheduling-in-react/" target="_blank" rel="noopener">Scheduling in React</a></li>
+<li><a href="https://juejin.im/post/5d12c907f265da1b6d4033c5" target="_blank" rel="noopener">桃翁: Deep In React 之浅谈 React Fiber 架构（一）</a></li>
+<li><a href="https://juejin.im/post/5b028db26fb9a07ac162ba68#heading-12" target="_blank" rel="noopener">为 Luy 实现 React Fiber 架构</a></li>
+<li><a href="https://juejin.im/post/5ab7b3a2f265da2378403e57" target="_blank" rel="noopener">妖僧风月: React Fiber</a></li>
+<li><a href="https://www.youtube.com/watch?v=V1Ly-8Z1wQA&amp;t=207s" target="_blank" rel="noopener">Flarnie Marchan - Ready for Concurrent Mode? 🎦</a></li>
+<li><a href="https://developers.google.com/web/fundamentals/performance/rendering" target="_blank" rel="noopener">Web Fundamentals &gt; Performance</a></li>
+<li><a href="https://juejin.im/post/5ad71f39f265da239f07e862" target="_blank" rel="noopener">你应该知道的requestIdleCallback</a></li>
+<li><a href="https://www.404forest.com/2017/07/18/how-javascript-actually-works-eventloop-and-uirendering/" target="_blank" rel="noopener">深入探究 eventloop 与浏览器渲染的时序问题</a></li>
+<li><a href="https://nolanlawson.com/2018/09/25/accurately-measuring-layout-on-the-web/" target="_blank" rel="noopener">Accurately measuring layout on the web</a></li>
+</ul>
+<p><strong>自荐React 相关文章</strong></p>
+<p>回顾一下今年写的关于 React 的相关文章</p>
+<ul>
+<li><a href="https://juejin.im/post/5cd7f2c4e51d453a7d63b715" target="_blank" rel="noopener">React组件设计实践总结 系列 共5篇</a></li>
+<li><a href="https://juejin.im/post/5d8395646fb9a06ad16faa57" target="_blank" rel="noopener">自己写个React渲染器: 以 Remax 为例(用React写小程序)</a></li>
+<li><a href="https://juejin.im/post/5d44e3745188255d5861d654" target="_blank" rel="noopener">谈谈React事件机制和未来(react-events)</a></li>
+<li><a href="https://juejin.im/post/5d594ea5518825041301bbcb" target="_blank" rel="noopener">2019年了，整理了N个实用案例帮你快速迁移到React Hooks</a></li>
+<li><a href="https://juejin.im/post/5d045350f265da1b695d5bf2" target="_blank" rel="noopener">浅谈React性能优化的方向</a></li>
+<li><a href="https://juejin.im/post/5cfa29e151882539c33e4f5e" target="_blank" rel="noopener">从Preact中了解React组件和hooks基本原理</a></li>
+<li><a href="https://juejin.im/post/5d06bf0a51882528194a9736" target="_blank" rel="noopener">React性能测量和分析</a></li>
+</ul>
+<p>本文讲了 React 如何优化 CPU 问题，React 野心远不在于此, I/O 方向的优化也在实践，例如 Suspend…   </p>
+<h2 id="原文转自这可能是最通俗的-React-Fiber-打开方式"><a href="#原文转自这可能是最通俗的-React-Fiber-打开方式" class="headerlink" title="原文转自这可能是最通俗的 React Fiber 打开方式"></a>原文转自<a href="https://juejin.im/post/5dadc6045188255a270a0f85?utm_source=gold_browser_extension#comment" target="_blank" rel="noopener">这可能是最通俗的 React Fiber 打开方式</a></h2>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/react/" rel="tag"># react</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/10/20/Promise链式调用顺序引发的思考/" rel="next" title="Promise链式调用顺序引发的思考">
+                <i class="fa fa-chevron-left"></i> Promise链式调用顺序引发的思考
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">人生如逆旅     我亦是行人</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">178</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">121</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#单处理进程调度-Fiber-不是一个新的东西"><span class="nav-number">1.</span> <span class="nav-text">单处理进程调度: Fiber 不是一个新的东西</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#先到先得-First-Come-First-Served-FCFS"><span class="nav-number">1.1.</span> <span class="nav-text">先到先得(First-Come-First-Served, FCFS)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#轮转"><span class="nav-number">1.2.</span> <span class="nav-text">轮转</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#最短进程优先-Shortest-Process-Next-SPN"><span class="nav-number">1.3.</span> <span class="nav-text">最短进程优先(Shortest Process Next, SPN)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#最短剩余时间-Shortest-Remaining-Time-SRT"><span class="nav-number">1.4.</span> <span class="nav-text">最短剩余时间(Shortest Remaining Time, SRT)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#最高响应比优先-HRRN"><span class="nav-number">1.5.</span> <span class="nav-text">最高响应比优先(HRRN)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#反馈法"><span class="nav-number">1.6.</span> <span class="nav-text">反馈法</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#类比浏览器JavaScript执行环境"><span class="nav-number">2.</span> <span class="nav-text">类比浏览器JavaScript执行环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#何为-Fiber"><span class="nav-number">3.</span> <span class="nav-text">何为 Fiber</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-一种流程控制原语"><span class="nav-number">3.1.</span> <span class="nav-text">1. 一种流程控制原语</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#一个执行单元"><span class="nav-number">3.2.</span> <span class="nav-text">一个执行单元</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#React-的Fiber改造"><span class="nav-number">4.</span> <span class="nav-text">React 的Fiber改造</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-数据结构的调整"><span class="nav-number">4.1.</span> <span class="nav-text">1. 数据结构的调整</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#两个阶段的拆分"><span class="nav-number">4.2.</span> <span class="nav-text">两个阶段的拆分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Reconcilation"><span class="nav-number">4.3.</span> <span class="nav-text">Reconcilation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#双缓冲"><span class="nav-number">4.4.</span> <span class="nav-text">双缓冲</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#副作用的收集和提交"><span class="nav-number">4.5.</span> <span class="nav-text">副作用的收集和提交</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#未展开部分-–-中断和恢复"><span class="nav-number">5.</span> <span class="nav-text">未展开部分  –  中断和恢复</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#凌波微步"><span class="nav-number">6.</span> <span class="nav-text">凌波微步</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#站在巨人的肩膀上"><span class="nav-number">7.</span> <span class="nav-text">站在巨人的肩膀上</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#原文转自这可能是最通俗的-React-Fiber-打开方式"><span class="nav-number">8.</span> <span class="nav-text">原文转自这可能是最通俗的 React Fiber 打开方式</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+  <!--
+  	描述：点击红心
+  -->
+  <script type="text/javascript" src="/js/src/clicklove.js"></script>
+  <!--
+  	描述：复制代码
+  -->
+  <script type="text/javascript" src="/js/src/clipboard.min.js"></script>
+  <script type="text/javascript" src="/js/src/clipboard-use.js"></script>
+</body>
+</html>
+
+
