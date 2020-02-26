@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+  
+  
+    
+    
+  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
+  <link href="/lib/pace/pace-theme-minimal.min.css?v=1.0.2" rel="stylesheet">
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon.ico?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="面试官灵魂一问： 你知道 Babel 是如何编译 Async/Generator的吗？  polyfill 后的代码既然想知道其原理，那么自然是要看下 polyfill后的代码的，直接到 Babel官网的REPL在线编辑器上，配置好 presets 和 plugins后，输入你想要转化的代码，babel自动就会给你输出转化后的代码了 以下述代码为例：1234567async function t">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Babel是如何编译Async和Generator的">
+<meta property="og:url" content="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/index.html">
+<meta property="og:site_name" content="啷哩咯啷">
+<meta property="og:description" content="面试官灵魂一问： 你知道 Babel 是如何编译 Async/Generator的吗？  polyfill 后的代码既然想知道其原理，那么自然是要看下 polyfill后的代码的，直接到 Babel官网的REPL在线编辑器上，配置好 presets 和 plugins后，输入你想要转化的代码，babel自动就会给你输出转化后的代码了 以下述代码为例：1234567async function t">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/3.png">
+<meta property="og:image" content="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/1.png">
+<meta property="og:image" content="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/2.png">
+<meta property="og:updated_time" content="2020-02-26T15:21:49.032Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Babel是如何编译Async和Generator的">
+<meta name="twitter:description" content="面试官灵魂一问： 你知道 Babel 是如何编译 Async/Generator的吗？  polyfill 后的代码既然想知道其原理，那么自然是要看下 polyfill后的代码的，直接到 Babel官网的REPL在线编辑器上，配置好 presets 和 plugins后，输入你想要转化的代码，babel自动就会给你输出转化后的代码了 以下述代码为例：1234567async function t">
+<meta name="twitter:image" content="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/3.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/">
+
+
+
+
+
+  <title>Babel是如何编译Async和Generator的 | 啷哩咯啷</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband">
+    	<div class="eevee"><div class="body"><div class="head"><div class="ears"><div class="ear"><div class="lobe"></div></div><div class="ear"><div class="lobe"></div></div></div><div class="face"><div class="eyes"><div class="eye"><div class="eyelid"></div></div><div class="eye"><div class="eyelid"></div></div></div><div class="nose"></div><div class="mouth"></div></div></div><div class="chest"><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div><div class="fur"><div class="patch"></div></div></div><div class="legs"><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div><div class="leg"><div class="inner-leg"></div></div></div><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail"><div class="tail -end"></div></div></div></div></div></div></div></div>
+    </div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+    	<div id="sky">
+				<div id="background" class="container">
+			<!-- svg file -->
+			<svg id="svgout" height="100%" width="100%" viewbox="0 0 550 400">
+				<defs>
+					<g id="bottomShadow">
+						<path fill="#000000" stroke="none" d="
+		M 270.5 225.95
+		L 127.35 316.65 266.8 400 409.6 309.25 270.5 225.95 Z"/>
+					</g>
+					<g id="Layer52_0_FILL">
+						<path class="topGrass" fill="#B9D668" stroke="none" d="
+	M 397.85 229.3
+	L 397.85 225.6 269.85 152 135.75 228.6 135.75 233.65 262.1 306.55 397.85 229.3 Z"/>
+					</g>
+					<g id="Layer51_0_FILL">
+						<path class="leftSideGrass" fill="#6E9E4F" stroke="none" d="
+	M 135.1 229.95
+	L 135.1 256.85 262.1 328.4 262.1 301.85 135.1 229.95 Z"/>
+					</g>
+					<g id="Layer50_0_FILL">
+						<path class="rightGrassTop" fill="#8CB154" stroke="none" d="
+	M 397.85 225.95
+	L 395.8 225.95 261.75 301.55 261.75 328.4 397.85 251.15 397.85 225.95 Z"/>
+					</g>
+					<g id="Layer48_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.45 282.4
+	L 135.75 298.15 262.1 372.1 261.75 355.65 135.45 282.4 Z"/>
+					</g>
+					<g id="Layer47_0_FILL">
+						<path class="middleLeftCrust" fill="#C77E61" stroke="none" d="
+	M 135.1 270.3
+	L 135.1 283.05 275.9 364.35 271.85 348.9 135.1 270.3 Z"/>
+					</g>
+					<g id="Layer46_0_FILL">
+						<path class="crustLeftTop" fill="#955541" stroke="none" d="
+	M 135.1 255.15
+	L 135.1 270.3 262.1 343.55 262.1 328.05 135.1 255.15 Z"/>
+					</g>
+					<g id="Layer45_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 294.5
+	L 397.5 277 261.75 355.3 261.75 372.75 397.5 294.5 Z"/>
+					</g>
+					<g id="Layer44_0_FILL">
+						<path class="middleRightCrust" fill="#C89451" stroke="none" d="
+	M 397.5 269.95
+	L 397.15 266.6 262.1 343.2 262.1 355.95 397.5 279.7 397.5 269.95 Z"/>
+					</g>
+					<g id="Layer43_0_FILL">
+						<path class="topRightCrust" fill="#A47237" stroke="none" d="
+	M 397.5 266.6
+	L 397.5 250.45 261.75 328.4 261.75 343.85 397.5 266.6 Z"/>
+					</g>
+					<g id="Layer41_0_FILL">
+						<path class="greyRoad" fill="#B2B2B1" stroke="none" d="
+	M 295.05 283.05
+	Q 299.05 280.35 308.45 275.3 317.85 269.95 323.6 266.9
+	L 268.8 233.65 338.05 191.35 309.15 174.55 177.75 254.5
+	Q 191.55 262.2 198.25 266.25 204.65 269.95 209.7 271.95
+	L 241.6 250.45 295.05 283.05 Z"/>
+					</g>
+					<g id="Layer40_0_FILL">
+						<path fill="#FFFFFF" stroke="none" d="
+	M 199.95 256.85
+	Q 194.55 261.2 191.9 262.2
+	L 194.9 263.9 200.95 259.2 199.95 256.85
+	M 225.8 243.75
+	L 224.8 241.75 211.05 250.8 212.05 252.8 225.8 243.75
+	M 308.15 275.65
+	L 296.7 266.6 295.35 268.6 306.8 277.7 308.15 275.65
+	M 275.9 253.5
+	L 274.55 255.5 285.95 264.55 287.3 262.55 275.9 253.5
+	M 251.7 227.3
+	L 250.7 225.25 236.9 234.35 237.9 236.35 251.7 227.3
+	M 257.05 240.7
+	L 254.05 240.7 268.8 249.8 269.5 247.75 257.05 240.7
+	M 277.2 207.8
+	L 263.45 216.85 264.45 218.9 278.25 209.8 277.2 207.8
+	M 305.1 192.65
+	L 304.1 190.65 290.3 199.75 291.35 201.75 305.1 192.65 Z"/>
+					</g>
+					<g id="Layer38_0_FILL">
+						<path class="frontFascia" fill="#ECB27B" stroke="none" d="
+	M 359.25 187.95
+	L 346.4 174.95 333.85 202.9 359.25 187.95 Z"/>
+					</g>
+					<g id="Layer37_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 334 201.05
+	L 334.35 232 359.2 217.55 359.25 187.95 334 201.05 Z"/>
+					</g>
+					<g id="Layer36_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 334.35 232.3
+	L 334.35 205.1 305.1 191.35 305.1 216.85 334.35 232.3 Z"/>
+					</g>
+					<g id="Layer35_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 329.7 167.9
+	L 331.05 167.9 344.55 176.7 347.85 176.7 363 192.25 363.15 189.55 350.65 176.7 350.55 176.7 334.25 167.5 334.25 159.1 329.7 159.1 329.7 164.9 322.65 160.95 322.3 162.15 329.7 167 329.7 167.9 Z"/>
+					</g>
+					<g id="Layer34_0_FILL">
+						<path class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 334.05 207.05
+	L 350.65 176.7 322.1 160.45 302.1 192.05 334.05 207.05 Z"/>
+					</g>
+					<g id="Layer30_0_FILL">
+						<path id="windowFour" class="windows" stroke="none" fill="#975A42" d="
+	M 341.35 203.3
+	Q 340.9 203.45 340.5 203.8 340.1 204.2 339.85 204.75 339.7 205 339.7 205.3 339.6 205.75 339.7 206.1 339.7 206.15 339.7 206.2 339.8 206.5 340 206.8 340.55 207.4 341.45 207.4 342.35 207.4 343 206.8 343.4 206.5 343.65 206.1 343.85 205.75 343.95 205.3 344.05 204.4 343.55 203.8 343.3 203.45 343 203.3 342.65 203.15 342.2 203.15 341.8 203.15 341.35 203.3
+	M 355.85 198.45
+	Q 355.8 198.2 355.6 198 355.1 197.4 354.2 197.4 353.35 197.4 352.6 198 351.85 198.65 351.7 199.55 351.7 199.7 351.7 199.85 351.6 200.5 352 201.05 352.55 201.65 353.45 201.65 354.3 201.65 355.05 201.05 355.45 200.7 355.7 200.25 355.8 200.05 355.9 199.85 355.95 199.7 355.95 199.55 356.05 198.95 355.85 198.45 Z"/>
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 351.95 211.2
+	L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2
+	M 351.2 211.2
+	L 351.35 211.2 351.35 211.1 351.2 211.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer30_0_FILL" fill="#000000" fill-opacity="1" stroke="none" d="
+	M 183.7 215.3
+	L 183.7 215.6
+	Q 187.25 231.75 212.25 234.35
+	L 183.7 215.3 Z"/>
+					</g>
+					<g id="Layer29_0_FILL">
+						<path fill="#000000" fill-opacity="0.4" stroke="none" d="
+	M 305.1 216.85
+	L 305.15 217.2
+	Q 309.45 233.2 334.35 232.3
+	L 305.1 216.85 Z"/>
+					</g>
+					<g id="Layer27_0_FILL">
+						<path class="vegetation" fill="#78A950" stroke="none" d="
+	M 177.45 231.65
+	Q 175.75 235.35 181.8 239.35 185.5 235.7 185.15 231.3 182.8 230.65 181.45 234 179.45 231.3 177.45 231.65
+	M 236.9 266.6
+	Q 235.2 270.3 241.25 274.3 244.95 270.6 244.65 266.25 242.3 265.6 240.95 268.95 238.9 266.25 236.9 266.6
+	M 254.7 277
+	Q 253.05 280.7 259.1 284.75 262.75 281.05 262.45 276.65 260.1 276 258.75 279.35 256.7 276.65 254.7 277
+	M 315.5 245.75
+	Q 313.5 243.05 311.5 243.4 309.8 247.1 315.85 251.15 319.55 247.45 319.2 243.05 316.85 242.4 315.5 245.75
+	M 295.35 232.65
+	Q 293.7 236.35 299.75 240.4 303.45 236.7 303.1 232.3 300.75 231.65 299.4 235 297.4 232.3 295.35 232.65
+	M 277.2 171.85
+	Q 275.55 175.55 281.6 179.55 285.3 175.85 284.95 171.5 282.6 170.85 281.25 174.2 279.25 171.5 277.2 171.85 Z"/>
+					</g>
+					<g id="Layer26_0_FILL">
+						<path class="treeWood" fill="#AE663D" stroke="none" d="
+	M 175.1 177.55
+	L 172.05 177.55 172.05 191.1 159.3 172.85
+	Q 154.6 171.5 172.05 195.7
+	L 172.05 212.5 175.1 212.5 175.1 177.55
+	M 252.7 151.35
+	L 249 151.35 249 176.9 252.7 176.9 252.7 151.35 Z"/>
+					</g>
+					<g id="Layer25_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 192.55 179.55
+	Q 200.95 173.5 200.95 165.1 200.95 156.4 192.55 150 184.15 144.3 172.05 144.3 160.3 144.3 151.9 150 143.15 156.4 143.15 165.1 143.15 173.5 151.9 179.55 160.3 185.95 172.05 185.95 184.15 185.95 192.55 179.55
+	M 236.25 106.65
+	Q 230.2 116.05 230.2 129.15 230.2 142.25 236.25 151.35 242.3 160.75 250.7 160.75 258.75 160.75 264.8 151.35 270.85 142.25 270.85 129.15 270.85 116.05 264.8 106.65 258.75 97.6 250.7 97.6 242.3 97.6 236.25 106.65 Z"/>
+					</g>
+					<g id="Layer24_0_FILL">
+						<path class="vegetation" fill="#77A951" stroke="none" d="
+	M 158.3 221.9
+	Q 160.65 221.9 161.95 220.2 163 219.55 163.3 218.55 164.65 218.9 166.35 218.9 170.05 218.9 172.4 216.2 175.1 213.85 175.1 210.15 175.1 206.45 172.4 203.75 170.05 201.4 166.35 201.4 162.65 201.4 159.95 203.75 157.6 206.45 157.6 210.15 157.6 210.8 157.6 211.15 155.95 211.5 154.6 212.5 152.9 214.15 152.9 216.55 152.9 218.9 154.6 220.2 156.25 221.9 158.3 221.9
+	M 338.35 240.05
+	Q 341.05 237.7 341.05 234 341.05 230.3 338.35 227.6 336 225.25 332.3 225.25 328.65 225.25 325.95 227.6 323.6 230.3 323.6 234 323.6 237.7 325.95 240.05 328.65 242.75 332.3 242.75 336 242.75 338.35 240.05 Z"/>
+					</g>
+					<g id="Layer22_0_FILL">
+						<path class="rightRoof" fill="#D05041" stroke="none" d="
+	M 220 173.85
+	L 236.8 186.7 264.35 171.15 244.5 159.55 220 173.85 Z"/>
+					</g>
+					<g id="Layer21_0_FILL">
+						<path class="leftWall" fill="#C57F42" stroke="none" d="
+	M 212.25 191.35
+	L 183.35 172.3 183.7 215.3 212.25 234.35 212.25 191.35 Z"/>
+					</g>
+					<g id="Layer20_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 192.1 149.85
+	L 236.45 174.8 243.1 171.4
+	Q 220.05 150.55 196.3 139.95
+	L 192.1 149.85 Z"/>
+					</g>
+					<g id="Layer19_0_FILL">
+						<path class="frontFascia" fill="#EBB17B" stroke="none" d="
+	M 226.85 160.95
+	L 212 190.6 229.75 192.6 239.75 172.85 226.85 160.95 Z"/>
+					</g>
+					<g id="Layer18_0_FILL">
+						<path class="frontWall" fill="#EFA258" stroke="none" d="
+	M 240.15 172.65
+	L 211.9 191.6 212.25 233.65 264.35 201.7 264.35 170.8 240.8 184.45 240.15 172.65 Z"/>
+					</g>
+					<g id="Layer17_0_FILL">
+						<path class="rightRoof" fill="#EF4427" stroke="none" d="
+	M 210.9 142.2
+	L 205.9 142.2 205.9 152.65 210.9 152.65 210.9 142.2 Z"/>
+					</g>
+					<g>
+						<path id="Layer16_0_FILL" class="leftRoof" fill="#F2563B" stroke="none" d="
+	M 210.25 195.5
+	L 227.4 160.95 195.45 141.35 177.65 175.85 210.25 195.5 Z"/>
+					</g>
+					<g>
+						<path id="sun" fill="#E3BD0E" stroke="none" d="
+	M 257.05 15.95
+	Q 251.7 15.95 248 19.65 244.3 23.35 244.3 28.7 244.3 34.1 248 37.8 251.7 41.5 257.05 41.5 262.45 41.5 266.15 37.8 269.85 34.1 269.85 28.7 269.85 23.35 266.15 19.65 262.45 15.95 257.05 15.95 Z"/>
+					</g>
+					<g id="Layer8_0_FILL">
+						<path fill="#975A42" stroke="none" d="
+	M 238.45 189.65
+	Q 238.295703125 189.362109375 238.05 189.1 237.35 188.3 236.2 188.3 235.05 188.3 234.15 189.1 233.3 189.9 233.2 191.05 233.1 192.2 233.8 193 234.55 193.8 235.7 193.8 236.85 193.8 237.7 193 238.1970703125 192.558203125 238.45 192 238.6552734375 191.56484375 238.7 191.05 238.7671875 190.276953125 238.45 189.65
+	M 220.55 197.55
+	Q 220 197.55 219.5 197.75 218.95 197.95 218.5 198.35 217.933203125 198.8833984375 217.7 199.55 217.5833984375 199.916796875 217.55 200.3 217.4923828125 200.96171875 217.7 201.5 217.852734375 201.9103515625 218.15 202.25 218.95 203.05 220.1 203.05 221.25 203.05 222.05 202.25 222.95 201.45 223.05 200.3 223.15 199.15 222.4 198.35 222.05 197.95 221.65 197.75 221.15 197.55 220.55 197.55 Z"/>
+					</g>
+					<g id="Layer7_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 233.55 206.75
+	L 225.9 211.95 226.25 225.5 233.95 220.35 233.55 206.75 Z"/>
+					</g>
+					<g>
+						<path id="windowOne" class="windows" fill="#975A42" stroke="none" d="
+	M 188.65 198.4
+	L 188.8 204.1 198.65 210.45 198.55 204.75 188.65 198.4
+	M 208.45 216.8
+	L 208.35 211.1 198.55 204.75 198.65 210.45 208.45 216.8
+	M 188.8 204.1
+	L 188.95 209.8 198.8 216.15 198.65 210.45 188.8 204.1
+	M 208.6 222.5
+	L 208.45 216.8 198.65 210.45 198.8 216.15 208.6 222.5 Z"/>
+					</g>
+					<g>
+						<path id="windowThree" class="windows" fill="#975A42" stroke="none" d="
+	M 311.7 214.1
+	L 318.55 217.55 318.45 211.9 311.6 208.45 311.7 214.1
+	M 325.4 221
+	L 325.25 215.35 318.45 211.9 318.55 217.55 325.4 221
+	M 318.4 206.2
+	L 311.5 202.75 311.6 208.45 318.45 211.9 318.4 206.2
+	M 325.25 215.35
+	L 325.2 209.7 318.4 206.2 318.45 211.9 325.25 215.35 Z"/>
+					</g>
+					<g id="Layer2_0_FILL">
+						<path class="door" fill="#B65041" stroke="none" d="
+	M 259.7 183.25
+	L 244.6 191.9 244.6 213.8 259.7 204.55 259.7 183.25 Z"/>
+					</g>
+					<path id="windowTwo" fill="#975A42" class="windows" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" d="
+	M 223.05 200.3
+	Q 222.95 201.45 222.05 202.25 221.25 203.05 220.1 203.05 218.95 203.05 218.15 202.25 217.852734375 201.9103515625 217.7 201.5 217.4923828125 200.96171875 217.55 200.3 217.5833984375 199.916796875 217.7 199.575 217.933203125 198.8833984375 218.5 198.35 218.95 197.95 219.5 197.75 220 197.55 220.55 197.55 221.15 197.55 221.65 197.75 222.05 197.95 222.4 198.35 223.15 199.15 223.05 200.3 Z
+	M 238.7 191.05
+	Q 238.6552734375 191.56484375 238.45 192 238.1970703125 192.558203125 237.7 193 236.85 193.8 235.7 193.8 234.55 193.8 233.8 193 233.1 192.2 233.2 191.05 233.3 189.9 234.15 189.1 235.05 188.3 236.2 188.3 237.35 188.3 238.05 189.1 238.295703125 189.362109375 238.45 189.65 238.7671875 190.276953125 238.7 191.05 Z"/>
+					<path fill="#F2563B" stroke="none" d=" M 351.95 211.2 L 351.8 211.2 346.05 215.1 346.05 225.2 351.95 221.6 351.95 211.2 Z"/>
+					<path id="Layer6_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 198.55 204.75
+	L 208.35 211.1 208.45 216.8 208.6 222.5 198.8 216.15 188.95 209.8 188.8 204.1 188.65 198.4 198.55 204.75 198.65 210.45 208.45 216.8
+	M 198.8 216.15
+	L 198.65 210.45 188.8 204.1"/>
+					<path id="Layer5_0_1_STROKES" class="windowRims" stroke="#AE663D" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" fill="none" d="
+	M 325.25 215.35
+	L 325.4 221 318.55 217.55 311.7 214.1 311.6 208.45 311.5 202.75 318.4 206.2 325.2 209.7 325.25 215.35 318.45 211.9 318.55 217.55
+	M 318.4 206.2
+	L 318.45 211.9 311.6 208.45"/>
+				</defs>
+				<g id="shadow">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use xlink:href="#bottomShadow"/>
+					</g>
+				</g>
+				<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+					<use xlink:href="#sun"/>
+				</g>
+				<g id="earth">
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer52_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer51_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer50_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer48_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer47_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer46_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer45_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer44_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer43_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer41_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer40_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer38_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer37_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer36_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer35_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer34_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowFour"/>
+						<use class="element" xlink:href="#Layer32_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer30_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer27_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer26_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer25_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer24_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer22_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer21_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer20_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer19_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer18_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer17_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer16_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer8_0_FILL"/>
+						<use class="element" xlink:href="#windowTwo"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer7_0_FILL"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowOne"/>
+						<use class="element" xlink:href="#Layer6_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#windowThree"/>
+						<use class="element" xlink:href="#Layer5_0_1_STROKES"/>
+					</g>
+					<g transform="matrix( 1, 0, 0, 1, 0,0) ">
+						<use class="element" xlink:href="#Layer2_0_FILL"/>
+					</g>
+				</g>
+			</svg>
+			<! -- End of SVG file -->
+			<! -- Moon/Sun Toggle -->
+			<div id="toggleButton" class="day-toggle">
+				<div class="sun-icon"></div>
+				<label class="switch">
+            <input id="toggleCheckbox" type="checkbox">
+            <div class="slider"></div>
+        </label>
+				<div class="cloud-icon"></div>
+			</div>
+			<! -- Moon/Sun Toggle -->
+			<! -- End of Container -->
+		</div>
+			</div>
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">啷哩咯啷</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">人生如逆旅    我亦是行人</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="搜索..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/02/26/Babel是如何编译Async和Generator的/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="李斌">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/tx.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="啷哩咯啷">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Babel是如何编译Async和Generator的</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2020-02-26T22:47:57+08:00">
+                2020-02-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p> 面试官灵魂一问：<strong> 你知道 Babel 是如何编译 <code>Async/Generator</code>的吗？</strong></p>
+<p><img src="/2020/02/26/Babel是如何编译Async和Generator的/3.png" alt></p>
+<h2 id="polyfill-后的代码"><a href="#polyfill-后的代码" class="headerlink" title="polyfill 后的代码"></a>polyfill 后的代码</h2><p>既然想知道其原理，那么自然是要看下 <code>polyfill</code>后的代码的，直接到 <a href="https://babeljs.io/repl" target="_blank" rel="noopener">Babel官网的REPL在线编辑器</a>上，配置好 <code>presets</code> 和 <code>plugins</code>后，输入你想要转化的代码，<code>babel</code>自动就会给你输出转化后的代码了</p>
+<p>以下述代码为例：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">test1</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">111</span>)</span><br><span class="line">  <span class="keyword">await</span> a()</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">222</span>)</span><br><span class="line">  <span class="keyword">await</span> b()</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">3</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>babel</code>输出的代码是：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">"use strict"</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> _interopRequireDefault = <span class="built_in">require</span>(<span class="string">"@babel/runtime/helpers/interopRequireDefault"</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> _regenerator = _interopRequireDefault(<span class="built_in">require</span>(<span class="string">"@babel/runtime/regenerator"</span>));</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> _asyncToGenerator2 = _interopRequireDefault(<span class="built_in">require</span>(<span class="string">"@babel/runtime/helpers/asyncToGenerator"</span>));</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">test1</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> _test.apply(<span class="keyword">this</span>, <span class="built_in">arguments</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_test</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  _test = (<span class="number">0</span>, _asyncToGenerator2.default)(</span><br><span class="line">  <span class="comment">/*#__PURE__*/</span></span><br><span class="line">  _regenerator.default.mark(<span class="function"><span class="keyword">function</span> <span class="title">_callee</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> _regenerator.default.wrap(<span class="function"><span class="keyword">function</span> <span class="title">_callee$</span>(<span class="params">_context</span>) </span>&#123;</span><br><span class="line">      <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">switch</span> (_context.prev = _context.next) &#123;</span><br><span class="line">          <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="number">111</span>);</span><br><span class="line">            _context.next = <span class="number">3</span>;</span><br><span class="line">            <span class="keyword">return</span> a();</span><br><span class="line"></span><br><span class="line">          <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="number">222</span>);</span><br><span class="line">            _context.next = <span class="number">6</span>;</span><br><span class="line">            <span class="keyword">return</span> b();</span><br><span class="line"></span><br><span class="line">          <span class="keyword">case</span> <span class="number">6</span>:</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="number">3</span>);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">case</span> <span class="number">7</span>:</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"end"</span>:</span><br><span class="line">            <span class="keyword">return</span> _context.stop();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;, _callee);</span><br><span class="line">  &#125;));</span><br><span class="line">  <span class="keyword">return</span> _test.apply(<span class="keyword">this</span>, <span class="built_in">arguments</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>很明显，<code>_test</code>函数中 <code>while(1)</code>方法体的内容，是需要首先注意的代码</p>
+<p>可以看出来，<code>babel</code>把原代码进行了一次分割，按照 <code>await</code>为界限，将 <code>async</code>函数中的代码分割到了 <code>switch</code>的每个 <code>case</code>中（为了表述方便，下文将此 <code>case</code>代码块中的内容称作 <code>await</code>代码块），<br><code>switch</code>的条件是 <code>_context.prev = _context.next</code>，与 <code>_context.next</code>紧密相关，而 <code>_context.next</code>这个变量，会在每个非 <code>case end</code>中被赋值，值就是原代码中被分割后的下一个将要执行的 <code>await</code>代码块的内容，当原代码中的所有 <code>await</code>被执行完毕后，会进入 <code>case end</code>逻辑，执行 <code>return _context.stop()</code>，代表 <code>async</code>函数已经执行完毕</p>
+<p>但这只是最基本的，代码到底是怎么串连起来的，还要继续往外看</p>
+<blockquote>
+<p>下文讲解的源代码版本：”@babel/runtime”: “^7.8.4”</p>
+</blockquote>
+<h2 id="流程串连"><a href="#流程串连" class="headerlink" title="流程串连"></a>流程串连</h2><p>首先，需要看下 <code>_interopRequireDefault</code>这个方法：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_interopRequireDefault</span>(<span class="params">obj</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> obj &amp;&amp; obj.__esModule ? obj : &#123;</span><br><span class="line">    <span class="string">"default"</span>: obj</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">module</span>.exports = _interopRequireDefault;</span><br></pre></td></tr></table></figure>
+<p>代码很简单，如果参数 <code>obj</code>上存在 <code>__esModule</code>这个属性，则直接返回 <code>obj</code>，否则返回一个属性 <code>default</code>为 <code>obj</code>的对象，其实这个主要就是为了兼容 <code>ESModule</code> 和 <code>CommonJS</code>这两种导入导出规范，保证当前的引用一定存在一个 <code>default</code> 属性，否则没有则为其加一个 <code>default</code>属性，这样便不会出现模块的 <code>default</code> 为 <code>undefined</code>的情况了，就是一个简单的工具方法</p>
+<p>然后继续看 <code>_regenerator</code>，<code>while(1)</code>这个循环体所在的函数，作为 <code>_regenerator.default.wrap</code>方法的参数被执行，<code>_regenerator</code>是从 <code>@babel/runtime/regenerator</code>引入的，进入 <code>@babel/runtime/regenerator</code>文件， 里面只有一行代码 ：<code>module.exports = require(&quot;regenerator-runtime&quot;);</code>，所以最终应该是 <code>regenerator-runtime</code>库，直接找 <code>wrap</code>方法</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">wrap</span>(<span class="params">innerFn, outerFn, self, tryLocsList</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// If outerFn provided and outerFn.prototype is a Generator, then outerFn.prototype instanceof Generator.</span></span><br><span class="line">  <span class="keyword">var</span> protoGenerator = outerFn &amp;&amp; outerFn.prototype <span class="keyword">instanceof</span> Generator ? outerFn : Generator;</span><br><span class="line">  <span class="keyword">var</span> generator = <span class="built_in">Object</span>.create(protoGenerator.prototype);</span><br><span class="line">  <span class="keyword">var</span> context = <span class="keyword">new</span> Context(tryLocsList || []);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// The ._invoke method unifies the implementations of the .next,</span></span><br><span class="line">  <span class="comment">// .throw, and .return methods.</span></span><br><span class="line">  generator._invoke = makeInvokeMethod(innerFn, self, context);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> generator;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>innerFn</code> 是 <code>_callee$</code>， <code>outerFn</code> 是 <code>_callee</code>， <code>outerFn.prototype</code>也就是 <code>_callee.prototype</code>，<code>_callee</code>也是一个函数，但是经过了 <code>_regenerator.default.mark</code> 这个方法的处理，看下 <code>mark</code>方法</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">exports.mark = <span class="function"><span class="keyword">function</span>(<span class="params">genFun</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (<span class="built_in">Object</span>.setPrototypeOf) &#123;</span><br><span class="line">    <span class="built_in">Object</span>.setPrototypeOf(genFun, GeneratorFunctionPrototype);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    genFun.__proto__ = GeneratorFunctionPrototype;</span><br><span class="line">    <span class="keyword">if</span> (!(toStringTagSymbol <span class="keyword">in</span> genFun)) &#123;</span><br><span class="line">      genFun[toStringTagSymbol] = <span class="string">"GeneratorFunction"</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  genFun.prototype = <span class="built_in">Object</span>.create(Gp);</span><br><span class="line">  <span class="keyword">return</span> genFun;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>主要就是为了构造原型链，<code>GeneratorFunctionPrototype</code>以及 <code>Gp</code>又是什么呢？</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">Generator</span>(<span class="params"></span>) </span>&#123;&#125;</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">GeneratorFunction</span>(<span class="params"></span>) </span>&#123;&#125;</span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">GeneratorFunctionPrototype</span>(<span class="params"></span>) </span>&#123;&#125;</span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"><span class="keyword">var</span> IteratorPrototype = &#123;&#125;;</span><br><span class="line"><span class="comment">//...</span></span><br><span class="line"><span class="keyword">var</span> Gp = GeneratorFunctionPrototype.prototype = Generator.prototype = <span class="built_in">Object</span>.create(IteratorPrototype);</span><br></pre></td></tr></table></figure>
+<p>还是构建原型链，最终如下：<br><img src="/2020/02/26/Babel是如何编译Async和Generator的/1.png" alt><br>所以，回到上面的 <code>wrap</code>方法，<code>protoGenerator</code>就是 <code>outerFn</code>，也就是<code>_callee</code>，<code>generator</code> 的原型链指向 <code>protoGenerator.prototype</code><br>这里有个 <code>context</code>实例，由 <code>Context</code>构造而来在：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">Context</span>(<span class="params">tryLocsList</span>) </span>&#123;</span><br><span class="line">  <span class="comment">// The root entry object (effectively a try statement without a catch</span></span><br><span class="line">  <span class="comment">// or a finally block) gives us a place to store values thrown from</span></span><br><span class="line">  <span class="comment">// locations where there is no enclosing try statement.</span></span><br><span class="line">  <span class="keyword">this</span>.tryEntries = [&#123; <span class="attr">tryLoc</span>: <span class="string">"root"</span> &#125;];</span><br><span class="line">  tryLocsList.forEach(pushTryEntry, <span class="keyword">this</span>);</span><br><span class="line">  <span class="keyword">this</span>.reset(<span class="literal">true</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>主要看下 <code>reset</code>方法：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//...</span></span><br><span class="line">Context.prototype = &#123;</span><br><span class="line">  <span class="keyword">constructor</span>: Context,</span><br><span class="line">  reset: function(skipTempReset) &#123;</span><br><span class="line">    <span class="keyword">this</span>.prev = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">this</span>.next = <span class="number">0</span>;</span><br><span class="line">    <span class="comment">// Resetting context._sent for legacy support of Babel's// function.sent implementation.this.sent = this._sent = undefined;</span></span><br><span class="line">    <span class="keyword">this</span>.done = <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">this</span>.delegate = <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">this</span>.method = <span class="string">"next"</span>;</span><br><span class="line">    <span class="keyword">this</span>.arg = <span class="literal">undefined</span>;</span><br><span class="line">    <span class="comment">//...</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="comment">//...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>很明显，<code>reset</code>方法的作用就和其属性名一样，是为了初始化一些属性，主要的属性有 <code>this.prev</code>、<code>this.next</code>，用于交替记录当前执行到哪些代码块了，<code>this.done</code>，用于标识当前代码块是否执行完毕，先不细说，后面会提到</p>
+<p>然后 <code>generator</code>上挂载了一个 <code>_invoke</code>方法<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// The ._invoke method unifies the implementations of the .next,</span></span><br><span class="line"><span class="comment">// .throw, and .return methods.</span></span><br><span class="line">generator._invoke = makeInvokeMethod(innerFn, self, context);</span><br></pre></td></tr></table></figure></p>
+<p>看下 <code>makeInvokeMethod</code>的代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">makeInvokeMethod</span>(<span class="params">innerFn, self, context</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">var</span> state = GenStateSuspendedStart;</span><br><span class="line">  <span class="keyword">return</span> <span class="function"><span class="keyword">function</span> <span class="title">invoke</span>(<span class="params">method, arg</span>) </span>&#123;</span><br><span class="line">    <span class="comment">//...</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>粗略来看，此方法又返回了一个方法，至于方法体里是什么，暂时先不管，继续往下看</p>
+<p><code>_regenerator.default.mark(function _callee() {//...})</code>作为 <code>_asyncToGenerator2.default</code>方法的参数执行，所以继续看 <code>_asyncToGenerator2</code>：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">_asyncToGenerator</span>(<span class="params">fn</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">var</span> self = <span class="keyword">this</span>,</span><br><span class="line">        args = <span class="built_in">arguments</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="keyword">function</span> (<span class="params">resolve, reject</span>) </span>&#123;</span><br><span class="line">      <span class="keyword">var</span> gen = fn.apply(self, args);</span><br><span class="line"></span><br><span class="line">      <span class="function"><span class="keyword">function</span> <span class="title">_next</span>(<span class="params">value</span>) </span>&#123;</span><br><span class="line">        asyncGeneratorStep(gen, resolve, reject, _next, _throw, <span class="string">"next"</span>, value);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="function"><span class="keyword">function</span> <span class="title">_throw</span>(<span class="params">err</span>) </span>&#123;</span><br><span class="line">        asyncGeneratorStep(gen, resolve, reject, _next, _throw, <span class="string">"throw"</span>, err);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      _next(<span class="literal">undefined</span>);</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>_asyncToGenerator</code>同样返回了一个函数，这个函数内部又返回了一个 <code>Promise</code>，这对应着 <code>async</code>函数也是返回一个 <code>promise</code>， 通过<code>_next</code>调用 <code>asyncGeneratorStep</code>：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">asyncGeneratorStep</span>(<span class="params">gen, resolve, reject, _next, _throw, key, arg</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">var</span> info = gen[key](arg);</span><br><span class="line">    <span class="keyword">var</span> value = info.value;</span><br><span class="line">  &#125; <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">    reject(error);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (info.done) &#123;</span><br><span class="line">    resolve(value);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="built_in">Promise</span>.resolve(value).then(_next, _throw);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>参数 <code>gen</code>其实就是上面提到过的 <code>generator</code>，正常情况下，<code>key</code>是 <code>&quot;next&quot;</code>， <code>gen[key](arg);</code> 相当于 <code>generator.next(arg)</code>， <code>generator</code>上哪来的 <code>next</code>属性呢？其实是通过原型链找到 <code>Gp</code>，在<code>Gp</code>上就存在 <code>next</code>这个属性：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Helper for defining the .next, .throw, and .return methods of the</span></span><br><span class="line"><span class="comment">// Iterator interface in terms of a single ._invoke method.</span></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">defineIteratorMethods</span>(<span class="params">prototype</span>) </span>&#123;</span><br><span class="line">  [<span class="string">"next"</span>, <span class="string">"throw"</span>, <span class="string">"return"</span>].forEach(<span class="function"><span class="keyword">function</span>(<span class="params">method</span>) </span>&#123;</span><br><span class="line">    prototype[method] = <span class="function"><span class="keyword">function</span>(<span class="params">arg</span>) </span>&#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">this</span>._invoke(method, arg);</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//...</span></span><br><span class="line">defineIteratorMethods(Gp);</span><br></pre></td></tr></table></figure>
+<p>这个的 <code>this._invoke(method, arg);</code>，其实就是 <code>generator._invoke(&quot;next&quot;, arg)</code></p>
+<p>所以，现在再来看一下 <code>makeInvokeMethod</code>方法返回的 <code>invoke</code>方法，按照正常逻辑会走这一段代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">tryCatch</span>(<span class="params">fn, obj, arg</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123; <span class="attr">type</span>: <span class="string">"normal"</span>, <span class="attr">arg</span>: fn.call(obj, arg) &#125;;</span><br><span class="line">  &#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">    <span class="keyword">return</span> &#123; <span class="attr">type</span>: <span class="string">"throw"</span>, <span class="attr">arg</span>: err &#125;;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//...</span></span><br><span class="line"><span class="keyword">var</span> record = tryCatch(innerFn, self, context);</span><br><span class="line"><span class="keyword">if</span> (record.type === <span class="string">"normal"</span>) &#123;</span><br><span class="line">  <span class="comment">// If an exception is thrown from innerFn, we leave state ===</span></span><br><span class="line">  <span class="comment">// GenStateExecuting and loop back for another invocation.</span></span><br><span class="line">  state = context.done</span><br><span class="line">    ? GenStateCompleted</span><br><span class="line">    : GenStateSuspendedYield;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (record.arg === ContinueSentinel) &#123;</span><br><span class="line">    <span class="keyword">continue</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> &#123;</span><br><span class="line">    value: record.arg,</span><br><span class="line">    done: context.done</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>执行 <code>tryCatch</code>方法，返回了一个存在两个属性 <code>value</code>、<code>done</code>的对象，其中 <code>tryCatch</code>的第一个参数 <code>fn</code>，就是包含 <code>while(1)</code>代码段的 <code>_callee$</code>方法，这样，整个流程就串起来了</p>
+<h2 id="流程解析"><a href="#流程解析" class="headerlink" title="流程解析"></a>流程解析</h2><p><img src="/2020/02/26/Babel是如何编译Async和Generator的/2.png" alt><br>在 <code>while(1)</code>的循环体中，<code>_context</code>参数就是 <code>Context</code>的实例，上面提到过，<code>_context</code>上的 <code>prev</code>和 <code>next</code>属性都被初始化为 <code>0</code>，所以会进入 <code>case 0</code>这个代码块，执行第一块 <code>await</code>代码块，得到<code>info</code>结果，判断 <code>info.done</code>的值</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (info.done) &#123;</span><br><span class="line">  resolve(value);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="built_in">Promise</span>.resolve(value).then(_next, _throw);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>保证原<code>async</code>函数中所有 <code>await</code>代码体全部执行完毕的逻辑就在此处</p>
+<p>如果 <code>info.done</code>不为 <code>true</code>，说明 原<code>async</code>函数中<code>await</code>代码体还没有全部执行完毕，进入 <code>else</code>语句，利用 <code>Promise.resolve</code>来等待当前的 <code>await</code>代码块的 <code>promise</code>状态改变，然后调用 <code>then</code>方法，通过执行 <code>_next</code>方法来调用 <code>asyncGeneratorStep</code>，继续执行 <code>_callee$</code>，再次走 <code>switch</code>代码段，根据更新后的 <code>_context_prev</code>来指示进入下一个 <code>case</code>，以此循环，当所有的 <code>await</code>代码段执行完毕后，会进入 <code>case &#39;end&#39;</code>，执行 <code>_context.stop();</code>这个东西</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">Context.prototype = &#123;</span><br><span class="line">  <span class="keyword">constructor</span>: Context,</span><br><span class="line">  //...</span><br><span class="line">  stop: function() &#123;</span><br><span class="line">    <span class="keyword">this</span>.done = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> rootEntry = <span class="keyword">this</span>.tryEntries[<span class="number">0</span>];</span><br><span class="line">    <span class="keyword">var</span> rootRecord = rootEntry.completion;</span><br><span class="line">    <span class="keyword">if</span> (rootRecord.type === <span class="string">"throw"</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> rootRecord.arg;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.rval;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="comment">//...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>stop</code>方法中，主要就是设置 <code>this.done</code>为 <code>true</code>，标识当前异步代码段已经执行完毕，当下次再执行  <code>asyncGeneratorStep</code>的时候，进入：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (info.done) &#123;</span><br><span class="line">  resolve(value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>不再继续调用 <code>_next</code>，流程结束</p>
+<p>其实当时面试的时候，面试官问我 <code>async/await</code>的实现原理，我第一反应就是 <code>Promise</code>，但紧接着我又想到 <code>Promise</code>属于 <code>ES6</code>，<code>polyfill</code>这个东西最起码也得是 <code>ES5</code>啊，所以我又放弃了这个想法，万万没想到，还可以双层 <code>polyfill</code></p>
+<h2 id="简易版实现"><a href="#简易版实现" class="headerlink" title="简易版实现"></a>简易版实现</h2><p>通过上述分析可知，<code>Babel</code>对于 <code>async/await</code>的 <code>polyfill</code>其实主要就是 <code>Promise + 自调用函数</code>，当然，前提是需要通过字符串解析器，将 <code>async</code>函数的按照 <code>await</code>为分割点进行切分，这个字符串解析器涉及到的东西比较多，比如词法分析、语法分析啦，一般都会借助 <a href="https://babeljs.io/docs/en/babel-parser" target="_blank" rel="noopener">@babel/parser</a>/<a href="https://babeljs.io/docs/en/babel-generator" target="_blank" rel="noopener">@babel/generator</a>/<a href="https://babeljs.io/docs/en/babel-traverse" target="_blank" rel="noopener">@babel/traverse</a> 系列，但这不是本文的重点，所以就不展开了</p>
+<p>假设已经实现了一个解析器，能够将传入的 <code>async</code>函数按照要求分割成几部分</p>
+<p>比如，对于以下源码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// wait() 是一个返回 promise 的函数</span></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">test1</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">111</span>)</span><br><span class="line">  <span class="keyword">await</span> wait(<span class="number">500</span>)</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">222</span>)</span><br><span class="line">  <span class="keyword">await</span> wait(<span class="number">1000</span>)</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">333</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>将被转化为：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">test1</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">this</span>.prev = <span class="number">0</span></span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function"><span class="params">resolve</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">function</span> <span class="title">loop</span>(<span class="params">value, _next</span>) </span>&#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="built_in">Promise</span>.resolve(value).then(_next)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">function</span> <span class="title">fn1</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">      <span class="keyword">switch</span> (<span class="keyword">this</span>.prev) &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">          <span class="built_in">console</span>.log(<span class="number">111</span>);</span><br><span class="line">          <span class="keyword">this</span>.prev = <span class="number">3</span>;</span><br><span class="line">          <span class="keyword">return</span> loop(wait(<span class="number">500</span>), fn1);</span><br><span class="line">        <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">          <span class="built_in">console</span>.log(<span class="number">222</span>);</span><br><span class="line">          <span class="keyword">this</span>.prev = <span class="number">6</span>;</span><br><span class="line">          <span class="keyword">return</span> loop(wait(<span class="number">1000</span>), fn1);</span><br><span class="line">        <span class="keyword">case</span> <span class="number">6</span>:</span><br><span class="line">          <span class="built_in">console</span>.log(<span class="number">333</span>);</span><br><span class="line">          <span class="keyword">return</span> resolve()</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    fn1(resolve)</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当然，这只是简易实现，很多东西都没有考虑到，比如 <code>await</code>返回值啊，函数返回值啊等，只是为了体现其原理</p>
+<h2 id="for-循环？"><a href="#for-循环？" class="headerlink" title="for 循环？"></a>for 循环？</h2><p>当时面试的时候，当我滔滔不绝地说完了 异步函数队列化执行的模式 这个概念后，面试官可能没想到我居然在明知道自己是在猜的情况还能心态这么好地说了那么多，沉默了片刻后，似乎是想打压一下我嚣张的气焰，又问，如果是 <code>for</code>循环呢，怎么处理？</p>
+<p>类似于以下代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">function</span> <span class="title">fn1</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">    <span class="keyword">await</span> wait(i * <span class="number">100</span>)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当时我其实已经知道猜错了，但既然猜了那就猜到底，自己装的逼无论如何也要圆回来啊，于是继续用这个概念强行解释了一通</p>
+<p>实际上当时我对于 <code>for</code>循环的这个处理，思路上是对的，就是将 <code>for</code>循环拆解，拿到 单次表达式;条件表达式;末尾循环体 这个三个表达式，然后不断改变 条件表达式，直到触发末尾循环体，<code>babel</code>的处理结果如下：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 只看主体代码</span></span><br><span class="line"><span class="keyword">switch</span> (_context.prev = _context.next) &#123;</span><br><span class="line">  <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">    i = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">    <span class="keyword">if</span> (!(i &lt; <span class="number">10</span>)) &#123;</span><br><span class="line">      _context.next = <span class="number">7</span>;</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    _context.next = <span class="number">4</span>;</span><br><span class="line">    <span class="keyword">return</span> wait(i * <span class="number">100</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">case</span> <span class="number">4</span>:</span><br><span class="line">    i++;</span><br><span class="line">    _context.next = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">case</span> <span class="number">7</span>:</span><br><span class="line">  <span class="keyword">case</span> <span class="string">"end"</span>:</span><br><span class="line">    <span class="keyword">return</span> _context.stop();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这就揭示了 <code>async/await</code>函数的一个特性，那就是它具备暂停 <code>for</code>循环的能力，即对 <code>for</code>循环有效</p>
+<h2 id="Generator"><a href="#Generator" class="headerlink" title="Generator?"></a>Generator?</h2><p>既然看完了 <code>async/await</code>的实现，那么顺便看下 <code>Generator</code><br>对于下述代码：<br><figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span>* <span class="title">generatorFn</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">111</span>)</span><br><span class="line">  <span class="keyword">yield</span> wait(<span class="number">500</span>)</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">222</span>)</span><br><span class="line">  <span class="keyword">yield</span> wait(<span class="number">1000</span>)</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="number">333</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>Babel</code>将其转化为：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">"use strict"</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> _interopRequireDefault = <span class="built_in">require</span>(<span class="string">"@babel/runtime/helpers/interopRequireDefault"</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> _regenerator = _interopRequireDefault(<span class="built_in">require</span>(<span class="string">"@babel/runtime/regenerator"</span>));</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> _marked =</span><br><span class="line"><span class="comment">/*#__PURE__*/</span></span><br><span class="line">_regenerator.default.mark(generatorFn);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">generatorFn</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="keyword">return</span> _regenerator.default.wrap(<span class="function"><span class="keyword">function</span> <span class="title">generatorFn$</span>(<span class="params">_context</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">      <span class="keyword">switch</span> (_context.prev = _context.next) &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">          <span class="built_in">console</span>.log(<span class="number">111</span>);</span><br><span class="line">          _context.next = <span class="number">3</span>;</span><br><span class="line">          <span class="keyword">return</span> wait(<span class="number">500</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">          <span class="built_in">console</span>.log(<span class="number">222</span>);</span><br><span class="line">          _context.next = <span class="number">6</span>;</span><br><span class="line">          <span class="keyword">return</span> wait(<span class="number">1000</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">case</span> <span class="number">6</span>:</span><br><span class="line">          <span class="built_in">console</span>.log(<span class="number">333</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">case</span> <span class="number">7</span>:</span><br><span class="line">        <span class="keyword">case</span> <span class="string">"end"</span>:</span><br><span class="line">          <span class="keyword">return</span> _context.stop();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;, _marked);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这套路跟 <code>async/await</code>一样啊，也是把原代码进行切分，只不过<code>Generator</code>是按照 <code>yield</code>关键字切分的，最主要的区别是，转化后的代码相对于 <code>async/await</code>的来说，少了 <code>_asyncToGenerator2</code>这个方法的调用，而这个方法其实是为了自调用执行使用的，这同时也是 <code>async/await</code> 和 <code>Generator</code>的区别所在</p>
+<p><code>async</code>函数中，只要<code>await</code>后面的表达式返回的值是一个非<code>Promise</code>或者<code>fulfilled</code>态的 <code>Promise</code>，那么<code>async</code>函数就会自动继续往下执行，这在 <code>polyfill</code>中的表现就是一个自调用方法</p>
+<p>至于 <code>Generator</code>函数想要在遇到 <code>yield</code>之后继续执行，就必须要在外部手动调用 <code>next</code>方法，而调用的这个<code>next</code>，实际上在 <code>async/await</code>的 <code>polyfill</code>中就是由 <code>_asyncToGenerator2</code>来自动调用的</p>
+<p>除此之外，因为是手动调用，如果你不额外增加对异步 <code>promise</code>的处理，那么 <code>Generator</code>本身是不会等待 <code>promise</code>状态变化的，之所以说 <code>async/await</code>是 <code>Generator</code> 函数的语法糖，部分原因就在于 <code>async/await</code>相比于 <code>Generator</code>来说，已经内置了对异步 <code>promise</code>的处理.</p>
+<h2 id="原文出处"><a href="#原文出处" class="headerlink" title="原文出处"></a>原文出处</h2><h3 id="转自从源码看Babel是如何编译Async和Generator函数的"><a href="#转自从源码看Babel是如何编译Async和Generator函数的" class="headerlink" title="转自从源码看Babel是如何编译Async和Generator函数的"></a>转自<a href="https://juejin.im/post/5e534b7d6fb9a07cb83e20f2" target="_blank" rel="noopener">从源码看Babel是如何编译Async和Generator函数的</a></h3>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/02/02/一道面试题引发的思考6/" rel="next" title="一道面试题引发的思考6">
+                <i class="fa fa-chevron-left"></i> 一道面试题引发的思考6
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/tx.jpg" alt="李斌">
+            
+              <p class="site-author-name" itemprop="name">李斌</p>
+              <p class="site-description motion-element" itemprop="description">人生如逆旅     我亦是行人</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">202</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">121</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/libin1991" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="https://juejin.im/user/57e737f6c4c971005f6bcd8d" target="_blank" title="juejin">
+                      
+                        <i class="fa fa-fw fa-spinner"></i>juejin</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#polyfill-后的代码"><span class="nav-number">1.</span> <span class="nav-text">polyfill 后的代码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#流程串连"><span class="nav-number">2.</span> <span class="nav-text">流程串连</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#流程解析"><span class="nav-number">3.</span> <span class="nav-text">流程解析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#简易版实现"><span class="nav-number">4.</span> <span class="nav-text">简易版实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#for-循环？"><span class="nav-number">5.</span> <span class="nav-text">for 循环？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Generator"><span class="nav-number">6.</span> <span class="nav-text">Generator?</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#原文出处"><span class="nav-number">7.</span> <span class="nav-text">原文出处</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#转自从源码看Babel是如何编译Async和Generator函数的"><span class="nav-number">7.1.</span> <span class="nav-text">转自从源码看Babel是如何编译Async和Generator函数的</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">李斌</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+  <!--
+  	描述：点击红心
+  -->
+  <script type="text/javascript" src="/js/src/clicklove.js"></script>
+  <!--
+  	描述：复制代码
+  -->
+  <script type="text/javascript" src="/js/src/clipboard.min.js"></script>
+  <script type="text/javascript" src="/js/src/clipboard-use.js"></script>
+</body>
+</html>
+
+
